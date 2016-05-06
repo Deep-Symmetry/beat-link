@@ -51,6 +51,13 @@ objects describing the devices that were heard from.
 
 :point_right: To be finished!
 
+## Research
+
+This project is being developed with the help of
+[dysentery](https://github.com/brunchboy/dysentery). Check that out
+for details of the packets and protocol, and for ways you can help
+figure out more.
+
 ## License
 
 <img align="right" alt="Deep Symmetry" src="assets/DS-logo-bw-200-padded-left.png">
