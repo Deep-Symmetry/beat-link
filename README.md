@@ -8,6 +8,8 @@ A Java library for synchronizing with beats from Pioneer DJ Link equipment.
 
 Beat-link is available through Maven Central, so to use it in your
 Maven project, all you need is to include the appropriate dependency.
+*Note: The first release has not yet been deployed yet! This section
+will become accurate as soon as that happens, in the next day or so.*
 
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.deepsymmetry/beat-link/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.deepsymmetry/beat-link)
 
