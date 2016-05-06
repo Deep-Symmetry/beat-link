@@ -1,10 +1,8 @@
 package org.deepsymmetry.beatlink;
 
+import java.awt.*;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
+import java.net.*;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,7 +34,7 @@ public class DeviceFinder {
     /**
      * Check whether we are presently listening for device announcements.
      *
-     * @return true if our socket is open and monitoring for DJ Link devices announcements on the network.
+     * @return true if our socket is open and monitoring for DJ Link devices announcements on the network
      */
     public static synchronized boolean isActive() {
         return socket != null;
@@ -56,16 +54,28 @@ public class DeviceFinder {
         while (it.hasNext()) {
             Map.Entry<InetAddress, DeviceAnnouncement> entry = it.next();
             if (now - entry.getValue().getTimestamp() > MAXIMUM_AGE) {
+                deliverLostAnnouncement(entry.getValue());
                 it.remove();
             }
         }
     }
 
     /**
+     * Check whether a device is already known, or if it is newly found.
+     *
+     * @param announcement the message from the device to be considered
+     *
+     * @return true if we have already seen messages from this device
+     */
+    private static synchronized boolean isDeviceKnown(DeviceAnnouncement announcement) {
+        return devices.containsKey(announcement.getAddress());
+    }
+
+    /**
      * Start listening for device announcements and keeping track of the DJ Link devices visible on the network.
      * If already listening, has no effect.
      *
-     * @throws SocketException if the socket to listen on port 50000 cannot be created.
+     * @throws SocketException if the socket to listen on port 50000 cannot be created
      */
     public static synchronized void start() throws SocketException {
 
@@ -77,9 +87,18 @@ public class DeviceFinder {
             Thread receiver = new Thread(new Runnable() {
                 @Override
                 public void run() {
+                    boolean received;
                     while (isActive()) {
                         try {
+                            if (currentDevices().isEmpty()) {
+                                socket.setSoTimeout(0);  // We have no devices to check for timeout; block indefinitely
+                            } else {
+                                socket.setSoTimeout(1000);  // Check every second to see if a device has vanished
+                            }
+                            received = true;
                             socket.receive(packet);
+                        } catch (SocketTimeoutException ste) {
+                            received = false;
                         } catch (IOException e) {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
                             if (isActive()) {
@@ -87,14 +106,19 @@ public class DeviceFinder {
                                 logger.log(Level.WARNING, "Problem reading from DeviceAnnouncement socket, stopping", e);
                                 stop();
                             }
+                            received = false;
                         }
                         try {
-                            if (packet.getLength() == 54) {  // Looks like the kind of packet we are watching for
+                            if (received && (packet.getLength() == 54)) {  // Looks like the kind of packet we need
                                 DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
+                                if (!isDeviceKnown(announcement)) {
+                                    deliverFoundAnnouncement(announcement);
+                                }
                                 devices.put(announcement.getAddress(), announcement);
                             }
+                            expireDevices();
                         } catch (Exception e) {
-                            logger.log(Level.WARNING, "Problem parsing DeviceAnnouncement packet", e);
+                            logger.log(Level.WARNING, "Problem processing DeviceAnnouncement packet", e);
                         }
                     }
                 }
@@ -116,17 +140,97 @@ public class DeviceFinder {
     }
 
     /**
-     * Get the list of devices which currently can be seen on the network.
+     * Get the set of DJ Link devices which currently can be seen on the network.
      *
-     * @return the DJ Link devices which have been heard from recently enough to be considered active.
+     * @return the devices which have been heard from recently enough to be considered active
      */
-    public static List<DeviceAnnouncement> currentDevices() {
+    public static Set<DeviceAnnouncement> currentDevices() {
         expireDevices();
-        return Collections.unmodifiableList(new ArrayList<DeviceAnnouncement>(devices.values()));
+        return Collections.unmodifiableSet(new HashSet<DeviceAnnouncement>(devices.values()));
     }
 
     /**
-     * Prevent insantiation.
+     * Keeps track of the registered device announcement listeners.
+     */
+    private static final Set<DeviceAnnouncementListener> listeners = new HashSet<DeviceAnnouncementListener>();
+
+    /**
+     * Adds the specified device announcement listener to receive device announcements when DJ Link devices
+     * are found on or leave the network. If {@code listener} is {@code null} or already present in the list
+     * of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the device announcement listener to add
+     */
+    public static synchronized void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+        if (listener != null) {
+            listeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified device announcement listener so that it no longer receives device announcements when
+     * DJ Link devices are found on or leave the network. If {@code listener} is {@code null} or not present
+     * in the list of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the device announcement listener to remove
+     */
+    public static synchronized void removeDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+        if (listener != null) {
+            listeners.remove(listener);
+        }
+    }
+
+    /**
+     * Get the set of device announcement listeners that are currently registered.
+     *
+     * @return the currently registered device announcement listeners
+     */
+    public static synchronized Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
+        return Collections.unmodifiableSet(new HashSet<DeviceAnnouncementListener>(listeners));
+    }
+
+    /**
+     * Send a device found announcement to all registered listeners.
+     *
+     * @param announcement the message announcing the new device.
+     */
+    private static void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
+        for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
+            EventQueue.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        listener.deviceFound(announcement);
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Problem delivering device found announcement to listener", e);
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Send a device lost announcement to all registered listeners.
+     *
+     * @param announcement the last message received from the vanished device
+     */
+    private static void deliverLostAnnouncement(final DeviceAnnouncement announcement) {
+        for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
+            EventQueue.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        listener.deviceLost(announcement);
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Problem delivering device lost announcement to listener", e);
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Prevent instantiation.
      */
     private DeviceFinder() {
         // Nothing to do.

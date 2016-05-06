@@ -38,7 +38,7 @@ public class DeviceAnnouncement {
     /**
      * Constructor simply sets all the immutable fields.
      *
-     * @param packet the device anouncement packet that was received.
+     * @param packet the device announcement packet that was received
      */
     public DeviceAnnouncement(DatagramPacket packet) {
         if (packet.getLength() != 54) {
@@ -55,7 +55,7 @@ public class DeviceAnnouncement {
     /**
      * Get the address on which this device was seen.
      *
-     * @return the network address from which the device is communicating.
+     * @return the network address from which the device is communicating
      */
     public InetAddress getAddress() {
         return address;
@@ -64,7 +64,7 @@ public class DeviceAnnouncement {
     /**
      * The last time the device was heard from.
      *
-     * @return the millisecond timestamp at which we last received an announcement from this device.
+     * @return the millisecond timestamp at which we last received an announcement from this device
      */
     public long getTimestamp() {
         return timestamp;
@@ -73,7 +73,7 @@ public class DeviceAnnouncement {
     /**
      * The name reported by the device.
      *
-     * @return the device name.
+     * @return the device name
      */
     public String getName() {
         return name;
@@ -82,7 +82,7 @@ public class DeviceAnnouncement {
     /**
      * The player/device number reported by the device.
      *
-     * @return the player number found in the device announcement packet.
+     * @return the player number found in the device announcement packet
      */
     public int getNumber() {
         return number;
@@ -91,7 +91,7 @@ public class DeviceAnnouncement {
     /**
      * The MAC address reported by the device.
      *
-     * @return the device's Ethernet address.
+     * @return the device's Ethernet address
      */
     public byte[] getHardwareAddress() {
         byte[] result = new byte[6];
@@ -102,7 +102,7 @@ public class DeviceAnnouncement {
     /**
      * The raw data bytes of the device announcement packet.
      *
-     * @return the data sent by the device to announce its presene on the network.
+     * @return the data sent by the device to announce its presence on the network
      */
     public byte[] getPacketBytes() {
         byte[] result = new byte[54];
