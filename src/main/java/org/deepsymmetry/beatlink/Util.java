@@ -16,4 +16,11 @@ public class Util {
     public static int unsign(byte b) {
         return b & 0xff;
     }
+
+    /**
+     * Prevent instantiation.
+     */
+    private Util() {
+        // Nothing to do.
+    }
 }

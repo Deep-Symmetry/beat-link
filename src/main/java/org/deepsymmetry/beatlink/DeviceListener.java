@@ -125,4 +125,11 @@ public class DeviceListener {
         expireDevices();
         return Collections.unmodifiableList(new ArrayList<DeviceAnnouncement>(devices.values()));
     }
+
+    /**
+     * Prevent insantiation.
+     */
+    private DeviceListener() {
+        // Nothing to do.
+    }
 }
