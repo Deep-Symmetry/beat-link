@@ -23,6 +23,9 @@ and put it on your project&rsquo;s class path.
 
 ## Usage
 
+See the [API Documentation](http://deepsymmetry.org/beatlink/apidocs/)
+for full details, but here is a nutshell guide:
+
 The [`DeviceListener`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceListener.html)
 class allows you to find DJ Link devices on your network. To activate it:
 
