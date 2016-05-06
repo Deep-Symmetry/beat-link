@@ -30,7 +30,7 @@ network. To activate it:
 import org.deepsymmetry.beatlink.DeviceListener;
 
 // ...
- 
+
   DeviceListener.start();
 ```
 
