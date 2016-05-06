@@ -26,22 +26,22 @@ and put it on your project&rsquo;s class path.
 See the [API Documentation](http://deepsymmetry.org/beatlink/apidocs/)
 for full details, but here is a nutshell guide:
 
-The [`DeviceListener`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceListener.html)
+The [`DeviceFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html)
 class allows you to find DJ Link devices on your network. To activate it:
 
 ```java
-import org.deepsymmetry.beatlink.DeviceListener;
+import org.deepsymmetry.beatlink.DeviceFinder;
 
 // ...
 
-  DeviceListener.start();
+  DeviceFinder.start();
 ```
 
 After a second, it should have heard from all the devices, and you can
 obtain the list of them by calling:
 
 ```java
-  DeviceListener.currentDevices();
+  DeviceFinder.currentDevices();
 ```
 
 This returns a list of [`DeviceAnnouncement`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceAnnouncement.html)
