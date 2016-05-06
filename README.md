@@ -23,8 +23,8 @@ and put it on your project&rsquo;s class path.
 
 ## Usage
 
-The `DeviceListener` class allows you to find DJ Link devices on your
-network. To activate it:
+The [`DeviceListener`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceListener.html)
+class allows you to find DJ Link devices on your network. To activate it:
 
 ```java
 import org.deepsymmetry.beatlink.DeviceListener;
@@ -40,6 +40,9 @@ obtain the list of them by calling:
 ```java
   DeviceListener.currentDevices();
 ```
+
+This returns a list of [`DeviceAnnouncement`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceAnnouncement.html)
+objects describing the devices that were heard from.
 
 :point_right: To be finished!
 
