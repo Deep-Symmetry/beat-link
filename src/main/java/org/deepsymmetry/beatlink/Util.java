@@ -46,7 +46,7 @@ public class Util {
      * @return true if both addresses share the same network bits.
      */
     public static boolean sameNetwork(int prefixLength, InetAddress address1, InetAddress address2) {
-        int prefixMask = 0xffffffff & (-1 << (32 - prefixLength));
+        long prefixMask = 0xffffffffL & (-1 << (32 - prefixLength));
         return (addressToLong(address1) & prefixMask) == (addressToLong(address2) & prefixMask);
     }
 
