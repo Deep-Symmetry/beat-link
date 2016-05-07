@@ -33,7 +33,7 @@ public class Beat {
     /**
      * The device playback pitch found in the packet.
      */
-    private final long pitch;
+    private final int pitch;
 
     /**
      * The track BPM found in the packet.
@@ -60,7 +60,7 @@ public class Beat {
         timestamp = System.currentTimeMillis();
         deviceName = new String(packetBytes, 11, 20).trim();
         deviceNumber = Util.unsign(packetBytes[33]);
-        pitch = Util.bytesToNumber(packetBytes, 85, 3);
+        pitch = (int)Util.bytesToNumber(packetBytes, 85, 3);
         bpm = (int)Util.bytesToNumber(packetBytes, 90, 2);
     }
 
