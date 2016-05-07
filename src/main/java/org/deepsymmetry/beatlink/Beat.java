@@ -8,27 +8,7 @@ import java.net.InetAddress;
  *
  * @author James Elliott
  */
-public class Beat {
-
-    /**
-     * The address from which this beat was received.
-     */
-    private final InetAddress address;
-
-    /**
-     * When this beat was received.
-     */
-    private final long timestamp;
-
-    /**
-     * The name of the device reporting the beat.
-     */
-    private final String deviceName;
-
-    /**
-     * The player/device number reporting the beat.
-     */
-    private final int deviceNumber;
+public class Beat extends DeviceUpdate {
 
     /**
      * The device playback pitch found in the packet.
@@ -41,63 +21,14 @@ public class Beat {
     private final int bpm;
 
     /**
-     * The packet data containing the beat announcement.
-     */
-    private final byte[] packetBytes;
-
-    /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
      *
      * @param packet the beat announcement packet that was received
      */
     public Beat(DatagramPacket packet) {
-        if (packet.getLength() != 96) {
-            throw new IllegalArgumentException("Beat announcement packet must be 96 bytes long");
-        }
-        address = packet.getAddress();
-        packetBytes = new byte[packet.getLength()];
-        System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
-        timestamp = System.currentTimeMillis();
-        deviceName = new String(packetBytes, 11, 20).trim();
-        deviceNumber = Util.unsign(packetBytes[33]);
+        super(packet, "Beat announcement", 96);
         pitch = (int)Util.bytesToNumber(packetBytes, 85, 3);
         bpm = (int)Util.bytesToNumber(packetBytes, 90, 2);
-    }
-
-    /**
-     * Get the address of the device from which this beat was seen.
-     *
-     * @return the network address from which the beat was sent
-     */
-    public InetAddress getAddress() {
-        return address;
-    }
-
-    /**
-     * Get the timestamp recording when the beat announcement was received.
-     *
-     * @return the millisecond timestamp at which we received this beat
-     */
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    /**
-     * Get the name reported by the device sending the beat.
-     *
-     * @return the device name
-     */
-    public String getDeviceName() {
-        return deviceName;
-    }
-
-    /**
-     * Get the player/device number reporting the beat.
-     *
-     * @return the player number found in the beat packet
-     */
-    public int getDeviceNumber() {
-        return deviceNumber;
     }
 
     /**
@@ -132,17 +63,6 @@ public class Beat {
      */
     public int getBeatWithinBar() {
         return packetBytes[92];
-    }
-
-    /**
-     * Get the raw data bytes of the beat packet.
-     *
-     * @return the data sent by the device to announce the beat
-     */
-    public byte[] getPacketBytes() {
-        byte[] result = new byte[packetBytes.length];
-        System.arraycopy(packetBytes, 0, result, 0, packetBytes.length);
-        return result;
     }
 
     @Override
