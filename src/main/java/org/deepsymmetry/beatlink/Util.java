@@ -1,6 +1,9 @@
 package org.deepsymmetry.beatlink;
 
+import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Provides utility functions.
@@ -8,6 +11,43 @@ import java.net.InetAddress;
  * @author James Elliott
  */
 public class Util {
+
+    private static final Logger logger = Logger.getLogger(Util.class.getName());
+
+    /**
+     * The bytes that should always be present at the start of a DJ Link packet.
+     */
+    private static final byte[] EXPECTED_HEADER = { 0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c };
+
+    /**
+     * Check to see whether a packet starts with the standard header bytes, followed by a byte identifying it as the
+     * kind of packet that is expected.
+     *
+     * @param packet a packet that has just been received
+     * @param kind the expected value of the eleventh byte, which seems to identify the packet type
+     * @param name the name of the kind of packet expected, for use in logging warnings if a mismatch is found
+     * @return {@code true} if the packet has the right header
+     */
+    public static boolean validateHeader(DatagramPacket packet, int kind, String name) {
+        boolean valid = true;
+        byte[] data = packet.getData();
+
+        for (int i = 0; i < EXPECTED_HEADER.length; i++) {
+            if (EXPECTED_HEADER[i] != data[i]) {
+                logger.log(Level.WARNING, "Header mismatch at byte " + i + " of " + name + " packet: expecting " +
+                EXPECTED_HEADER[i] + ", found " + data[i]);
+                valid = false;
+            }
+        }
+
+        if (data[10] != (byte)kind) {
+            logger.log(Level.WARNING, "Expecting " + name + " packet to have kind value " + kind +
+            ", but found " + data[10]);
+            valid = false;
+        }
+
+        return valid;
+    }
 
     /**
      * Converts a signed byte to its unsigned int equivalent in the range 0-255.

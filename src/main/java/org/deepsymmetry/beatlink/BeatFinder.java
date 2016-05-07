@@ -20,11 +20,11 @@ import java.util.logging.Logger;
  * the current BPM of the track being played, and the current player pitch adjustment, from
  * which the actual effective BPM can be calculated.
  *
- * When players are stopped, they do not send beat packets, but the mixer continues sending them
+ * <p>When players are stopped, they do not send beat packets, but the mixer continues sending them
  * at the last BPM reported by the master player, so it acts as the most reliable synchronization
  * source. The mixer does not make any effort to keep its notion of measures (down beats) consistent
  * with any player, however. So systems which want to stay in sync with measures as well as beats
- * will want to use the {@link VirtualCdj} to maintain awareness of which player is the master player.
+ * will want to use the {@link VirtualCdj} to maintain awareness of which player is the master player.</p>
  *
  * @author James Elliott
  */
@@ -45,7 +45,7 @@ public class BeatFinder {
     /**
      * Check whether we are presently listening for beat packets.
      *
-     * @return true if our socket is open and monitoring for DJ Link beat packets on the network
+     * @return {@code true} if our socket is open and monitoring for DJ Link beat packets on the network
      */
     public static synchronized boolean isActive() {
         return socket != null;
@@ -80,7 +80,8 @@ public class BeatFinder {
                             received = false;
                         }
                         try {
-                            if (received && packet.getLength() == 96) {  // Looks like a beat packet
+                            if (received && packet.getLength() == 96 && Util.validateHeader(packet, 0x28, "beat")) {
+                                // Looks like a beat packet
                                 deliverBeat(new Beat(packet));
                             }
                         } catch (Exception e) {

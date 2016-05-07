@@ -36,7 +36,7 @@ public class DeviceFinder {
     /**
      * Check whether we are presently listening for device announcements.
      *
-     * @return true if our socket is open and monitoring for DJ Link device announcements on the network
+     * @return {@code true} if our socket is open and monitoring for DJ Link device announcements on the network
      */
     public static synchronized boolean isActive() {
         return socket != null;
@@ -111,7 +111,8 @@ public class DeviceFinder {
                             received = false;
                         }
                         try {
-                            if (received && (packet.getLength() == 54)) {  // Looks like the kind of packet we need
+                            if (received && (packet.getLength() == 54) && Util.validateHeader(packet, 6, "device announcement")) {
+                                // Looks like the kind of packet we need
                                 DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
                                 if (!isDeviceKnown(announcement)) {
                                     deliverFoundAnnouncement(announcement);
