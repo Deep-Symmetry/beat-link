@@ -21,6 +21,22 @@ public class Util {
     }
 
     /**
+     * Reconstructs a number that is represented by more than one byte in a network packet in big-endian order.
+     *
+     * @param buffer the byte array containing the packet data
+     * @param start the index of the first byte containing a numeric value
+     * @param length the number of bytes making up the value
+     * @return the reconstructed number
+     */
+    public static long bytesToNumber(byte[] buffer, int start, int length) {
+        long result = 0;
+        for (int index = start; index < start + length; index++) {
+            result = (result << 8) + unsign(buffer[index]);
+        }
+        return result;
+    }
+
+    /**
      * Converts the bytes that make up an internet address into the corresponding integer value to make
      * it easier to perform bit-masking operations on them.
      *

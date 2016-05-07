@@ -45,7 +45,10 @@ obtain the list of them by calling:
 ```
 
 This returns a list of [`DeviceAnnouncement`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceAnnouncement.html)
-objects describing the devices that were heard from.
+objects describing the devices that were heard from. To be find out
+immediately when a new device is noticed, or when an existing device
+disappears, you can call
+[`addDeviceAnnouncementListener`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#addDeviceAnnouncementListener-org.deepsymmetry.beatlink.DeviceAnnouncementListener-).
 
 :point_right: To be finished!
 

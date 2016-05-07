@@ -10,6 +10,8 @@ import java.util.logging.Logger;
 /**
  * Watches for devices to report their presence by broadcasting announcement packets on port 50000,
  * and keeps a list of the devices that have been seen, and the network address on which they were seen.
+ *
+ * @author James Elliott
  */
 public class DeviceFinder {
 
