@@ -50,7 +50,7 @@ public class VirtualCdj {
         if (length == 56 && kind == 0x29 && Util.validateHeader(packet, 0x29, "Mixer Status")) {
             return new MixerStatus(packet);
         } else if (length == 212 && kind == 0x0a && Util.validateHeader(packet, 0x0a, "CDJ Status")) {
-            return null;  // TODO new CdjStatus(packet);
+            return new CdjStatus(packet);
         }
         logger.log(Level.WARNING, "Unrecognized device update packet with length " + length + " and kind " + kind);
         return null;

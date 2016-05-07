@@ -39,7 +39,7 @@ public class Beat extends DeviceUpdate {
      *
      * @return the raw device pitch
      */
-    public long getPitch() {
+    public int getPitch() {
         return pitch;
     }
 

@@ -25,7 +25,7 @@ public class MixerStatus extends DeviceUpdate {
     }
 
     /**
-     * Get the BPM at the time of the beat. This is an integer representing the BPM times 100,
+     * Get the BPM at the time of the update. This is an integer representing the BPM times 100,
      * so 120.5 BPM would be represented by the value 12050.
      *
      * @return the current BPM to two decimal places multiplied by 100
@@ -35,7 +35,7 @@ public class MixerStatus extends DeviceUpdate {
     }
 
     /**
-     * Get the position within a measure of music at which the most recent beat falls (a value from 1 to 4, where 1
+     * Get the position within a measure of music at which the most recent beat occurred (a value from 1 to 4, where 1
      * represents the down beat). The mixer makes no effort to synchronize down beats with players, however, so this
      * value is of little use.
      *
