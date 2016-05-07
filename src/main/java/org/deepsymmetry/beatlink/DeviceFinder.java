@@ -129,12 +129,16 @@ public class DeviceFinder {
     }
 
     /**
-     * Stop listening for device announcements. Also discards any announcements which had been received.
+     * Stop listening for device announcements. Also discard any announcements which had been received, and
+     * notify any registered listeners that those devices have been lost.
      */
     public static synchronized void stop() {
         if (isActive()) {
             socket.close();
             socket = null;
+            for (DeviceAnnouncement announcement : currentDevices()) {
+                deliverLostAnnouncement(announcement);
+            }
             devices.clear();
         }
     }
