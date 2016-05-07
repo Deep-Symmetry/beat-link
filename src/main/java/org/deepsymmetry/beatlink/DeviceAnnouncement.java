@@ -36,7 +36,7 @@ public class DeviceAnnouncement {
     private final byte[] packetBytes;
 
     /**
-     * Constructor simply sets all the immutable fields.
+     * Constructor sets all the immutable interpreted fields based on the packet content.
      *
      * @param packet the device announcement packet that was received
      */
@@ -45,8 +45,8 @@ public class DeviceAnnouncement {
             throw new IllegalArgumentException("Device announcement packet must be 54 bytes long");
         }
         address = packet.getAddress();
-        packetBytes = new byte[54];
-        System.arraycopy(packet.getData(), 0, packetBytes, 0, 54);
+        packetBytes = new byte[packet.getLength()];
+        System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         timestamp = System.currentTimeMillis();
         name = new String(packetBytes, 12, 20).trim();
         number = Util.unsign(packetBytes[36]);
@@ -62,7 +62,7 @@ public class DeviceAnnouncement {
     }
 
     /**
-     * The last time the device was heard from.
+     * Get the last time the device was heard from.
      *
      * @return the millisecond timestamp at which we last received an announcement from this device
      */
@@ -71,7 +71,7 @@ public class DeviceAnnouncement {
     }
 
     /**
-     * The name reported by the device.
+     * Get the name reported by the device.
      *
      * @return the device name
      */
@@ -80,7 +80,7 @@ public class DeviceAnnouncement {
     }
 
     /**
-     * The player/device number reported by the device.
+     * Get the player/device number reported by the device.
      *
      * @return the player number found in the device announcement packet
      */
@@ -89,7 +89,7 @@ public class DeviceAnnouncement {
     }
 
     /**
-     * The MAC address reported by the device.
+     * Get the MAC address reported by the device.
      *
      * @return the device's Ethernet address
      */
@@ -100,13 +100,13 @@ public class DeviceAnnouncement {
     }
 
     /**
-     * The raw data bytes of the device announcement packet.
+     * Get the raw data bytes of the device announcement packet.
      *
      * @return the data sent by the device to announce its presence on the network
      */
     public byte[] getPacketBytes() {
-        byte[] result = new byte[54];
-        System.arraycopy(packetBytes, 0, result, 0, 54);
+        byte[] result = new byte[packetBytes.length];
+        System.arraycopy(packetBytes, 0, result, 0, packetBytes.length);
         return result;
     }
 

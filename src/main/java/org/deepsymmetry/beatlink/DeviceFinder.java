@@ -1,6 +1,6 @@
 package org.deepsymmetry.beatlink;
 
-import java.awt.*;
+import java.awt.EventQueue;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
@@ -18,7 +18,7 @@ public class DeviceFinder {
     private static final Logger logger = Logger.getLogger(DeviceFinder.class.getName());
 
     /**
-     * The port on which devices send announcement messages to report their presence on the network.
+     * The port to which devices broadcast announcement messages to report their presence on the network.
      */
     public static final int ANNOUNCEMENT_PORT = 50000;
 
@@ -29,14 +29,14 @@ public class DeviceFinder {
     public static final int MAXIMUM_AGE = 5000;
 
     /**
-     * The socket used to listen for keep-alive packets while we are active.
+     * The socket used to listen for announcement packets while we are active.
      */
     private static DatagramSocket socket;
 
     /**
      * Check whether we are presently listening for device announcements.
      *
-     * @return true if our socket is open and monitoring for DJ Link devices announcements on the network
+     * @return true if our socket is open and monitoring for DJ Link device announcements on the network
      */
     public static synchronized boolean isActive() {
         return socket != null;

@@ -67,6 +67,28 @@ public class Util {
     }
 
     /**
+     * Convert a pitch value reported by a device to the corresponding percentage (-100% to +100%, where normal,
+     * unadjusted pitch has the value 0%).
+     *
+     * @param pitch the reported device pitch
+     * @return the pitch as a percentage
+     */
+    public static double pitchToPercentage(long pitch) {
+        return (pitch - 1048567) / 10485.76;
+    }
+
+    /**
+     * Convert a pitch value reported by a device to the corresponding multiplier (0.0 to 2.0, where normal, unadjusted
+     * pitch has the multiplier 1.0).
+     *
+     * @param pitch the reported device pitch
+     * @return the implied pitch multiplier
+     */
+    public static double pitchToMultiplier(long pitch) {
+        return pitch / 1048576.0;
+    }
+
+    /**
      * Prevent instantiation.
      */
     private Util() {

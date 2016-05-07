@@ -26,6 +26,8 @@ and put it on your project&rsquo;s class path.
 See the [API Documentation](http://deepsymmetry.org/beatlink/apidocs/)
 for full details, but here is a nutshell guide:
 
+### Finding Devices
+
 The [`DeviceFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html)
 class allows you to find DJ Link devices on your network. To activate it:
 
@@ -49,6 +51,30 @@ objects describing the devices that were heard from. To be find out
 immediately when a new device is noticed, or when an existing device
 disappears, you can call
 [`addDeviceAnnouncementListener`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#addDeviceAnnouncementListener-org.deepsymmetry.beatlink.DeviceAnnouncementListener-).
+
+### Responding to Beats
+
+The [`BeatFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/BeatFinder.html)
+class can notify you whenever any DJ Link devices on your network report beats occurring:
+
+```java
+import org.deepsymmetry.beatlink.BeatFinder;
+
+// ...
+
+  BeatFinder.addBeatListener(new BeatListener() {
+      @Override
+      public void newBeat(Beat beat) {
+         // Your code here...
+      }
+  });
+
+  BeatFinder.start();
+```
+
+The [`Beat`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html)
+object you receive will contain useful information about the state of the
+device (such as BPM) at the time of the beat.
 
 :point_right: To be finished!
 
