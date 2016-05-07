@@ -76,6 +76,12 @@ The [`Beat`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/
 object you receive will contain useful information about the state of the
 device (such as BPM) at the time of the beat.
 
+> To fully understand how to respond to the beats, you will want to create a
+> [`VirtualCdj`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html)
+> as described in the next section, so it can tell you important
+> details about the states of all the other players, such as which one is
+> the current tempo master.
+
 :point_right: To be finished!
 
 ## Research
