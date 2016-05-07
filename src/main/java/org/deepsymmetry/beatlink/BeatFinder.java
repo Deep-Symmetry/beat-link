@@ -30,7 +30,7 @@ import java.util.logging.Logger;
  */
 public class BeatFinder {
 
-    private static final Logger logger = Logger.getLogger(DeviceFinder.class.getName());
+    private static final Logger logger = Logger.getLogger(BeatFinder.class.getName());
 
     /**
      * The port to which devices broadcast beat messages.
