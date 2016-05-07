@@ -48,7 +48,7 @@ public class VirtualCdj {
         int length = packet.getLength();
         int kind = packet.getData()[10];
         if (length == 56 && kind == 0x29 && Util.validateHeader(packet, 0x29, "Mixer Status")) {
-            return null;  // TODO new MixerStatus(packet);
+            return new MixerStatus(packet);
         } else if (length == 212 && kind == 0x0a && Util.validateHeader(packet, 0x0a, "CDJ Status")) {
             return null;  // TODO new CdjStatus(packet);
         }
