@@ -147,7 +147,9 @@ public class DeviceFinder {
     }
 
     /**
-     * Get the set of DJ Link devices which currently can be seen on the network.
+     * Get the set of DJ Link devices which currently can be seen on the network. These can be passed to
+     * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
+     * as long as the Virtual CDJ is active.
      *
      * @return the devices which have been heard from recently enough to be considered active
      */

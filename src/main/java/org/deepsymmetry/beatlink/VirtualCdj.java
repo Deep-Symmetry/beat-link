@@ -33,9 +33,9 @@ public class VirtualCdj {
     private static DatagramSocket socket;
 
     /**
-     * Check whether we are presently listening for device announcements.
+     * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
      *
-     * @return true if our socket is open and monitoring for status packets sent to it.
+     * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
     public static synchronized boolean isActive() {
         return socket != null;
@@ -47,13 +47,66 @@ public class VirtualCdj {
     private static final Map<InetAddress, DeviceUpdate> updates = new HashMap<InetAddress, DeviceUpdate>();
 
     /**
+     * The device number we use in posting presence announcements on the network.
+     */
+    private static int deviceNumber = 5;
+
+    /**
+     * Get the device number that is used when sending presence announcements on the network to pose as a virtual CDJ.
+     *
+     * @return the virtual player number
+     */
+    public static synchronized int getDeviceNumber() {
+        return deviceNumber;
+    }
+
+    /**
+     * Set the device number to be used when sending presence announcements on the network to pose as a virtual CDJ.
+     *
+     * @param number the virtual player number
+     */
+    public static synchronized void setDeviceNumber(int number) {
+        deviceNumber = number;
+    }
+
+    /**
+     * The interval, in milliseconds, at which we post presence announcements on the network.
+     */
+    private static int announceInterval = 1500;
+
+    /**
+     * Get the interval, in milliseconds, at which we broadcast presence announcements on the network to pose as
+     * a virtual CDJ.
+     *
+     * @return the announcement interval
+     */
+    public static synchronized int getAnnounceInterval() {
+        return announceInterval;
+    }
+
+    /**
+     * Set the interval, in milliseconds, at which we broadcast presence announcements on the network to pose as
+     * a virtual CDJ.
+     *
+     * @param interval the announcement interval
+     * @throws IllegalArgumentException if interval is not between 200 and 2000
+     */
+    public static synchronized void setAnnounceInterval(int interval) {
+        if (interval < 200 || interval > 2000) {
+            throw new IllegalArgumentException("Interval must be between 200 and 2000");
+        }
+        announceInterval = interval;
+    }
+
+    /**
      * Keep track of which device has reported itself as the current tempo master.
      */
     private static DeviceUpdate tempoMaster;
 
     /**
      * Check which device is the current tempo master, returning the {@link DeviceUpdate} packet in which it
-     * reported itself to be master. If there is no current tempo master, returns {@code null}.
+     * reported itself to be master. If there is no current tempo master or the Virtual CDJ is not active
+     * returns {@code null}.
      *
      * @return the most recent update from a device which reported itself as the master
      */
@@ -104,7 +157,7 @@ public class VirtualCdj {
     private static double masterTempo;
 
     /**
-     * Get the current master tempo.
+     * Get the current master tempo. If the Virtual CDJ is not active returns zero.
      *
      * @return the most recently reported master tempo
      */
@@ -118,7 +171,7 @@ public class VirtualCdj {
      * @param newTempo the newly reported master tempo.
      */
     private static synchronized void setMasterTempo(double newTempo) {
-        if (Math.abs(newTempo - masterTempo) > tempoEpsilon) {
+        if ((tempoMaster != null) && (Math.abs(newTempo - masterTempo) > tempoEpsilon)) {
             // This is a change in tempo, so report it to any registered listeners
             deliverTempoChangedAnnouncement(newTempo);
             masterTempo = newTempo;
@@ -162,16 +215,31 @@ public class VirtualCdj {
     }
 
     /**
+     * Process a beat packet, potentially updating the master tempo and sending our listeners a master
+     * beat notification.
+     */
+    static synchronized void processBeat(Beat beat) {
+        if (beat.isTempoMaster()) {
+            setMasterTempo(beat.getEffectiveTempo());
+            deliverBeatAnnouncement(beat);
+        }
+    }
+
+    /**
      * Start announcing ourselves and listening for status packets. If already active, has no effect.
      *
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
     public static synchronized void start() throws SocketException {
         if (!isActive()) {
+            // TODO look for other devices and determine the network, address, and MAC address we should use, or fail
+
             socket = new DatagramSocket(UPDATE_PORT);
 
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
+            // Create the update reception thread
             Thread receiver = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -193,7 +261,7 @@ public class VirtualCdj {
                             if (received) {
                                 DeviceUpdate update = buildUpdate(packet);
                                 if (update != null) {
-                                    // TODO process it
+                                    processUpdate(update);
                                 }
                             }
                         } catch (Exception e) {
@@ -206,7 +274,17 @@ public class VirtualCdj {
             receiver.start();
         }
 
-        // TODO create self-announcement thread
+        // Create the thread which announces our participation in the DJ Link network, to request update packets
+        Thread announcer = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while (isActive()) {
+                    sendAnnouncement();
+                }
+            }
+        });
+        announcer.setDaemon(true);
+        announcer.start();
     }
 
     /**
@@ -217,7 +295,47 @@ public class VirtualCdj {
             socket.close();
             socket = null;
             updates.clear();
+            setMasterTempo(0.0);
+            setTempoMaster(null);
         }
+    }
+
+    /**
+     * Send an announcement packet so the other devices see us as being part of the DJ Link network and send us
+     * updates.
+     */
+    private static void sendAnnouncement() {
+        try {
+            // TODO implement!
+            Thread.sleep(announceInterval);
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Unable to send announcement packet, shutting down", e);
+            stop();
+        }
+    }
+
+    /**
+     * Look up the most recent status we have seen for a device, given another update from it, which might be a
+     * beat packet containing far less information.
+     *
+     * @param device the update identifying the device for which current status information is desired
+     *
+     * @return the most recent detailed status update received for that device
+     */
+    public static DeviceUpdate getLatestStatusFor(DeviceUpdate device) {
+        return updates.get(device.getAddress());
+    }
+
+    /**
+     * Look up the most recent status we have seen for a device, given its device announcement packet as returned
+     * by {@link DeviceFinder#currentDevices()}.
+     *
+     * @param device the announcement identifying the device for which current status information is desired
+     *
+     * @return the most recent detailed status update received for that device
+     */
+    public static DeviceUpdate getLatestStatusFor(DeviceAnnouncement device) {
+        return updates.get(device.getAddress());
     }
 
     /**
@@ -298,5 +416,34 @@ public class VirtualCdj {
                 }
             });
         }
+    }
+
+    /**
+     * Send a beat announcement to all registered master listeners.
+     *
+     * @param beat the beat sent by the tempo master
+     */
+    private static void deliverBeatAnnouncement(final Beat beat) {
+        for (final MasterListener listener : getMasterListeners()) {
+            EventQueue.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        listener.newBeat(beat);
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Problem delivering master beat announcement to listener", e);
+                    }
+                }
+            });
+        }
+    }
+
+    // TODO add support for listeners for all device updates
+
+    /**
+     * Prevent instantiation.
+     */
+    private VirtualCdj() {
+        // Nothing to do.
     }
 }

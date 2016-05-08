@@ -146,11 +146,13 @@ public class BeatFinder {
     }
 
     /**
-     * Send a beat announcement to all registered listeners.
+     * Send a beat announcement to all registered listeners, and let the {@link VirtualCdj} know about it in case it
+     * needs to notify the master beat listeners.
      *
      * @param beat the message announcing the new beat.
      */
     private static void deliverBeat(final Beat beat) {
+        VirtualCdj.processBeat(beat);
         for (final BeatListener listener : getBeatListeners()) {
             EventQueue.invokeLater(new Runnable() {
                 @Override

@@ -4,7 +4,9 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 
 /**
- * Represents a device announcement seen on a DJ Link network.
+ * Represents a device announcement seen on a DJ Link network. A device announcement can be passed to
+ * {@link VirtualCdj#getLatestStatusFor(DeviceAnnouncement)} to find the current detailed status for that device,
+ * as long as the Virtual CDJ is active.
  *
  * @author James Elliott
  */

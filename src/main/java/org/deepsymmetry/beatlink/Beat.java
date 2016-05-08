@@ -4,7 +4,10 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 
 /**
- * A device update that announces the start of a new beat on a DJ Link network.
+ * A device update that announces the start of a new beat on a DJ Link network. Even though beats contain
+ * far less detailed information than status updates, they can be passed to
+ * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
+ * as long as the Virtual CDJ is active.
  *
  * @author James Elliott
  */
@@ -76,7 +79,8 @@ public class Beat extends DeviceUpdate {
 
     @Override
     public boolean isTempoMaster() {
-        return false;  // TODO need to query VirtualCdj!
+        DeviceUpdate master = VirtualCdj.getTempoMaster();
+        return (master != null) && master.getAddress().equals(address);
     }
 
     @Override

@@ -102,7 +102,8 @@ public abstract class DeviceUpdate {
     }
 
     /**
-     * Is this device reporting itself to be the current tempo master?
+     * Is this device reporting itself to be the current tempo master? This will always return {@code false} if
+     * {@link VirtualCdj} is not active.
      *
      * @return {@code true} if the device that sent this update is the master
      */

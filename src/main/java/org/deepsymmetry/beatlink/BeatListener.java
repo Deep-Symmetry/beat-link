@@ -13,9 +13,12 @@ package org.deepsymmetry.beatlink;
 public interface BeatListener {
 
     /**
-     * Invoked when a beat is reported on the network.
+     * Invoked when a beat is reported on the network. Even though beats contain
+     * far less detailed information than status updates, they can be passed to
+     * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
+     * as long as the Virtual CDJ is active.
      *
-     * @param beat the message which announced the device's presence
+     * @param beat the message which announced the start of the new beat
      */
     void newBeat(Beat beat);
 

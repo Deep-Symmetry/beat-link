@@ -21,7 +21,7 @@ public abstract class MasterAdapter implements MasterListener{
     }
 
     @Override
-    public void newBeat(DeviceUpdate update) {
+    public void newBeat(Beat beat) {
 
     }
 
