@@ -26,7 +26,7 @@ public class DeviceFinder {
      * The number of milliseconds after which we will consider a device to have disappeared if
      * we have not received an announcement from it.
      */
-    public static final int MAXIMUM_AGE = 5000;
+    public static final int MAXIMUM_AGE = 10000;
 
     /**
      * The socket used to listen for announcement packets while we are active.
