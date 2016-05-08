@@ -1,6 +1,5 @@
 package org.deepsymmetry.beatlink;
 
-import javax.xml.crypto.Data;
 import java.awt.EventQueue;
 import java.io.IOException;
 import java.net.*;
@@ -227,8 +226,8 @@ public class VirtualCdj {
 
     /**
      * Process a device update once it has been received. Track it as the most recent update from its address,
-     * and notify any registered listeners if it results in changes to tracked state, such as the current master
-     * player and tempo.
+     * and notify any registered listeners, including master listeners if it results in changes to tracked state,
+     * such as the current master player and tempo.
      */
     private static synchronized void processUpdate(DeviceUpdate update) {
         updates.put(update.getAddress(), update);
@@ -241,6 +240,7 @@ public class VirtualCdj {
                 setTempoMaster(null);
             }
         }
+        deliverDeviceUpdate(update);
     }
 
     /**
@@ -429,7 +429,7 @@ public class VirtualCdj {
     }
 
     /**
-     * Keeps track of the registered device announcement listeners.
+     * Keeps track of the registered master listeners.
      */
     private static final Set<MasterListener> masterListeners = new HashSet<MasterListener>();
 
@@ -438,7 +438,7 @@ public class VirtualCdj {
      * to the tempo master. If {@code listener} is {@code null} or already present in the list
      * of registered listeners, no exception is thrown and no action is performed.
      *
-     * @param listener the device announcement listener to add
+     * @param listener the master listener to add
      */
     public static synchronized void addMasterListener(MasterListener listener) {
         if (listener != null) {
@@ -451,7 +451,7 @@ public class VirtualCdj {
      * there are changes related to the tempo master. If {@code listener} is {@code null} or not present
      * in the list of registered listeners, no exception is thrown and no action is performed.
      *
-     * @param listener the device announcement listener to remove
+     * @param listener the master listener to remove
      */
     public static synchronized void removeMasterListener(MasterListener listener) {
         if (listener != null) {
@@ -528,7 +528,65 @@ public class VirtualCdj {
         }
     }
 
-    // TODO add support for listeners for all device updates
+    /**
+     * Keeps track of the regitered device update listeners.
+     */
+    private static final Set<DeviceUpdateListener> updateListeners = new HashSet<DeviceUpdateListener>();
+
+    /**
+     * Adds the specified device update listener to receive device updates whenever they come in.
+     * If {@code listener} is {@code null} or already present in the list
+     * of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the device update listener to add
+     */
+    public static synchronized void addUpdateListener(DeviceUpdateListener listener) {
+        if (listener != null) {
+            updateListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified device update listener so it no longer receives device updates when they come in.
+     * If {@code listener} is {@code null} or not present
+     * in the list of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the device update listener to remove
+     */
+    public static synchronized void removeUpdateListener(DeviceUpdateListener listener) {
+        if (listener != null) {
+            updateListeners.remove(listener);
+        }
+    }
+
+    /**
+     * Get the set of device update listeners that are currently registered.
+     *
+     * @return the currently registered update listeners
+     */
+    public static synchronized Set<DeviceUpdateListener> getUpdateListeners() {
+        return Collections.unmodifiableSet(new HashSet<DeviceUpdateListener>(updateListeners));
+    }
+
+    /**
+     * Send a device update to all registered update listeners.
+     *
+     * @param update the device update that has just arrived
+     */
+    private static void deliverDeviceUpdate(final DeviceUpdate update) {
+        for (final DeviceUpdateListener listener : getUpdateListeners()) {
+            EventQueue.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        listener.received(update);
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Problem delivering device update to listener", e);
+                    }
+                }
+            });
+        }
+    }
 
     /**
      * Prevent instantiation.
