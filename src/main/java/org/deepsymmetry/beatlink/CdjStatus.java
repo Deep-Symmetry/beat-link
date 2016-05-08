@@ -511,7 +511,7 @@ public class CdjStatus extends DeviceUpdate {
 
     @Override
     public String toString() {
-        return "Beat: Device " + deviceNumber + ", name: " + deviceName + ", busy? " + isBusy() +
+        return "CDJ status: Device " + deviceNumber + ", name: " + deviceName + ", busy? " + isBusy() +
                 ", pitch: " + String.format("%+.2f%%", Util.pitchToPercentage(pitch)) +
                 ", track: " + getTrackNumber() + ", track BPM: " + String.format("%.1f", bpm / 100.0) +
                 ", effective BPM: " + String.format("%.1f", getEffectiveTempo()) +
