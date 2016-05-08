@@ -86,7 +86,7 @@ public class DeviceFinder {
 
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            Thread receiver = new Thread(new Runnable() {
+            Thread receiver = new Thread(null, new Runnable() {
                 @Override
                 public void run() {
                     boolean received;
@@ -125,7 +125,7 @@ public class DeviceFinder {
                         }
                     }
                 }
-            });
+            }, "beat-link DeviceFinder receiver");
             receiver.setDaemon(true);
             receiver.start();
         }

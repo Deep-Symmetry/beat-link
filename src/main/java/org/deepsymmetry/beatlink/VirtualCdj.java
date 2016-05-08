@@ -328,7 +328,7 @@ public class VirtualCdj {
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
             // Create the update reception thread
-            Thread receiver = new Thread(new Runnable() {
+            Thread receiver = new Thread(null, new Runnable() {
                 @Override
                 public void run() {
                     boolean received;
@@ -357,19 +357,19 @@ public class VirtualCdj {
                         }
                     }
                 }
-            });
+            }, "beat-link VirtualCdj status receiver");
             receiver.setDaemon(true);
             receiver.start();
 
             // Create the thread which announces our participation in the DJ Link network, to request update packets
-            Thread announcer = new Thread(new Runnable() {
+            Thread announcer = new Thread(null, new Runnable() {
                 @Override
                 public void run() {
                     while (isActive()) {
                         sendAnnouncement(broadcastAddress);
                     }
                 }
-            });
+            }, "beat-link VirtualCdj announcement sender");
             announcer.setDaemon(true);
             announcer.start();
         }

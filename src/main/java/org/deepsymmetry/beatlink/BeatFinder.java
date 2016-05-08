@@ -62,7 +62,7 @@ public class BeatFinder {
 
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            Thread receiver = new Thread(new Runnable() {
+            Thread receiver = new Thread(null, new Runnable() {
                 @Override
                 public void run() {
                     boolean received;
@@ -89,7 +89,7 @@ public class BeatFinder {
                         }
                     }
                 }
-            });
+            }, "beat-link BeatFinder receiver");
             receiver.setDaemon(true);
             receiver.start();
         }
