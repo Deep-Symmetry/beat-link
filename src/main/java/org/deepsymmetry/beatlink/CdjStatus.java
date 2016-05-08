@@ -10,6 +10,38 @@ import java.net.DatagramPacket;
 public class CdjStatus extends DeviceUpdate {
 
     /**
+     * The byte within the packet which contains useful status information, labeled <i>F</i> in Figure 11 of the
+     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    public final int STATUS_FLAGS = 137;
+
+    /**
+     * The bit within the status flag that indicates the player is on the air, as illustrated in Figure 12 of the
+     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * A player is considered to be on the air when it is connected to a mixer channel that is not faded out.
+     * Only Nexus mixers seem to support this capability.
+     */
+    public final int ON_AIR_FLAG = 0x08;
+
+    /**
+     * The bit within the status flag that indicates the player is synced, as illustrated in Figure 12 of the
+     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    public final int SYNCED_FLAG = 0x10;
+
+    /**
+     * The bit within the status flag that indicates the player is the tempo master, as illustrated in Figure 12 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    public final int MASTER_FLAG = 0x20;
+
+    /**
+     * The bit within the status flag that indicates the player is playing, as illustrated in Figure 12 of the
+     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    public final int PLAYING_FLAG = 0x40;
+
+    /**
      * The device playback pitch found in the packet.
      */
     private final int pitch;
@@ -93,6 +125,16 @@ public class CdjStatus extends DeviceUpdate {
      */
     public int getBeatWithinBar() {
         return packetBytes[92];
+    }
+
+    @Override
+    public boolean isTempoMaster() {
+        return (packetBytes[STATUS_FLAGS] & MASTER_FLAG) > 0 ;
+    }
+
+    @Override
+    public double getEffectiveTempo() {
+        return bpm * Util.pitchToMultiplier(pitch) / 100.0;
     }
 
     @Override

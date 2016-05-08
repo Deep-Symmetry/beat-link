@@ -100,4 +100,18 @@ public abstract class DeviceUpdate {
         System.arraycopy(packetBytes, 0, result, 0, packetBytes.length);
         return result;
     }
+
+    /**
+     * Is this device reporting itself to be the current tempo master?
+     *
+     * @return {@code true} if the device that sent this update is the master
+     */
+    public abstract boolean isTempoMaster();
+
+    /**
+     * Get the effective tempo reflected by this update, which reflect both its track BPM and pitch as needed.
+     *
+     * @return the beats per minute this device is reporting
+     */
+    public abstract double getEffectiveTempo();
 }

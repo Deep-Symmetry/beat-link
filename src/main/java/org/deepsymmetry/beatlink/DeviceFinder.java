@@ -199,7 +199,7 @@ public class DeviceFinder {
     /**
      * Send a device found announcement to all registered listeners.
      *
-     * @param announcement the message announcing the new device.
+     * @param announcement the message announcing the new device
      */
     private static void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
         for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {

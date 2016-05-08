@@ -70,7 +70,17 @@ public class Beat extends DeviceUpdate {
         return "Beat: Device " + deviceNumber + ", name: " + deviceName +
                 ", pitch: " + String.format("%+.2f%%", Util.pitchToPercentage(pitch)) +
                 ", track BPM: " + String.format("%.1f", bpm / 100.0) +
-                ", effective BPM: " + String.format("%.1f", bpm * Util.pitchToMultiplier(pitch) / 100.0) +
+                ", effective BPM: " + String.format("%.1f", getEffectiveTempo()) +
                 ", beat within bar: " + getBeatWithinBar();
+    }
+
+    @Override
+    public boolean isTempoMaster() {
+        return false;  // TODO need to query VirtualCdj!
+    }
+
+    @Override
+    public double getEffectiveTempo() {
+        return bpm * Util.pitchToMultiplier(pitch) / 100.0;
     }
 }
