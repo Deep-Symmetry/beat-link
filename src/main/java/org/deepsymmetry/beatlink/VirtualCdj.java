@@ -1,11 +1,9 @@
 package org.deepsymmetry.beatlink;
 
+import javax.xml.crypto.Data;
 import java.awt.EventQueue;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
+import java.net.*;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,17 +45,12 @@ public class VirtualCdj {
     private static final Map<InetAddress, DeviceUpdate> updates = new HashMap<InetAddress, DeviceUpdate>();
 
     /**
-     * The device number we use in posting presence announcements on the network.
-     */
-    private static int deviceNumber = 5;
-
-    /**
      * Get the device number that is used when sending presence announcements on the network to pose as a virtual CDJ.
      *
      * @return the virtual player number
      */
-    public static synchronized int getDeviceNumber() {
-        return deviceNumber;
+    public static synchronized byte getDeviceNumber() {
+        return announcementBytes[36];
     }
 
     /**
@@ -65,8 +58,8 @@ public class VirtualCdj {
      *
      * @param number the virtual player number
      */
-    public static synchronized void setDeviceNumber(int number) {
-        deviceNumber = number;
+    public static synchronized void setDeviceNumber(byte number) {
+        announcementBytes[36] = number;
     }
 
     /**
@@ -96,6 +89,42 @@ public class VirtualCdj {
             throw new IllegalArgumentException("Interval must be between 200 and 2000");
         }
         announceInterval = interval;
+    }
+
+    /**
+     * Used to construct the announcement packet we broadcast in order to participate in the DJ Link network.
+     * Some of these bytes are fixed, some get replaced by things like our device name and number, MAC address,
+     * and IP address, as described in Figure 8 in the
+     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    private static byte[] announcementBytes = {
+            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x06, 0x00,  0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x36,  0x05, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x00, 0x00, 0x00,  0x01, 0x00
+    };
+
+    /**
+     * Get the name to be used in announcing our presence on the network.
+     *
+     * @return the device name reported in our presence announcement packets
+     */
+    public static synchronized String getDeviceName() {
+        return new String(announcementBytes, 12, 20).trim();
+    }
+
+    /**
+     * Set the name to be used in announcing our presence on the network. The name can be no longer than twenty
+     * bytes, and should be normal ASCII, no Unicode.
+     *
+     * @param name the device name to report in our presence announcement packets.
+     */
+    public static synchronized void setDeviceName(String name) {
+        if (name.getBytes().length > 20) {
+            throw new IllegalArgumentException("name cannot be more than 20 bytes long");
+        }
+        Arrays.fill(announcementBytes, 12, 32, (byte)0);
+        System.arraycopy(name.getBytes(), 0, announcementBytes, 12, name.getBytes().length);
     }
 
     /**
@@ -226,14 +255,73 @@ public class VirtualCdj {
     }
 
     /**
-     * Start announcing ourselves and listening for status packets. If already active, has no effect.
+     * Scan a network interface to find if it has an address space which matches the device we are trying to reach.
+     * If so, return the address specification.
+     *
+     * @param aDevice the DJ Link device we are trying to communicate with
+     * @param networkInterface the network interface we are testing
+     * @return the address which can be used to communicate with the device on the interface, or null
+     */
+    private static InterfaceAddress findMatchingAddress(DeviceAnnouncement aDevice, NetworkInterface networkInterface) {
+        for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
+            if ((address.getBroadcast() != null) &&
+                    Util.sameNetwork(address.getNetworkPrefixLength(), aDevice.getAddress(), address.getAddress())) {
+                return address;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Start announcing ourselves and listening for status packets. If already active, has no effect. Requires the
+     * {@link DeviceFinder} to be active in order to find out how to communicate with other devices, so will start
+     * that if it is not already.
      *
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
     public static synchronized void start() throws SocketException {
         if (!isActive()) {
-            // TODO look for other devices and determine the network, address, and MAC address we should use, or fail
 
+            // Find some DJ Link devices so we can figure out the interface and address to use to talk to them
+            DeviceFinder.start();
+            for (int i = 0; DeviceFinder.currentDevices().isEmpty() && i < 4; i++) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    logger.log(Level.WARNING, "Interrupted waiting for devices, giving up", e);
+                    return;
+                }
+            }
+
+            if (DeviceFinder.currentDevices().isEmpty()) {
+                logger.log(Level.WARNING, "No DJ Link devices found, giving up");
+                return;
+            }
+
+            // Find the network interface and address to use to communicate with the first device we found.
+            NetworkInterface matchedInterface = null;
+            InterfaceAddress matchedAddress = null;
+            DeviceAnnouncement aDevice = DeviceFinder.currentDevices().iterator().next();
+            for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                matchedAddress = findMatchingAddress(aDevice, networkInterface);
+                if (matchedAddress != null) {
+                    matchedInterface = networkInterface;
+                    break;
+                }
+            }
+
+            if (matchedAddress == null) {
+                logger.log(Level.WARNING, "Unable to find network interface to communicate with " + aDevice +
+                ", giving up.");
+                return;
+            }
+
+            // Copy the chosen interface's hardware and IP addresses into the announcement packet template
+            System.arraycopy(matchedInterface.getHardwareAddress(), 0, announcementBytes, 38, 6);
+            System.arraycopy(matchedAddress.getAddress().getAddress(), 0, announcementBytes, 44, 4);
+            final InetAddress broadcastAddress = matchedAddress.getBroadcast();
+
+            // Looking good. Open our communication socket and set up our threads.
             socket = new DatagramSocket(UPDATE_PORT);
 
             final byte[] buffer = new byte[512];
@@ -272,19 +360,19 @@ public class VirtualCdj {
             });
             receiver.setDaemon(true);
             receiver.start();
-        }
 
-        // Create the thread which announces our participation in the DJ Link network, to request update packets
-        Thread announcer = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (isActive()) {
-                    sendAnnouncement();
+            // Create the thread which announces our participation in the DJ Link network, to request update packets
+            Thread announcer = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (isActive()) {
+                        sendAnnouncement(broadcastAddress);
+                    }
                 }
-            }
-        });
-        announcer.setDaemon(true);
-        announcer.start();
+            });
+            announcer.setDaemon(true);
+            announcer.start();
+        }
     }
 
     /**
@@ -304,9 +392,11 @@ public class VirtualCdj {
      * Send an announcement packet so the other devices see us as being part of the DJ Link network and send us
      * updates.
      */
-    private static void sendAnnouncement() {
+    private static void sendAnnouncement(InetAddress broadcastAddress) {
         try {
-            // TODO implement!
+            DatagramPacket announcement = new DatagramPacket(announcementBytes, announcementBytes.length,
+                    broadcastAddress, DeviceFinder.ANNOUNCEMENT_PORT);
+            socket.send(announcement);
             Thread.sleep(announceInterval);
         } catch (Exception e) {
             logger.log(Level.WARNING, "Unable to send announcement packet, shutting down", e);
