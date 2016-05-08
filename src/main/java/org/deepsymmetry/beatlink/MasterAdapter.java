@@ -20,7 +20,14 @@ public abstract class MasterAdapter implements MasterListener{
 
     }
 
-    @Override
+    /**
+     * Invoked when a beat is reported by the tempo master, as long as the {@link BeatFinder} is active.
+     * Even though beats contain far less detailed information than status updates, they can be passed to
+     * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
+     * as long as the Virtual CDJ is active.
+     *
+     * @param beat the message which announced the start of the new beat
+     */
     public void newBeat(Beat beat) {
 
     }
