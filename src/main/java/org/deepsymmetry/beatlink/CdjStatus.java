@@ -463,8 +463,8 @@ public class CdjStatus extends DeviceUpdate {
      * "--.- bars"). As soon as there are just 64 bars (256 beats) to go before the next cue point, this value becomes
      * 256. This is the point at which the CDJ starts to display a countdown, which it displays as "63.4 Bars". As
      * each beat goes by, this value decrements by 1, until the cue point is about to be reached, at which point the
-     * value is 1 and the CDJ displays "0.1 Bars". On the beat on which the cue point was saved the value is 0 and the
-     * CDJ displays "0.0 Bars". On the next beat, the value becomes determined by the next cue point (if any) in the
+     * value is 1 and the CDJ displays "00.1 Bars". On the beat on which the cue point was saved the value is 0 and the
+     * CDJ displays "00.0 Bars". On the next beat, the value becomes determined by the next cue point (if any) in the
      * track.
      *
      * @return the cue beat countdown, or 511 if no countdown is in effect
