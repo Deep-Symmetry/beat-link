@@ -106,10 +106,10 @@ method will always return `false`.)
 ### Getting Device Details
 
 To find some kinds of information, like which device is the tempo master,
-how many beats of a track have been played, or how many beats until the
-next cue point in the track, you need to have beat-link create a virtual
-player on the network, which causes the other players to send it status
-updates directly, containing such details.
+how many beats of a track have been played, or how many beats there are
+until the next cue point in a track, you need to have beat-link create a virtual
+player on the network. This causes the other players to send detailed status
+updates directly to beat-link, so it can track this information for you.
 
 ```java
 import org.deepsymmetry.beatlink.VirtualCdj;
