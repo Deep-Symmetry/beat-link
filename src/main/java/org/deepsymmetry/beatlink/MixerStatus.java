@@ -10,6 +10,12 @@ import java.net.DatagramPacket;
 public class MixerStatus extends DeviceUpdate {
 
     /**
+     * The byte within the packet which contains useful status information, labeled <i>F</i> in Figure 10 of the
+     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    public static final int STATUS_FLAGS = 39;
+
+    /**
      * The BPM found in the packet.
      */
     private final int bpm;
@@ -47,7 +53,7 @@ public class MixerStatus extends DeviceUpdate {
 
     @Override
     public boolean isTempoMaster() {
-        return false;
+        return (packetBytes[STATUS_FLAGS] & CdjStatus.MASTER_FLAG) > 0;
     }
 
     @Override
