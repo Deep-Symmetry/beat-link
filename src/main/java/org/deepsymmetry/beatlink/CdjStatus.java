@@ -13,7 +13,7 @@ public class CdjStatus extends DeviceUpdate {
      * The byte within the packet which contains useful status information, labeled <i>F</i> in Figure 11 of the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public final int STATUS_FLAGS = 137;
+    public static final int STATUS_FLAGS = 137;
 
     /**
      * The bit within the status flag that indicates the player is on the air, as illustrated in Figure 12 of the
@@ -21,31 +21,31 @@ public class CdjStatus extends DeviceUpdate {
      * A player is considered to be on the air when it is connected to a mixer channel that is not faded out.
      * Only Nexus mixers seem to support this capability.
      */
-    public final int ON_AIR_FLAG = 0x08;
+    public static final int ON_AIR_FLAG = 0x08;
 
     /**
      * The bit within the status flag that indicates the player is synced, as illustrated in Figure 12 of the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public final int SYNCED_FLAG = 0x10;
+    public static final int SYNCED_FLAG = 0x10;
 
     /**
      * The bit within the status flag that indicates the player is the tempo master, as illustrated in Figure 12 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public final int MASTER_FLAG = 0x20;
+    public static final int MASTER_FLAG = 0x20;
 
     /**
      * The bit within the status flag that indicates the player is playing, as illustrated in Figure 12 of the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public final int PLAYING_FLAG = 0x40;
+    public static final int PLAYING_FLAG = 0x40;
 
     /**
      * The possible values of the first play state found in the packet, labeled <i>P<sub>1</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public enum PlayState1 {
+    public static enum PlayState1 {
         NO_TRACK, PLAYING, LOOPING, PAUSED, CUED, SEARCHING, ENDED, UNKNOWN
     }
 
@@ -69,7 +69,7 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values of the second play state found in the packet, labeled <i>P<sub>2</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public enum PlayState2 {
+    public static enum PlayState2 {
         MOVING, STOPPED, UNKNOWN
     }
 
@@ -93,7 +93,7 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values of the third play state found in the packet, labeled <i>P<sub>3</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public enum PlayState3 {
+    public static enum PlayState3 {
         NO_TRACK, PAUSED_OR_REVERSE, FORWARD_VINYL, FORWARD_CDJ, UNKNOWN
     }
 
@@ -255,7 +255,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @Override
     public boolean isTempoMaster() {
-        return (packetBytes[STATUS_FLAGS] & MASTER_FLAG) > 0 ;
+        return (packetBytes[STATUS_FLAGS] & MASTER_FLAG) > 0;
     }
 
     @Override
