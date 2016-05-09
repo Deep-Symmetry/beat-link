@@ -123,7 +123,6 @@ public class DeviceFinder {
                             if (received && (packet.getLength() == 54) && Util.validateHeader(packet, 6, "device announcement")) {
                                 // Looks like the kind of packet we need
                                 DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
-                                System.out.println(new Date() + ": " + announcement);
                                 if (!isDeviceKnown(announcement)) {
                                     deliverFoundAnnouncement(announcement);
                                 }
