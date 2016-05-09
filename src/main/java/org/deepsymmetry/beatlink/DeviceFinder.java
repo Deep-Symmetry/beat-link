@@ -50,7 +50,7 @@ public class DeviceFinder {
     /**
      * Remove any device announcements that are so old that the device seems to have gone away.
      */
-    private static void expireDevices() {
+    private static synchronized void expireDevices() {
         long now = System.currentTimeMillis();
         Iterator<Map.Entry<InetAddress, DeviceAnnouncement>> it = devices.entrySet().iterator();
         while (it.hasNext()) {
@@ -60,6 +60,15 @@ public class DeviceFinder {
                 it.remove();
             }
         }
+    }
+
+    /**
+     * Record a device announcement in the devices map, so we know whe saw it.
+     *
+     * @param announcement the announcement to be recorded
+     */
+    private static synchronized void updateDevices(DeviceAnnouncement announcement) {
+        devices.put(announcement.getAddress(), announcement);
     }
 
     /**
@@ -114,10 +123,11 @@ public class DeviceFinder {
                             if (received && (packet.getLength() == 54) && Util.validateHeader(packet, 6, "device announcement")) {
                                 // Looks like the kind of packet we need
                                 DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
+                                System.out.println(new Date() + ": " + announcement);
                                 if (!isDeviceKnown(announcement)) {
                                     deliverFoundAnnouncement(announcement);
                                 }
-                                devices.put(announcement.getAddress(), announcement);
+                                updateDevices(announcement);
                             }
                             expireDevices();
                         } catch (Exception e) {
