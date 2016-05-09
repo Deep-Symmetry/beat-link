@@ -245,7 +245,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the beat number within the current measure of music
      */
     public int getBeatWithinBar() {
-        return packetBytes[92];
+        return packetBytes[166];
     }
 
     /**

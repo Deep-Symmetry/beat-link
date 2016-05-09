@@ -6,7 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Fixed
+
+- The `CdjStatus` object was looking at the wrong byte for
+  *B<sub>b</sub>* so `getBeatWithinBar()` was always returning `0`.
 
 ## [0.1.1] - 2016-05-08
 
