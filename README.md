@@ -218,7 +218,7 @@ Tempo changed at Sun May 08 20:49:51 CDT 2016: 124.927978515625
 Master changed at Sun May 08 20:49:55 CDT 2016: CDJ status: Device 3,
  name: DJ-2000nexus, busy? true, pitch: -0.85%, track: 4, track BPM:
  126.0, effective BPM: 124.9, beat: 23, beat within bar: 0,
- cue: --.-, Playing? true, Master? true, Synced? true, On-Air? true
+ cue: 31.4, Playing? true, Master? true, Synced? true, On-Air? true
 ```
 
 ## Research
