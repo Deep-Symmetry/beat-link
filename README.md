@@ -55,7 +55,8 @@ disappears, you can use
 ### Responding to Beats
 
 The [`BeatFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/BeatFinder.html)
-class can notify you whenever any DJ Link devices on your network report beats occurring:
+class can notify you whenever any DJ Link devices on your network report
+the start of a new beat:
 
 ```java
 import org.deepsymmetry.beatlink.BeatFinder;
@@ -93,7 +94,7 @@ to learn the current pitch (speed) of the player at that moment, and
 [`getEffectiveTempo()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getEffectiveTempo--)
 to find the combined effect of pitch and track BPM&mdash;the beats per minute
 currently being played. You can also call
-[`getBeatWithinBar()`](file:///Users/jim/git/beat-link/target/site/apidocs/org/deepsymmetry/beatlink/Beat.html#getBeatWithinBar--)
+[`getBeatWithinBar()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getBeatWithinBar--)
 to see where this beat falls within a measure of music.
 
 If the `VirtualCdj` is active, you can also call the `Beat` object&rsquo;s
