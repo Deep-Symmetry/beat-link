@@ -212,7 +212,7 @@ Master changed at Sun May 08 20:49:23 CDT 2016: CDJ status: Device 2,
  cue: --.-, Playing? true, Master? true, Synced? true, On-Air? true
 Tempo changed at Sun May 08 20:49:23 CDT 2016: 128.0
 Tempo changed at Sun May 08 20:49:47 CDT 2016: 127.9359130859375
-[... lines omitted ...]
+    [... lines omitted ...]
 Tempo changed at Sun May 08 20:49:51 CDT 2016: 124.991943359375
 Tempo changed at Sun May 08 20:49:51 CDT 2016: 124.927978515625
 Master changed at Sun May 08 20:49:55 CDT 2016: CDJ status: Device 3,
