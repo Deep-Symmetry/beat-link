@@ -153,6 +153,53 @@ as possible, you can request every device status update
 as soon as it is received, using
 [`VirtualCdj.addUpdateListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#addUpdateListener-org.deepsymmetry.beatlink.DeviceUpdateListener-).
 
+## An Example
+
+Here is the source for `Example.java`, a small class that demonstrates
+how to watch for changes related to the tempo master (and also shows
+that printing
+[`DeviceUpdate`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceUpdate.html)
+objects can be a useful diagnostic aid):
+
+```java
+import java.util.Date;
+import org.deepsymmetry.beatlink.*;
+
+public class Example {
+
+    public static void main(String[] args) {
+        try {
+            VirtualCdj.start();
+        } catch (java.net.SocketException e) {
+            System.err.println("Unable to start VirtualCdj: " + e);
+        }
+
+        VirtualCdj.addMasterListener(new MasterListener() {
+                        @Override
+                        public void masterChanged(DeviceUpdate update) {
+                            System.out.println("Master changed at " + new Date() + ": " + update);
+                        }
+
+                        @Override
+                        public void tempoChanged(double tempo) {
+                            System.out.println("Tempo changed at " + new Date() + ": " + tempo);
+                        }
+
+                        @Override
+                        public void newBeat(Beat beat) {
+                            System.out.println("Master player beat at " + new Date() + ": " + beat);
+                        }
+            });
+
+        try {
+            Thread.sleep(60000);
+        } catch (InterruptedException e) {
+            System.out.println("Interrupted, exiting.");
+        }
+    }
+}
+```
+
 ## Research
 
 This project is being developed with the help of
