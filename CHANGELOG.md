@@ -11,6 +11,13 @@ This change log follows the conventions of
 - The `CdjStatus` object was looking at the wrong byte for
   *B<sub>b</sub>* so `getBeatWithinBar()` was always returning `0`.
 
+### Changed
+
+- Trying to call methods that require the `DeviceFinder` or `VirtualCdj`
+  to be running in order to give you valid results will now throw an
+  `IllegalStateException` if those objects are not running, rather than
+  giving you meaningless results.
+
 ## [0.1.1] - 2016-05-08
 
 ### Added

@@ -127,6 +127,17 @@ public class VirtualCdj {
     }
 
     /**
+     * Helper method to throw an {@link IllegalStateException} if we are not currently active.
+     *
+     * @throws IllegalStateException if the {@link VirtualCdj} is not active
+     */
+    private static void ensureActive() {
+        if (!isActive()) {
+            throw new IllegalStateException("VirtualCdj is not active");
+        }
+    }
+
+    /**
      * Keep track of which device has reported itself as the current tempo master.
      */
     private static DeviceUpdate tempoMaster;
@@ -137,8 +148,10 @@ public class VirtualCdj {
      * returns {@code null}.
      *
      * @return the most recent update from a device which reported itself as the master
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public static synchronized DeviceUpdate getTempoMaster() {
+        ensureActive();
         return tempoMaster;
     }
 
@@ -185,11 +198,13 @@ public class VirtualCdj {
     private static double masterTempo;
 
     /**
-     * Get the current master tempo. If the Virtual CDJ is not active returns zero.
+     * Get the current master tempo.
      *
      * @return the most recently reported master tempo
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public static synchronized double getMasterTempo() {
+        ensureActive();
         return masterTempo;
     }
 
@@ -245,10 +260,10 @@ public class VirtualCdj {
 
     /**
      * Process a beat packet, potentially updating the master tempo and sending our listeners a master
-     * beat notification.
+     * beat notification. Does nothing if we are not active.
      */
     static synchronized void processBeat(Beat beat) {
-        if (beat.isTempoMaster()) {
+        if (isActive() && beat.isTempoMaster()) {
             setMasterTempo(beat.getEffectiveTempo());
             deliverBeatAnnouncement(beat);
         }
@@ -411,8 +426,10 @@ public class VirtualCdj {
      * @param device the update identifying the device for which current status information is desired
      *
      * @return the most recent detailed status update received for that device
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public static DeviceUpdate getLatestStatusFor(DeviceUpdate device) {
+        ensureActive();
         return updates.get(device.getAddress());
     }
 
@@ -423,8 +440,10 @@ public class VirtualCdj {
      * @param device the announcement identifying the device for which current status information is desired
      *
      * @return the most recent detailed status update received for that device
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public static DeviceUpdate getLatestStatusFor(DeviceAnnouncement device) {
+        ensureActive();
         return updates.get(device.getAddress());
     }
 

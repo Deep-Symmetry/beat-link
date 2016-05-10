@@ -160,9 +160,13 @@ public class DeviceFinder {
      * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
      * as long as the Virtual CDJ is active.
      *
-     * @return the devices which have been heard from recently enough to be considered active
+     * @return the devices which have been heard from recently enough to be considered present on the network
+     * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
     public static Set<DeviceAnnouncement> currentDevices() {
+        if (!isActive()) {
+            throw new IllegalStateException("DeviceFinder is not active");
+        }
         expireDevices();
         return Collections.unmodifiableSet(new HashSet<DeviceAnnouncement>(devices.values()));
     }

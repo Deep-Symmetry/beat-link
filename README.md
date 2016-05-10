@@ -47,7 +47,7 @@ obtain the list of them by calling:
 ```
 
 This returns a list of [`DeviceAnnouncement`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceAnnouncement.html)
-objects describing the devices that were heard from. To be find out
+objects describing the devices that were heard from. To find out
 immediately when a new device is noticed, or when an existing device
 disappears, you can use
 [`DeviceFinder.addDeviceAnnouncementListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#addDeviceAnnouncementListener-org.deepsymmetry.beatlink.DeviceAnnouncementListener-).
@@ -101,7 +101,7 @@ If the `VirtualCdj` is active, you can also call the `Beat` object&rsquo;s
 [`isTempoMaster()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#isTempoMaster--)
 method to find out if it was sent by the device that is currently in
 control of the master tempo. (If `VirtualCdj` was not started, this
-method will always return `false`.)
+method will throw an `IllegalStateException`.)
 
 ### Getting Device Details
 

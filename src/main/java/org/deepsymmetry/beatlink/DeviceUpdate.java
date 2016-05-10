@@ -106,6 +106,7 @@ public abstract class DeviceUpdate {
      * {@link VirtualCdj} is not active.
      *
      * @return {@code true} if the device that sent this update is the master
+     * @throws  IllegalStateException if the {@link VirtualCdj} is not running.
      */
     public abstract boolean isTempoMaster();
 
