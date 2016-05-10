@@ -51,6 +51,11 @@ public class MixerStatus extends DeviceUpdate {
         return packetBytes[55];
     }
 
+    /**
+     * Is this mixer reporting itself to be the current tempo master?
+     *
+     * @return {@code true} if the mixer that sent this update is the master
+     */
     @Override
     public boolean isTempoMaster() {
         return (packetBytes[STATUS_FLAGS] & CdjStatus.MASTER_FLAG) > 0;

@@ -77,6 +77,12 @@ public class Beat extends DeviceUpdate {
                 ", beat within bar: " + getBeatWithinBar();
     }
 
+    /**
+     * Was this beat sent by the current tempo master?
+     *
+     * @return {@code true} if the device that sent this beat is the master
+     * @throws  IllegalStateException if the {@link VirtualCdj} is not running.
+     */
     @Override
     public boolean isTempoMaster() {
         DeviceUpdate master = VirtualCdj.getTempoMaster();

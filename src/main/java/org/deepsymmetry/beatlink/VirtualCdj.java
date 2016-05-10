@@ -144,8 +144,7 @@ public class VirtualCdj {
 
     /**
      * Check which device is the current tempo master, returning the {@link DeviceUpdate} packet in which it
-     * reported itself to be master. If there is no current tempo master or the Virtual CDJ is not active
-     * returns {@code null}.
+     * reported itself to be master. If there is no current tempo master returns {@code null}.
      *
      * @return the most recent update from a device which reported itself as the master
      * @throws IllegalStateException if the {@code VirtualCdj} is not active

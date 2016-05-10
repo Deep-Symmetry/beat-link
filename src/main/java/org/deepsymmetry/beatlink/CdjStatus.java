@@ -249,9 +249,9 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * Is this device reporting itself to be the current tempo master?
+     * Is this CDJ reporting itself to be the current tempo master?
      *
-     * @return {@code true} if the device that sent this update is the master
+     * @return {@code true} if the player that sent this update is the master
      */
     @Override
     public boolean isTempoMaster() {
