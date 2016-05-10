@@ -6,6 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [0.1.2] - 2016-05-09
+
 ### Fixed
 
 - The `CdjStatus` object was looking at the wrong byte for
@@ -33,6 +37,7 @@ This change log follows the conventions of
 - Intial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.1...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/brunchboy/beat-link/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/brunchboy/beat-link/compare/v0.1.0...v0.1.1
 
