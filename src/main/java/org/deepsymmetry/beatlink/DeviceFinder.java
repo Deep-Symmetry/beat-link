@@ -120,7 +120,8 @@ public class DeviceFinder {
                             received = false;
                         }
                         try {
-                            if (received && (packet.getLength() == 54) && Util.validateHeader(packet, 6, "device announcement")) {
+                            if (received && (!VirtualCdj.isActive() || !packet.getAddress().equals(VirtualCdj.getLocalAddress())) &&
+                                    (packet.getLength() == 54) && Util.validateHeader(packet, 6, "device announcement")) {
                                 // Looks like the kind of packet we need
                                 DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
                                 if (!isDeviceKnown(announcement)) {

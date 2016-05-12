@@ -39,6 +39,34 @@ public class VirtualCdj {
     }
 
     /**
+     * Return the address being used by the virtual CDJ to send its own presence announcement broadcasts,
+     * so they can be filtered out by the {@link DeviceFinder}.
+     *
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active.
+     */
+    public static synchronized InetAddress getLocalAddress() {
+        ensureActive();
+        return  socket.getLocalAddress();
+    }
+
+    /**
+     * The broadcast address on which we can reach the DJ-Link devices. Determined when we start
+     * up by finding the network interface address on which we are receiving the other devices'
+     * announcement broadcasts.
+     */
+    private static InetAddress broadcastAddress;
+
+    /**
+     * Return the broadcast address used to reach the DJ-Link network.
+     *
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active.
+     */
+    public static synchronized InetAddress getBroadcastAddress() {
+        ensureActive();
+        return broadcastAddress;
+    }
+
+    /**
      * Keep track of the most recent updates we have seen, indexed by the address they came from.
      */
     private static final Map<InetAddress, DeviceUpdate> updates = new HashMap<InetAddress, DeviceUpdate>();
@@ -287,18 +315,102 @@ public class VirtualCdj {
     }
 
     /**
+     * Once we have seen some DJ-Link devices on the network, we can proceed to create a virtual player on that
+     * same network.
+     *
+     * @throws SocketException if there is a problem opening a socket on the right network
+     */
+    private static synchronized void createVirtualCdj() throws SocketException {
+        // Find the network interface and address to use to communicate with the first device we found.
+        NetworkInterface matchedInterface = null;
+        InterfaceAddress matchedAddress = null;
+        DeviceAnnouncement aDevice = DeviceFinder.currentDevices().iterator().next();
+        for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+            matchedAddress = findMatchingAddress(aDevice, networkInterface);
+            if (matchedAddress != null) {
+                matchedInterface = networkInterface;
+                break;
+            }
+        }
+
+        if (matchedAddress == null) {
+            logger.log(Level.WARNING, "Unable to find network interface to communicate with " + aDevice +
+                    ", giving up.");
+            return;
+        }
+
+        // Copy the chosen interface's hardware and IP addresses into the announcement packet template
+        System.arraycopy(matchedInterface.getHardwareAddress(), 0, announcementBytes, 38, 6);
+        System.arraycopy(matchedAddress.getAddress().getAddress(), 0, announcementBytes, 44, 4);
+        broadcastAddress = matchedAddress.getBroadcast();
+
+        // Looking good. Open our communication socket and set up our threads.
+        socket = new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress());
+
+        final byte[] buffer = new byte[512];
+        final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
+        // Create the update reception thread
+        Thread receiver = new Thread(null, new Runnable() {
+            @Override
+            public void run() {
+                boolean received;
+                while (isActive()) {
+                    try {
+                        socket.receive(packet);
+                        received = true;
+                    } catch (IOException e) {
+                        // Don't log a warning if the exception was due to the socket closing at shutdown.
+                        if (isActive()) {
+                            // We did not expect to have a problem; log a warning and shut down.
+                            logger.log(Level.WARNING, "Problem reading from DeviceStatus socket, stopping", e);
+                            stop();
+                        }
+                        received = false;
+                    }
+                    try {
+                        if (received && (packet.getAddress() != socket.getLocalAddress())) {
+                            DeviceUpdate update = buildUpdate(packet);
+                            if (update != null) {
+                                processUpdate(update);
+                            }
+                        }
+                    } catch (Exception e) {
+                        logger.log(Level.WARNING, "Problem processing device update packet", e);
+                    }
+                }
+            }
+        }, "beat-link VirtualCdj status receiver");
+        receiver.setDaemon(true);
+        receiver.start();
+
+        // Create the thread which announces our participation in the DJ Link network, to request update packets
+        Thread announcer = new Thread(null, new Runnable() {
+            @Override
+            public void run() {
+                while (isActive()) {
+                    sendAnnouncement(broadcastAddress);
+                }
+            }
+        }, "beat-link VirtualCdj announcement sender");
+        announcer.setDaemon(true);
+        announcer.start();
+
+    }
+
+    /**
      * Start announcing ourselves and listening for status packets. If already active, has no effect. Requires the
      * {@link DeviceFinder} to be active in order to find out how to communicate with other devices, so will start
      * that if it is not already.
      *
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
-    public static synchronized void start() throws SocketException {
+    public static void start() throws SocketException {
         if (!isActive()) {
 
             // Find some DJ Link devices so we can figure out the interface and address to use to talk to them
             DeviceFinder.start();
-            for (int i = 0; DeviceFinder.currentDevices().isEmpty() && i < 4; i++) {
+            for (int i = 0; DeviceFinder.currentDevices().isEmpty() && i < 20; i++) {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
@@ -312,80 +424,7 @@ public class VirtualCdj {
                 return;
             }
 
-            // Find the network interface and address to use to communicate with the first device we found.
-            NetworkInterface matchedInterface = null;
-            InterfaceAddress matchedAddress = null;
-            DeviceAnnouncement aDevice = DeviceFinder.currentDevices().iterator().next();
-            for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-                matchedAddress = findMatchingAddress(aDevice, networkInterface);
-                if (matchedAddress != null) {
-                    matchedInterface = networkInterface;
-                    break;
-                }
-            }
-
-            if (matchedAddress == null) {
-                logger.log(Level.WARNING, "Unable to find network interface to communicate with " + aDevice +
-                ", giving up.");
-                return;
-            }
-
-            // Copy the chosen interface's hardware and IP addresses into the announcement packet template
-            System.arraycopy(matchedInterface.getHardwareAddress(), 0, announcementBytes, 38, 6);
-            System.arraycopy(matchedAddress.getAddress().getAddress(), 0, announcementBytes, 44, 4);
-            final InetAddress broadcastAddress = matchedAddress.getBroadcast();
-
-            // Looking good. Open our communication socket and set up our threads.
-            socket = new DatagramSocket(UPDATE_PORT);
-
-            final byte[] buffer = new byte[512];
-            final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-
-            // Create the update reception thread
-            Thread receiver = new Thread(null, new Runnable() {
-                @Override
-                public void run() {
-                    boolean received;
-                    while (isActive()) {
-                        try {
-                            socket.receive(packet);
-                            received = true;
-                        } catch (IOException e) {
-                            // Don't log a warning if the exception was due to the socket closing at shutdown.
-                            if (isActive()) {
-                                // We did not expect to have a problem; log a warning and shut down.
-                                logger.log(Level.WARNING, "Problem reading from DeviceStatus socket, stopping", e);
-                                stop();
-                            }
-                            received = false;
-                        }
-                        try {
-                            if (received) {
-                                DeviceUpdate update = buildUpdate(packet);
-                                if (update != null) {
-                                    processUpdate(update);
-                                }
-                            }
-                        } catch (Exception e) {
-                            logger.log(Level.WARNING, "Problem processing device update packet", e);
-                        }
-                    }
-                }
-            }, "beat-link VirtualCdj status receiver");
-            receiver.setDaemon(true);
-            receiver.start();
-
-            // Create the thread which announces our participation in the DJ Link network, to request update packets
-            Thread announcer = new Thread(null, new Runnable() {
-                @Override
-                public void run() {
-                    while (isActive()) {
-                        sendAnnouncement(broadcastAddress);
-                    }
-                }
-            }, "beat-link VirtualCdj announcement sender");
-            announcer.setDaemon(true);
-            announcer.start();
+            createVirtualCdj();
         }
     }
 
@@ -396,6 +435,7 @@ public class VirtualCdj {
         if (isActive()) {
             socket.close();
             socket = null;
+            broadcastAddress = null;
             updates.clear();
             setMasterTempo(0.0);
             setTempoMaster(null);
