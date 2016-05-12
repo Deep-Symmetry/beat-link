@@ -42,7 +42,8 @@ public class VirtualCdj {
      * Return the address being used by the virtual CDJ to send its own presence announcement broadcasts,
      * so they can be filtered out by the {@link DeviceFinder}.
      *
-     * @throws IllegalStateException if the {@code VirtualCdj} is not active.
+     * @return the local address we present to the DJ Link network
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public static synchronized InetAddress getLocalAddress() {
         ensureActive();
@@ -50,16 +51,17 @@ public class VirtualCdj {
     }
 
     /**
-     * The broadcast address on which we can reach the DJ-Link devices. Determined when we start
+     * The broadcast address on which we can reach the DJ Link devices. Determined when we start
      * up by finding the network interface address on which we are receiving the other devices'
      * announcement broadcasts.
      */
     private static InetAddress broadcastAddress;
 
     /**
-     * Return the broadcast address used to reach the DJ-Link network.
+     * Return the broadcast address used to reach the DJ Link network.
      *
-     * @throws IllegalStateException if the {@code VirtualCdj} is not active.
+     * @return the address on which packets can be broadcast to the other DJ Link devices
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public static synchronized InetAddress getBroadcastAddress() {
         ensureActive();
@@ -315,7 +317,7 @@ public class VirtualCdj {
     }
 
     /**
-     * Once we have seen some DJ-Link devices on the network, we can proceed to create a virtual player on that
+     * Once we have seen some DJ Link devices on the network, we can proceed to create a virtual player on that
      * same network.
      *
      * @throws SocketException if there is a problem opening a socket on the right network
