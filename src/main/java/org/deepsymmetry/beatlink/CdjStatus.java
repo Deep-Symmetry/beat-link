@@ -249,6 +249,17 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
+     * Returns {@code true} if this beat is coming from a device where {@link #getBeatWithinBar()} can reasonably
+     * be expected to have musical significance, because it respects the way a track was configured within rekordbox.
+     *
+     * @return true because players report their beats according to rekordbox-identified measures
+     */
+    @Override
+    public boolean isBeatWithinBarMeaningful() {
+        return true;
+    }
+
+    /**
      * Is this CDJ reporting itself to be the current tempo master?
      *
      * @return {@code true} if the player that sent this update is the master

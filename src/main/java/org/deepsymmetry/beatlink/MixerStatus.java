@@ -52,6 +52,17 @@ public class MixerStatus extends DeviceUpdate {
     }
 
     /**
+     * Returns {@code true} if this beat is coming from a device where {@link #getBeatWithinBar()} can reasonably
+     * be expected to have musical significance, because it respects the way a track was configured within rekordbox.
+     *
+     * @return false because mixers make no effort to line up their beats with rekordbox-identified measures
+     */
+    @Override
+    public boolean isBeatWithinBarMeaningful() {
+        return false;
+    }
+
+    /**
      * Is this mixer reporting itself to be the current tempo master?
      *
      * @return {@code true} if the mixer that sent this update is the master

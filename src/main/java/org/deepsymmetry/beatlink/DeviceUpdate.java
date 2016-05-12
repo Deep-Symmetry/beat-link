@@ -115,4 +115,23 @@ public abstract class DeviceUpdate {
      * @return the beats per minute this device is reporting
      */
     public abstract double getEffectiveTempo();
+
+    /**
+     * Get the position within a measure of music at which this beat falls (a value from 1 to 4, where 1 represents
+     * the down beat). This value will be accurate for players when the track was properly configured within rekordbox
+     * (and if the music follows a standard House 4/4 time signature). The mixer makes no effort to synchronize
+     * down beats with players, however, so this value is meaningless when coming from the mixer. The usefulness of
+     * this value can be checked with {@link #isBeatWithinBarMeaningful()}.
+     *
+     * @return the beat number within the current measure of music
+     */
+    public abstract int getBeatWithinBar();
+
+    /**
+     * Returns {@code true} if this update is coming from a device where {@link #getBeatWithinBar()} can reasonably
+     * be expected to have musical significance, because it respects the way a track was configured within rekordbox.
+     *
+     * @return true for status packets from players, false for status packets from mixers
+     */
+    public abstract boolean isBeatWithinBarMeaningful();
 }
