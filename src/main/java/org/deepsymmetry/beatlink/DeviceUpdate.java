@@ -50,7 +50,7 @@ public abstract class DeviceUpdate {
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         timestamp = System.currentTimeMillis();
-        deviceName = new String(packetBytes, 12, 20).trim();
+        deviceName = new String(packetBytes, 11, 20).trim();
         deviceNumber = Util.unsign(packetBytes[36]);
     }
 
