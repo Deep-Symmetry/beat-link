@@ -147,9 +147,10 @@ public class DeviceFinder {
      */
     public static synchronized void stop() {
         if (isActive()) {
+            final Set<DeviceAnnouncement> lastDevices = currentDevices();
             socket.close();
             socket = null;
-            for (DeviceAnnouncement announcement : currentDevices()) {
+            for (DeviceAnnouncement announcement : lastDevices) {
                 deliverLostAnnouncement(announcement);
             }
             devices.clear();
