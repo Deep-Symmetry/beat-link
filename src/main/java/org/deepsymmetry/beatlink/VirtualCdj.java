@@ -320,9 +320,10 @@ public class VirtualCdj {
      * Once we have seen some DJ Link devices on the network, we can proceed to create a virtual player on that
      * same network.
      *
+     * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}.
      * @throws SocketException if there is a problem opening a socket on the right network
      */
-    private static synchronized void createVirtualCdj() throws SocketException {
+    private static synchronized boolean createVirtualCdj() throws SocketException {
         // Find the network interface and address to use to communicate with the first device we found.
         NetworkInterface matchedInterface = null;
         InterfaceAddress matchedAddress = null;
@@ -338,7 +339,7 @@ public class VirtualCdj {
         if (matchedAddress == null) {
             logger.log(Level.WARNING, "Unable to find network interface to communicate with " + aDevice +
                     ", giving up.");
-            return;
+            return false;
         }
 
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template
@@ -397,7 +398,7 @@ public class VirtualCdj {
         }, "beat-link VirtualCdj announcement sender");
         announcer.setDaemon(true);
         announcer.start();
-
+        return true;
     }
 
     /**
@@ -405,9 +406,10 @@ public class VirtualCdj {
      * {@link DeviceFinder} to be active in order to find out how to communicate with other devices, so will start
      * that if it is not already.
      *
+     * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
-    public static void start() throws SocketException {
+    public static boolean start() throws SocketException {
         if (!isActive()) {
 
             // Find some DJ Link devices so we can figure out the interface and address to use to talk to them
@@ -417,17 +419,18 @@ public class VirtualCdj {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     logger.log(Level.WARNING, "Interrupted waiting for devices, giving up", e);
-                    return;
+                    return false;
                 }
             }
 
             if (DeviceFinder.currentDevices().isEmpty()) {
                 logger.log(Level.WARNING, "No DJ Link devices found, giving up");
-                return;
+                return false;
             }
 
-            createVirtualCdj();
+            return createVirtualCdj();
         }
+        return true;  // We were already active
     }
 
     /**

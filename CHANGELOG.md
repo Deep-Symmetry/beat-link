@@ -6,7 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Changed
+
+- `VirtualCdj.start()` now returns a `boolean` value to indicate
+  whether the attempt was successful, with `false` meaning that no DJ
+  Link devices could be found.
 
 ## [0.1.3] - 2016-05-12
 
