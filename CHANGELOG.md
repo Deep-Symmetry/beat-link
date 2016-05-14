@@ -11,6 +11,9 @@ This change log follows the conventions of
 - `VirtualCdj.start()` now returns a `boolean` value to indicate
   whether the attempt was successful, with `false` meaning that no DJ
   Link devices could be found.
+- `DeviceWatcher` now updates its device lists before posting
+  lost/found announcements, so recipients can see the results as a
+  whole.
 
 ## [0.1.3] - 2016-05-12
 

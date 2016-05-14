@@ -56,8 +56,8 @@ public class DeviceFinder {
         while (it.hasNext()) {
             Map.Entry<InetAddress, DeviceAnnouncement> entry = it.next();
             if (now - entry.getValue().getTimestamp() > MAXIMUM_AGE) {
-                deliverLostAnnouncement(entry.getValue());
                 it.remove();
+                deliverLostAnnouncement(entry.getValue());
             }
         }
     }
@@ -124,10 +124,11 @@ public class DeviceFinder {
                                     (packet.getLength() == 54) && Util.validateHeader(packet, 6, "device announcement")) {
                                 // Looks like the kind of packet we need
                                 DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
-                                if (!isDeviceKnown(announcement)) {
+                                final boolean foundNewDevice = !isDeviceKnown(announcement);
+                                updateDevices(announcement);
+                                if (foundNewDevice) {
                                     deliverFoundAnnouncement(announcement);
                                 }
-                                updateDevices(announcement);
                             }
                             expireDevices();
                         } catch (Exception e) {
@@ -150,10 +151,10 @@ public class DeviceFinder {
             final Set<DeviceAnnouncement> lastDevices = currentDevices();
             socket.close();
             socket = null;
+            devices.clear();
             for (DeviceAnnouncement announcement : lastDevices) {
                 deliverLostAnnouncement(announcement);
             }
-            devices.clear();
         }
     }
 
