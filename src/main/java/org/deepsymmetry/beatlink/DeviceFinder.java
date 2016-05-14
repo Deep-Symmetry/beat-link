@@ -166,7 +166,7 @@ public class DeviceFinder {
      * @return the devices which have been heard from recently enough to be considered present on the network
      * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
-    public static Set<DeviceAnnouncement> currentDevices() {
+    public static synchronized Set<DeviceAnnouncement> currentDevices() {
         if (!isActive()) {
             throw new IllegalStateException("DeviceFinder is not active");
         }
