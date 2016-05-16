@@ -298,7 +298,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Was the CDJ playing a track when this update was sent?
      *
-     * @return true if the play flag was set, or, if this seems to be a non-nexus player, if <it>P<sub>1</sub></it>
+     * @return true if the play flag was set, or, if this seems to be a non-nexus player, if <em>P<sub>1</sub></em>
      *         has a value corresponding to a playing state.
      */
     public boolean isPlaying() {
