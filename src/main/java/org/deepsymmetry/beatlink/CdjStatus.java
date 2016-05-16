@@ -124,6 +124,11 @@ public class CdjStatus extends DeviceUpdate {
     private final int bpm;
 
     /**
+     * The firmware version found in the packet.
+     */
+    private final String firmwareVersion;
+
+    /**
      * Determine the enum value corresponding to the first play state found in the packet.
      *
      * @return the proper value
@@ -148,9 +153,16 @@ public class CdjStatus extends DeviceUpdate {
      */
     private PlayState2 findPlayState2() {
         switch (packetBytes[139]) {
-            case 122: return PlayState2.MOVING;
-            case 126: return PlayState2.STOPPED;
-            default: return PlayState2.UNKNOWN;
+            case 106:
+            case 122:
+                return PlayState2.MOVING;
+
+            case 110:
+            case 126:
+                return PlayState2.STOPPED;
+
+            default:
+                return PlayState2.UNKNOWN;
         }
     }
 
@@ -175,12 +187,16 @@ public class CdjStatus extends DeviceUpdate {
      * @param packet the beat announcement packet that was received
      */
     public CdjStatus(DatagramPacket packet) {
-        super(packet, "CDJ status", 212);
+        super(packet, "CDJ status", packet.getLength());
+        if (packetBytes.length != 208 && packetBytes.length != 212) {
+            throw new IllegalArgumentException("CDJ status packet must be 208 or 212 bytes long");
+        }
         pitch = (int)Util.bytesToNumber(packetBytes, 141, 3);
         bpm = (int)Util.bytesToNumber(packetBytes, 146, 2);
         playState1 = findPlayState1();
         playState2 = findPlayState2();
         playState3 = findPlayState3();
+        firmwareVersion = new String(packetBytes, 124, 4).trim();
     }
 
     /**
@@ -242,6 +258,9 @@ public class CdjStatus extends DeviceUpdate {
      * represents the down beat). This value will be accurate when the track was properly configured within rekordbox
      * (and if the music follows a standard House 4/4 time signature).
      *
+     * <p>When the track being played has not been analyzed by rekordbox, or is playing on a non-nexus player, this
+     * value will always be zero.</p>
+     *
      * @return the beat number within the current measure of music
      */
     public int getBeatWithinBar() {
@@ -251,12 +270,14 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Returns {@code true} if this beat is coming from a device where {@link #getBeatWithinBar()} can reasonably
      * be expected to have musical significance, because it respects the way a track was configured within rekordbox.
+     * For CDJs this is true whenever the value is not zero (i.e. this is a nexus player playing a track that
+     * was analyzed by rekordbox), because players report their beats according to rekordbox-identified measures.
      *
-     * @return true because players report their beats according to rekordbox-identified measures
+     * @return true whenever we are reporting a non-zero value
      */
     @Override
     public boolean isBeatWithinBarMeaningful() {
-        return true;
+        return getBeatWithinBar() > 0;
     }
 
     /**
@@ -277,10 +298,17 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Was the CDJ playing a track when this update was sent?
      *
-     * @return true if the play flag was set
+     * @return true if the play flag was set, or, if this seems to be a non-nexus player, if <it>P<sub>1</sub></it>
+     *         has a value corresponding to a playing state.
      */
     public boolean isPlaying() {
-        return (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
+        if (packetBytes.length == 212) {
+            return (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
+        } else {
+            final PlayState1 state = getPlayState1();
+            return  state == PlayState1.PLAYING || state == PlayState1.LOOPING ||
+                    (state == PlayState1.SEARCHING && getPlayState2() == PlayState2.MOVING);
+        }
     }
 
     /**
@@ -462,10 +490,16 @@ public class CdjStatus extends DeviceUpdate {
      * increments on each beat. When the player is paused at the start of the track before playback begins, the
      * value reported is 0.
      *
-     * @return the number of the beat within the track that is currently being played
+     * <p>When the track being played has not been analyzed by rekordbox, or is being played on a non-nexus player,
+     * this information is not available, and the value -1 is returned.</p>
+     *
+     * @return the number of the beat within the track that is currently being played, or -1 if unknown
      */
     public int getBeatNumber() {
-        return (int)Util.bytesToNumber(packetBytes, 160, 4);
+        long result = Util.bytesToNumber(packetBytes, 160, 4);
+        if (result != 0xffffffffL) {
+            return (int) result;
+        } return -1;
     }
 
     /**
@@ -509,6 +543,15 @@ public class CdjStatus extends DeviceUpdate {
         }
 
         return "??.?";
+    }
+
+    /**
+     * Return the firmware version string reported in the packet.
+     *
+     * @return the version of the firmware in the player
+     */
+    public String getFirmwareVersion() {
+        return firmwareVersion;
     }
 
     /**

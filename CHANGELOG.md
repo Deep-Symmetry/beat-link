@@ -6,6 +6,16 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+### Fixed
+
+- Accept shorter, 208-byte CDJ status packets sent by non-nexus players.
+- The value of *F* seems to always be zero for non-nexus players, so we
+  need to use a different way to check playing status for them.
+- The value of *B<sub>b</sub>* is not meaningful for non-rekordbox tracks
+  and non-nexus players, so reflect that in
+  `CdjStatus.isBeatWithinBarMeaningful()`.
+- The values reported for *P<sub>2</sub>* are different for non-nexus players.
+
 ### Changed
 
 - `VirtualCdj.start()` now returns a `boolean` value to indicate
@@ -14,6 +24,14 @@ This change log follows the conventions of
 - `DeviceWatcher` now updates its device lists before posting
   lost/found announcements, so recipients can see the results as a
   whole.
+
+### Added
+
+- The firmware version number has been found in the CDJ status packets,
+  so it is now available through `CdjStatus.getFirmwareVersion()`.
+- When the beat number within the track is not meaningful (because a
+  non-rekordbox track is being played, or a non-nexus player sent the
+  update), `CdjStatus.getBeatNumber()` now returns `-1`.
 
 ## [0.1.3] - 2016-05-12
 
