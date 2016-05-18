@@ -500,7 +500,7 @@ public class VirtualCdj {
      * @return the matching detailed status update or null if none have been received
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
-    public static synchronized DeviceUpdate getLatestAnnouncementFrom(int deviceNumber) {
+    public static synchronized DeviceUpdate getLatestStatusFor(int deviceNumber) {
         ensureActive();
         for (DeviceUpdate update : updates.values()) {
             if (update.getDeviceNumber() == deviceNumber) {
