@@ -1,7 +1,7 @@
 package org.deepsymmetry.beatlink;
 
 /**
- An abstract adapter class for receiving announcements related to the tempo master.
+ An abstract adapter class for receiving updates related to the tempo master.
  * The methods in this class are empty; it exists as a convenience for creating listener objects.
  *
  * <p>Extend this class to create a {@link MasterListener} and override only the methods for events that you
@@ -25,6 +25,11 @@ public abstract class MasterAdapter implements MasterListener{
      * Even though beats contain far less detailed information than status updates, they can be passed to
      * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
      * as long as the Virtual CDJ is active.
+     *
+     * <p>Tempo master updates are delivered to listeners on the
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
+     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
+     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
      *
      * @param beat the message which announced the start of the new beat
      */

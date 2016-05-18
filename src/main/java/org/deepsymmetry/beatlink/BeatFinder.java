@@ -115,6 +115,11 @@ public class BeatFinder {
      * them on the network. If {@code listener} is {@code null} or already present in the list
      * of registered listeners, no exception is thrown and no action is performed.
      *
+     * <p>Beat announcements are delivered to listeners on the
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
+     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
+     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
+     *
      * @param listener the beat listener to add
      */
     public static synchronized void addBeatListener(BeatListener listener) {

@@ -16,12 +16,22 @@ public interface DeviceAnnouncementListener {
     /**
      * Invoked when a new DJ Link device is heard from on the network.
      *
+     * <p>Device announcements are delivered to listeners on the
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
+     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
+     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
+     *
      * @param announcement the message which announced the device's presence
      */
     void deviceFound(DeviceAnnouncement announcement);
 
     /**
      * Invoked when a DJ Link device is no longer seen on the network.
+     *
+     * <p>Device announcements are delivered to listeners on the
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
+     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
+     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
      *
      * @param announcement the last message which was sent by the device before it disappeared
      */

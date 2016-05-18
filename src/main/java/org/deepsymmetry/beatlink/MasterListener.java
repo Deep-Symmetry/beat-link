@@ -18,12 +18,22 @@ public interface MasterListener extends BeatListener {
     /**
      * Invoked when there is a change in which device is the current tempo master.
      *
+     * <p>Tempo master updates are delivered to listeners on the
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
+     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
+     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
+     *
      * @param update the message identifying the new master, or {@code null} if there is now none
      */
     void masterChanged(DeviceUpdate update);
 
     /**
      * Invoked when the master tempo has changed.
+     *
+     * <p>Tempo master updates are delivered to listeners on the
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
+     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
+     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
      *
      * @param tempo the new master tempo
      */
