@@ -175,6 +175,22 @@ public class DeviceFinder {
     }
 
     /**
+     * Find and return the device announcement that was most recently received from a device identifying itself
+     * with the specified device number, if any.
+     *
+     * @param deviceNumber the device number of interest
+     * @return the matching announcement or null if no such device has been heard from
+     */
+    public static DeviceAnnouncement getLatestAnnouncementFrom(int deviceNumber) {
+        for (DeviceAnnouncement announcement : currentDevices()) {
+            if (announcement.getNumber() == deviceNumber) {
+                return announcement;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Keeps track of the registered device announcement listeners.
      */
     private static final Set<DeviceAnnouncementListener> listeners = new HashSet<DeviceAnnouncementListener>();

@@ -32,6 +32,10 @@ This change log follows the conventions of
 - When the beat number within the track is not meaningful (because a
   non-rekordbox track is being played, or a non-nexus player sent the
   update), `CdjStatus.getBeatNumber()` now returns `-1`.
+- A new method `DeviceFinder.getLatestAnnouncementFrom()` and
+  a new overload of `VirtualCdj.getLatustStatusFor()` which take a
+  device (player) number and look for matching announcement or status
+  reports.
 
 ## [0.1.3] - 2016-05-12
 

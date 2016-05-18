@@ -492,6 +492,26 @@ public class VirtualCdj {
     }
 
     /**
+     * Look up the most recent status we have seen for a device from a device identifying itself
+     * with the specified device number, if any.
+     *
+     * @param deviceNumber the device number of interest
+     *
+     * @return the matching detailed status update or null if none have been received
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     */
+    public static synchronized DeviceUpdate getLatestAnnouncementFrom(int deviceNumber) {
+        ensureActive();
+        for (DeviceUpdate update : updates.values()) {
+            if (update.getDeviceNumber() == deviceNumber) {
+                return update;
+            }
+        }
+        return null;
+    }
+
+
+    /**
      * Keeps track of the registered master listeners.
      */
     private static final Set<MasterListener> masterListeners = new HashSet<MasterListener>();
