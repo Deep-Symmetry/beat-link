@@ -6,7 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Added
+
+- A new method, `DeviceFinder.getLatestStatus()` that returns the most
+  recent status updates received from all active devices.
 
 ## [0.1.4] - 2016-05-18
 

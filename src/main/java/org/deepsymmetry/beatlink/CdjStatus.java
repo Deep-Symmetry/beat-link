@@ -247,6 +247,8 @@ public class CdjStatus extends DeviceUpdate {
      * Get the track BPM at the time of the update. This is an integer representing the BPM times 100, so a track
      * running at 120.5 BPM would be represented by the value 12050.
      *
+     * <p>When the CDJ has just started up and no track has been loaded, it will report a BPM of 65535.</p>
+     *
      * @return the track BPM to two decimal places multiplied by 100
      */
     public int getBpm() {

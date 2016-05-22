@@ -464,6 +464,25 @@ public class VirtualCdj {
     }
 
     /**
+     * Get the most recent status we have seen from all devices that are recent enough to be considered still
+     * active on the network.
+
+     * @return the most recent detailed status update received for all active devices
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     */
+    public static synchronized Set<DeviceUpdate> getLatestStatus() {
+        ensureActive();
+        Set<DeviceUpdate> result = new HashSet<DeviceUpdate>();
+        long now = System.currentTimeMillis();
+        for (DeviceUpdate update : updates.values()) {
+            if (now - update.getTimestamp() <= DeviceFinder.MAXIMUM_AGE) {
+                result.add(update);
+            }
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
+    /**
      * Look up the most recent status we have seen for a device, given another update from it, which might be a
      * beat packet containing far less information.
      *
