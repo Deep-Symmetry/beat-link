@@ -11,6 +11,20 @@ This change log follows the conventions of
 - A new method, `DeviceFinder.getLatestStatus()` that returns the most
   recent status updates received from all active devices.
 
+### Changed
+
+- Device updates, beat announcements, and master announcements are time
+  sensitive, so they are now delivered directly on the thread that is
+  receiving them from the network, rather than being added to the Event
+  Dispatch Queue. This will reduce latency, but means listener methods
+  need to be very fast, and delegate any lengthy, non-time-sensitive
+  operations to another thread themselves.
+- The threads which receive device updates and beat announcements now
+  run at maximum priority, also to reduce latency. Device announcements
+  are less time-sensitive, so those are still received at normal priority,
+  and sent on the event dispatch thread, to make it easier to update user
+  interface elements.
+
 ## [0.1.4] - 2016-05-18
 
 ### Fixed

@@ -91,6 +91,7 @@ public class BeatFinder {
                 }
             }, "beat-link BeatFinder receiver");
             receiver.setDaemon(true);
+            receiver.setPriority(Thread.MAX_PRIORITY);
             receiver.start();
         }
     }
@@ -115,10 +116,14 @@ public class BeatFinder {
      * them on the network. If {@code listener} is {@code null} or already present in the list
      * of registered listeners, no exception is thrown and no action is performed.
      *
-     * <p>Beat announcements are delivered to listeners on the
-     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
-     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
-     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
+     * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
+     * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     *
+     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param listener the beat listener to add
      */
@@ -159,16 +164,11 @@ public class BeatFinder {
     private static void deliverBeat(final Beat beat) {
         VirtualCdj.processBeat(beat);
         for (final BeatListener listener : getBeatListeners()) {
-            EventQueue.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        listener.newBeat(beat);
-                    } catch (Exception e) {
-                        logger.log(Level.WARNING, "Problem delivering beat announcement to listener", e);
-                    }
-                }
-            });
+            try {
+                listener.newBeat(beat);
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Problem delivering beat announcement to listener", e);
+            }
         }
     }
 }

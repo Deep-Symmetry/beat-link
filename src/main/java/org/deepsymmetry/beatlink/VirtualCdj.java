@@ -385,6 +385,7 @@ public class VirtualCdj {
             }
         }, "beat-link VirtualCdj status receiver");
         receiver.setDaemon(true);
+        receiver.setPriority(Thread.MAX_PRIORITY);
         receiver.start();
 
         // Create the thread which announces our participation in the DJ Link network, to request update packets
@@ -540,10 +541,14 @@ public class VirtualCdj {
      * to the tempo master. If {@code listener} is {@code null} or already present in the list
      * of registered listeners, no exception is thrown and no action is performed.
      *
-     * <p>Tempo master updates are delivered to listeners on the
-     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
-     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
-     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
+     * <p>To reduce latency, tempo master updates are delivered to listeners directly on the thread that is receiving them
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     *
+     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and master updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param listener the master listener to add
      */
@@ -582,16 +587,11 @@ public class VirtualCdj {
      */
     private static void deliverMasterChangedAnnouncement(final DeviceUpdate update) {
         for (final MasterListener listener : getMasterListeners()) {
-            EventQueue.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        listener.masterChanged(update);
-                    } catch (Exception e) {
-                        logger.log(Level.WARNING, "Problem delivering master changed announcement to listener", e);
-                    }
-                }
-            });
+            try {
+                listener.masterChanged(update);
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Problem delivering master changed announcement to listener", e);
+            }
         }
     }
 
@@ -602,16 +602,11 @@ public class VirtualCdj {
      */
     private static void deliverTempoChangedAnnouncement(final double tempo) {
         for (final MasterListener listener : getMasterListeners()) {
-            EventQueue.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        listener.tempoChanged(tempo);
-                    } catch (Exception e) {
-                        logger.log(Level.WARNING, "Problem delivering tempo changed announcement to listener", e);
-                    }
-                }
-            });
+            try {
+                listener.tempoChanged(tempo);
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Problem delivering tempo changed announcement to listener", e);
+            }
         }
     }
 
@@ -622,16 +617,11 @@ public class VirtualCdj {
      */
     private static void deliverBeatAnnouncement(final Beat beat) {
         for (final MasterListener listener : getMasterListeners()) {
-            EventQueue.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        listener.newBeat(beat);
-                    } catch (Exception e) {
-                        logger.log(Level.WARNING, "Problem delivering master beat announcement to listener", e);
-                    }
-                }
-            });
+            try {
+                listener.newBeat(beat);
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Problem delivering master beat announcement to listener", e);
+            }
         }
     }
 
@@ -645,10 +635,14 @@ public class VirtualCdj {
      * If {@code listener} is {@code null} or already present in the list
      * of registered listeners, no exception is thrown and no action is performed.
      *
-     * <p>Device updates are delivered to listeners on the
-     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
-     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
-     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
+     * <p>To reduce latency, device updates are delivered to listeners directly on the thread that is receiving them
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     *
+     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and device updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param listener the device update listener to add
      */
@@ -687,16 +681,11 @@ public class VirtualCdj {
      */
     private static void deliverDeviceUpdate(final DeviceUpdate update) {
         for (final DeviceUpdateListener listener : getUpdateListeners()) {
-            EventQueue.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        listener.received(update);
-                    } catch (Exception e) {
-                        logger.log(Level.WARNING, "Problem delivering device update to listener", e);
-                    }
-                }
-            });
+            try {
+                listener.received(update);
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Problem delivering device update to listener", e);
+            }
         }
     }
 

@@ -16,10 +16,14 @@ public interface BeatListener {
      * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
      * as long as the Virtual CDJ is active.
      *
-     * <p>Beat announcements are delivered to listeners on the
-     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
-     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
-     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
+     * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
+     * them from the network, so if you want to interact with user interface objects in this method, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     *
+     * Even if you are not interacting with user interface objects, any code in this method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param beat the message which announced the start of the new beat
      */
