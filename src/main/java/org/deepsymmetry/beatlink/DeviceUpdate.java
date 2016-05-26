@@ -110,14 +110,14 @@ public abstract class DeviceUpdate {
     public abstract boolean isTempoMaster();
 
     /**
-     * Get the effective tempo reflected by this update, which reflect both its track BPM and pitch as needed.
+     * Get the effective tempo reflected by this update, which reflects both its track BPM and pitch as needed.
      *
      * @return the beats per minute this device is reporting
      */
     public abstract double getEffectiveTempo();
 
     /**
-     * Get the position within a measure of music at which this beat falls (a value from 1 to 4, where 1 represents
+     * Get the position within a measure of music at which the most recent beat fell (a value from 1 to 4, where 1 represents
      * the down beat). This value will be accurate for players when the track was properly configured within rekordbox
      * (and if the music follows a standard House 4/4 time signature). The mixer makes no effort to synchronize
      * down beats with players, however, so this value is meaningless when coming from the mixer. The usefulness of

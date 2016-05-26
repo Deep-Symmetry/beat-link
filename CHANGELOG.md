@@ -6,6 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far
+
+## [0.1.5] - 2016-05-25
+
 ### Added
 
 - A new method, `DeviceFinder.getLatestStatus()` that returns the most
@@ -109,7 +113,8 @@ This change log follows the conventions of
 - Intial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.4...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/brunchboy/beat-link/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/brunchboy/beat-link/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/brunchboy/beat-link/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/brunchboy/beat-link/compare/v0.1.1...v0.1.2
