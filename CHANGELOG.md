@@ -6,7 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far
+### Fixed
+
+- The byte being used to determine device number did not work for beat
+  packets.
 
 ## [0.1.5] - 2016-05-25
 
