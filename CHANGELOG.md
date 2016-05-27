@@ -6,10 +6,15 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+- Nothing so far.
+
+## [0.1.6] - 2016-05-27
+
 ### Fixed
 
 - The byte being used to determine device number did not work for beat
-  packets.
+  packets, so `Beat` objects always returned zero from
+  `getDeviceNumber()`.
 
 ## [0.1.5] - 2016-05-25
 
@@ -116,7 +121,8 @@ This change log follows the conventions of
 - Intial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.5...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/brunchboy/beat-link/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/brunchboy/beat-link/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/brunchboy/beat-link/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/brunchboy/beat-link/compare/v0.1.2...v0.1.3
