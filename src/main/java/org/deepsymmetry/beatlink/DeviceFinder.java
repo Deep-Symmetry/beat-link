@@ -34,12 +34,31 @@ public class DeviceFinder {
     private static DatagramSocket socket;
 
     /**
+     * Track when we started listening for announcement packets, to help judge how long the {@link VirtualCdj} needs
+     * to wait in order to avoid device number collisions.
+     */
+    private static long startTime;
+
+    /**
      * Check whether we are presently listening for device announcements.
      *
      * @return {@code true} if our socket is open and monitoring for DJ Link device announcements on the network
      */
     public static synchronized boolean isActive() {
         return socket != null;
+    }
+
+    /**
+     * Get the timestamp of when we started listening for device announcements.
+     *
+     * @return the system millisecond timestamp when {@link #start()} was called.
+     * @throws IllegalStateException if we are not listening for announcements.
+     */
+    public static synchronized long getStartTime() {
+        if (!isActive()) {
+            throw new IllegalStateException("DeviceFinder is not active");
+        }
+        return startTime;
     }
 
     /**
@@ -92,6 +111,7 @@ public class DeviceFinder {
 
         if (!isActive()) {
             socket = new DatagramSocket(ANNOUNCEMENT_PORT);
+            startTime = System.currentTimeMillis();
 
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);

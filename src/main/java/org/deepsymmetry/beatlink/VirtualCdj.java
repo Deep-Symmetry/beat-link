@@ -75,6 +75,9 @@ public class VirtualCdj {
 
     /**
      * Get the device number that is used when sending presence announcements on the network to pose as a virtual CDJ.
+     * This starts out being zero unless you explicitly assign another value, which means that the <code>VirtualCdj</code>
+     * should assign itself an unused device number between 5 and 15 by watching the network when you call
+     * {@link #start()}.
      *
      * @return the virtual player number
      */
@@ -84,6 +87,9 @@ public class VirtualCdj {
 
     /**
      * Set the device number to be used when sending presence announcements on the network to pose as a virtual CDJ.
+     * If this is set to zero before calling {@link #start()}, the <code>VirtualCdj</code> will watch the network to
+     * look for an unused device number between 5 and 15, and assign itself that number during startup. If you
+     * explicitly assign a non-zero value, it will use that device number instead.
      *
      * @param number the virtual player number
      */
@@ -129,7 +135,7 @@ public class VirtualCdj {
     private static byte[] announcementBytes = {
             0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x06, 0x00,  0x62, 0x65, 0x61, 0x74,
             0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x02, 0x00, 0x36,  0x05, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x36,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
             0x01, 0x00, 0x00, 0x00,  0x01, 0x00
     };
 
@@ -317,6 +323,41 @@ public class VirtualCdj {
     }
 
     /**
+     * The number of milliseconds for which the {@link DeviceFinder} needs to have been watching the network in order
+     * for us to be confident we can choose a device number that will not conflict.
+     */
+    private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 2500;
+
+    /**
+     * Try to choose a device number, greater than 4, which we have not seen on the network. Start by making sure
+     * we have been watching long enough to have seen the other devices.
+     */
+    private static boolean selfAssignDeviceNumber() {
+        final long now = System.currentTimeMillis();
+        final long started = DeviceFinder.getStartTime();
+        if (now - started < SELF_ASSIGNMENT_WATCH_PERIOD) {
+            try {
+                Thread.sleep(SELF_ASSIGNMENT_WATCH_PERIOD - (now - started));  // Sleep until we hit the right time
+            } catch (InterruptedException e) {
+                logger.log(Level.WARNING, "Interrupted waiting to self-assign device number, giving up.");
+                return false;
+            }
+        }
+        Set<Integer> numbersUsed = new HashSet<Integer>();
+        for (DeviceAnnouncement device : DeviceFinder.currentDevices()) {
+            numbersUsed.add(device.getNumber());
+        }
+        for (int result = 5; result < 16; result++) {   // Try all player numbers less than Rekordbox uses
+            if (!numbersUsed.contains(result)) {  // We found one that is not used, so we can use it
+                setDeviceNumber((byte) result);
+                return true;
+            }
+        }
+        logger.log(Level.WARNING, "Found no unused device numbers between 5 and 15, giving up.");
+        return false;
+    }
+
+    /**
      * Once we have seen some DJ Link devices on the network, we can proceed to create a virtual player on that
      * same network.
      *
@@ -340,6 +381,12 @@ public class VirtualCdj {
             logger.log(Level.WARNING, "Unable to find network interface to communicate with " + aDevice +
                     ", giving up.");
             return false;
+        }
+
+        if (getDeviceNumber() == 0) {
+            if (!selfAssignDeviceNumber()) {
+                return false;
+            }
         }
 
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template

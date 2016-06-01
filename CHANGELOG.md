@@ -8,6 +8,14 @@ This change log follows the conventions of
 
 - Nothing so far.
 
+## [0.1.7] - 2016-05-31
+
+### Added
+
+- Unless you assign an explicit `deviceNumber` to `VirtualCdj`, it will
+  watch the DJ Link network looking for an unused player number between
+  5 and 15 to assign itself when it starts up.
+
 ## [0.1.6] - 2016-05-27
 
 ### Fixed
@@ -121,7 +129,8 @@ This change log follows the conventions of
 - Intial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.6...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/brunchboy/beat-link/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/brunchboy/beat-link/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/brunchboy/beat-link/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/brunchboy/beat-link/compare/v0.1.3...v0.1.4
