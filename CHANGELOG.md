@@ -6,7 +6,12 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-- Nothing so far.
+### Added
+
+- Can now obtain track metadata (title and arist, so far), from the
+  CDJs!
+- As part of that, the rekordbox track id and source player / slot
+  information have been found in the CDJ status packets.
 
 ## [0.1.7] - 2016-05-31
 

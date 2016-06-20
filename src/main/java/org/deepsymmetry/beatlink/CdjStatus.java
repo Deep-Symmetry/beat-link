@@ -42,6 +42,80 @@ public class CdjStatus extends DeviceUpdate {
     public static final int PLAYING_FLAG = 0x40;
 
     /**
+     * The device number of the player from which the track was loaded, if any; labeled <i>P<sub>r</sub></i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    private final int trackSourcePlayer;
+
+    /**
+     * Get the device number of the player from which the track was loaded, if any; labeled <i>P<sub>r</sub></i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     *
+     * @return the device number from which the current track was loaded
+     */
+    public int getTrackSourcePlayer() { return trackSourcePlayer; }
+
+    /**
+     * The possible values describing from where the track was loaded, labeled <i>S<sub>r</sub></i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    public static enum TrackSourceSlot {
+        NO_TRACK, CD_SLOT, SD_SLOT, USB_SLOT, UNKNOWN
+    }
+
+    /**
+     * The slot from which the track was loaded, if any; labeled <i>S<sub>r</sub></i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    private final TrackSourceSlot trackSourceSlot;
+
+    /**
+     * Get the slot from which the track was loaded, if any; labeled <i>S<sub>r</sub></i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     *
+     * @return the slot from which the current track was loaded
+     */
+    public TrackSourceSlot getTrackSourceSlot() { return trackSourceSlot; }
+
+    /**
+     * The possible values describing the track type, labeled <i>t<sub>r</sub></i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    public static enum TrackType {
+        NO_TRACK, REKORDBOX, CD_DIGITAL_AUDIO, UNKNOWN
+    }
+
+    /**
+     * The type of the track that was loaded, if any; labeled <i>t<sub>r</sub></i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    private final TrackType trackType;
+
+    /**
+     * Get the type of the track was loaded, if any; labeled <i>t<sub>r</sub></i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     *
+     * @return the type of track that is currently loaded
+     */
+    public TrackType getTrackType() { return trackType; }
+
+    /**
+     * The rekordbox ID of the track that was loaded, if any; labeled<i>rekordbox</i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     */
+    private final int rekordboxId;
+
+    /**
+     * Get the rekordbox ID of the track that was loaded, if any; labeled<i>rekordbox</i> in Figure 11 of
+     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * Will be zero if no track is loaded, and is simply the track number when an ordinary audio CD track has been
+     * loaded.
+     *
+     * @return the rekordbok database ID of the current track
+     */
+    public int getRekordboxId() { return rekordboxId; }
+
+    /**
      * The possible values of the first play state found in the packet, labeled <i>P<sub>1</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
@@ -129,6 +203,35 @@ public class CdjStatus extends DeviceUpdate {
     private final String firmwareVersion;
 
     /**
+     * Determine the enum value corresponding to the track source slot found in the packet.
+     *
+     * @return the proper value
+     */
+    private TrackSourceSlot findTrackSourceSlot() {
+        switch (packetBytes[41]) {
+            case 0: return TrackSourceSlot.NO_TRACK;
+            case 1: return TrackSourceSlot.CD_SLOT;
+            case 2: return TrackSourceSlot.SD_SLOT;
+            case 3: return TrackSourceSlot.USB_SLOT;
+            default: return TrackSourceSlot.UNKNOWN;
+        }
+    }
+
+    /**
+     * Determine the enum value corresponding to the track type found in the packet.
+     *
+     * @return the proper value
+     */
+    private TrackType findTrackType() {
+        switch (packetBytes[42]) {
+            case 0: return TrackType.NO_TRACK;
+            case 1: return TrackType.REKORDBOX;
+            case 5: return TrackType.CD_DIGITAL_AUDIO;
+            default: return TrackType.UNKNOWN;
+        }
+    }
+
+    /**
      * Determine the enum value corresponding to the first play state found in the packet.
      *
      * @return the proper value
@@ -191,6 +294,10 @@ public class CdjStatus extends DeviceUpdate {
         if (packetBytes.length != 208 && packetBytes.length != 212) {
             throw new IllegalArgumentException("CDJ status packet must be 208 or 212 bytes long");
         }
+        trackSourcePlayer = packetBytes[40];
+        trackSourceSlot = findTrackSourceSlot();
+        trackType = findTrackType();
+        rekordboxId = (int)Util.bytesToNumber(packetBytes, 44, 4);
         pitch = (int)Util.bytesToNumber(packetBytes, 141, 3);
         bpm = (int)Util.bytesToNumber(packetBytes, 146, 2);
         playState1 = findPlayState1();
@@ -569,6 +676,8 @@ public class CdjStatus extends DeviceUpdate {
     public String toString() {
         return "CDJ status: Device " + deviceNumber + ", name: " + deviceName + ", busy? " + isBusy() +
                 ", pitch: " + String.format("%+.2f%%", Util.pitchToPercentage(pitch)) +
+                ", rekordbox ID:" + getRekordboxId() + ", from player: " + getTrackSourcePlayer() +
+                ", in slot: " + getTrackSourceSlot() + ", track type: " + getTrackType() +
                 ", track: " + getTrackNumber() + ", track BPM: " + String.format("%.1f", bpm / 100.0) +
                 ", effective BPM: " + String.format("%.1f", getEffectiveTempo()) +
                 ", beat: " + getBeatNumber() + ", beat within bar: " + getBeatWithinBar() +
