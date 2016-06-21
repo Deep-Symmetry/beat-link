@@ -217,7 +217,7 @@ the class path) watches and reports on tempo master activity for one
 minute, producing output like this:
 
 ```
-> java -cp .:beat-link.jar Example
+> java -cp .:beat-link.jar:slf4j-api-1.7.21.jar:slf4j-simple-1.7.21.jar Example
 Master changed at Sun May 08 20:49:23 CDT 2016: CDJ status: Device 2,
  name: DJ-2000nexus, busy? true, pitch: +0.00%, track: 5, track BPM:
  128.0, effective BPM: 128.0, beat: 55, beat within bar: 3,
