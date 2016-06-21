@@ -8,6 +8,8 @@ This change log follows the conventions of
 
 ### Added
 
+- Now uses slf4j to abstract over whatever logging framework is being
+  used by projects that embed beat-link.
 - Can now obtain track metadata (title and arist, so far), from the
   CDJs!
 - As part of that, the rekordbox track id and source player / slot

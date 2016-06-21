@@ -4,8 +4,8 @@ import java.awt.EventQueue;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Watches for devices to report their presence by broadcasting announcement packets on port 50000,
@@ -15,7 +15,7 @@ import java.util.logging.Logger;
  */
 public class DeviceFinder {
 
-    private static final Logger logger = Logger.getLogger(DeviceFinder.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(DeviceFinder.class.getName());
 
     /**
      * The port to which devices broadcast announcement messages to report their presence on the network.
@@ -134,7 +134,7 @@ public class DeviceFinder {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
                             if (isActive()) {
                                 // We did not expect to have a problem; log a warning and shut down.
-                                logger.log(Level.WARNING, "Problem reading from DeviceAnnouncement socket, stopping", e);
+                                logger.warn("Problem reading from DeviceAnnouncement socket, stopping", e);
                                 stop();
                             }
                             received = false;
@@ -152,7 +152,7 @@ public class DeviceFinder {
                             }
                             expireDevices();
                         } catch (Exception e) {
-                            logger.log(Level.WARNING, "Problem processing DeviceAnnouncement packet", e);
+                            logger.warn("Problem processing DeviceAnnouncement packet", e);
                         }
                     }
                 }
@@ -268,7 +268,7 @@ public class DeviceFinder {
                     try {
                         listener.deviceFound(announcement);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Problem delivering device found announcement to listener", e);
+                        logger.warn("Problem delivering device found announcement to listener", e);
                     }
                 }
             });
@@ -288,7 +288,7 @@ public class DeviceFinder {
                     try {
                         listener.deviceLost(announcement);
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Problem delivering device lost announcement to listener", e);
+                        logger.warn("Problem delivering device lost announcement to listener", e);
                     }
                 }
             });

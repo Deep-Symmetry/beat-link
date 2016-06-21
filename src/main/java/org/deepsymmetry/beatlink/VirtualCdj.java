@@ -4,8 +4,8 @@ import java.awt.EventQueue;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Provides the ability to create a virtual CDJ device that can lurk on a DJ Link network and receive packets sent to
@@ -17,7 +17,7 @@ import java.util.logging.Logger;
  */
 public class VirtualCdj {
 
-    private static final Logger logger = Logger.getLogger(VirtualCdj.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class.getName());
 
     /**
      * The port to which other devices will send status update messages.
@@ -270,7 +270,7 @@ public class VirtualCdj {
         } else if ((length == 212 || length == 208 || length == 284) && kind == 0x0a && Util.validateHeader(packet, 0x0a, "CDJ Status")) {
             return new CdjStatus(packet);
         }
-        logger.log(Level.WARNING, "Unrecognized device update packet with length " + length + " and kind " + kind);
+        logger.warn("Unrecognized device update packet with length " + length + " and kind " + kind);
         return null;
     }
 
@@ -339,7 +339,7 @@ public class VirtualCdj {
             try {
                 Thread.sleep(SELF_ASSIGNMENT_WATCH_PERIOD - (now - started));  // Sleep until we hit the right time
             } catch (InterruptedException e) {
-                logger.log(Level.WARNING, "Interrupted waiting to self-assign device number, giving up.");
+                logger.warn("Interrupted waiting to self-assign device number, giving up.");
                 return false;
             }
         }
@@ -353,7 +353,7 @@ public class VirtualCdj {
                 return true;
             }
         }
-        logger.log(Level.WARNING, "Found no unused device numbers between 5 and 15, giving up.");
+        logger.warn("Found no unused device numbers between 5 and 15, giving up.");
         return false;
     }
 
@@ -378,7 +378,7 @@ public class VirtualCdj {
         }
 
         if (matchedAddress == null) {
-            logger.log(Level.WARNING, "Unable to find network interface to communicate with " + aDevice +
+            logger.warn("Unable to find network interface to communicate with " + aDevice +
                     ", giving up.");
             return false;
         }
@@ -413,7 +413,7 @@ public class VirtualCdj {
                         // Don't log a warning if the exception was due to the socket closing at shutdown.
                         if (isActive()) {
                             // We did not expect to have a problem; log a warning and shut down.
-                            logger.log(Level.WARNING, "Problem reading from DeviceStatus socket, stopping", e);
+                            logger.warn("Problem reading from DeviceStatus socket, stopping", e);
                             stop();
                         }
                         received = false;
@@ -426,7 +426,7 @@ public class VirtualCdj {
                             }
                         }
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Problem processing device update packet", e);
+                        logger.warn("Problem processing device update packet", e);
                     }
                 }
             }
@@ -466,13 +466,13 @@ public class VirtualCdj {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
-                    logger.log(Level.WARNING, "Interrupted waiting for devices, giving up", e);
+                    logger.warn("Interrupted waiting for devices, giving up", e);
                     return false;
                 }
             }
 
             if (DeviceFinder.currentDevices().isEmpty()) {
-                logger.log(Level.WARNING, "No DJ Link devices found, giving up");
+                logger.warn("No DJ Link devices found, giving up");
                 return false;
             }
 
@@ -506,7 +506,7 @@ public class VirtualCdj {
             socket.send(announcement);
             Thread.sleep(announceInterval);
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Unable to send announcement packet, shutting down", e);
+            logger.warn("Unable to send announcement packet, shutting down", e);
             stop();
         }
     }
@@ -637,7 +637,7 @@ public class VirtualCdj {
             try {
                 listener.masterChanged(update);
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Problem delivering master changed announcement to listener", e);
+                logger.warn("Problem delivering master changed announcement to listener", e);
             }
         }
     }
@@ -652,7 +652,7 @@ public class VirtualCdj {
             try {
                 listener.tempoChanged(tempo);
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Problem delivering tempo changed announcement to listener", e);
+                logger.warn("Problem delivering tempo changed announcement to listener", e);
             }
         }
     }
@@ -667,7 +667,7 @@ public class VirtualCdj {
             try {
                 listener.newBeat(beat);
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Problem delivering master beat announcement to listener", e);
+                logger.warn("Problem delivering master beat announcement to listener", e);
             }
         }
     }
@@ -731,7 +731,7 @@ public class VirtualCdj {
             try {
                 listener.received(update);
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Problem delivering device update to listener", e);
+                logger.warn("Problem delivering device update to listener", e);
             }
         }
     }

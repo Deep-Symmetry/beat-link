@@ -8,8 +8,8 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Watches for new tracks to be loaded on players, and queries the appropriate player for the metadata information
@@ -19,7 +19,7 @@ import java.util.logging.Logger;
  */
 public class MetadataFinder {
 
-    private static final Logger logger = Logger.getLogger(MetadataFinder.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class.getName());
 
     /**
      * The port on which we contact players to ask them for metadata information.
@@ -344,13 +344,13 @@ public class MetadataFinder {
 
             return new TrackMetadata(player, result);
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Problem requesting metadata", e);
+            logger.warn("Problem requesting metadata", e);
         } finally {
             if (socket != null) {
                 try {
                     socket.close();
                 } catch (IOException e) {
-                    logger.log(Level.WARNING, "Problem closing metadata request socket", e);
+                    logger.warn("Problem closing metadata request socket", e);
                 }
             }
         }
@@ -385,7 +385,7 @@ public class MetadataFinder {
             if (update instanceof CdjStatus) {
                 //logger.log(Level.INFO, "Queueing");
                 if (!pendingUpdates.offerLast((CdjStatus)update)) {
-                    logger.log(Level.WARNING, "Discarding CDJ update because our queue is backed up.");
+                    logger.warn("Discarding CDJ update because our queue is backed up.");
                 }
             }
         }
@@ -488,7 +488,7 @@ public class MetadataFinder {
                             updateMetadata(update, data);
                         }
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Problem requesting track metadata from update" + update, e);
+                        logger.warn("Problem requesting track metadata from update" + update, e);
                     }
                 }
             }

@@ -2,8 +2,8 @@ package org.deepsymmetry.beatlink;
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Provides utility functions.
@@ -12,7 +12,7 @@ import java.util.logging.Logger;
  */
 public class Util {
 
-    private static final Logger logger = Logger.getLogger(Util.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(Util.class.getName());
 
     /**
      * The bytes that should always be present at the start of a DJ Link packet.
@@ -34,15 +34,14 @@ public class Util {
 
         for (int i = 0; i < EXPECTED_HEADER.length; i++) {
             if (EXPECTED_HEADER[i] != data[i]) {
-                logger.log(Level.WARNING, "Header mismatch at byte " + i + " of " + name + " packet: expecting " +
+                logger.warn("Header mismatch at byte " + i + " of " + name + " packet: expecting " +
                 EXPECTED_HEADER[i] + ", found " + data[i]);
                 valid = false;
             }
         }
 
         if (data[10] != (byte)kind) {
-            logger.log(Level.WARNING, "Expecting " + name + " packet to have kind value " + kind +
-            ", but found " + data[10]);
+            logger.warn("Expecting " + name + " packet to have kind value " + kind + ", but found " + data[10]);
             valid = false;
         }
 

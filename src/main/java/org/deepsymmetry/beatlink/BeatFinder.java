@@ -8,8 +8,8 @@ import java.net.SocketException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Watches for devices to report new beats by broadcasting beat packets on port 50001,
@@ -30,7 +30,7 @@ import java.util.logging.Logger;
  */
 public class BeatFinder {
 
-    private static final Logger logger = Logger.getLogger(BeatFinder.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(BeatFinder.class.getName());
 
     /**
      * The port to which devices broadcast beat messages.
@@ -74,7 +74,7 @@ public class BeatFinder {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
                             if (isActive()) {
                                 // We did not expect to have a problem; log a warning and shut down.
-                                logger.log(Level.WARNING, "Problem reading from DeviceAnnouncement socket, stopping", e);
+                                logger.warn("Problem reading from DeviceAnnouncement socket, stopping", e);
                                 stop();
                             }
                             received = false;
@@ -85,7 +85,7 @@ public class BeatFinder {
                                 deliverBeat(new Beat(packet));
                             }
                         } catch (Exception e) {
-                            logger.log(Level.WARNING, "Problem processing beat packet", e);
+                            logger.warn("Problem processing beat packet", e);
                         }
                     }
                 }
@@ -167,7 +167,7 @@ public class BeatFinder {
             try {
                 listener.newBeat(beat);
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Problem delivering beat announcement to listener", e);
+                logger.warn("Problem delivering beat announcement to listener", e);
             }
         }
     }

@@ -21,9 +21,17 @@ dependency in a variety of tools, including Leiningen if you are using
 beat-link from Clojure, can be found in the **Dependency Information**
 section.
 
-If you want to manually install beat-link, you can download the library
-from the [releases](https://github.com/brunchboy/beat-link/releases) page
-and put it on your project&rsquo;s class path.
+Beat link uses [slf4j](http://www.slf4j.org/manual.html) to allow you
+to integrate it with whatever Java logging framework your project is
+using, so you will need to include the appropriate slf4j binding on
+your class path.
+
+If you want to manually install beat-link, you can download the
+library from the
+[releases](https://github.com/brunchboy/beat-link/releases) page and
+put it on your project&rsquo;s class path, along with the
+[`slf4j-api.jar`](http://www.slf4j.org/download.html) and the slf4j
+binding to the logging framework you would like to use.
 
 ## Usage
 
@@ -204,9 +212,9 @@ public class Example {
 }
 ```
 
-Compiling and running this class (with the beat-link jar on the class
-path) watches and reports on tempo master activity for one minute,
-producing output like this:
+Compiling and running this class (with the beat-link and slf4j jars on
+the class path) watches and reports on tempo master activity for one
+minute, producing output like this:
 
 ```
 > java -cp .:beat-link.jar Example
