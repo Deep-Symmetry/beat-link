@@ -106,12 +106,12 @@ public class CdjStatus extends DeviceUpdate {
     private final int rekordboxId;
 
     /**
-     * Get the rekordbox ID of the track that was loaded, if any; labeled<i>rekordbox</i> in Figure 11 of
+     * Get the rekordbox ID of the track that was loaded, if any; labeled <i>rekordbox</i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      * Will be zero if no track is loaded, and is simply the track number when an ordinary audio CD track has been
      * loaded.
      *
-     * @return the rekordbok database ID of the current track
+     * @return the rekordbox database ID of the current track
      */
     public int getRekordboxId() { return rekordboxId; }
 
