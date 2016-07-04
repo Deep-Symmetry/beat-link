@@ -60,7 +60,7 @@ public class CdjStatus extends DeviceUpdate {
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     public static enum TrackSourceSlot {
-        NO_TRACK, CD_SLOT, SD_SLOT, USB_SLOT, UNKNOWN
+        NO_TRACK, CD_SLOT, SD_SLOT, USB_SLOT, COLLECTION, UNKNOWN
     }
 
     /**
@@ -213,6 +213,7 @@ public class CdjStatus extends DeviceUpdate {
             case 1: return TrackSourceSlot.CD_SLOT;
             case 2: return TrackSourceSlot.SD_SLOT;
             case 3: return TrackSourceSlot.USB_SLOT;
+            case 4: return TrackSourceSlot.COLLECTION;
             default: return TrackSourceSlot.UNKNOWN;
         }
     }

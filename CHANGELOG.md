@@ -11,9 +11,10 @@ This change log follows the conventions of
 - Now uses slf4j to abstract over whatever logging framework is being
   used by projects that embed beat-link.
 - Can now obtain track metadata (title and arist, so far), from the
-  CDJs!
+  CDJs! Not yet reliable or safe, however, so not documented.
 - As part of that, the rekordbox track id and source player / slot
-  information have been found in the CDJ status packets.
+  information have been found in the CDJ status packets. This part is
+  safe to use, and beat-link-trigger is happily doing so.
 
 ## [0.1.7] - 2016-05-31
 
