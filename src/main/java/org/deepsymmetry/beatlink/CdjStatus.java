@@ -257,12 +257,14 @@ public class CdjStatus extends DeviceUpdate {
      */
     private PlayState2 findPlayState2() {
         switch (packetBytes[139]) {
-            case 106:
-            case 122:
+            case 0x6a:
+            case 0x7a:
+            case (byte)0xfa:
                 return PlayState2.MOVING;
 
-            case 110:
-            case 126:
+            case 0x6e:
+            case 0x7e:
+            case (byte)0xfe:
                 return PlayState2.STOPPED;
 
             default:

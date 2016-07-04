@@ -6,8 +6,17 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [0.1.8] - 2016-07-04
+
 ### Added
 
+- Initial support for NXS2 players. Will now recognize status update
+  packets, even though they are larger than from other players, and
+  can recognize all the state flags we already know about. We still
+  don't know how to interpret any new features represented in the new
+  section of the packet.
 - Now uses slf4j to abstract over whatever logging framework is being
   used by projects that embed beat-link.
 - Can now obtain track metadata (title and arist, so far), from the
@@ -137,7 +146,8 @@ This change log follows the conventions of
 - Intial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.7...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/brunchboy/beat-link/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/brunchboy/beat-link/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/brunchboy/beat-link/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/brunchboy/beat-link/compare/v0.1.4...v0.1.5
