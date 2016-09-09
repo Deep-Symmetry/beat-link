@@ -12,8 +12,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Watches for new tracks to be loaded on players, and queries the appropriate player for the metadata information
- * when that happens.
+ * Watches for new tracks to be loaded on players, and queries the
+ * appropriate player for the metadata information when that happens.<p>
+ *
+ * <strong>THIS CLASS IS NOT YET READY FOR USE.</strong><p>
+ *
+ * Although it worked great for an entire weekend during which my
+ * network configuration remained constant, as soon as I reconfigured
+ * the network to remove the managed switch I was using to watch
+ * traffic between CDJs, the particular packets which had been working
+ * started to crash the process in the CDJs which responds to metadata
+ * queries, meaning they would need to be turned off and back on
+ * before any other CDJ could get Link Info from them.<p>
+ *
+ * We need to figure out how the byte patterns below need to change
+ * based on the network configuration, or based on values found in the
+ * device announcement or status packets, or in earlier response
+ * packets, in order to make this reliable and safe to use.<p>
+ *
+ * This goes along with the comment on the {@code usbPacketTemplates}
+ * array; perhaps if we can understand what is different about the
+ * packets that need to be sent to each player, we can understand how
+ * to accommodate the network configuration, and how to construct
+ * packets that always work.
  *
  * @author James Elliott
  */
