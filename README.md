@@ -240,6 +240,22 @@ This project is being developed with the help of
 for details of the packets and protocol, and for ways you can help
 figure out more.
 
+### Metadata
+
+The most active area of research is figuring out how to get title and artist information
+from the CDJs. The `TrackData` and `MetadataFinder` classes are experiments in
+that direction, and work under a very particular network configuration, but they
+are *not* finished, and will crash the process in the CDJ that provides metadata
+information when you try to use them on networks that are at all different.
+
+So if you would like to help, and can set up a managed switch to watch traffic
+between CDJs, please take a look at those classes, see how they work, and see
+if you can figure out how to replace the hard-coded packet values with computed
+values that actually work on any network.
+
+> If you do help experiment with metadata retrieval, be prepared to power
+> your CDJs off and back on repeatedly when the Link Info process crashes!
+
 ## License
 
 <img align="right" alt="Deep Symmetry" src="assets/DS-logo-bw-200-padded-left.png">
