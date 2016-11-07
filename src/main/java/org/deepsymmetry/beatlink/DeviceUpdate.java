@@ -43,13 +43,13 @@ public abstract class DeviceUpdate {
      * @param length the expected length of the packet
      */
     public DeviceUpdate(DatagramPacket packet, String name, int length) {
+        timestamp = System.nanoTime();
         if (packet.getLength() != length) {
             throw new IllegalArgumentException(name + " packet must be " + length + " bytes long");
         }
         address = packet.getAddress();
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
-        timestamp = System.currentTimeMillis();
         deviceName = new String(packetBytes, 11, 20).trim();
         deviceNumber = Util.unsign(packetBytes[33]);
     }
@@ -66,7 +66,7 @@ public abstract class DeviceUpdate {
     /**
      * Get the timestamp recording when the device update was received.
      *
-     * @return the millisecond timestamp at which we received this update
+     * @return the nanosecond timestamp at which we received this update
      */
     public long getTimestamp() {
         return timestamp;
