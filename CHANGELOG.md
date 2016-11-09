@@ -8,6 +8,16 @@ This change log follows the conventions of
 
 Nothing so far.
 
+## [0.1.9] - 2016-11-09
+
+### Changed
+
+- The values returned by the `getTimestamp()` method on device update
+  objects have been changed to be based on `System.nanoTime()` rather
+  than `System.currentTimeMillis()`. This makes them easier to work
+  with as relative times, and also makes them compatible with the time
+  values used by Ableton Link, for better interoperability.
+
 ## [0.1.8] - 2016-07-04
 
 ### Added
@@ -146,7 +156,8 @@ Nothing so far.
 - Intial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.8...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/brunchboy/beat-link/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/brunchboy/beat-link/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/brunchboy/beat-link/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/brunchboy/beat-link/compare/v0.1.5...v0.1.6
