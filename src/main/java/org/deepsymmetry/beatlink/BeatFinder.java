@@ -1,6 +1,5 @@
 package org.deepsymmetry.beatlink;
 
-import java.awt.EventQueue;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;

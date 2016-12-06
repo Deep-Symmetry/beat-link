@@ -15,27 +15,6 @@ import org.slf4j.LoggerFactory;
  * Watches for new tracks to be loaded on players, and queries the
  * appropriate player for the metadata information when that happens.<p>
  *
- * <strong>THIS CLASS IS NOT YET READY FOR USE.</strong><p>
- *
- * Although it worked great for an entire weekend during which my
- * network configuration remained constant, as soon as I reconfigured
- * the network to remove the managed switch I was using to watch
- * traffic between CDJs, the particular packets which had been working
- * started to crash the process in the CDJs which responds to metadata
- * queries, meaning they would need to be turned off and back on
- * before any other CDJ could get Link Info from them.<p>
- *
- * We need to figure out how the byte patterns below need to change
- * based on the network configuration, or based on values found in the
- * device announcement or status packets, or in earlier response
- * packets, in order to make this reliable and safe to use.<p>
- *
- * This goes along with the comment on the {@code usbPacketTemplates}
- * array; perhaps if we can understand what is different about the
- * packets that need to be sent to each player, we can understand how
- * to accommodate the network configuration, and how to construct
- * packets that always work.
- *
  * @author James Elliott
  */
 public class MetadataFinder {
@@ -62,241 +41,113 @@ public class MetadataFinder {
     }
 
     /**
-     * The series of packets needed to ask a particular player for metadata about a track in its USB slot. The outer
-     * array is for sending requests to players numbered 1 through 4, and the inner array is the series of three packets
-     * to send to request metadata. The middle packet will get the track ID added as a final four bytes.
-     *
-     * I would be much happier if we could figure out how to properly construct these packets ourselves rather than
-     * having to replay a custom packet capture for each configuration.
-     */
-    private static byte[][][] usbPacketTemplates = {
-            {  // Player 1 packets
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0xff, (byte)0xff,
-                            (byte)0xff, (byte)0xfe, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x03
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x01, (byte)0x68, (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x03, (byte)0x01, (byte)0x11 // Track ID (4 bytes) go here
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x01, (byte)0x69, (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
-                            (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x03, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0a, (byte)0x11,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x0a, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
-                    }
-
-            },
-            {  // Player 2 packets
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0xff, (byte)0xff,
-                            (byte)0xff, (byte)0xfe, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x03
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x00, (byte)0x59, (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x03, (byte)0x01, (byte)0x11  // Track ID (4 bytes) go here
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x00, (byte)0x5a, (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
-                            (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x03, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0a, (byte)0x11,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x0a, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
-                    }
-
-            },
-            {  // Player 3 packets
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0xff, (byte)0xff,
-                            (byte)0xff, (byte)0xfe, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x02
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x00, (byte)0x4b, (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x02, (byte)0x01, (byte)0x03, (byte)0x01, (byte)0x11  // Track ID (4 bytes) go here
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x00, (byte)0x4c, (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
-                            (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x02, (byte)0x01, (byte)0x03, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0a, (byte)0x11,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x0a, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
-                    }
-            },
-            {  // Player 4 packets
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0xff, (byte)0xff,
-                            (byte)0xff, (byte)0xfe, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x03,
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x01, (byte)0x48, (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x03, (byte)0x01, (byte)0x11  // Track ID (4 bytes) go here
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x01, (byte)0x49, (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
-                            (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x03, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0a, (byte)0x11,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x0a, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
-                    }
-            }
-    };
-
-    /**
-     * The series of packets needed to ask a particular player for metadata about a track in its SD card slot. The outer
-     * array is for sending requests to players numbered 1 through 4, and the inner array is the series of three packets
-     * to send to request metadata. The middle packet will get the track ID added as a final four bytes.
-     *
-     * I would be much happier if we could figure out how to properly construct these packets ourselves rather than
-     * having to replay a custom packet capture for each configuration.
-     */
-    private static byte[][][] sdPacketTemplates = {
-            { // Player 1 packets
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0xff, (byte)0xff,
-                            (byte)0xff, (byte)0xfe, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x03
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x00, (byte)0xfe, (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x02, (byte)0x01, (byte)0x11  // Track ID (4 bytes) go here
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x00, (byte)0xff, (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
-                            (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x02, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0a, (byte)0x11,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x0a, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
-                    }
-            },
-            {  // Player 2 packets
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0xff, (byte)0xff,
-                            (byte)0xff, (byte)0xfe, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x03
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x00, (byte)0xab, (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x02, (byte)0x01, (byte)0x11  // Track ID (4 bytes) go here
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x00, (byte)0xac, (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
-                            (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x02, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0a, (byte)0x11,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x0a, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
-                    }
-            },
-            {  // Player 3 packets
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0xff, (byte)0xff,
-                            (byte)0xff, (byte)0xfe, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x02
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x02, (byte)0x34, (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x02, (byte)0x01, (byte)0x02, (byte)0x01, (byte)0x11 // Track ID (4 bytes) go here
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x02, (byte)0x35, (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
-                            (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x02, (byte)0x01, (byte)0x02, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0a, (byte)0x11,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x0a, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
-                    }
-            },
-            {  // Player 4 packets
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0xff, (byte)0xff,
-                            (byte)0xff, (byte)0xfe, (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x03
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x01, (byte)0x24, (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x02, (byte)0x01, (byte)0x11 // Track ID (4 bytes) go here
-                    },
-                    {
-                            (byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11, (byte)0x03, (byte)0x80,
-                            (byte)0x01, (byte)0x25, (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
-                            (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x11, (byte)0x03, (byte)0x01, (byte)0x02, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00,
-                            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0a, (byte)0x11,
-                            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00,
-                            (byte)0x0a, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
-                    }
-            }
-    };
-
-    /**
      * The first packet that gets sent to any player when setting up to request metadata.
      */
     private static byte[] initialPacket = {0x11, 0x00, 0x00, 0x00, 0x01};
+
+    /**
+     * The delimiter which separates individual messages in the TCP stream.
+     */
+    private static byte[] messageSeparator =  {(byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11};
+
+    /**
+     * Split the metadata into its individual fields
+     *
+     * @param metadata the raw metadata received from the player.
+     * @return the fields comprising the metadata response, as delimited by the message separator.
+     */
+    private static List<byte[]> splitMetadataFields(byte[] metadata) {
+        List<byte[]> fields = new LinkedList<byte[]>();
+        int begin = 0;
+
+        outer:
+        for (int i = 0; i < metadata.length - messageSeparator.length + 1; i++) {
+            for (int j = 0; j < messageSeparator.length; j++) {
+                if (metadata[i + j] != messageSeparator[j]) {
+                    continue outer;
+                }
+            }
+            fields.add(Arrays.copyOfRange(metadata, begin, i));
+            begin = i + messageSeparator.length;
+        }
+        fields.add(Arrays.copyOfRange(metadata, begin, metadata.length));
+        return fields;
+    }
+
+
+    /**
+     * The payload of the initial packet which seems to be necessary to enable metadata queries.
+     */
+    private static byte[] setupPacket = {
+            (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14, (byte)0x00, (byte)0x00,
+            (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
+            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00,
+            (byte)0x00, (byte)0x00, 0  // This final byte must be replaced with a valid player number.
+            // The player number chosen must be active and different than the player being sent the query.
+    };
+
+    /**
+     * The payload of the first packet needed to request metadata about a particular track.
+     */
+    private static byte[] specifyTrackForMetadataPacket = {
+            (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14, (byte)0x00, (byte)0x00,
+            (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
+            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, 0 /* player */,
+            (byte)0x01, 0 /* slot */, (byte)0x01, (byte)0x11, 0, 0, 0, 0  // Track ID (4 bytes) go here
+    };
+
+    private static byte[] finishMetadataQueryPacket = {
+            (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14, (byte)0x00, (byte)0x00,
+            (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
+            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, 0 /* player */,
+            (byte)0x01, 0 /* slot */, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
+            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0b, (byte)0x11, (byte)0x00, (byte)0x00,
+            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0b, (byte)0x11,
+            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
+    };
+
+    /**
+     * Stores a 4-byte id value in the proper byte order into a byte buffer that is being used to build up
+     * a metadata query.
+     *
+     * @param buffer the buffer in which the query is being created.
+     * @param offset the index of the first byte where the id is to be stored.
+     * @param id the 4-byte id that needs to be stored in the query buffer.
+     */
+    private static void setIdBytes(byte[] buffer, int offset, int id) {
+        buffer[offset] = (byte)(id >> 24);
+        buffer[offset + 1] = (byte)(id >> 16);
+        buffer[offset + 2] = (byte)(id >>8);
+        buffer[offset + 3] = (byte)id;
+    }
+
+    /**
+     * Formats a query packet to be sent to the player.
+     *
+     * @param messageId the sequence number of the message; should start with 1 and be incremented with each message.
+     * @param payload the bytes which should follow teh separator and sequence number.
+     * @return the formatted query packet.
+     */
+    private static byte[] buildPacket(int messageId, byte[] payload) {
+        byte[] result = new byte[payload.length + messageSeparator.length + 4];
+        System.arraycopy(messageSeparator, 0, result, 0, messageSeparator.length);
+        setIdBytes(result, messageSeparator.length, messageId);
+        System.arraycopy(payload, 0, result, messageSeparator.length + 4, payload.length);
+        return result;
+    }
+
+    /**
+     * Creates the packet needed to set up the player connection to successfully process metadata queries.
+     *
+     * @param fromPlayer the player number we are posing as when making our queries.
+     * @return the bytes of the setup packet that should be sent to the player.
+     */
+    private static byte[] buildSetupPacket(byte fromPlayer) {
+        byte[] payload = new byte[setupPacket.length];
+        System.arraycopy(setupPacket, 0, payload, 0, setupPacket.length);
+        payload[payload.length - 1] = fromPlayer;
+        return buildPacket(0xfffffffe, payload);
+    }
 
     /**
      * Receive some bytes from the player we are requesting metadata from.
@@ -309,9 +160,51 @@ public class MetadataFinder {
     private static byte[] receiveBytes(InputStream is) throws IOException {
         byte[] buffer = new byte[8192];
         int len = (is.read(buffer));
+        if (len < 1) {
+            throw new IOException("receiveBytes read " + len + " bytes.");
+        }
         byte[] result = new byte[len];
         System.arraycopy(buffer, 0, result, 0, len);
         return result;
+    }
+
+    /**
+     * Finds a player number that is currently visible but which is different from the one specified, so it can
+     * be used as the source player for a query being sent to the specified one.
+     *
+     * @param player the player to which a metadata query is being sent.
+     * @return some other currently active player number
+     *
+     * @throws IllegalStateException if there is no other player number available to use.
+     */
+    private static int anotherPlayerNumber(int player) {
+        for (DeviceAnnouncement candidate : DeviceFinder.currentDevices()) {
+            if (candidate.getNumber() != player && candidate.getNumber() < 17) {
+                return candidate.getNumber();
+            }
+        }
+        throw new IllegalStateException("No player number available to query player " + player);
+    }
+
+    /**
+     * Determine the byte value that specifies a particular slot from which a track can be loaded.
+     *
+     * @param slot the slot of interest.
+     * @return the corresponding byte value for metadata query packets.
+     * @throws IllegalArgumentException if an unsupported slot value is supplied.
+     */
+    private static final byte byteRepresentingSlot(CdjStatus.TrackSourceSlot slot) {
+        switch (slot) {
+            case SD_SLOT:
+                return 2;
+
+            case USB_SLOT:
+                return 3;
+
+            case COLLECTION:
+                return 4;
+        }
+        throw new IllegalArgumentException("Cannot query metadata for slot " + slot);
     }
 
     /**
@@ -327,17 +220,12 @@ public class MetadataFinder {
         if (deviceAnnouncement == null || player < 1 || player > 4) {
             return null;
         }
-        byte[][] templates;
-        if (slot == CdjStatus.TrackSourceSlot.USB_SLOT) {
-            templates = usbPacketTemplates[player - 1];
-        } else if (slot == CdjStatus.TrackSourceSlot.SD_SLOT) {
-            templates = sdPacketTemplates[player - 1];
-        } else {
-            return null;
-        }
+        final byte posingAsPlayerNumber = (byte)anotherPlayerNumber(player);
+        final byte slotByte = byteRepresentingSlot(slot);
 
         Socket socket = null;
         try {
+            // TODO: Add DBServer port query rather than hardcoding the port
             socket = new Socket(deviceAnnouncement.getAddress(), METADATA_PORT);
             InputStream is = socket.getInputStream();
             OutputStream os = socket.getOutputStream();
@@ -345,25 +233,30 @@ public class MetadataFinder {
 
             // Send the first two packets
             os.write(initialPacket);
-            receiveBytes(is);
-            os.write(templates[0]);
-            receiveBytes(is);
+            receiveBytes(is);  // Should get 5 bytes
 
-            // Set up the packet that specifies the track we are interested in
-            byte[] buffer = new byte[templates[1].length + 4];
-            System.arraycopy(templates[1], 0, buffer, 0, templates[1].length);
-            buffer[buffer.length - 4] = (byte)(rekordboxId >> 24);
-            buffer[buffer.length - 3] = (byte)(rekordboxId >> 16);
-            buffer[buffer.length - 2] = (byte)(rekordboxId >>8);
-            buffer[buffer.length - 1] = (byte)rekordboxId;
+            os.write(buildSetupPacket(posingAsPlayerNumber));
+            receiveBytes(is);  // Should get 42 bytes
 
-            // Send the last two packets
-            os.write(buffer);
-            receiveBytes(is);
-            os.write(templates[2]);
-            byte[] result = receiveBytes(is);
+            // Send the packet identifying the track we want metadata for
+            byte[] payload = new byte[specifyTrackForMetadataPacket.length];
+            System.arraycopy(specifyTrackForMetadataPacket, 0, payload, 0, specifyTrackForMetadataPacket.length);
+            payload[23] = posingAsPlayerNumber;
+            payload[25] = slotByte;
+            setIdBytes(payload, payload.length - 4, rekordboxId);
+            os.write(buildPacket(1, payload));
+            receiveBytes(is);  // Should get 42 bytes back
 
-            return new TrackMetadata(player, result);
+            // Send the final packet to kick off the metadata request
+            payload = new byte[finishMetadataQueryPacket.length];
+            System.arraycopy(finishMetadataQueryPacket, 0, payload, 0, finishMetadataQueryPacket.length);
+            payload[23] = posingAsPlayerNumber;
+            payload[25] = slotByte;
+            setIdBytes(payload, payload.length - 4, rekordboxId);
+            os.write(buildPacket(2, payload));
+            byte[] result = receiveBytes(is);  // TODO: Keep reading until we have final segment
+
+            return new TrackMetadata(player, splitMetadataFields(result));
         } catch (Exception e) {
             logger.warn("Problem requesting metadata", e);
         } finally {

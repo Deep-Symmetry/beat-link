@@ -6,7 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Added
+
+- The ability to retrieve track metadata (artist, title, etc.) from
+  the CDJs.
 
 ## [0.1.9] - 2016-11-09
 

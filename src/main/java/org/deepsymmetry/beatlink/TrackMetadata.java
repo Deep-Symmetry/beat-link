@@ -1,6 +1,9 @@
 package org.deepsymmetry.beatlink;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Represents rekordbox metadata (title, artist, etc.) about tracks loaded into players on a DJ Link network.
@@ -22,16 +25,20 @@ public class TrackMetadata {
     /**
      * The raw packet data containing the metadata.
      */
-    private final byte[] packetBytes;
+    private final List<byte[]> rawFields;
 
     /**
-     * Get the raw packet data, to analyze fields that have not yet been reliably found.
+     * Get the raw packet data, to analyze fields that have not yet been reliably understood.
      *
      * @return the raw bytes we received from the CDJ when asked for metadata
      */
-    public byte[] getRawMetadata() {
-        byte[] result = new byte[packetBytes.length];
-        System.arraycopy(packetBytes, 0, result, 0, packetBytes.length);
+    public List<byte[]> getRawFields() {
+        List<byte[]> result = new LinkedList<byte[]>();
+        for (byte[] field: rawFields) {
+            byte[] copy = new byte[field.length];
+            System.arraycopy(field, 0, copy, 0, field.length);
+            result.add(copy);
+        }
         return result;
     }
 
@@ -46,26 +53,86 @@ public class TrackMetadata {
     private final String artist;
 
     /**
-     * Constructor sets all the immutable interpreted fields based on the received content.
+     * The length, in seconds, of the track.
+     */
+    private final int length;
+
+    /**
+     * The album on which the track was released.
+     */
+    private final String album;
+
+    /**
+     * The comment assigned to the track.
+     */
+    private final String comment;
+
+    /**
+     * The dominant key of the track.
+     */
+    private final String key;
+
+    /**
+     * The musical genre of the track.
+     */
+    private final String genre;
+
+    /**
+     * The label of the track.
+     */
+    private final String label;
+
+    /**
+     * Extracts the value of a string field from the metadata.
      *
-     * @param device the device number from which the metadata was received
-     * @param buffer the metadata that was received
+     * @param field the field known to contain a string value.
+     * @return the value present in that field.
      *
      * @throws UnsupportedEncodingException if there is a problem interpreting the metadata
      */
-    public TrackMetadata(int device, byte[] buffer) throws UnsupportedEncodingException {
+    private String extractString(byte[] field) throws UnsupportedEncodingException {
+        if (field.length > 46) {
+            int length = (int) Util.bytesToNumber(field, 42, 4);
+            if (length > 0) {
+                return new String(field, 46, (2 * (length - 1)), "UTF-16");
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Constructor sets all the immutable interpreted fields based on the received content.
+     *
+     * @param device the device number from which the metadata was received
+     * @param fields the metadata that was received
+     *
+     * @throws UnsupportedEncodingException if there is a problem interpreting the metadata
+     */
+    public TrackMetadata(int device, List<byte[]> fields) throws UnsupportedEncodingException {
         timestamp = System.currentTimeMillis();
         deviceNumber = device;
-        packetBytes = buffer;
+        rawFields = fields;
 
-        int titleLength = (int)Util.bytesToNumber(packetBytes, 90, 4);
-        title = new String(packetBytes, 94, (2 * (titleLength - 1)), "UTF-16");
-        int artistLength = (int)Util.bytesToNumber(packetBytes, 184 + (2 * titleLength), 4);
-        artist = new String(packetBytes, 188 + (2 * titleLength), (2 * (artistLength - 1)), "UTF-16");
+        Iterator<byte[]> iterator = fields.iterator();
+        iterator.next();  // TODO: Consider extracting artwork
+        iterator.next();
+        title = extractString(iterator.next());
+        artist = extractString(iterator.next());
+        album = extractString(iterator.next());
+        length = (int)Util.bytesToNumber(iterator.next(), 32, 4);
+        iterator.next();
+        comment = extractString(iterator.next());
+        key = extractString(iterator.next());
+        iterator.next();
+        iterator.next();
+        genre = extractString(iterator.next());
+        label = extractString(iterator.next());
     }
 
     @Override
     public String toString() {
-        return "Track Metadata: Title: " + title + ", Artist: " + artist;
+        return "Track Metadata: Title: " + title + ", Artist: " + artist + ", Album: " + album +
+                ", Length: " + length + ", Comment: " + comment + ", Key: " + key +
+                ", Genre: " + genre + ", Label: " + label;
     }
 }
