@@ -452,7 +452,7 @@ public class MetadataFinder {
 
     /**
      * Our announcement listener watches for devices to appear on the network so we can ask them for their database
-     * server port, and when they disappear discards that information.
+     * server port, and when they disappear discards all information about them.
      */
     private static DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
@@ -468,6 +468,7 @@ public class MetadataFinder {
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
             setPlayerDBServerPort(announcement.getNumber(), -1);
+            clearMetadata(announcement);
         }
     };
 
@@ -500,6 +501,15 @@ public class MetadataFinder {
         metadata.remove(update.deviceNumber);
         lastUpdates.remove(update.address);
         // TODO: Add update listener
+    }
+
+    /**
+     * We have received notification that a device is no longer on the network, so clear out its metadata.
+     * @param announcement
+     */
+    private static synchronized void clearMetadata(DeviceAnnouncement announcement) {
+        metadata.remove(announcement.getNumber());
+        lastUpdates.remove(announcement.getAddress());
     }
 
     /**
