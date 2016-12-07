@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InterfaceAddress;
 import java.net.Socket;
-import java.net.SocketException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import org.slf4j.Logger;
@@ -20,11 +20,6 @@ import org.slf4j.LoggerFactory;
 public class MetadataFinder {
 
     private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class.getName());
-
-    /**
-     * The port on which we contact players to ask them for metadata information.
-     */
-    public static final int METADATA_PORT = 1051;
 
     /**
      * Given a status update from a CDJ, find the metadata for the track that it has loaded, if any.
@@ -76,7 +71,7 @@ public class MetadataFinder {
 
 
     /**
-     * The payload of the initial packet which seems to be necessary to enable metadata queries.
+     * The payload of the initial message which seems to be necessary to enable metadata queries.
      */
     private static byte[] setupPacket = {
             (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14, (byte)0x00, (byte)0x00,
@@ -87,7 +82,7 @@ public class MetadataFinder {
     };
 
     /**
-     * The payload of the first packet needed to request metadata about a particular track.
+     * The payload of the first message needed to request metadata about a particular track.
      */
     private static byte[] specifyTrackForMetadataPacket = {
             (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14, (byte)0x00, (byte)0x00,
@@ -96,6 +91,9 @@ public class MetadataFinder {
             (byte)0x01, 0 /* slot */, (byte)0x01, (byte)0x11, 0, 0, 0, 0  // Track ID (4 bytes) go here
     };
 
+    /**
+     * The payload of the second message which completes a request for metadata about a particular track.
+     */
     private static byte[] finishMetadataQueryPacket = {
             (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14, (byte)0x00, (byte)0x00,
             (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
@@ -104,6 +102,16 @@ public class MetadataFinder {
             (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0b, (byte)0x11, (byte)0x00, (byte)0x00,
             (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0b, (byte)0x11,
             (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
+    };
+
+    /**
+     * A message which always appears at the end of a track metadata response, which we can use to be sure we
+     * have received the entire response.
+     */
+    private static byte[] finalMetadataField = {
+            (byte)0x10, (byte)0x42, (byte)0x01, (byte)0x0f, (byte)0x00, (byte)0x14, (byte)0x00, (byte)0x00,
+            (byte)0x00, (byte)0x0c, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
+            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
     };
 
     /**
@@ -152,8 +160,8 @@ public class MetadataFinder {
     /**
      * Receive some bytes from the player we are requesting metadata from.
      *
-     * @param is the input stream associated with the player metadata socket
-     * @return the bytes read
+     * @param is the input stream associated with the player metadata socket.
+     * @return the bytes read.
      *
      * @throws IOException if there is a problem reading the response
      */
@@ -163,8 +171,24 @@ public class MetadataFinder {
         if (len < 1) {
             throw new IOException("receiveBytes read " + len + " bytes.");
         }
-        byte[] result = new byte[len];
-        System.arraycopy(buffer, 0, result, 0, len);
+        return Arrays.copyOf(buffer, len);
+    }
+
+    /**
+     * Receive an expected number of bytes from the player, logging a warning if we get a different number of them.
+     *
+     * @param is the input stream associated with the player metadata socket.
+     * @param size the number of bytes we expect to receive.
+     * @param description the type of response being processed, for use in the warning message.
+     * @return the bytes read.
+     *
+     * @throws IOException if there is a problem reading the response.
+     */
+    private static byte[] readResponseWithExpectedSize(InputStream is, int size, String description) throws IOException {
+        byte[] result = receiveBytes(is);
+        if (result.length != size) {
+            logger.warn("Expected " + size + " bytes while reading " + description + " response, received " + result.length);
+        }
         return result;
     }
 
@@ -173,7 +197,7 @@ public class MetadataFinder {
      * be used as the source player for a query being sent to the specified one.
      *
      * @param player the player to which a metadata query is being sent.
-     * @return some other currently active player number
+     * @return some other currently active player number.
      *
      * @throws IllegalStateException if there is no other player number available to use.
      */
@@ -208,6 +232,52 @@ public class MetadataFinder {
     }
 
     /**
+     * Checks whether the last bytes of the supplied buffer are identical to the bytes of the expected ending.
+     *
+     * @param buffer the buffer to be checked.
+     * @param ending the bytes the buffer is expected to end with once all packets have been received.
+     * @return true if the ending byte pattern is found at the end of the buffer.
+     */
+    private static boolean endsWith(byte[] buffer, byte[] ending) {
+        if (buffer.length >= ending.length) {
+            for (int i = 0; i < ending.length; i++) {
+                if (ending[i] != buffer[i + buffer.length - ending.length]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Reads as many packets as needed in order to assemble a complete track metadata response, as identified by
+     * the presence of the expected final field.
+     *
+     * @param is the stream connected to the database server.
+     * @param messageId the sequence number of the metadata request.
+     * @return the assembled bytes of the complete response.
+     *
+     * @throws IOException if the complete response could not be read.
+     */
+    private static byte[] readFullMetadataResponse(InputStream is, int messageId) throws IOException {
+        byte[] endMarker = buildPacket(messageId, finalMetadataField);
+        byte[] result = {};
+        do {
+            byte[] part = new byte[8192];
+            int read = is.read(part);
+            if (read < 1) {
+                throw new IOException("Unable to read complete metadata response");
+            }
+            int existingSize = result.length;
+            result = Arrays.copyOf(result, existingSize + read);
+            System.arraycopy(part, 0, result, existingSize, read);
+        } while (!endsWith(result, endMarker));
+
+        return result;
+    }
+
+    /**
      * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID.
      *
      * @param player the player number whose track is of interest
@@ -217,26 +287,27 @@ public class MetadataFinder {
      */
     public static TrackMetadata requestMetadataFrom(int player, CdjStatus.TrackSourceSlot slot, int rekordboxId) {
         final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
-        if (deviceAnnouncement == null || player < 1 || player > 4) {
-            return null;
+        final int dbServerPort = getPlayerDBServerPort(player);
+        if (deviceAnnouncement == null || dbServerPort < 0) {
+            return null;  // If the device isn't known, or did not provide a database server, we can't get metadata.
         }
+
         final byte posingAsPlayerNumber = (byte)anotherPlayerNumber(player);
         final byte slotByte = byteRepresentingSlot(slot);
 
         Socket socket = null;
         try {
-            // TODO: Add DBServer port query rather than hardcoding the port
-            socket = new Socket(deviceAnnouncement.getAddress(), METADATA_PORT);
+            socket = new Socket(deviceAnnouncement.getAddress(), dbServerPort);
             InputStream is = socket.getInputStream();
             OutputStream os = socket.getOutputStream();
             socket.setSoTimeout(3000);
 
             // Send the first two packets
             os.write(initialPacket);
-            receiveBytes(is);  // Should get 5 bytes
+            readResponseWithExpectedSize(is, 5, "initial packet");
 
             os.write(buildSetupPacket(posingAsPlayerNumber));
-            receiveBytes(is);  // Should get 42 bytes
+            readResponseWithExpectedSize(is, 42, "connection setup");
 
             // Send the packet identifying the track we want metadata for
             byte[] payload = new byte[specifyTrackForMetadataPacket.length];
@@ -245,7 +316,7 @@ public class MetadataFinder {
             payload[25] = slotByte;
             setIdBytes(payload, payload.length - 4, rekordboxId);
             os.write(buildPacket(1, payload));
-            receiveBytes(is);  // Should get 42 bytes back
+            readResponseWithExpectedSize(is, 42, "track metadata id message");
 
             // Send the final packet to kick off the metadata request
             payload = new byte[finishMetadataQueryPacket.length];
@@ -254,9 +325,7 @@ public class MetadataFinder {
             payload[25] = slotByte;
             setIdBytes(payload, payload.length - 4, rekordboxId);
             os.write(buildPacket(2, payload));
-            byte[] result = receiveBytes(is);  // TODO: Keep reading until we have final segment
-
-            return new TrackMetadata(player, splitMetadataFields(result));
+            return new TrackMetadata(player, splitMetadataFields(readFullMetadataResponse(is, 2)));
         } catch (Exception e) {
             logger.warn("Problem requesting metadata", e);
         } finally {
@@ -289,10 +358,10 @@ public class MetadataFinder {
     private static LinkedBlockingDeque<CdjStatus> pendingUpdates = new LinkedBlockingDeque<CdjStatus>(100);
 
     /**
-     * Our listener method just puts appropriate device updates on our queue, so we can process them on a lower
+     * Our update listener just puts appropriate device updates on our queue, so we can process them on a lower
      * priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private static DeviceUpdateListener listener = new DeviceUpdateListener() {
+    private static DeviceUpdateListener updateListener = new DeviceUpdateListener() {
         @Override
         public void received(DeviceUpdate update) {
             //logger.log(Level.INFO, "Received: " + update);
@@ -302,6 +371,103 @@ public class MetadataFinder {
                     logger.warn("Discarding CDJ update because our queue is backed up.");
                 }
             }
+        }
+    };
+
+    /**
+     * Keeps track of the database server ports of all the players we have seen on the network.
+     */
+    private static final Map<Integer, Integer> dbServerPorts = new HashMap<Integer, Integer>();
+
+    /**
+     * Look up the database server port reported by a given player.
+     *
+     * @param player the player number of interest.
+     *
+     * @return the port number on which its database server is running, or -1 if unknown.
+     */
+    public static synchronized int getPlayerDBServerPort(int player) {
+        Integer result = dbServerPorts.get(player);
+        if (result == null) {
+            return -1;
+        }
+        return result;
+    }
+
+    /**
+     * Record the database server port reported by a player.
+     *
+     * @param player the player number whose server port has been determined.
+     * @param port the port number on which the player's database server is running.
+     */
+    private static synchronized void setPlayerDBServerPort(int player, int port) {
+        dbServerPorts.put(player, port);
+    }
+
+    /**
+     * The port on which we can request information about a player, including the port on which its database server
+     * is running.
+     */
+    private static final int DB_SERVER_QUERY_PORT = 12523;
+
+    private static final byte[] DB_SERVER_QUERY_PACKET = {
+            0x00, 0x00, 0x00, 0x0f,
+            0x52, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x44, 0x42, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72,  // RemoteDBServer
+            0x00
+    };
+
+    /**
+     * Query a player to determine the port on which its database server is running.
+     *
+     * @param announcement the device announcement with which we detected a new player on the network.
+     */
+    private static void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
+        if (announcement.getNumber() > 32) {
+            return;  // Don't try to query mixers; they don't listen on the query port.
+        }
+
+        Socket socket = null;
+        try {
+            socket = new Socket(announcement.getAddress(), DB_SERVER_QUERY_PORT);
+            InputStream is = socket.getInputStream();
+            OutputStream os = socket.getOutputStream();
+            socket.setSoTimeout(3000);
+            os.write(DB_SERVER_QUERY_PACKET);
+            byte[] response = readResponseWithExpectedSize(is, 2, "database server port query packet");
+            if (response.length == 2) {
+                setPlayerDBServerPort(announcement.getNumber(), (int)Util.bytesToNumber(response, 0, 2));
+            }
+        } catch (Exception e) {
+            logger.warn("Problem requesting database server port number", e);
+        } finally {
+            if (socket != null) {
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    logger.warn("Problem closing database server port request socket", e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Our announcement listener watches for devices to appear on the network so we can ask them for their database
+     * server port, and when they disappear discards that information.
+     */
+    private static DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
+        @Override
+        public void deviceFound(final DeviceAnnouncement announcement) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    requestPlayerDBServerPort(announcement);
+                }
+            }).start();
+        }
+
+        @Override
+        public void deviceLost(DeviceAnnouncement announcement) {
+            setPlayerDBServerPort(announcement.getNumber(), -1);
         }
     };
 
@@ -418,8 +584,13 @@ public class MetadataFinder {
      */
     public static synchronized void start() throws Exception {
         if (!running) {
+            DeviceFinder.start();
+            DeviceFinder.addDeviceAnnouncementListener(announcementListener);
+            for (DeviceAnnouncement device: DeviceFinder.currentDevices()) {
+                requestPlayerDBServerPort(device);
+            }
             VirtualCdj.start();
-            VirtualCdj.addUpdateListener(listener);
+            VirtualCdj.addUpdateListener(updateListener);
             queueHandler = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -442,7 +613,7 @@ public class MetadataFinder {
      */
     public static synchronized void stop() {
         if (running) {
-            VirtualCdj.removeUpdateListener(listener);
+            VirtualCdj.removeUpdateListener(updateListener);
             running = false;
             pendingUpdates.clear();
             queueHandler.interrupt();
