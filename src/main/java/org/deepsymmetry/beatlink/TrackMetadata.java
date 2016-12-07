@@ -135,4 +135,76 @@ public class TrackMetadata {
                 ", Length: " + length + ", Comment: " + comment + ", Key: " + key +
                 ", Genre: " + genre + ", Label: " + label;
     }
+
+    /**
+     * Get the timestamp recording when the metadata was received.
+     *
+     * @return the nanosecond timestamp at which we received this update
+     */
+    public long getTimestamp() {
+        return timestamp;
+    }
+
+    /**
+     * Get the artist of the track.
+     *
+     * @return the track artist
+     */
+    public String getArtist() {
+        return artist;
+    }
+
+    /**
+     * Get the comment assigned to the track.
+     *
+     * @return the track comment
+     */
+    public String getComment() {
+        return comment;
+    }
+
+    /**
+     * Get the genre of the track.
+     *
+     * @return the track genre
+     */
+    public String getGenre() {
+        return genre;
+    }
+
+    /**
+     * Get the musical key of the track.
+     *
+     * @return the track key
+     */
+    public String getKey() {
+        return key;
+    }
+
+    /**
+     * Get the label assigned the track.
+     *
+     * @return the track label
+     */
+    public String getlabel() {
+        return label;
+    }
+
+    /**
+     * Get the length of the track, in seconds.
+     *
+     * @return the track length in seconds.
+     */
+    public int getLength() {
+        return length;
+    }
+
+    /**
+     * Get the title of the track.
+     *
+     * @return the track title
+     */
+    public String getTitle() {
+        return title;
+    }
 }
