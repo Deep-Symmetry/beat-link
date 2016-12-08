@@ -13,16 +13,6 @@ import java.util.List;
 public class TrackMetadata {
 
     /**
-     * When this metadata was received.
-     */
-    private final long timestamp;
-
-    /**
-     * The player/device number which loaded the track described by the metadata.
-     */
-    private final int deviceNumber;
-
-    /**
      * The raw packet data containing the metadata.
      */
     private final List<byte[]> rawFields;
@@ -109,8 +99,6 @@ public class TrackMetadata {
      * @throws UnsupportedEncodingException if there is a problem interpreting the metadata
      */
     public TrackMetadata(int device, List<byte[]> fields) throws UnsupportedEncodingException {
-        timestamp = System.currentTimeMillis();
-        deviceNumber = device;
         rawFields = fields;
 
         Iterator<byte[]> iterator = fields.iterator();
@@ -134,15 +122,6 @@ public class TrackMetadata {
         return "Track Metadata: Title: " + title + ", Artist: " + artist + ", Album: " + album +
                 ", Length: " + length + ", Comment: " + comment + ", Key: " + key +
                 ", Genre: " + genre + ", Label: " + label;
-    }
-
-    /**
-     * Get the timestamp recording when the metadata was received.
-     *
-     * @return the nanosecond timestamp at which we received this update
-     */
-    public long getTimestamp() {
-        return timestamp;
     }
 
     /**
