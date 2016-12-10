@@ -165,7 +165,7 @@ public class TrackMetadata {
      *
      * @return the track label
      */
-    public String getlabel() {
+    public String getLabel() {
         return label;
     }
 
