@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
-import java.net.InterfaceAddress;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -192,22 +191,38 @@ public class MetadataFinder {
         return result;
     }
 
+
+
     /**
-     * Finds a player number that is currently visible but which is different from the one specified, so it can
-     * be used as the source player for a query being sent to the specified one.
+     * Finds a valid  player number that is currently visible but which is different from the one specified, so it can
+     * be used as the source player for a query being sent to the specified one. If the virtual CDJ is running on an
+     * acceptable player number, uses that, since it will always be safe. Otherwise, picks an existing player number,
+     * but this will cause the query to fail if that player has mounted media from the player we are querying.
      *
      * @param player the player to which a metadata query is being sent.
      * @return some other currently active player number.
      *
      * @throws IllegalStateException if there is no other player number available to use.
      */
-    private static int anotherPlayerNumber(int player) {
+    private static int chooseAskingPlayerNumber(int player) {
+        final int fakeDevice = VirtualCdj.getDeviceNumber();
+        if (fakeDevice >= 1 && fakeDevice <= 4) {
+            return fakeDevice;
+        }
+
         for (DeviceAnnouncement candidate : DeviceFinder.currentDevices()) {
-            if (candidate.getNumber() != player && candidate.getNumber() < 17) {
-                return candidate.getNumber();
+            final int realDevice = candidate.getNumber();
+            if (realDevice != player && realDevice >= 1 && realDevice <= 4) {
+                final DeviceUpdate lastUpdate =  VirtualCdj.getLatestStatusFor(realDevice);
+                if (lastUpdate != null && lastUpdate instanceof CdjStatus &&
+                        ((CdjStatus)lastUpdate).getTrackSourcePlayer() != player) {
+                    return candidate.getNumber();
+                }
             }
         }
-        throw new IllegalStateException("No player number available to query player " + player);
+        throw new IllegalStateException("No player number available to query player " + player +
+                ". If they are on the network, they must be using Link to play a track from that player, " +
+                "so we can't use their ID.");
     }
 
     /**
@@ -292,7 +307,7 @@ public class MetadataFinder {
             return null;  // If the device isn't known, or did not provide a database server, we can't get metadata.
         }
 
-        final byte posingAsPlayerNumber = (byte)anotherPlayerNumber(player);
+        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player);
         final byte slotByte = byteRepresentingSlot(slot);
 
         Socket socket = null;
@@ -554,13 +569,18 @@ public class MetadataFinder {
     }
 
     /**
+     * Keep track of the devices we are currently trying to get metadata from in response to status updates.
+     */
+    private static Set<Integer> activeRequests = new HashSet<Integer>();
+
+    /**
      * Process an update packet from one of the CDJs. See if it has a valid track loaded; if not, clear any
      * metadata we had stored for that player. If so, see if it is the same track we already know about; if not,
      * request the metadata associated with that track.
      *
      * @param update an update packet we received from a CDJ
      */
-    private static void handleUpdate(CdjStatus update) {
+    private static void handleUpdate(final CdjStatus update) {
         if (update.getTrackSourcePlayer() >= 1 && update.getTrackSourcePlayer() <= 4) {  // We only know how to talk to these devices
             if (update.getTrackType() != CdjStatus.TrackType.REKORDBOX ||
                     update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK ||
@@ -572,13 +592,28 @@ public class MetadataFinder {
                 if (lastStatus == null || lastStatus.getTrackSourceSlot() != update.getTrackSourceSlot() ||
                         lastStatus.getTrackSourcePlayer() != update.getTrackSourcePlayer() ||
                         lastStatus.getRekordboxId() != update.getRekordboxId()) {  // We have something new!
-                    try {
-                        TrackMetadata data = requestMetadataFrom(update);
-                        if (data != null) {
-                            updateMetadata(update, data);
+                    synchronized (activeRequests) {
+                        // Make sure we are not already talking to the device before we try hitting it again.
+                        if (!activeRequests.contains(update.getTrackSourcePlayer())) {
+                            activeRequests.add(update.getTrackSourcePlayer());
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        TrackMetadata data = requestMetadataFrom(update);
+                                        if (data != null) {
+                                            updateMetadata(update, data);
+                                        }
+                                    } catch (Exception e) {
+                                        logger.warn("Problem requesting track metadata from update" + update, e);
+                                    } finally {
+                                        synchronized (activeRequests) {
+                                            activeRequests.remove(update.getTrackSourcePlayer());
+                                        }
+                                    }
+                                }
+                            }).start();
                         }
-                    } catch (Exception e) {
-                        logger.warn("Problem requesting track metadata from update" + update, e);
                     }
                 }
             }
