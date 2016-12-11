@@ -437,10 +437,6 @@ public class MetadataFinder {
      * @param announcement the device announcement with which we detected a new player on the network.
      */
     private static void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
-        if (announcement.getNumber() > 32) {
-            return;  // Don't try to query mixers; they don't listen on the query port.
-        }
-
         Socket socket = null;
         try {
             socket = new Socket(announcement.getAddress(), DB_SERVER_QUERY_PORT);
@@ -452,6 +448,9 @@ public class MetadataFinder {
             if (response.length == 2) {
                 setPlayerDBServerPort(announcement.getNumber(), (int)Util.bytesToNumber(response, 0, 2));
             }
+        } catch (java.net.ConnectException ce) {
+            logger.info("Player " + announcement.getNumber() +
+                    " doesn't answer rekordbox port queries, connection refused. Won't attempt to request metadata.");
         } catch (Exception e) {
             logger.warn("Problem requesting database server port number", e);
         } finally {
@@ -581,43 +580,40 @@ public class MetadataFinder {
      * @param update an update packet we received from a CDJ
      */
     private static void handleUpdate(final CdjStatus update) {
-        if (update.getTrackSourcePlayer() >= 1 && update.getTrackSourcePlayer() <= 4) {  // We only know how to talk to these devices
-            if (update.getTrackType() != CdjStatus.TrackType.REKORDBOX ||
-                    update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK ||
-                    update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.UNKNOWN ||
-                    update.getRekordboxId() == 0) {  // We no longer have metadata for this device
-                clearMetadata(update);
-            } else {  // We can gather metadata for this device; check if we already looked up this track
-                CdjStatus lastStatus = lastUpdates.get(update.address);
-                if (lastStatus == null || lastStatus.getTrackSourceSlot() != update.getTrackSourceSlot() ||
-                        lastStatus.getTrackSourcePlayer() != update.getTrackSourcePlayer() ||
-                        lastStatus.getRekordboxId() != update.getRekordboxId()) {  // We have something new!
-                    synchronized (activeRequests) {
-                        // Make sure we are not already talking to the device before we try hitting it again.
-                        if (!activeRequests.contains(update.getTrackSourcePlayer())) {
-                            activeRequests.add(update.getTrackSourcePlayer());
-                            new Thread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        TrackMetadata data = requestMetadataFrom(update);
-                                        if (data != null) {
-                                            updateMetadata(update, data);
-                                        }
-                                    } catch (Exception e) {
-                                        logger.warn("Problem requesting track metadata from update" + update, e);
-                                    } finally {
-                                        synchronized (activeRequests) {
-                                            activeRequests.remove(update.getTrackSourcePlayer());
-                                        }
+        if (update.getTrackType() != CdjStatus.TrackType.REKORDBOX ||
+                update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK ||
+                update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.UNKNOWN ||
+                update.getRekordboxId() == 0) {  // We no longer have metadata for this device
+            clearMetadata(update);
+        } else {  // We can gather metadata for this device; check if we already looked up this track
+            CdjStatus lastStatus = lastUpdates.get(update.address);
+            if (lastStatus == null || lastStatus.getTrackSourceSlot() != update.getTrackSourceSlot() ||
+                    lastStatus.getTrackSourcePlayer() != update.getTrackSourcePlayer() ||
+                    lastStatus.getRekordboxId() != update.getRekordboxId()) {  // We have something new!
+                synchronized (activeRequests) {
+                    // Make sure we are not already talking to the device before we try hitting it again.
+                    if (!activeRequests.contains(update.getTrackSourcePlayer())) {
+                        activeRequests.add(update.getTrackSourcePlayer());
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    TrackMetadata data = requestMetadataFrom(update);
+                                    if (data != null) {
+                                        updateMetadata(update, data);
+                                    }
+                                } catch (Exception e) {
+                                    logger.warn("Problem requesting track metadata from update" + update, e);
+                                } finally {
+                                    synchronized (activeRequests) {
+                                        activeRequests.remove(update.getTrackSourcePlayer());
                                     }
                                 }
-                            }).start();
-                        }
+                            }
+                        }).start();
                     }
                 }
             }
-
         }
     }
 
