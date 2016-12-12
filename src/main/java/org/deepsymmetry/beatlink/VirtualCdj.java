@@ -87,14 +87,19 @@ public class VirtualCdj {
 
     /**
      * Set the device number to be used when sending presence announcements on the network to pose as a virtual CDJ.
-     * If this is set to zero before calling {@link #start()}, the <code>VirtualCdj</code> will watch the network to
+     * If this is set to zero before {@link #start()} is called, the <code>VirtualCdj</code> will watch the network to
      * look for an unused device number between 5 and 15, and assign itself that number during startup. If you
-     * explicitly assign a non-zero value, it will use that device number instead.
+     * explicitly assign a non-zero value, it will use that device number instead. Setting the value to zero while
+     * already up and running reassigns it to an unused value between 5 and 15 immediately.
      *
      * @param number the virtual player number
      */
     public static synchronized void setDeviceNumber(byte number) {
-        announcementBytes[36] = number;
+        if (number == 0 && isActive()) {
+            selfAssignDeviceNumber();
+        } else {
+            announcementBytes[36] = number;
+        }
     }
 
     /**
@@ -347,7 +352,7 @@ public class VirtualCdj {
         for (DeviceAnnouncement device : DeviceFinder.currentDevices()) {
             numbersUsed.add(device.getNumber());
         }
-        for (int result = 5; result < 16; result++) {   // Try all player numbers less than Rekordbox uses
+        for (int result = 5; result < 16; result++) {   // Try all player numbers less than mixers use
             if (!numbersUsed.contains(result)) {  // We found one that is not used, so we can use it
                 setDeviceNumber((byte) result);
                 return true;
