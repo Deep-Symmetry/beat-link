@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink;
 
+import java.awt.image.BufferedImage;
 import java.io.UnsupportedEncodingException;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -73,6 +74,16 @@ public class TrackMetadata {
     private final String label;
 
     /**
+     * The value by which the track's artwork image can be requested.
+     */
+    private final int artworkId;
+
+    /**
+     * The actual track artwork, if any was available.
+     */
+    private final BufferedImage artwork;
+
+    /**
      * Extracts the value of a string field from the metadata.
      *
      * @param field the field known to contain a string value.
@@ -93,18 +104,22 @@ public class TrackMetadata {
     /**
      * Constructor sets all the immutable interpreted fields based on the received content.
      *
-     * @param device the device number from which the metadata was received
      * @param fields the metadata that was received
+     * @param artwork the track artwork image, if any, that was loaded
      *
      * @throws UnsupportedEncodingException if there is a problem interpreting the metadata
      */
-    public TrackMetadata(int device, List<byte[]> fields) throws UnsupportedEncodingException {
+    public TrackMetadata(List<byte[]> fields, BufferedImage artwork) throws UnsupportedEncodingException {
         rawFields = fields;
+        this.artwork = artwork;
 
         Iterator<byte[]> iterator = fields.iterator();
-        iterator.next();  // TODO: Consider extracting artwork
         iterator.next();
-        title = extractString(iterator.next());
+        iterator.next();
+        byte[] field = iterator.next();
+        title = extractString(field);
+        artworkId = (int)Util.bytesToNumber(field, field.length - 19, 4);
+
         artist = extractString(iterator.next());
         album = extractString(iterator.next());
         length = (int)Util.bytesToNumber(iterator.next(), 32, 4);
@@ -121,7 +136,7 @@ public class TrackMetadata {
     public String toString() {
         return "Track Metadata: Title: " + title + ", Artist: " + artist + ", Album: " + album +
                 ", Length: " + length + ", Comment: " + comment + ", Key: " + key +
-                ", Genre: " + genre + ", Label: " + label;
+                ", Genre: " + genre + ", Label: " + label + ", artwork ID: " + artworkId;
     }
 
     /**
@@ -131,6 +146,24 @@ public class TrackMetadata {
      */
     public String getArtist() {
         return artist;
+    }
+
+    /**
+     * Get the track artwork.
+     *
+     * @return the artwork image associated with the track, if any
+     */
+    public BufferedImage getArtwork() {
+        return artwork;
+    }
+
+    /**
+     * Get the artwork ID for the track. Will be zero for tracks that have no artwork.
+     *
+     * @return the value that can be used to request the artwork image, if any, associated with the track
+     */
+    public int getArtworkId() {
+        return artworkId;
     }
 
     /**

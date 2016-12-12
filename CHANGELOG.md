@@ -6,10 +6,19 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far
+
+## [0.2.0] - 2016-12-11
+
 ### Added
 
 - The ability to retrieve track metadata (artist, title, etc.) from
-  the CDJs.
+  the CDJs, thanks to discoveries by
+  [@EvanPurkhiser](https://github.com/EvanPurkhiser). See
+  his [prolink-go](https://github.com/EvanPurkhiser/prolink-go) project
+  for a Go language version of a library like beat-link, with no need
+  for a Java virtual machine.
+- The ability to get track artwork images.
 
 ## [0.1.9] - 2016-11-09
 
@@ -159,7 +168,8 @@ This change log follows the conventions of
 - Intial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.1.9...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/brunchboy/beat-link/compare/v0.1.9...v0.2.0
 [0.1.9]: https://github.com/brunchboy/beat-link/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/brunchboy/beat-link/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/brunchboy/beat-link/compare/v0.1.6...v0.1.7

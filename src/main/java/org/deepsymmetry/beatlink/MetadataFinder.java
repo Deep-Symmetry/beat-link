@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -9,6 +11,8 @@ import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.imageio.ImageIO;
 
 /**
  * Watches for new tracks to be loaded on players, and queries the
@@ -113,6 +117,13 @@ public class MetadataFinder {
             (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
     };
 
+    private static byte[] artworkRequestPacket = {
+            0x10, 0x20, 0x03, 0x0f, 0x02, 0x14, 0x00, 0x00,
+            0x00, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0 /* player */,
+            0x08, 0 /* slot */, 0x01, 0x11, 0, 0, 0, 0  // Artwork ID (4 bytes) go here
+    };
+
     /**
      * Stores a 4-byte id value in the proper byte order into a byte buffer that is being used to build up
      * a metadata query.
@@ -196,17 +207,20 @@ public class MetadataFinder {
     /**
      * Finds a valid  player number that is currently visible but which is different from the one specified, so it can
      * be used as the source player for a query being sent to the specified one. If the virtual CDJ is running on an
-     * acceptable player number, uses that, since it will always be safe. Otherwise, picks an existing player number,
+     * acceptable player number (which must be 1-4 to request metadata from an actual CDJ, but can be anything if we
+     * are talking to rekordbox), uses that, since it will always be safe. Otherwise, picks an existing player number,
      * but this will cause the query to fail if that player has mounted media from the player we are querying.
      *
-     * @param player the player to which a metadata query is being sent.
-     * @return some other currently active player number.
+     * @param player the player to which a metadata query is being sent
+     * @param slot the media slot from which the track of interest was loaded
+     *
+     * @return some other currently active player number
      *
      * @throws IllegalStateException if there is no other player number available to use.
      */
-    private static int chooseAskingPlayerNumber(int player) {
+    private static int chooseAskingPlayerNumber(int player, CdjStatus.TrackSourceSlot slot) {
         final int fakeDevice = VirtualCdj.getDeviceNumber();
-        if (fakeDevice >= 1 && fakeDevice <= 4) {
+        if (slot == CdjStatus.TrackSourceSlot.COLLECTION || (fakeDevice >= 1 && fakeDevice <= 4)) {
             return fakeDevice;
         }
 
@@ -307,7 +321,7 @@ public class MetadataFinder {
             return null;  // If the device isn't known, or did not provide a database server, we can't get metadata.
         }
 
-        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player);
+        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
         final byte slotByte = byteRepresentingSlot(slot);
 
         Socket socket = null;
@@ -340,7 +354,9 @@ public class MetadataFinder {
             payload[25] = slotByte;
             setIdBytes(payload, payload.length - 4, rekordboxId);
             os.write(buildPacket(2, payload));
-            return new TrackMetadata(player, splitMetadataFields(readFullMetadataResponse(is, 2)));
+            List<byte[]> fields = splitMetadataFields(readFullMetadataResponse(is, 2));
+            BufferedImage artwork = requestArtwork(is, os, 3, posingAsPlayerNumber, slotByte, fields);
+            return new TrackMetadata(fields, artwork);
         } catch (Exception e) {
             logger.warn("Problem requesting metadata", e);
         } finally {
@@ -353,6 +369,57 @@ public class MetadataFinder {
             }
         }
         return null;
+    }
+
+    /**
+     * Try to obtain the artwork associated with a track whose metadata is being retrieved.
+     *
+     * @param is the input stream from the player's remote database server
+     * @param os the output stream to the player's remote database server
+     * @param messageId the sequence number to assign our artwork query
+     * @param ourDeviceNumber the player number we are using in our queries
+     * @param slot the slot identifier from which the track was loaded
+     * @param fields the raw metadata fields retrieved for the track, so we can find the artwork ID
+     *
+     * @return the track's artwork, or null if none is available
+     *
+     * @throws IOException if there is a problem communicating with the player
+     */
+    private static BufferedImage requestArtwork(InputStream is, OutputStream os, int messageId, byte ourDeviceNumber,
+                                                byte slot, List<byte[]> fields) throws IOException {
+        Iterator<byte[]> iterator = fields.iterator();
+        iterator.next();
+        iterator.next();
+        byte[] field = iterator.next();
+        int artworkId = (int)Util.bytesToNumber(field, field.length - 19, 4);
+
+        if (artworkId < 1) {
+            return null;  // No artwork available for the track.
+        }
+
+        // Send the packet requesting the artwork
+        byte[] payload = new byte[artworkRequestPacket.length];
+        System.arraycopy(artworkRequestPacket, 0, payload, 0, artworkRequestPacket.length);
+        payload[23] = ourDeviceNumber;
+        payload[25] = slot;
+        setIdBytes(payload, payload.length - 4, artworkId);
+        os.write(buildPacket(messageId, payload));
+        byte[] header = new byte[52];
+        int received = is.read(header);
+        if (received < header.length) {
+            throw new IOException("Received partial header trying to read artwork, only " + received +
+                    " of 52 bytes.");
+        }
+        int imageLength = (int)Util.bytesToNumber(header, 48, 4);
+        byte[] artBytes = new byte[imageLength];
+        int pos = 0;
+        do {
+            byte[] chunk = receiveBytes(is);
+            System.arraycopy(chunk, 0, artBytes, pos, chunk.length);
+            pos += chunk.length;
+        } while (pos < imageLength);
+
+        return ImageIO.read(new ByteArrayInputStream(artBytes));
     }
 
     /**

@@ -165,6 +165,54 @@ as possible, you can request every device status update
 as soon as it is received, using
 [`VirtualCdj.addUpdateListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#addUpdateListener-org.deepsymmetry.beatlink.DeviceUpdateListener-).
 
+### Getting Track Metadata
+
+If you want to be able to retrieve details about loaded tracks, such as
+the title, artist, genre, length (in seconds), key, and even artwork
+images, start the `MetadataFinder`, which will also start the
+`VirtualCdj` if it is not already running.
+
+```java
+import org.deepsymmetry.beatlink.MetadataFinder;
+
+// ...
+
+    MetadataFinder.start();
+```
+
+> The safest way to successfully retrieve metadata is to configure the
+> `VirtualCdj` to use a device number in the range 1 to 4, like an
+> actual CDJ, using `VirtualCdj.setDeviceNumber()` as described above.
+> You can only do that if you are using fewer than 4 CDJs,
+> because you need to use a number that is not being used by any actual
+> CDJ. If you are using 4 actual CDJs, you will need to leave the
+> `VirtualCdj` using its default number of 5, but that means the
+> `MetadataFinder` will need to "borrow" one of the actual CDJ device
+> numbers when it is requesting metadata. If three of the CDJs have
+> loaded tracks from a media slot on the fourth, then there will be no
+> device numbers available for use, and the metadata request will not
+> even be attempted. Even if they have not, there is no way for
+> beat-link to know if the DJ is using Link Info in a way that causes
+> the metadata request to fail, or worse, causes one of the CDJs to get
+> confused and stop working quite right. So if you want to work with
+> metadata, to be safe, reserve a physical player number from 1 to 4
+> for the exclusive use of beat-link, or have all the CDJs load tracks
+> from rekordbox, rather than from each other.
+
+Once the `MetadataFinder` is running, you can access all the metadata
+for currently-loaded tracks by calling
+[`MetadataFinder.getLatestMetadata()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MetadataFinder.html#getLatestMetadata--),
+which returns a `Map` from player numbers to
+[`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/TrackMetadata.html)
+objects describing the track currently loaded in that player. You can
+also call [`MetadataFinder.getLatestMetadataFor(int player)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MetadataFinder.html#getLatestMetadataFor-int-)
+to find the metadata for the track loaded in the specified player. See
+the [`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/TrackMetadata.html)
+API documentation for all the details it provides, and note that you
+can call its [`getArtwork()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/TrackMetadata.html#getArtwork--)
+method to get the artwork image associated with the track, if there
+is one.
+
 ## An Example
 
 Here is the source for `Example.java`, a small class that demonstrates
@@ -239,22 +287,6 @@ This project is being developed with the help of
 [dysentery](https://github.com/brunchboy/dysentery). Check that out
 for details of the packets and protocol, and for ways you can help
 figure out more.
-
-### Metadata
-
-The most active area of research is figuring out how to get title and artist information
-from the CDJs. The `TrackData` and `MetadataFinder` classes are experiments in
-that direction, and work under a very particular network configuration, but they
-are *not* finished, and will crash the process in the CDJ that provides metadata
-information when you try to use them on networks that are at all different.
-
-So if you would like to help, and can set up a managed switch to watch traffic
-between CDJs, please take a look at those classes, see how they work, and see
-if you can figure out how to replace the hard-coded packet values with computed
-values that actually work on any network.
-
-> If you do help experiment with metadata retrieval, be prepared to power
-> your CDJs off and back on repeatedly when the Link Info process crashes!
 
 ## License
 
