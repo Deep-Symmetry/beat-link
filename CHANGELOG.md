@@ -6,7 +6,14 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far
+### Added
+
+- A configuration option to tell the VirtualCDJ to try to use a
+  standard player number when self-assigning.
+- When stopping the VirtualCDJ, it sets its device number to 0 so
+  that the default at startup is always self-assignment, to avoid
+  conflicts. You can still set a specific number before calling
+  start if you want to force a device number.
 
 ## [0.2.0] - 2016-12-11
 

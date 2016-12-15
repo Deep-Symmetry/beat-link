@@ -74,10 +74,44 @@ public class VirtualCdj {
     private static final Map<InetAddress, DeviceUpdate> updates = new HashMap<InetAddress, DeviceUpdate>();
 
     /**
+     * Should we try to use a device number in the range 1 to 4 if we find one is available?
+     */
+    private static boolean useStandardPlayerNumber = false;
+
+    /**
+     * When self-assigning a player number, should we try to use a value that is legal for a standard CDJ, in
+     * the range 1 to 4? By default, we do not, to avoid any potential conflict with real players. However, if
+     * the user is intending to use the {@link MetadataFinder}, and will always have fewer than four real players
+     * on the network, this can be set to {@code true}, and a device number in this range will be chosen if it
+     * is not in use on the network during startup.
+     *
+     * @param attempt true if self-assignment should try to use device numbers below 5 when available
+     */
+    public static synchronized void setUseStandardPlayerNumber(boolean attempt) {
+        useStandardPlayerNumber = attempt;
+    }
+
+    /**
+     /**
+     * When self-assigning a player number, should we try to use a value that is legal for a standard CDJ, in
+     * the range 1 to 4? By default, we do not, to avoid any potential conflict with real players. However, if
+     * the user is intending to use the {@link MetadataFinder}, and will always have fewer than four real players
+     * on the network, this can be set to {@code true}, and a device number in this range will be chosen if it
+     * is not in use on the network during startup.
+     *
+     * @return true if self-assignment should try to use device numbers below 5 when available
+     */
+    public static synchronized boolean getUseStandardPlayerNumber() {
+        return useStandardPlayerNumber;
+    }
+
+    /**
      * Get the device number that is used when sending presence announcements on the network to pose as a virtual CDJ.
      * This starts out being zero unless you explicitly assign another value, which means that the <code>VirtualCdj</code>
-     * should assign itself an unused device number between 5 and 15 by watching the network when you call
-     * {@link #start()}.
+     * should assign itself an unused device number by watching the network when you call
+     * {@link #start()}. If {@link #getUseStandardPlayerNumber()} returns {@code true}, self-assignment will try to
+     * find a value in the range 1 to 4. Otherwise (or if those values are all used by other players), it will try to
+     * find a value in the range 5 to 15.
      *
      * @return the virtual player number
      */
@@ -88,9 +122,11 @@ public class VirtualCdj {
     /**
      * Set the device number to be used when sending presence announcements on the network to pose as a virtual CDJ.
      * If this is set to zero before {@link #start()} is called, the <code>VirtualCdj</code> will watch the network to
-     * look for an unused device number between 5 and 15, and assign itself that number during startup. If you
+     * look for an unused device number, and assign itself that number during startup. If you
      * explicitly assign a non-zero value, it will use that device number instead. Setting the value to zero while
-     * already up and running reassigns it to an unused value between 5 and 15 immediately.
+     * already up and running reassigns it to an unused value immediately. If {@link #getUseStandardPlayerNumber()}
+     * returns {@code true}, self-assignment will try to find a value in the range 1 to 4. Otherwise (or if those
+     * values are all used by other players), it will try to find a value in the range 5 to 15.
      *
      * @param number the virtual player number
      */
@@ -352,13 +388,20 @@ public class VirtualCdj {
         for (DeviceAnnouncement device : DeviceFinder.currentDevices()) {
             numbersUsed.add(device.getNumber());
         }
-        for (int result = 5; result < 16; result++) {   // Try all player numbers less than mixers use
+
+        // Try all player numbers less than mixers use, only including the real player range if we are configured to.
+        final int startingNumber = (useStandardPlayerNumber ? 1 : 5);
+        for (int result = startingNumber; result < 16; result++) {
             if (!numbersUsed.contains(result)) {  // We found one that is not used, so we can use it
                 setDeviceNumber((byte) result);
+                if (useStandardPlayerNumber && (result > 4)) {
+                    logger.warn("Unable to self-assign a standard player number, all are in use. Using number " +
+                            result + ".");
+                }
                 return true;
             }
         }
-        logger.warn("Found no unused device numbers between 5 and 15, giving up.");
+        logger.warn("Found no unused device numbers between " + startingNumber + " and 15, giving up.");
         return false;
     }
 
@@ -497,6 +540,7 @@ public class VirtualCdj {
             updates.clear();
             setMasterTempo(0.0);
             setTempoMaster(null);
+            setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
         }
     }
 
