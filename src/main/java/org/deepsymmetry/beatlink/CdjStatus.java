@@ -294,8 +294,8 @@ public class CdjStatus extends DeviceUpdate {
      */
     public CdjStatus(DatagramPacket packet) {
         super(packet, "CDJ status", packet.getLength());
-        if (packetBytes.length != 208 && packetBytes.length != 212 && packetBytes.length != 284) {
-            throw new IllegalArgumentException("CDJ status packet must be 208, 212, or 284 bytes long");
+        if (packetBytes.length != 208 && packetBytes.length != 212 && packetBytes.length != 284 && packetBytes.length != 292) {
+            throw new IllegalArgumentException("CDJ status packet must be 208, 212, 284, or 292 bytes long");
         }
         trackSourcePlayer = packetBytes[40];
         trackSourceSlot = findTrackSourceSlot();
