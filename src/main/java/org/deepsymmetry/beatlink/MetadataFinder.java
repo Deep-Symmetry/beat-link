@@ -9,6 +9,8 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,16 +114,39 @@ public class MetadataFinder {
      * have received the entire response.
      */
     private static byte[] finalMetadataField = {
-            (byte)0x10, (byte)0x42, (byte)0x01, (byte)0x0f, (byte)0x00, (byte)0x14, (byte)0x00, (byte)0x00,
-            (byte)0x00, (byte)0x0c, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
+            0x10, 0x42, 0x01, 0x0f, 0x00, 0x14, 0x00, 0x00,
+            0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
 
+    /**
+     * A message which is sent when there is no metadata available for the specified track it.
+     */
+    private static byte[] noSuchTrackPacket = {
+            0x10, 0x40, 0x01, 0x0f, 0x02, 0x14, 0x00, 0x00,
+            0x00, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00,
+            0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00
+    };
+
+    /**
+     * The payload of a packet which requests the artwork image with a specific ID.
+     */
     private static byte[] artworkRequestPacket = {
             0x10, 0x20, 0x03, 0x0f, 0x02, 0x14, 0x00, 0x00,
             0x00, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0 /* player */,
             0x08, 0 /* slot */, 0x01, 0x11, 0, 0, 0, 0  // Artwork ID (4 bytes) go here
+    };
+
+    /**
+     * The payload of a packet which determines how many tracks are available in a given media slot.
+     */
+    private static byte[] trackCountRequestPacket = {
+            0x10, 0x10, 0x04, 0x0f, 0x02, 0x14, 0x00, 0x00,
+            0x00, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0 /* player */,
+            0x02, 0 /* slot */, 0x01, 0x11, 0x00, 0x00, 0x00, 0x00
     };
 
     /**
@@ -291,6 +316,7 @@ public class MetadataFinder {
      */
     private static byte[] readFullMetadataResponse(InputStream is, int messageId) throws IOException {
         byte[] endMarker = buildPacket(messageId, finalMetadataField);
+        byte[] failMarker = buildPacket(messageId, noSuchTrackPacket);
         byte[] result = {};
         do {
             byte[] part = new byte[8192];
@@ -301,9 +327,57 @@ public class MetadataFinder {
             int existingSize = result.length;
             result = Arrays.copyOf(result, existingSize + read);
             System.arraycopy(part, 0, result, existingSize, read);
-        } while (!endsWith(result, endMarker));
+        } while (!endsWith(result, endMarker) && !endsWith(result, failMarker));
 
+        if (endsWith(result, failMarker)) {
+            return null;  // There was no such metadata available
+        }
         return result;
+    }
+
+    /**
+     * Request metadata for a specific track ID, given a connection to a player that has already been set up.
+     * Separated into its own method so it could be used multiple times on the same connection when gathering
+     * all track metadata.
+     *
+     * @param rekordboxId the track of interest
+     * @param posingAsPlayerNumber the player we are pretending to be
+     * @param slotByte identifies the track database we are querying
+     * @param is the stream from which we can read player responses
+     * @param os the stream to which we can write player packets
+     * @param messageId tracks the sequence number to send our packets with
+     *
+     * @return the retrieved metadata, or {@code null} if there is no such track
+     *
+     * @throws IOException if there is a communication problem
+     */
+    private static TrackMetadata getTrackMetadata(int rekordboxId, byte posingAsPlayerNumber, byte slotByte,
+                                                  InputStream is, OutputStream os, AtomicInteger messageId)
+            throws IOException {
+        // Send the packet identifying the track we want metadata for
+        byte[] payload = new byte[specifyTrackForMetadataPacket.length];
+        System.arraycopy(specifyTrackForMetadataPacket, 0, payload, 0, specifyTrackForMetadataPacket.length);
+        payload[23] = posingAsPlayerNumber;
+        payload[25] = slotByte;
+        setIdBytes(payload, payload.length - 4, rekordboxId);
+        os.write(buildPacket(messageId.incrementAndGet(), payload));
+        readResponseWithExpectedSize(is, 42, "track metadata id message");
+
+        // Send the final packet to kick off the metadata request
+        payload = new byte[finishMetadataQueryPacket.length];
+        System.arraycopy(finishMetadataQueryPacket, 0, payload, 0, finishMetadataQueryPacket.length);
+        payload[23] = posingAsPlayerNumber;
+        payload[25] = slotByte;
+        setIdBytes(payload, payload.length - 4, rekordboxId);
+        final int finishedSequence = messageId.incrementAndGet();
+        os.write(buildPacket(finishedSequence, payload));
+        byte[] rawResponse = readFullMetadataResponse(is, finishedSequence);
+        if (rawResponse == null) {
+            return null;  // No such metadata available
+        }
+        List<byte[]> fields = splitMetadataFields(rawResponse);
+        BufferedImage artwork = requestArtwork(is, os, messageId.incrementAndGet(), posingAsPlayerNumber, slotByte, fields);
+        return new TrackMetadata(fields, artwork);
     }
 
     /**
@@ -337,26 +411,7 @@ public class MetadataFinder {
 
             os.write(buildSetupPacket(posingAsPlayerNumber));
             readResponseWithExpectedSize(is, 42, "connection setup");
-
-            // Send the packet identifying the track we want metadata for
-            byte[] payload = new byte[specifyTrackForMetadataPacket.length];
-            System.arraycopy(specifyTrackForMetadataPacket, 0, payload, 0, specifyTrackForMetadataPacket.length);
-            payload[23] = posingAsPlayerNumber;
-            payload[25] = slotByte;
-            setIdBytes(payload, payload.length - 4, rekordboxId);
-            os.write(buildPacket(1, payload));
-            readResponseWithExpectedSize(is, 42, "track metadata id message");
-
-            // Send the final packet to kick off the metadata request
-            payload = new byte[finishMetadataQueryPacket.length];
-            System.arraycopy(finishMetadataQueryPacket, 0, payload, 0, finishMetadataQueryPacket.length);
-            payload[23] = posingAsPlayerNumber;
-            payload[25] = slotByte;
-            setIdBytes(payload, payload.length - 4, rekordboxId);
-            os.write(buildPacket(2, payload));
-            List<byte[]> fields = splitMetadataFields(readFullMetadataResponse(is, 2));
-            BufferedImage artwork = requestArtwork(is, os, 3, posingAsPlayerNumber, slotByte, fields);
-            return new TrackMetadata(fields, artwork);
+            return getTrackMetadata(rekordboxId, posingAsPlayerNumber, slotByte, is, os, new AtomicInteger());
         } catch (Exception e) {
             logger.warn("Problem requesting metadata", e);
         } finally {
@@ -420,6 +475,97 @@ public class MetadataFinder {
         } while (pos < imageLength);
 
         return ImageIO.read(new ByteArrayInputStream(artBytes));
+    }
+
+    /**
+     * The largest gap between rekordbox IDs we will accept while trying to scan for all the metadata in a media
+     * slot. If we try this many times and fail to get a valid response, we will give up our scan.
+     */
+    public static final int MAX_GAP = 128;
+
+    /**
+     * Ask the specified player for all the tracks in the specified slot.
+     *
+     * @param player the player number whose database is of interest
+     * @param slot the slot in which the tracks are to be examined
+     * @return the metadata for all tracks in that slot
+     *
+     * @throws IOException if there is a problem communicating with the CDJs
+     * @throws IllegalStateException if there is no media in the specified slot, or the specified player is not found
+     */
+    public static Map<Integer,TrackMetadata> requestAllMetadataFrom(int player, CdjStatus.TrackSourceSlot slot) throws IOException {
+        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
+        final int dbServerPort = getPlayerDBServerPort(player);
+        if (deviceAnnouncement == null || dbServerPort < 0) {
+            throw new IllegalStateException("Unable to request track count from speficied player.");
+        }
+
+        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
+        final byte slotByte = byteRepresentingSlot(slot);
+
+        Socket socket = null;
+        try {
+            socket = new Socket(deviceAnnouncement.getAddress(), dbServerPort);
+            InputStream is = socket.getInputStream();
+            OutputStream os = socket.getOutputStream();
+            socket.setSoTimeout(3000);
+
+            // Send the first two packets
+            os.write(initialPacket);
+            readResponseWithExpectedSize(is, 5, "initial packet");
+
+            os.write(buildSetupPacket(posingAsPlayerNumber));
+            readResponseWithExpectedSize(is, 42, "connection setup");
+
+            Map<Integer,TrackMetadata> result = new HashMap<Integer, TrackMetadata>();
+            AtomicInteger messageID = new AtomicInteger();
+
+            // Send the packet requesting the track count
+            byte[] payload = new byte[trackCountRequestPacket.length];
+            System.arraycopy(trackCountRequestPacket, 0, payload, 0, trackCountRequestPacket.length);
+            payload[23] = posingAsPlayerNumber;
+            payload[25] = slotByte;
+            os.write(buildPacket(messageID.incrementAndGet(), payload));
+            byte[] response = readResponseWithExpectedSize(is, 42, "track count message");
+            if (response.length < 42) {
+                throw new IllegalStateException("No media present in the specified player slot");
+            }
+            final int totalTracks = (int)Util.bytesToNumber(response, 40, 2);
+            logger.info("Trying to load " + totalTracks + " tracks.");
+
+            int maxGap = 0;
+            int gap = 0;
+            int currentId = 1;
+
+            while (result.size() < totalTracks) {
+                TrackMetadata found = getTrackMetadata(currentId, posingAsPlayerNumber, slotByte, is, os, messageID);
+                if (found != null) {
+                    gap = 0;
+                    result.put(currentId, found);
+                } else {
+                    gap += 1;
+                    if (gap > MAX_GAP) {
+                        logger.warn("Failed " + gap + " times in a row requesting track metadata, giving up.");
+                        return result;
+                    }
+                    if (gap > maxGap) {
+                        maxGap = gap;
+                    }
+                }
+                currentId += 1;
+            }
+
+            logger.info("Finished loading " + totalTracks + " tracks; maximum gap: " + maxGap);
+            return result;
+        } finally {
+            if (socket != null) {
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    logger.warn("Problem closing metadata request socket", e);
+                }
+            }
+        }
     }
 
     /**

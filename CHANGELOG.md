@@ -14,6 +14,9 @@ This change log follows the conventions of
   that the default at startup is always self-assignment, to avoid
   conflicts. You can still set a specific number before calling
   start if you want to force a device number.
+- Support new, slightly larger CDJ status packets from new Pioneer
+  firmware.
+- Allow you to request all metadata for a given media slot.
 
 ## [0.2.0] - 2016-12-11
 
