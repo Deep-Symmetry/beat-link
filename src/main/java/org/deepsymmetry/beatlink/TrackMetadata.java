@@ -1,10 +1,14 @@
 package org.deepsymmetry.beatlink;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.awt.image.BufferedImage;
 import java.io.UnsupportedEncodingException;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * Represents rekordbox metadata (title, artist, etc.) about tracks loaded into players on a DJ Link network.
@@ -12,6 +16,9 @@ import java.util.List;
  * @author James Elliott
  */
 public class TrackMetadata {
+
+
+    private static final Logger logger = LoggerFactory.getLogger(TrackMetadata.class.getName());
 
     /**
      * The raw packet data containing the metadata.
@@ -129,7 +136,13 @@ public class TrackMetadata {
         iterator.next();
         iterator.next();
         genre = extractString(iterator.next());
-        label = extractString(iterator.next());
+        String potentialLabel = null;
+        try {
+            potentialLabel = extractString(iterator.next());
+        } catch (NoSuchElementException e) {
+            logger.warn("Label field missing, old CDJ firmware?", e);
+        }
+        label = potentialLabel;
     }
 
     @Override
