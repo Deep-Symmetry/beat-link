@@ -371,12 +371,14 @@ public class VirtualCdj {
     private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 4000;
 
     /**
-     * Try to choose a device number, greater than 4, which we have not seen on the network. Start by making sure
-     * we have been watching long enough to have seen the other devices.
+     * Try to choose a device number, which we have not seen on the network. Start by making sure
+     * we have been watching long enough to have seen the other devices. Then, if {@link #useStandardPlayerNumber} is
+     * {@code true}, try to use a standard player number in the range 1-4 if possible. Otherwise (or if all those
+     * numbers are already in use), pick a number from 5 to 15.
      */
     private static boolean selfAssignDeviceNumber() {
         final long now = System.currentTimeMillis();
-        final long started = DeviceFinder.getStartTime();
+        final long started = DeviceFinder.getFirstDeviceTime();
         if (now - started < SELF_ASSIGNMENT_WATCH_PERIOD) {
             try {
                 Thread.sleep(SELF_ASSIGNMENT_WATCH_PERIOD - (now - started));  // Sleep until we hit the right time

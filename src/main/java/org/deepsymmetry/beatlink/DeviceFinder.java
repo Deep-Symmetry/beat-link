@@ -34,10 +34,16 @@ public class DeviceFinder {
     private static DatagramSocket socket;
 
     /**
-     * Track when we started listening for announcement packets, to help judge how long the {@link VirtualCdj} needs
-     * to wait in order to avoid device number collisions.
+     * Track when we started listening for announcement packets.
      */
     private static long startTime;
+
+    /**
+     * Track when we saw the first announcement packet, to help the {@link VirtualCdj} determine how long it needs
+     * to watch for devices in order to avoid conflicts when self-assigning a device number. Will be zero when none
+     * have yet been seen.
+     */
+    private static long firstDeviceTime = 0;
 
     /**
      * Check whether we are presently listening for device announcements.
@@ -59,6 +65,23 @@ public class DeviceFinder {
             throw new IllegalStateException("DeviceFinder is not active");
         }
         return startTime;
+    }
+
+    /**
+     * Get the timestamp of when we saw the first announcement packet, to help the {@link VirtualCdj} determine how
+     * long it needs to watch for devices in order to avoid conflicts when self-assigning a device number.
+     *
+     * @return the system millisecond timestamp when the first device announcement was received.
+     * @throws IllegalStateException if we are not listening for announcements, or if none have been seen.
+     */
+    public static synchronized long getFirstDeviceTime() {
+        if (!isActive()) {
+            throw new IllegalStateException("DeviceFinder is not active");
+        }
+        if (firstDeviceTime == 0) {
+            throw new IllegalStateException("No device announcements have yet been seen");
+        }
+        return firstDeviceTime;
     }
 
     /**
@@ -87,6 +110,9 @@ public class DeviceFinder {
      * @param announcement the announcement to be recorded
      */
     private static synchronized void updateDevices(DeviceAnnouncement announcement) {
+        if (firstDeviceTime == 0) {
+            firstDeviceTime = System.currentTimeMillis();
+        }
         devices.put(announcement.getAddress(), announcement);
     }
 
@@ -172,6 +198,7 @@ public class DeviceFinder {
             socket.close();
             socket = null;
             devices.clear();
+            firstDeviceTime = 0;
             for (DeviceAnnouncement announcement : lastDevices) {
                 deliverLostAnnouncement(announcement);
             }

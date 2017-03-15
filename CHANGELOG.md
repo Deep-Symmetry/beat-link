@@ -6,6 +6,21 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [0.2.1] - 2017-03-14
+
+### Fixed
+
+- Keep track of when we actually received our first device announcement
+  packet, rather than just when we started trying to find the Pro DJ
+  Link network, because that provides the actual information needed
+  by the VirtualCDJ in order to decide how long it needs to wait for
+  players on the network, to avoid device number conflicts. Simply
+  witing 2.5 seconds after starting to look for the network was not
+  reliable enough, and the VirtualCDJ was knocking player 1 off the
+  network on occasion.
+
 ### Added
 
 - A configuration option to tell the VirtualCDJ to try to use a
