@@ -12,14 +12,18 @@ Nothing so far.
 
 ### Fixed
 
-- Keep track of when we actually received our first device announcement
-  packet, rather than just when we started trying to find the Pro DJ
-  Link network, because that provides the actual information needed
-  by the VirtualCDJ in order to decide how long it needs to wait for
-  players on the network, to avoid device number conflicts. Simply
-  witing 2.5 seconds after starting to look for the network was not
-  reliable enough, and the VirtualCDJ was knocking player 1 off the
-  network on occasion.
+- Several issues which prevented Beat Link from reliably detecting all
+  other players on the network when self-assigning the number to use
+  for the VirtualCDJ. First, keep track of when we actually received
+  our first device announcement packet, rather than just when we
+  started trying to find the Pro DJ Link network, because that provides
+  a much more meaningful indication of how long to wait for
+  players on the network. Second, remove the mutual dependency between
+  the DeviceFinder and the VirtualCDJ, because the latter is in a
+  synchronized method during startup, which was preventing the
+  DeviceFinder from being able to actually process any device
+  announcement packets which came in while the VirtualCDJ was trying
+  to wait for them!
 
 ### Added
 

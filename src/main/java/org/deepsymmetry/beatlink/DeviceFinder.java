@@ -128,6 +128,32 @@ public class DeviceFinder {
     }
 
     /**
+     * Maintain a set of addresses from which device announcements should be ignored. The {@link VirtualCdj} will add
+     * its socket to this set when it is active so that it does not show up in the set of devices found on the network.
+     */
+    private static Set<InetAddress> ignoredAddresses = new HashSet<InetAddress>();
+
+    /**
+     * Start ignoring any device updates which are received from the specified address. Intended for use by the
+     * {@link VirtualCdj}, so that its updates do not cause it to appear as a device.
+     *
+     * @param address the address from which any device updates should be ignored.
+     */
+    public static synchronized void addIgnoredAddress(InetAddress address) {
+        ignoredAddresses.add(address);
+    }
+
+    /**
+     * Stop ignoring device updates which are received from the specified address. Intended for use by the
+     * {@link VirtualCdj}, so that when it shuts down, its socket stops being treated specially.
+     *
+     * @param address the address from which any device updates should be ignored.
+     */
+    public static synchronized  void removeIgnoredAddress(InetAddress address) {
+        ignoredAddresses.remove(address);
+    }
+
+    /**
      * Start listening for device announcements and keeping track of the DJ Link devices visible on the network.
      * If already listening, has no effect.
      *
@@ -166,8 +192,8 @@ public class DeviceFinder {
                             received = false;
                         }
                         try {
-                            if (received && (!VirtualCdj.isActive() || !packet.getAddress().equals(VirtualCdj.getLocalAddress())) &&
-                                    (packet.getLength() == 54) && Util.validateHeader(packet, 6, "device announcement")) {
+                            if (received && !ignoredAddresses.contains(packet.getAddress()) && (packet.getLength() == 54) &&
+                                    Util.validateHeader(packet, 6, "device announcement")) {
                                 // Looks like the kind of packet we need
                                 DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
                                 final boolean foundNewDevice = !isDeviceKnown(announcement);

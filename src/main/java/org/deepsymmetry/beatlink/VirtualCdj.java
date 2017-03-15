@@ -39,8 +39,7 @@ public class VirtualCdj {
     }
 
     /**
-     * Return the address being used by the virtual CDJ to send its own presence announcement broadcasts,
-     * so they can be filtered out by the {@link DeviceFinder}.
+     * Return the address being used by the virtual CDJ to send its own presence announcement broadcasts.
      *
      * @return the local address we present to the DJ Link network
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
@@ -415,7 +414,7 @@ public class VirtualCdj {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}.
      * @throws SocketException if there is a problem opening a socket on the right network
      */
-    private static synchronized boolean createVirtualCdj() throws SocketException {
+    private static boolean createVirtualCdj() throws SocketException {
         // Find the network interface and address to use to communicate with the first device we found.
         NetworkInterface matchedInterface = null;
         InterfaceAddress matchedAddress = null;
@@ -447,6 +446,9 @@ public class VirtualCdj {
 
         // Looking good. Open our communication socket and set up our threads.
         socket = new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress());
+
+        // Inform the DeviceFinder to ignore our own device announcement packets.
+        DeviceFinder.addIgnoredAddress(socket.getLocalAddress());
 
         final byte[] buffer = new byte[512];
         final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -508,7 +510,7 @@ public class VirtualCdj {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
-    public static boolean start() throws SocketException {
+    public static synchronized boolean start() throws SocketException {
         if (!isActive()) {
 
             // Find some DJ Link devices so we can figure out the interface and address to use to talk to them
@@ -537,6 +539,7 @@ public class VirtualCdj {
      */
     public static synchronized void stop() {
         if (isActive()) {
+            DeviceFinder.removeIgnoredAddress(socket.getLocalAddress());
             socket.close();
             socket = null;
             broadcastAddress = null;
