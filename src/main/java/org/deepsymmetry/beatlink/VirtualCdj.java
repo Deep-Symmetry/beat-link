@@ -368,7 +368,7 @@ public class VirtualCdj {
      * The number of milliseconds for which the {@link DeviceFinder} needs to have been watching the network in order
      * for us to be confident we can choose a device number that will not conflict.
      */
-    private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 2500;
+    private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 4000;
 
     /**
      * Try to choose a device number, greater than 4, which we have not seen on the network. Start by making sure
