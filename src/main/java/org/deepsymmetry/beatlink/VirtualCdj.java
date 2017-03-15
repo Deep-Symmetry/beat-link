@@ -91,7 +91,6 @@ public class VirtualCdj {
     }
 
     /**
-     /**
      * When self-assigning a player number, should we try to use a value that is legal for a standard CDJ, in
      * the range 1 to 4? By default, we do not, to avoid any potential conflict with real players. However, if
      * the user is intending to use the {@link MetadataFinder}, and will always have fewer than four real players
