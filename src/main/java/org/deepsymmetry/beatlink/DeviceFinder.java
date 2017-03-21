@@ -102,6 +102,9 @@ public class DeviceFinder {
                 deliverLostAnnouncement(entry.getValue());
             }
         }
+        if (devices.isEmpty()) {
+            firstDeviceTime = 0;  // We have lost contact with the Pro DJ Link network, so start over with next device.
+        }
     }
 
     /**

@@ -6,7 +6,13 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Fixed
+
+- When the last device disappears from the Pro DJ Link network, we
+  clear the DeviceFinder's notion of when we first saw one, so that
+  the VirtualCDJ's device-number conflict-avoidance code can work
+  properly when we later encounter a new network.
+
 
 ## [0.2.1] - 2017-03-14
 

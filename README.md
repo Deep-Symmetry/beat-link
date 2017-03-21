@@ -3,8 +3,9 @@
 A Java library for synchronizing with beats from Pioneer DJ Link equipment.
 
 See
-[beat-link-trigger](https://github.com/brunchboy/beat-link-trigger#beat-link-trigger)
-for an example of what you can do with this.
+[beat-link-trigger](https://github.com/brunchboy/beat-link-trigger#beat-link-trigger) and
+[beat-carabiner](https://github.com/brunchboy/beat-carabiner)
+for examples of what you can do with this.
 
 [![License](https://img.shields.io/badge/License-Eclipse%20Public%20License%201.0-blue.svg)](#license)
 
