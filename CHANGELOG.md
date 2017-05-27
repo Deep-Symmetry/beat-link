@@ -13,6 +13,11 @@ This change log follows the conventions of
   the VirtualCDJ's device-number conflict-avoidance code can work
   properly when we later encounter a new network.
 
+### Changed
+
+- The entire metadata retrieval approach has been fundamentally
+  rewritten, based on a much deeper understanding of the message and
+  field format, thanks to tips and sample code from @awwright.
 
 ## [0.2.1] - 2017-03-14
 
