@@ -68,15 +68,16 @@ public class StringField extends Field {
      */
     public StringField(String text) {
         final byte[] bytes;
+        final String delimited = text + '\0';  // Add the trailing NUL the protocol expects.
         try {
-            bytes = text.getBytes("UTF-16BE");
+            bytes = delimited.getBytes("UTF-16BE");
         } catch (UnsupportedEncodingException e) {
             throw new IllegalStateException("Java no longer supports UTF-16BE encoding?!", e);
         }
         size = bytes.length;
         ByteBuffer scratch = ByteBuffer.allocate(size + 5);
         scratch.put(typeTag);
-        scratch.putInt(size);
+        scratch.putInt(size / 2);  // The protocol counts characters, not bytes, for the size header.
         scratch.put(bytes);
         buffer = scratch.asReadOnlyBuffer();
         value = text;
@@ -95,11 +96,16 @@ public class StringField extends Field {
     @Override
     public ByteBuffer getBytes() {
         buffer.rewind();
-        return buffer;
+        return buffer.slice();
     }
 
     @Override
     public long getSize() {
         return size;
+    }
+
+    @Override
+    public String toString() {
+        return "StringField[ size: " + size + ", value: " + value + ", bytes: " + getHexString() + "]";
     }
 }

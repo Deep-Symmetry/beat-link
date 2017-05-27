@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import java.io.DataInputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -39,4 +41,50 @@ public abstract class Field {
      *         type list for a dbserver message.
      */
     public abstract byte getArgumentTag();
+
+    /**
+     * Read a field from the supplied stream, starting with the tag that identifies the type, and reading enough
+     * to collect the corresponding value.
+     *
+     * @param is the stream on which a type tag is expected to be the next byte, followed by the field value.
+     *
+     * @return the field that was found on the stream.
+     *
+     * @throws IOException if there is a problem reading the field.
+     */
+    public static Field read(DataInputStream is) throws IOException {
+        final byte tag = is.readByte();
+        switch (tag) {
+            case 0x0f:
+            case 0x10:
+            case 0x11:
+                return new NumberField(tag, is);
+
+            case 0x14:
+                return new BinaryField(is);
+
+            case 0x26:
+                return new StringField(is);
+
+            default:
+                throw new IOException("Unable to read a field with type tag " + tag);
+        }
+    }
+
+    /**
+     * Formats the bytes that make up this field as a hex string, for use by subclasses in their {@link #toString()}
+     * methods.
+     *
+     * @return the hex representations of the bytes that this field will send over the network.
+     */
+    protected String getHexString() {
+        final ByteBuffer bytes = getBytes();
+        final byte[] array = new byte[bytes.remaining()];
+        bytes.get(array);
+        final StringBuilder sb = new StringBuilder();
+        for (byte b : array) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString();
+    }
 }

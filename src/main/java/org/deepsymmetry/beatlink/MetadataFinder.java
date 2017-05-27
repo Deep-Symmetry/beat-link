@@ -6,11 +6,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.deepsymmetry.beatlink.dbserver.Client;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -400,14 +402,12 @@ public class MetadataFinder {
 
         Socket socket = null;
         try {
-            socket = new Socket(deviceAnnouncement.getAddress(), dbServerPort);
+            InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
+            socket = new Socket();
+            socket.connect(address, 5000);
             InputStream is = socket.getInputStream();
             OutputStream os = socket.getOutputStream();
-            socket.setSoTimeout(3000);
-
-            // Send the first two packets
-            os.write(initialPacket);
-            readResponseWithExpectedSize(is, 5, "initial packet");
+            Client client = new Client(socket, player, posingAsPlayerNumber);
 
             os.write(buildSetupPacket(posingAsPlayerNumber));
             readResponseWithExpectedSize(is, 42, "connection setup");

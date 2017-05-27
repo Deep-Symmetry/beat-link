@@ -42,14 +42,17 @@ public class BinaryField extends Field {
 
     /**
      * Pulls out the portion of our full buffer that represents just the binary value held by the field.
-     * Shared by both constructors to initialize the {@link #value} field.
+     * Shared by both constructors to initialize the {@link #value} field. Handles the special case of
+     * a zero-length blob, for which no bytes at all are sent. (Really! The protocol requires this!)
      *
      * @return the portion of our byte stream that follows the tag and size.
      */
     private ByteBuffer extractValue() {
         buffer.rewind();
-        buffer.get();    // Move past the tag
-        buffer.getInt(); // Move past the size
+        if (buffer.capacity() > 0) {
+            buffer.get();    // Move past the tag
+            buffer.getInt(); // Move past the size
+        }
         return buffer.slice();
     }
 
@@ -79,11 +82,16 @@ public class BinaryField extends Field {
      * @param bytes the value that this field will convey.
      */
     public BinaryField(final byte[] bytes) {
+        final ByteBuffer scratch;
         size = bytes.length;
-        ByteBuffer scratch = ByteBuffer.allocate(size + 5);
-        scratch.put(typeTag);
-        scratch.putInt(size);
-        scratch.put(bytes);
+        if (size > 0) {
+            scratch = ByteBuffer.allocate(size + 5);
+            scratch.put(typeTag);
+            scratch.putInt(size);
+            scratch.put(bytes);
+        } else {
+            scratch = ByteBuffer.allocate(0);
+        }
         buffer = scratch.asReadOnlyBuffer();
         value = extractValue();
     }
@@ -101,11 +109,16 @@ public class BinaryField extends Field {
     @Override
     public ByteBuffer getBytes() {
         buffer.rewind();
-        return buffer;
+        return buffer.slice();
     }
 
     @Override
     public long getSize() {
         return size;
+    }
+
+    @Override
+    public String toString() {
+        return "BinaryField[ size: " + size + ", bytes: " + getHexString() + "]";
     }
 }

@@ -139,4 +139,9 @@ public class NumberField extends Field {
         buffer.rewind();
         return buffer.slice();
     }
+
+    @Override
+    public String toString() {
+        return "NumberField[ size: " + size + ", value: " + value + ", bytes: " + getHexString() + "]";
+    }
 }
