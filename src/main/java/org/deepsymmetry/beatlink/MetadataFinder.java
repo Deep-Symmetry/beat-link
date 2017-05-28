@@ -237,27 +237,6 @@ public class MetadataFinder {
     }
 
     /**
-     * Determine the byte value that specifies a particular slot from which a track can be loaded.
-     *
-     * @param slot the slot of interest.
-     * @return the corresponding byte value for metadata query packets.
-     * @throws IllegalArgumentException if an unsupported slot value is supplied.
-     */
-    private static final byte byteRepresentingSlot(CdjStatus.TrackSourceSlot slot) {
-        switch (slot) {
-            case SD_SLOT:
-                return 2;
-
-            case USB_SLOT:
-                return 3;
-
-            case COLLECTION:
-                return 4;
-        }
-        throw new IllegalArgumentException("Cannot query metadata for slot " + slot);
-    }
-
-    /**
      * Checks whether the last bytes of the supplied buffer are identical to the bytes of the expected ending.
      *
      * @param buffer the buffer to be checked.
@@ -368,7 +347,6 @@ public class MetadataFinder {
         }
 
         final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
-        final byte slotByte = byteRepresentingSlot(slot);
 
         Socket socket = null;
         try {
@@ -379,7 +357,7 @@ public class MetadataFinder {
             OutputStream os = socket.getOutputStream();
             Client client = new Client(socket, player, posingAsPlayerNumber);
 
-            return getTrackMetadata(rekordboxId, posingAsPlayerNumber, slotByte, is, os, new AtomicInteger());
+            return getTrackMetadata(rekordboxId, posingAsPlayerNumber, slot.protocolValue, is, os, new AtomicInteger());
         } catch (Exception e) {
             logger.warn("Problem requesting metadata", e);
         } finally {
@@ -469,7 +447,6 @@ public class MetadataFinder {
         }
 
         final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
-        final byte slotByte = byteRepresentingSlot(slot);
 
         Socket socket = null;
         try {
@@ -486,7 +463,7 @@ public class MetadataFinder {
             byte[] payload = new byte[trackCountRequestPacket.length];
             System.arraycopy(trackCountRequestPacket, 0, payload, 0, trackCountRequestPacket.length);
             payload[23] = posingAsPlayerNumber;
-            payload[25] = slotByte;
+            payload[25] = slot.protocolValue;
             os.write(buildPacket(messageID.incrementAndGet(), payload));
             byte[] response = readResponseWithExpectedSize(is, 42, "track count message");
             if (response.length < 42) {
@@ -500,7 +477,7 @@ public class MetadataFinder {
             int currentId = 1;
 
             while (result.size() < totalTracks) {
-                TrackMetadata found = getTrackMetadata(currentId, posingAsPlayerNumber, slotByte, is, os, messageID);
+                TrackMetadata found = getTrackMetadata(currentId, posingAsPlayerNumber, slot.protocolValue, is, os, messageID);
                 if (found != null) {
                     gap = 0;
                     result.put(currentId, found);
