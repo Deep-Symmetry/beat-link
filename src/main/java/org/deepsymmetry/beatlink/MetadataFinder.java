@@ -43,11 +43,6 @@ public class MetadataFinder {
     }
 
     /**
-     * The first packet that gets sent to any player when setting up to request metadata.
-     */
-    private static byte[] initialPacket = {0x11, 0x00, 0x00, 0x00, 0x01};
-
-    /**
      * The delimiter which separates individual messages in the TCP stream.
      */
     private static byte[] messageSeparator =  {(byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11};
@@ -75,18 +70,6 @@ public class MetadataFinder {
         fields.add(Arrays.copyOfRange(metadata, begin, metadata.length));
         return fields;
     }
-
-
-    /**
-     * The payload of the initial message which seems to be necessary to enable metadata queries.
-     */
-    private static byte[] setupPacket = {
-            (byte)0x10, (byte)0x00, (byte)0x00, (byte)0x0f, (byte)0x01, (byte)0x14, (byte)0x00, (byte)0x00,
-            (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00,
-            (byte)0x00, (byte)0x00, 0  // This final byte must be replaced with a valid player number.
-            // The player number chosen must be active and different than the player being sent the query.
-    };
 
     /**
      * The payload of the first message needed to request metadata about a particular track.
@@ -179,19 +162,6 @@ public class MetadataFinder {
         setIdBytes(result, messageSeparator.length, messageId);
         System.arraycopy(payload, 0, result, messageSeparator.length + 4, payload.length);
         return result;
-    }
-
-    /**
-     * Creates the packet needed to set up the player connection to successfully process metadata queries.
-     *
-     * @param fromPlayer the player number we are posing as when making our queries.
-     * @return the bytes of the setup packet that should be sent to the player.
-     */
-    private static byte[] buildSetupPacket(byte fromPlayer) {
-        byte[] payload = new byte[setupPacket.length];
-        System.arraycopy(setupPacket, 0, payload, 0, setupPacket.length);
-        payload[payload.length - 1] = fromPlayer;
-        return buildPacket(0xfffffffe, payload);
     }
 
     /**
@@ -409,8 +379,6 @@ public class MetadataFinder {
             OutputStream os = socket.getOutputStream();
             Client client = new Client(socket, player, posingAsPlayerNumber);
 
-            os.write(buildSetupPacket(posingAsPlayerNumber));
-            readResponseWithExpectedSize(is, 42, "connection setup");
             return getTrackMetadata(rekordboxId, posingAsPlayerNumber, slotByte, is, os, new AtomicInteger());
         } catch (Exception e) {
             logger.warn("Problem requesting metadata", e);
@@ -509,13 +477,7 @@ public class MetadataFinder {
             InputStream is = socket.getInputStream();
             OutputStream os = socket.getOutputStream();
             socket.setSoTimeout(3000);
-
-            // Send the first two packets
-            os.write(initialPacket);
-            readResponseWithExpectedSize(is, 5, "initial packet");
-
-            os.write(buildSetupPacket(posingAsPlayerNumber));
-            readResponseWithExpectedSize(is, 42, "connection setup");
+            Client client = new Client(socket, player, posingAsPlayerNumber);
 
             Map<Integer,TrackMetadata> result = new HashMap<Integer, TrackMetadata>();
             AtomicInteger messageID = new AtomicInteger();

@@ -37,6 +37,15 @@ public class StringField extends Field {
     private final String value;
 
     /**
+     * Get the string represented by this field.
+     *
+     * @return the text that this field contains.
+     */
+    public String getValue() {
+        return value;
+    }
+
+    /**
      * Holds the actual bytes used to transmit this field, including the type tag.
      */
     private final ByteBuffer buffer;
@@ -106,6 +115,6 @@ public class StringField extends Field {
 
     @Override
     public String toString() {
-        return "StringField[ size: " + size + ", value: " + value + ", bytes: " + getHexString() + "]";
+        return "StringField[ size: " + size + ", value: \"" + value + "\", bytes: " + getHexString() + "]";
     }
 }

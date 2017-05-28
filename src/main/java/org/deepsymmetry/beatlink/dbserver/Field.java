@@ -83,7 +83,7 @@ public abstract class Field {
         bytes.get(array);
         final StringBuilder sb = new StringBuilder();
         for (byte b : array) {
-            sb.append(String.format("%02X ", b));
+            sb.append(String.format("%02x ", b));
         }
         return sb.toString();
     }

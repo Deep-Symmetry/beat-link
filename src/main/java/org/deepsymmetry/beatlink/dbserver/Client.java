@@ -54,12 +54,12 @@ public class Client {
     /**
      * The greeting message exchanged over a new connection consists of a 4-byte number field containing the value 1.
      */
-    public final NumberField greeting = new NumberField(1, 4);
+    public static final NumberField GREETING_FIELD = new NumberField(1, 4);
 
     /**
      * Used to assign unique numbers to each transaction.
      */
-    int transactionCounter = 0;
+    long transactionCounter = 0;
 
     /**
      * The dbserver client must be constructed with a freshly-opened socket to the dbserver port on the specified
@@ -80,22 +80,46 @@ public class Client {
         this.targetPlayer = targetPlayer;
         this.posingAsPlayer = posingAsPlayer;
 
-        // Exchange the greeting message, which is a 4-byte number field containing the value 1.
-        sendField(greeting);
-        final Field response = Field.read(is);
-        if ((response instanceof NumberField) && (response.getSize() == 4) &&
-                (((NumberField) response).getValue() == 1)) {
-            performSetupExchange();
-        } else {
-            throw new IOException("Did not receive expected greeting response from dbserver, instead got: " + response);
+        try {
+            // Exchange the greeting message, which is a 4-byte number field containing the value 1.
+            sendField(GREETING_FIELD);
+            final Field response = Field.read(is);
+            if ((response instanceof NumberField) && (response.getSize() == 4) &&
+                    (((NumberField) response).getValue() == 1)) {
+                performSetupExchange();
+            } else {
+                throw new IOException("Did not receive expected greeting response from dbserver, instead got: " + response);
+            }
+        } catch (IOException e) {
+            close();
+            throw e;
         }
     }
 
     /**
-     * Exchanges the initial fully-formed messages which establishes the transaction context for queries to the dbserver.
+     * Exchanges the initial fully-formed messages which establishes the transaction context for queries to
+     * the dbserver.
+     *
+     * @throws IOException if there is a problem during the exchange.
      */
-    private void performSetupExchange() {
-        // TODO: Implement!
+    private void performSetupExchange() throws IOException {
+        Message setupRequest = new Message(0xfffffffeL, Message.KnownType.SETUP_REQ, new NumberField(posingAsPlayer, 4));
+        sendMessage(setupRequest);
+        Message response = Message.read(is);
+        if (response.knownType != Message.KnownType.MENU_AVAILABLE) {
+            throw new IOException("Did not receive message type 0x4000 in response to setup message, got: " + response);
+        }
+        if (response.arguments.size() != 2) {
+            throw new IOException("Did not receive two arguments in response to setup message, got: " + response);
+        }
+        final Field player = response.arguments.get(1);
+        if (!(player instanceof NumberField)) {
+            throw new IOException("Second argument in response to setup message was not a number: " + response);
+        }
+        if (((NumberField)player).getValue() != targetPlayer) {
+            throw new IOException("Expected to connect to player " + targetPlayer +
+                    ", but welcome response identified itself as player " + ((NumberField)player).getValue());
+        }
     }
 
     /**
@@ -135,15 +159,15 @@ public class Client {
     }
 
     /**
-     * Attempt to send the specified field to the dbserver, returning an indication of whether the attempt was made.
+     * Attempt to send the specified field to the dbserver.
      * This low-level function is available only to the package itself for use in setting up the connection and
      * sending parts of larger-scale messages.
      *
      * @param field the field to be sent.
      *
-     * @return {@code true} if the bytes were written, or {@code false} if something prevented that.
+     * @throws IOException if the field cannot be sent.
      */
-    boolean sendField(Field field) {
+    void sendField(Field field) throws IOException {
         if (isConnected()) {
             try {
                 final ByteBuffer buffer = field.getBytes();
@@ -153,11 +177,23 @@ public class Client {
             } catch (IOException e) {
                 logger.warn("Problem trying to write field to dbserver, closing connection", e);
                 close();
-                return false;
+                throw e;
             }
-            return true;
+            return;
         }
-        logger.warn("sendField() called after dbserver connection was closed, ignoring");
-        return false;
+        throw new IOException("sendField() called after dbserver connection was closed");
+    }
+
+    /**
+     * Sends a message to the dbserver.
+     *
+     * @param message the message to be sent.
+     *
+     * @throws IOException if there is a problem sending it.
+     */
+    public void sendMessage(Message message) throws IOException {
+        for (Field field : message.fields) {
+            sendField(field);
+        }
     }
 }

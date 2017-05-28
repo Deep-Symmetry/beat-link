@@ -57,6 +57,16 @@ public class BinaryField extends Field {
     }
 
     /**
+     * Get the bytes which represent the payload of this field, without the leading type tag and length header.
+     *
+     * @return the bytes whose purpose this field exists to convey.
+     */
+    public ByteBuffer getValue() {
+        value.rewind();
+        return value.slice();
+    }
+
+    /**
      * Constructor for reading from the network.
      *
      * @param is the stream on which the field value is to be read.

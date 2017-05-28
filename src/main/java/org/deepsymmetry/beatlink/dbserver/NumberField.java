@@ -83,7 +83,7 @@ public class NumberField extends Field {
      * @throws IllegalArgumentException if the specified size is not a supported number field size.
      */
     public NumberField(final long value, final int size) {
-        this.value = value & 0xffffffff;
+        this.value = value & 0xffffffffL;
         this.size = size;
         byte[] bufBytes = new byte[size + 1];
         switch (size) {
