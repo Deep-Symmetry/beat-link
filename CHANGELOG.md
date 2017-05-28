@@ -19,6 +19,12 @@ This change log follows the conventions of
   rewritten, based on a much deeper understanding of the message and
   field format, thanks to tips and sample code from @awwright.
 
+### Added
+
+- Many more kinds of information can be retrieved from players, and
+  the classes and API documentation have been enriched to reflect our
+  deepening understanding of the protocol
+
 ## [0.2.1] - 2017-03-14
 
 ### Fixed

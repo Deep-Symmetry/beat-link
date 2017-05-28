@@ -1,6 +1,9 @@
 package org.deepsymmetry.beatlink;
 
 import java.net.DatagramPacket;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Represents a status update sent by a CDJ (or perhaps other player) on a DJ Link network.
@@ -59,8 +62,53 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values describing from where the track was loaded, labeled <i>S<sub>r</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public static enum TrackSourceSlot {
-        NO_TRACK, CD_SLOT, SD_SLOT, USB_SLOT, COLLECTION, UNKNOWN
+    public enum TrackSourceSlot {
+        /**
+         * Nothing has been loaded.
+         */
+        NO_TRACK   (0),
+        /**
+         * The track was loaded from a CD.
+         */
+        CD_SLOT    (1),
+        /**
+         * The track was loaded from the Secure Digital media slot.
+         */
+        SD_SLOT    (2),
+        /**
+         * The track was loaded from the USB socket.
+         */
+        USB_SLOT   (3),
+        /**
+         * The track was loaded from a computer’s rekordbox collection over the network.
+         */
+        COLLECTION (4),
+        /**
+         * We saw a value that we did not recognize, so we don’t know where the track came from.
+         */
+        UNKNOWN    (-1);
+
+        /**
+         * The value that represents this media source in a status update or dbserver request.
+         */
+        public final byte protocolValue;
+
+        TrackSourceSlot(int value) {
+            protocolValue = (byte)value;
+        }
+    }
+
+    /**
+     * Allows a known track source slot value to be looked up based on the byte that was seen in a status update.
+     */
+    public static final Map<Byte,TrackSourceSlot> TRACK_SOURCE_SLOT_MAP;
+
+    static {
+        Map<Byte,TrackSourceSlot> scratch = new HashMap<Byte, TrackSourceSlot>();
+        for (TrackSourceSlot slot : TrackSourceSlot.values()) {
+            scratch.put(slot.protocolValue, slot);
+        }
+        TRACK_SOURCE_SLOT_MAP = Collections.unmodifiableMap(scratch);
     }
 
     /**
@@ -81,8 +129,50 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values describing the track type, labeled <i>t<sub>r</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public static enum TrackType {
-        NO_TRACK, REKORDBOX, CD_DIGITAL_AUDIO, UNKNOWN
+    public enum TrackType {
+        /**
+         * No track has been loaded.
+         */
+        NO_TRACK         (0),
+        /**
+         * The track was loaded from a rekordbox database, and has been analyzed for beat grid and waveforms.
+         */
+        REKORDBOX        (1),
+        /**
+         * The track was loaded from digital media, but was not from rekordbox, and so has not been analyzed
+         * for beat grid and waveforms.
+         */
+        UNANALYZED       (2),
+        /**
+         * The track was loaded from an audio CD, and so has not been analyzed for beat grid and waveforms.
+         */
+        CD_DIGITAL_AUDIO (5),
+        /**
+         * We received a value that we did not recognize, so we don’t know what it means.
+         */
+        UNKNOWN          (-1);
+
+        /**
+         * The value that represents this track type in a status update.
+         */
+        public final byte protocolValue;
+
+        TrackType(int value) {
+            protocolValue = (byte)value;
+        }
+    }
+
+    /**
+     * Allows a known track source type value to be looked up based on the byte that was seen in a status update.
+     */
+    public static final Map<Byte,TrackType> TRACK_TYPE_MAP;
+
+    static {
+        Map<Byte,TrackType> scratch = new HashMap<Byte, TrackType>();
+        for (TrackType type : TrackType.values()) {
+            scratch.put(type.protocolValue, type);
+        }
+        TRACK_TYPE_MAP = Collections.unmodifiableMap(scratch);
     }
 
     /**
@@ -119,8 +209,73 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values of the first play state found in the packet, labeled <i>P<sub>1</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public static enum PlayState1 {
-        NO_TRACK, PLAYING, LOOPING, PAUSED, CUED, SEARCHING, ENDED, UNKNOWN
+    public enum PlayState1 {
+        /**
+         * No track has been loaded.
+         */
+        NO_TRACK (0),
+        /**
+         * A track is in the process of being loaded.
+         */
+        LOADING (2),
+        /**
+         * The player is playing normally.
+         */
+        PLAYING (3),
+        /**
+         * The player is playing a loop.
+         */
+        LOOPING (4),
+        /**
+         * The player is paused anywhere other than the cue point.
+         */
+        PAUSED (5),
+        /**
+         * The player is paused at the cue point.
+         */
+        CUED (6),
+        /**
+         * Cue play is in progress (playback while the cue button is held down).
+         */
+        CUE_PLAYING (7),
+        /**
+         * Cue scratch is in progress; the player will return to the cue point when the jog wheel is released.
+         */
+        CUE_SCRATCHING (8),
+        /**
+         * The player is searching forwards or backwards.
+         */
+        SEARCHING(9),
+        /**
+         * The player reached the end of the track and stopped.
+         */
+        ENDED(17),
+        /**
+         * We received a value we don’t recognize, so we don’t know what it means.
+         */
+        UNKNOWN(-1);
+
+        /**
+         * The value that represents this play state in a status update.
+         */
+        public final byte protocolValue;
+
+        PlayState1(int value) {
+            protocolValue = (byte) value;
+        }
+    }
+
+    /**
+     * Allows a known <i>P<sub>1</sub></i> value to be looked up based on the byte that was seen in a status update.
+     */
+    public static final Map<Byte,PlayState1> PLAY_STATE_1_MAP;
+
+    static {
+        Map<Byte,PlayState1> scratch = new HashMap<Byte, PlayState1>();
+        for (PlayState1 state : PlayState1.values()) {
+            scratch.put(state.protocolValue, state);
+        }
+        PLAY_STATE_1_MAP = Collections.unmodifiableMap(scratch);
     }
 
     /**
@@ -143,8 +298,41 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values of the second play state found in the packet, labeled <i>P<sub>2</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public static enum PlayState2 {
-        MOVING, STOPPED, UNKNOWN
+    public enum PlayState2 {
+        /**
+         * The player is moving through a track.
+         */
+        MOVING  (0x7a),
+        /**
+         * The player is stopped.
+         */
+        STOPPED (0x7e),
+        /**
+         * We saw an unknown value, so we don’t know what it means.
+         */
+        UNKNOWN (-1);
+
+        /**
+         * The value that represents this play state in a status update.
+         */
+        public final byte protocolValue;
+
+        PlayState2(int value) {
+            protocolValue = (byte) value;
+        }
+    }
+
+    /**
+     * Allows a known <i>P<sub>2</sub></i> value to be looked up based on the byte that was seen in a status update.
+     */
+    public static final Map<Byte,PlayState2> PLAY_STATE_2_MAP;
+
+    static {
+        Map<Byte,PlayState2> scratch = new HashMap<Byte, PlayState2>();
+        for (PlayState2 state : PlayState2.values()) {
+            scratch.put(state.protocolValue, state);
+        }
+        PLAY_STATE_2_MAP = Collections.unmodifiableMap(scratch);
     }
 
     /**
@@ -168,7 +356,48 @@ public class CdjStatus extends DeviceUpdate {
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     public static enum PlayState3 {
-        NO_TRACK, PAUSED_OR_REVERSE, FORWARD_VINYL, FORWARD_CDJ, UNKNOWN
+        /**
+         * No track has been loaded.
+         */
+        NO_TRACK (0),
+        /**
+         * The player is paused or playing in Reverse mode.
+         */
+        PAUSED_OR_REVERSE (1),
+        /**
+         * The player is playing in Forward mode with jog mode set to Vinyl.
+         */
+        FORWARD_VINYL (9),
+        /**
+         * The player is playing in Forward mode with jog mode set to CDJ.
+         */
+        FORWARD_CDJ (13),
+        /**
+         * We received a value that we did not recognize, so we don’t know what it means.
+         */
+        UNKNOWN (-1);
+
+        /**
+         * The value that represents this play state in a status update.
+         */
+        public final byte protocolValue;
+
+        PlayState3(int value) {
+            protocolValue = (byte) value;
+        }
+    }
+
+    /**
+     * Allows a known <i>P<sub>3</sub></i> value to be looked up based on the byte that was seen in a status update.
+     */
+    public static final Map<Byte,PlayState3> PLAY_STATE_3_MAP;
+
+    static {
+        Map<Byte,PlayState3> scratch = new HashMap<Byte, PlayState3>();
+        for (PlayState3 state : PlayState3.values()) {
+            scratch.put(state.protocolValue, state);
+        }
+        PLAY_STATE_3_MAP = Collections.unmodifiableMap(scratch);
     }
 
     /**
@@ -208,14 +437,11 @@ public class CdjStatus extends DeviceUpdate {
      * @return the proper value
      */
     private TrackSourceSlot findTrackSourceSlot() {
-        switch (packetBytes[41]) {
-            case 0: return TrackSourceSlot.NO_TRACK;
-            case 1: return TrackSourceSlot.CD_SLOT;
-            case 2: return TrackSourceSlot.SD_SLOT;
-            case 3: return TrackSourceSlot.USB_SLOT;
-            case 4: return TrackSourceSlot.COLLECTION;
-            default: return TrackSourceSlot.UNKNOWN;
+        TrackSourceSlot result = TRACK_SOURCE_SLOT_MAP.get(packetBytes[41]);
+        if (result == null) {
+            return TrackSourceSlot.UNKNOWN;
         }
+        return result;
     }
 
     /**
@@ -224,12 +450,11 @@ public class CdjStatus extends DeviceUpdate {
      * @return the proper value
      */
     private TrackType findTrackType() {
-        switch (packetBytes[42]) {
-            case 0: return TrackType.NO_TRACK;
-            case 1: return TrackType.REKORDBOX;
-            case 5: return TrackType.CD_DIGITAL_AUDIO;
-            default: return TrackType.UNKNOWN;
+        TrackType result = TRACK_TYPE_MAP.get(packetBytes[42]);
+        if (result == null) {
+            return TrackType.UNKNOWN;
         }
+        return result;
     }
 
     /**
@@ -238,16 +463,11 @@ public class CdjStatus extends DeviceUpdate {
      * @return the proper value
      */
     private PlayState1 findPlayState1() {
-        switch (packetBytes[123]) {
-            case 0: return PlayState1.NO_TRACK;
-            case 3: return PlayState1.PLAYING;
-            case 4: return PlayState1.LOOPING;
-            case 5: return PlayState1.PAUSED;
-            case 6: return PlayState1.CUED;
-            case 9: return PlayState1.SEARCHING;
-            case 17: return PlayState1.ENDED;
-            default: return PlayState1.UNKNOWN;
+        PlayState1 result = PLAY_STATE_1_MAP.get(packetBytes[123]);
+        if (result == null) {
+            return PlayState1.UNKNOWN;
         }
+        return result;
     }
 
     /**
@@ -278,13 +498,11 @@ public class CdjStatus extends DeviceUpdate {
      * @return the proper value
      */
     private PlayState3 findPlayState3() {
-        switch (packetBytes[157]) {
-            case 0: return PlayState3.NO_TRACK;
-            case 1: return PlayState3.PAUSED_OR_REVERSE;
-            case 9: return PlayState3.FORWARD_VINYL;
-            case 13: return PlayState3.FORWARD_CDJ;
-            default: return PlayState3.UNKNOWN;
+        PlayState3 result = PLAY_STATE_3_MAP.get(packetBytes[157]);
+        if (result == null) {
+            return PlayState3.UNKNOWN;
         }
+        return result;
     }
 
     /**
@@ -561,11 +779,11 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * Is USB media available somewhere on the network?
+     * Is link media available somewhere on the network?
      *
-     * @return true if some player has USB media that can be linked to
+     * @return true if some player has USB, SD, or other media that can be linked to
      */
-    public boolean isLinkedUsbAvailable() {
+    public boolean isLinkMediaAvailable() {
         return (packetBytes[117] != 0);
     }
 

@@ -169,6 +169,7 @@ public class Client {
      */
     void sendField(Field field) throws IOException {
         if (isConnected()) {
+            logger.debug("..sending> {}", field);
             try {
                 final ByteBuffer buffer = field.getBytes();
                 while (buffer.hasRemaining()) {
@@ -185,13 +186,23 @@ public class Client {
     }
 
     /**
+     * Allocate a new transaction number for a message that is to be sent.
+     *
+     * @return the appropriate number field to use for the new message’s transaction argument.
+     */
+    public synchronized NumberField assignTransactionNumber() {
+        return new NumberField(++transactionCounter, 4);
+    }
+
+    /**
      * Sends a message to the dbserver.
      *
      * @param message the message to be sent.
      *
      * @throws IOException if there is a problem sending it.
      */
-    public void sendMessage(Message message) throws IOException {
+    public synchronized void sendMessage(Message message) throws IOException {
+        logger.debug("Sending> {}", message);
         for (Field field : message.fields) {
             sendField(field);
         }
