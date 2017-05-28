@@ -399,14 +399,14 @@ public class Message {
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder();
-        result.append("Message: [Transaction: ").append(transaction.getValue());
+        result.append("Message: [transaction: ").append(transaction.getValue());
         result.append(String.format(", type: 0x%04x (", messageType.getValue()));
         if (knownType != null) {
             result.append(knownType.description);
         } else {
             result.append("unknown");
         }
-        result.append(", arg count: ").append(argumentCount.getValue()).append(String.format(", arguments:%n"));
+        result.append("), arg count: ").append(argumentCount.getValue()).append(String.format(", arguments:%n"));
         for (int i = 0; i < arguments.size(); i++) {
             final Field arg = arguments.get(i);
             result.append(String.format("%4d: ", i + 1));
