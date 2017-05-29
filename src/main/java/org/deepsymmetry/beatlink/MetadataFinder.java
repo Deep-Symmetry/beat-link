@@ -1,5 +1,13 @@
 package org.deepsymmetry.beatlink;
 
+import org.deepsymmetry.beatlink.dbserver.BinaryField;
+import org.deepsymmetry.beatlink.dbserver.Client;
+import org.deepsymmetry.beatlink.dbserver.Message;
+import org.deepsymmetry.beatlink.dbserver.NumberField;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -11,16 +19,6 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.deepsymmetry.beatlink.dbserver.BinaryField;
-import org.deepsymmetry.beatlink.dbserver.Client;
-import org.deepsymmetry.beatlink.dbserver.Message;
-import org.deepsymmetry.beatlink.dbserver.NumberField;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.imageio.ImageIO;
 
 /**
  * Watches for new tracks to be loaded on players, and queries the
@@ -44,51 +42,6 @@ public class MetadataFinder {
             return null;
         }
         return requestMetadataFrom(status.getTrackSourcePlayer(), status.getTrackSourceSlot(), status.getRekordboxId());
-    }
-
-    /**
-     * The delimiter which separates individual messages in the TCP stream.
-     */
-    private static byte[] messageSeparator =  {(byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11};
-
-    /**
-     * The payload of a packet which determines how many tracks are available in a given media slot.
-     */
-    private static byte[] trackCountRequestPacket = {
-            0x10, 0x10, 0x04, 0x0f, 0x02, 0x14, 0x00, 0x00,
-            0x00, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0 /* player */,
-            0x02, 0 /* slot */, 0x01, 0x11, 0x00, 0x00, 0x00, 0x00
-    };
-
-    /**
-     * Stores a 4-byte id value in the proper byte order into a byte buffer that is being used to build up
-     * a metadata query.
-     *
-     * @param buffer the buffer in which the query is being created.
-     * @param offset the index of the first byte where the id is to be stored.
-     * @param id the 4-byte id that needs to be stored in the query buffer.
-     */
-    private static void setIdBytes(byte[] buffer, int offset, int id) {
-        buffer[offset] = (byte)(id >> 24);
-        buffer[offset + 1] = (byte)(id >> 16);
-        buffer[offset + 2] = (byte)(id >>8);
-        buffer[offset + 3] = (byte)id;
-    }
-
-    /**
-     * Formats a query packet to be sent to the player.
-     *
-     * @param messageId the sequence number of the message; should start with 1 and be incremented with each message.
-     * @param payload the bytes which should follow teh separator and sequence number.
-     * @return the formatted query packet.
-     */
-    private static byte[] buildPacket(int messageId, byte[] payload) {
-        byte[] result = new byte[payload.length + messageSeparator.length + 4];
-        System.arraycopy(messageSeparator, 0, result, 0, messageSeparator.length);
-        setIdBytes(result, messageSeparator.length, messageId);
-        System.arraycopy(payload, 0, result, messageSeparator.length + 4, payload.length);
-        return result;
     }
 
     /**
@@ -125,8 +78,6 @@ public class MetadataFinder {
         }
         return result;
     }
-
-
 
     /**
      * Finds a valid  player number that is currently visible but which is different from the one specified, so it can
@@ -259,89 +210,12 @@ public class MetadataFinder {
         return ImageIO.read(new ByteArrayInputStream(imageBytes));
     }
 
-    /**
-     * The largest gap between rekordbox IDs we will accept while trying to scan for all the metadata in a media
-     * slot. If we try this many times and fail to get a valid response, we will give up our scan.
-     */
-    public static final int MAX_GAP = 128;
-
-    /**
-     * Ask the specified player for all the tracks in the specified slot.
-     *
-     * @param player the player number whose database is of interest
-     * @param slot the slot in which the tracks are to be examined
-     * @return the metadata for all tracks in that slot
-     *
-     * @throws IOException if there is a problem communicating with the CDJs
-     * @throws IllegalStateException if there is no media in the specified slot, or the specified player is not found
-     */
-    public static Map<Integer,TrackMetadata> requestAllMetadataFrom(int player, CdjStatus.TrackSourceSlot slot) throws IOException {
-        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
-        final int dbServerPort = getPlayerDBServerPort(player);
-        if (deviceAnnouncement == null || dbServerPort < 0) {
-            throw new IllegalStateException("Unable to request track count from speficied player.");
-        }
-
-        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
-
-        Socket socket = null;
-        try {
-            socket = new Socket(deviceAnnouncement.getAddress(), dbServerPort);
-            InputStream is = socket.getInputStream();
-            OutputStream os = socket.getOutputStream();
-            socket.setSoTimeout(3000);
-            Client client = new Client(socket, player, posingAsPlayerNumber);
-
-            Map<Integer,TrackMetadata> result = new HashMap<Integer, TrackMetadata>();
-            AtomicInteger messageID = new AtomicInteger();
-
-            // Send the packet requesting the track count
-            byte[] payload = new byte[trackCountRequestPacket.length];
-            System.arraycopy(trackCountRequestPacket, 0, payload, 0, trackCountRequestPacket.length);
-            payload[23] = posingAsPlayerNumber;
-            payload[25] = slot.protocolValue;
-            os.write(buildPacket(messageID.incrementAndGet(), payload));
-            byte[] response = readResponseWithExpectedSize(is, 42, "track count message");
-            if (response.length < 42) {
-                throw new IllegalStateException("No media present in the specified player slot");
-            }
-            final int totalTracks = (int)Util.bytesToNumber(response, 40, 2);
-            logger.info("Trying to load " + totalTracks + " tracks.");
-
-            int maxGap = 0;
-            int gap = 0;
-            int currentId = 1;
-
-            while (result.size() < totalTracks) {
-                TrackMetadata found = getTrackMetadata(currentId, slot, client);
-                if (found != null) {
-                    gap = 0;
-                    result.put(currentId, found);
-                } else {
-                    gap += 1;
-                    if (gap > MAX_GAP) {
-                        logger.warn("Failed " + gap + " times in a row requesting track metadata, giving up.");
-                        return result;
-                    }
-                    if (gap > maxGap) {
-                        maxGap = gap;
-                    }
-                }
-                currentId += 1;
-            }
-
-            logger.info("Finished loading " + totalTracks + " tracks; maximum gap: " + maxGap);
-            return result;
-        } finally {
-            if (socket != null) {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    logger.warn("Problem closing metadata request socket", e);
-                }
-            }
-        }
-    }
+    // TODO: Add method that creates a metadata archive (Zip) file with all the metadata from a player/slot.
+    //       Should include artwork, beat grid, waveforms (once supported), etc. Then create method to do it
+    //       for just a playlist, as well as a method for listing folders/playlists so a user interface can
+    //       be built to select one.
+    // TODO: Add a way to assign a metadata archive to a player/slot so that when metadata retrieval is turned off,
+    //       the archive will be used to find metadata for that player/slot.
 
     /**
      * Keeps track of the current metadata known for each player.
