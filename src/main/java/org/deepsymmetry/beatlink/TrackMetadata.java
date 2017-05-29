@@ -150,6 +150,10 @@ public class TrackMetadata {
                 case DURATION: duration = (int)((NumberField)item.arguments.get(1)).getValue(); break;
                 case TEMPO: tempo = (int)((NumberField)item.arguments.get(1)).getValue(); break;
                 case COMMENT: comment = ((StringField)item.arguments.get(3)).getValue(); break;
+                case COLOR_COMMENT:
+                    comment = ((StringField)item.arguments.get(3)).getValue();
+                    color = (int)((NumberField)item.arguments.get(1)).getValue();
+                    break;
                 case KEY: key = ((StringField)item.arguments.get(3)).getValue(); break;
                 case RATING: rating = (int)((NumberField)item.arguments.get(1)).getValue(); break;
                 case COLOR: color = (int)((NumberField)item.arguments.get(1)).getValue(); break;

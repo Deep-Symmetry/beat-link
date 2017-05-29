@@ -252,6 +252,10 @@ public class Message {
          */
         COLOR (0x0013),
         /**
+         * The a comment assigned a track by the DJ, with an associated color, part of the track metadata response.
+         */
+        COLOR_COMMENT (0x0016),
+        /**
          * The comment assigned a track by the DJ, part of the track metadata response.
          */
         COMMENT (0x0023),
