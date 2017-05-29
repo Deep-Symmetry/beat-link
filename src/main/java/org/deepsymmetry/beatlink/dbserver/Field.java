@@ -1,5 +1,8 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -10,6 +13,8 @@ import java.nio.ByteBuffer;
  * @author James Elliott
  */
 public abstract class Field {
+
+    private static final Logger logger = LoggerFactory.getLogger(Client.class.getName());
 
     /**
      * Get the bytes which represent this field when sent over the network, including the leading type tag.
@@ -54,21 +59,28 @@ public abstract class Field {
      */
     public static Field read(DataInputStream is) throws IOException {
         final byte tag = is.readByte();
+        final Field result;
         switch (tag) {
             case 0x0f:
             case 0x10:
             case 0x11:
-                return new NumberField(tag, is);
+                result = new NumberField(tag, is);
+                break;
 
             case 0x14:
-                return new BinaryField(is);
+                result =  new BinaryField(is);
+                break;
 
             case 0x26:
-                return new StringField(is);
+                result = new StringField(is);
+                break;
 
             default:
                 throw new IOException("Unable to read a field with type tag " + tag);
         }
+
+        logger.debug("  received> {}", result);
+        return result;
     }
 
     /**

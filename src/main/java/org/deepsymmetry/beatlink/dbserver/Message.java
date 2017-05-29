@@ -1,5 +1,8 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -13,6 +16,8 @@ import java.util.*;
  * @author James Elliott
  */
 public class Message {
+
+    private static final Logger logger = LoggerFactory.getLogger(Client.class.getName());
 
     /**
      * The special field that marks the start of a new message.
@@ -193,20 +198,93 @@ public class Message {
          * A potentially-nested grouping of other objects, such as a group of playlists in the playlists menu.
          */
         FOLDER (0x0001),
+        /**
+         * The string identifying the name of an album, part of the track metadata response. Also contains the
+         * album ID for listing by album.
+         */
         ALBUM_TITLE (0x0002),
+        /**
+         * I don’t yet know where this appears or what it means.
+         */
         DISC (0x0003),
+        /**
+         * The string identifying the name of a track, part of the track metadata response, as well as track lists
+         * and play lists.
+         */
         TRACK_TITLE (0x0004),
+        /**
+         * The string identifying the musical genre of a track, part of the track metadata response. Also contains
+         * the genre ID for listing by genre.
+         */
         GENRE (0x0006),
+        /**
+         * The string identifying the name of the artist for a track, part of the track metadata response, as well
+         * as track lists and play lists. Also contains the artist ID for listing by artist.
+         */
         ARTIST (0x0007),
+        /**
+         * When listing playlists, reports the name and ID of an actual playlist, as opposed to a subfolder.
+         */
         PLAYLIST (0x0008),
+        /**
+         * The rating assigned a track by the DJ, part of the track metadata response.
+         */
         RATING (0x000a),
+        /**
+         * The duration, in seconds, of a track, part of the track metadata response.
+         */
         DURATION (0x000b),
+        /**
+         * The tempo of a track, BPM times 100, part of the track metadata response.
+         */
         TEMPO (0x000d),
+        /**
+         * A string containing the musical key of a track, part of the track metadata response. Also contains the
+         * key ID for listing by key.
+         */
         KEY (0x000f),
+        /**
+         * The color assigned a track by the DJ, part of the track metadata response.
+         */
         COLOR (0x0013),
+        /**
+         * The comment assigned a track by the DJ, part of the track metadata response.
+         */
         COMMENT (0x0023),
+        /**
+         * A string reporting when the track was added to the collection, in the form "YYYY-MM-DD", part of the track
+         * metadata response. This seems to propagate from iTunes.
+         */
         DATE_ADDED (0x002e),
-        TRACK_LIST (0x0704);
+        /**
+         * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by album.
+         */
+        TRACK_LIST_ENTRY_BY_ALBUM (0x0204),
+        /**
+         * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by genre.
+         */
+        TRACK_LIST_ENTRY_BY_GENRE (0x0604),
+        /**
+         * Reports the title and artist of a track, returned when listing playlists or all tracks in their default
+         * sort order.
+         */
+        TRACK_LIST_ENTRY (0x0704),
+        /**
+         * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by BPM.
+         */
+        TRACK_LIST_ENTRY_BY_BPM (0x0d04),
+        /**
+         * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by comment.
+         */
+        TRACK_LIST_ENTRY_BY_COMMENT (0x2304),
+        /**
+         * Reports the title and artist of a track, returned when listing playlists sorted by track title.
+         */
+        PLAYLIST_ENTRY_BY_TITLE (0x02904),
+        /**
+         * We received a value that we don't recognize, so we don't know what it contains.
+         */
+        UNKNOWN (-1);
 
         /**
          * The value which identifies this type of menu item by appearing in the seventh argument of a
@@ -268,9 +346,9 @@ public class Message {
     /**
      * Constructor for experimenting with new message types.
      *
-     * @param transaction the transaction ID (sequence number) that ties a message to its responses.
-     * @param messageType identifies the purpose and structure of the message.
-     * @param arguments the arguments to send with the message.
+     * @param transaction the transaction ID (sequence number) that ties a message to its responses
+     * @param messageType identifies the purpose and structure of the message
+     * @param arguments the arguments to send with the message
      */
     public Message(long transaction, long messageType, Field... arguments) {
         this(new NumberField(transaction, 4), new NumberField(messageType, 2), arguments);
@@ -279,9 +357,9 @@ public class Message {
     /**
      * Constructor from code using known message types.
      *
-     * @param transaction the transaction ID (sequence number) that ties a message to its responses.
-     * @param messageType identifies the purpose and structure of the message.
-     * @param arguments the arguments to send with the message.
+     * @param transaction the transaction ID (sequence number) that ties a message to its responses
+     * @param messageType identifies the purpose and structure of the message
+     * @param arguments the arguments to send with the message
      */
     public Message(long transaction, KnownType messageType, Field... arguments) {
         this(transaction, messageType.protocolValue, arguments);
@@ -290,9 +368,9 @@ public class Message {
     /**
      * Constructor when being read from the network, so already have all the fields created.
      *
-     * @param transaction the transaction ID (sequence number) that ties a message to its responses.
-     * @param messageType identifies the purpose and structure of the message.
-     * @param arguments the arguments to send with the message.
+     * @param transaction the transaction ID (sequence number) that ties a message to its responses
+     * @param messageType identifies the purpose and structure of the message
+     * @param arguments the arguments to send with the message
      */
     public Message(NumberField transaction, NumberField messageType, Field... arguments) {
         if (transaction.getSize() != 4) {
@@ -393,7 +471,9 @@ public class Message {
                 " and got: " + arguments[i].getArgumentTag());
             }
         }
-        return new Message((NumberField)transaction, (NumberField)type, arguments);
+        Message result = new Message((NumberField)transaction, (NumberField)type, arguments);
+        logger.debug("Received> {}", result);
+        return result;
     }
 
     @Override
@@ -434,5 +514,102 @@ public class Message {
             result.append(String.format(" [%s]%n", argDescription));
         }
         return result.append("]").toString();
+    }
+
+    /**
+     * For many types of query messages, the first argument of the message is a 4-byte integer which we currently
+     * refer to as <em>r:m:s:1</em>, because the first byte is the player number of the player making the
+     * <em>request</em>, the second byte identifies the <em>menu</em> or destination for which information is being
+     * loaded, the third byte identifies the media <em>slot</em> (USB or SD) being asked about (as described in
+     * {@link org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot}), and the fourth byte
+     * always seems to be <em>1</em> (Austin's libpdjl called it <em>sourceAnalyzed</em>). This enumeration lists
+     * the known valus for the second, menu, byte.
+     */
+    public enum MenuIdentifier {
+        /**
+         * The primary menu which appears on the left half of the player display.
+         */
+        MAIN_MENU  (1),
+        /**
+         * The secondary menu which sometimes appears down th right half of the player display.
+         */
+        SUB_MENU   (2),
+        /**
+         * The pseudo-menu of track metadata.
+         */
+        TRACK_INFO (3),
+        /**
+         * Types of sorting available? I am not entirely sure when this is used.
+         */
+        SORT_MENU  (5),
+        /**
+         * Values which do not display in a menu, such as track waveforms, beat grids, album art, etc. are loaded
+         * “into” this menu/destination.
+         */
+        DATA       (8);
+
+        /**
+         * The value which identifies this menu or destination by appearing in the second byte of the first argument
+         * of many request messages.
+         */
+        public final byte protocolValue;
+
+        MenuIdentifier(int value) {
+            protocolValue = (byte)value;
+        }
+    }
+
+    /**
+     * Allows a menu/destination to be looked up by the value seen in the second byte of the first argument of many
+     * request messages.
+     */
+    public static final Map<Byte, MenuIdentifier> MENU_IDENTIFIER_MAP;
+
+    static {
+        Map<Byte, MenuIdentifier> scratch = new HashMap<Byte, MenuIdentifier>();
+        for (MenuIdentifier identifier : MenuIdentifier.values()) {
+            scratch.put(identifier.protocolValue, identifier);
+        }
+        MENU_IDENTIFIER_MAP = scratch;
+    }
+
+    /**
+     * The value returned by {@link #getMenuResultsCount()} when there is no data available for the request
+     * that was made.
+     */
+    public static final long NO_MENU_RESULTS_AVAILABLE = 0xffffffff;
+
+    /**
+     * Extracts the result count from a {@link KnownType#MENU_AVAILABLE} response.
+     *
+     * @return the reported count of available results
+     *
+     * @throws IllegalArgumentException if this is not a {@link KnownType#MENU_AVAILABLE} response.
+     */
+    public long getMenuResultsCount() {
+        if (knownType != Message.KnownType.MENU_AVAILABLE) {
+            throw new IllegalArgumentException("getMenuResultsCount() can only be used with MENU_AVAILABLE responses.");
+        }
+        final NumberField count = (NumberField)arguments.get(1);
+        return count.getValue();
+    }
+
+    /**
+     * Extracts the menu item type from a {@link KnownType#MENU_ITEM} response.
+     *
+     * @return the reported type of this menu item
+     *
+     * @throws IllegalArgumentException if this is not a {@link KnownType#MENU_ITEM} response.
+     */
+    public MenuItemType getMenuItemType() {
+        if (knownType != KnownType.MENU_ITEM) {
+            throw new IllegalArgumentException("getMenuItemType() can only be used with MENU_ITEM responses.");
+        }
+        final NumberField type = (NumberField)arguments.get(6);
+        final MenuItemType result = MENU_ITEM_TYPE_MAP.get(type.getValue());
+        if (result == null) {
+            return MenuItemType.UNKNOWN;
+        }
+        return result;
     }
 }

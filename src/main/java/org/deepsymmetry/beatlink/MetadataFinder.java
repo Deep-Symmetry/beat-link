@@ -8,11 +8,15 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Client;
+import org.deepsymmetry.beatlink.dbserver.Message;
+import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,83 +50,6 @@ public class MetadataFinder {
      * The delimiter which separates individual messages in the TCP stream.
      */
     private static byte[] messageSeparator =  {(byte)0x11, (byte)0x87, (byte)0x23, (byte)0x49, (byte)0xae, (byte)0x11};
-
-    /**
-     * Split the metadata into its individual fields
-     *
-     * @param metadata the raw metadata received from the player.
-     * @return the fields comprising the metadata response, as delimited by the message separator.
-     */
-    private static List<byte[]> splitMetadataFields(byte[] metadata) {
-        List<byte[]> fields = new LinkedList<byte[]>();
-        int begin = 0;
-
-        outer:
-        for (int i = 0; i < metadata.length - messageSeparator.length + 1; i++) {
-            for (int j = 0; j < messageSeparator.length; j++) {
-                if (metadata[i + j] != messageSeparator[j]) {
-                    continue outer;
-                }
-            }
-            fields.add(Arrays.copyOfRange(metadata, begin, i));
-            begin = i + messageSeparator.length;
-        }
-        fields.add(Arrays.copyOfRange(metadata, begin, metadata.length));
-        return fields;
-    }
-
-    /**
-     * The payload of the first message needed to request metadata about a particular track.
-     */
-    private static byte[] specifyTrackForMetadataPacket = {
-            (byte)0x10, (byte)0x20, (byte)0x02, (byte)0x0f, (byte)0x02, (byte)0x14, (byte)0x00, (byte)0x00,
-            (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, 0 /* player */,
-            (byte)0x01, 0 /* slot */, (byte)0x01, (byte)0x11, 0, 0, 0, 0  // Track ID (4 bytes) go here
-    };
-
-    /**
-     * The payload of the second message which completes a request for metadata about a particular track.
-     */
-    private static byte[] finishMetadataQueryPacket = {
-            (byte)0x10, (byte)0x30, (byte)0x00, (byte)0x0f, (byte)0x06, (byte)0x14, (byte)0x00, (byte)0x00,
-            (byte)0x00, (byte)0x0c, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06, (byte)0x06,
-            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x11, 0 /* player */,
-            (byte)0x01, 0 /* slot */, (byte)0x01, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00,
-            (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0b, (byte)0x11, (byte)0x00, (byte)0x00,
-            (byte)0x00, (byte)0x00, (byte)0x11, (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x0b, (byte)0x11,
-            (byte)0x00, (byte)0x00, (byte)0x00, (byte)0x00
-    };
-
-    /**
-     * A message which always appears at the end of a track metadata response, which we can use to be sure we
-     * have received the entire response.
-     */
-    private static byte[] finalMetadataField = {
-            0x10, 0x42, 0x01, 0x0f, 0x00, 0x14, 0x00, 0x00,
-            0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
-
-    /**
-     * A message which is sent when there is no metadata available for the specified track it.
-     */
-    private static byte[] noSuchTrackPacket = {
-            0x10, 0x40, 0x01, 0x0f, 0x02, 0x14, 0x00, 0x00,
-            0x00, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00,
-            0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00
-    };
-
-    /**
-     * The payload of a packet which requests the artwork image with a specific ID.
-     */
-    private static byte[] artworkRequestPacket = {
-            0x10, 0x20, 0x03, 0x0f, 0x02, 0x14, 0x00, 0x00,
-            0x00, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0 /* player */,
-            0x08, 0 /* slot */, 0x01, 0x11, 0, 0, 0, 0  // Artwork ID (4 bytes) go here
-    };
 
     /**
      * The payload of a packet which determines how many tracks are available in a given media slot.
@@ -237,98 +164,36 @@ public class MetadataFinder {
     }
 
     /**
-     * Checks whether the last bytes of the supplied buffer are identical to the bytes of the expected ending.
-     *
-     * @param buffer the buffer to be checked.
-     * @param ending the bytes the buffer is expected to end with once all packets have been received.
-     * @return true if the ending byte pattern is found at the end of the buffer.
-     */
-    private static boolean endsWith(byte[] buffer, byte[] ending) {
-        if (buffer.length >= ending.length) {
-            for (int i = 0; i < ending.length; i++) {
-                if (ending[i] != buffer[i + buffer.length - ending.length]) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Reads as many packets as needed in order to assemble a complete track metadata response, as identified by
-     * the presence of the expected final field.
-     *
-     * @param is the stream connected to the database server.
-     * @param messageId the sequence number of the metadata request.
-     * @return the assembled bytes of the complete response.
-     *
-     * @throws IOException if the complete response could not be read.
-     */
-    private static byte[] readFullMetadataResponse(InputStream is, int messageId) throws IOException {
-        byte[] endMarker = buildPacket(messageId, finalMetadataField);
-        byte[] failMarker = buildPacket(messageId, noSuchTrackPacket);
-        byte[] result = {};
-        do {
-            byte[] part = new byte[8192];
-            int read = is.read(part);
-            if (read < 1) {
-                throw new IOException("Unable to read complete metadata response");
-            }
-            int existingSize = result.length;
-            result = Arrays.copyOf(result, existingSize + read);
-            System.arraycopy(part, 0, result, existingSize, read);
-        } while (!endsWith(result, endMarker) && !endsWith(result, failMarker));
-
-        if (endsWith(result, failMarker)) {
-            return null;  // There was no such metadata available
-        }
-        return result;
-    }
-
-    /**
      * Request metadata for a specific track ID, given a connection to a player that has already been set up.
      * Separated into its own method so it could be used multiple times on the same connection when gathering
      * all track metadata.
      *
      * @param rekordboxId the track of interest
-     * @param posingAsPlayerNumber the player we are pretending to be
-     * @param slotByte identifies the track database we are querying
-     * @param is the stream from which we can read player responses
-     * @param os the stream to which we can write player packets
-     * @param messageId tracks the sequence number to send our packets with
+     * @param slot identifies the media slot we are querying
+     * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the retrieved metadata, or {@code null} if there is no such track
      *
      * @throws IOException if there is a communication problem
      */
-    private static TrackMetadata getTrackMetadata(int rekordboxId, byte posingAsPlayerNumber, byte slotByte,
-                                                  InputStream is, OutputStream os, AtomicInteger messageId)
+    private static TrackMetadata getTrackMetadata(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
             throws IOException {
-        // Send the packet identifying the track we want metadata for
-        byte[] payload = new byte[specifyTrackForMetadataPacket.length];
-        System.arraycopy(specifyTrackForMetadataPacket, 0, payload, 0, specifyTrackForMetadataPacket.length);
-        payload[23] = posingAsPlayerNumber;
-        payload[25] = slotByte;
-        setIdBytes(payload, payload.length - 4, rekordboxId);
-        os.write(buildPacket(messageId.incrementAndGet(), payload));
-        readResponseWithExpectedSize(is, 42, "track metadata id message");
 
-        // Send the final packet to kick off the metadata request
-        payload = new byte[finishMetadataQueryPacket.length];
-        System.arraycopy(finishMetadataQueryPacket, 0, payload, 0, finishMetadataQueryPacket.length);
-        payload[23] = posingAsPlayerNumber;
-        payload[25] = slotByte;
-        setIdBytes(payload, payload.length - 4, rekordboxId);
-        final int finishedSequence = messageId.incrementAndGet();
-        os.write(buildPacket(finishedSequence, payload));
-        byte[] rawResponse = readFullMetadataResponse(is, finishedSequence);
-        if (rawResponse == null) {
-            return null;  // No such metadata available
+        // Send the metadata menu request
+        Message response = client.menuRequest(Message.KnownType.METADATA_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
+                new NumberField(rekordboxId));
+        final long count = response.getMenuResultsCount();
+        if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
+            return null;
         }
-        List<byte[]> fields = splitMetadataFields(rawResponse);
-        BufferedImage artwork = requestArtwork(is, os, messageId.incrementAndGet(), posingAsPlayerNumber, slotByte, fields);
-        return new TrackMetadata(fields, artwork);
+
+        // Gather all the metadata menu items
+        final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
+        TrackMetadata result = new TrackMetadata(items);
+        if (result.getArtworkId() != 0) {
+            result = result.withArtwork(requestArtwork(result.getArtworkId(), slot, client));
+        }
+        return result;
     }
 
     /**
@@ -353,11 +218,9 @@ public class MetadataFinder {
             InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
             socket = new Socket();
             socket.connect(address, 5000);
-            InputStream is = socket.getInputStream();
-            OutputStream os = socket.getOutputStream();
             Client client = new Client(socket, player, posingAsPlayerNumber);
 
-            return getTrackMetadata(rekordboxId, posingAsPlayerNumber, slot.protocolValue, is, os, new AtomicInteger());
+            return getTrackMetadata(rekordboxId, slot, client);
         } catch (Exception e) {
             logger.warn("Problem requesting metadata", e);
         } finally {
@@ -373,54 +236,27 @@ public class MetadataFinder {
     }
 
     /**
-     * Try to obtain the artwork associated with a track whose metadata is being retrieved.
+     * Request the artwork associated with a track whose metadata is being retrieved.
      *
-     * @param is the input stream from the player's remote database server
-     * @param os the output stream to the player's remote database server
-     * @param messageId the sequence number to assign our artwork query
-     * @param ourDeviceNumber the player number we are using in our queries
+     * @param artworkId identifies the album art to retrieve
      * @param slot the slot identifier from which the track was loaded
-     * @param fields the raw metadata fields retrieved for the track, so we can find the artwork ID
+     * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the track's artwork, or null if none is available
      *
      * @throws IOException if there is a problem communicating with the player
      */
-    private static BufferedImage requestArtwork(InputStream is, OutputStream os, int messageId, byte ourDeviceNumber,
-                                                byte slot, List<byte[]> fields) throws IOException {
-        Iterator<byte[]> iterator = fields.iterator();
-        iterator.next();
-        iterator.next();
-        byte[] field = iterator.next();
-        int artworkId = (int)Util.bytesToNumber(field, field.length - 19, 4);
+    private static BufferedImage requestArtwork(int artworkId, CdjStatus.TrackSourceSlot slot, Client client)
+            throws IOException {
 
-        if (artworkId < 1) {
-            return null;  // No artwork available for the track.
-        }
+        // Send the artwork request
+        Message response = client.simpleRequest(Message.KnownType.ALBUM_ART_REQ, Message.KnownType.ALBUM_ART,
+                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField((long)artworkId));
 
-        // Send the packet requesting the artwork
-        byte[] payload = new byte[artworkRequestPacket.length];
-        System.arraycopy(artworkRequestPacket, 0, payload, 0, artworkRequestPacket.length);
-        payload[23] = ourDeviceNumber;
-        payload[25] = slot;
-        setIdBytes(payload, payload.length - 4, artworkId);
-        os.write(buildPacket(messageId, payload));
-        byte[] header = new byte[52];
-        int received = is.read(header);
-        if (received < header.length) {
-            throw new IOException("Received partial header trying to read artwork, only " + received +
-                    " of 52 bytes.");
-        }
-        int imageLength = (int)Util.bytesToNumber(header, 48, 4);
-        byte[] artBytes = new byte[imageLength];
-        int pos = 0;
-        do {
-            byte[] chunk = receiveBytes(is);
-            System.arraycopy(chunk, 0, artBytes, pos, chunk.length);
-            pos += chunk.length;
-        } while (pos < imageLength);
-
-        return ImageIO.read(new ByteArrayInputStream(artBytes));
+        // Create an image from the response bytes
+        ByteBuffer imageBuffer = ((BinaryField)response.arguments.get(3)).getValue();
+        byte[] imageBytes = new byte[imageBuffer.remaining()];
+        return ImageIO.read(new ByteArrayInputStream(imageBytes));
     }
 
     /**
@@ -477,7 +313,7 @@ public class MetadataFinder {
             int currentId = 1;
 
             while (result.size() < totalTracks) {
-                TrackMetadata found = getTrackMetadata(currentId, posingAsPlayerNumber, slot.protocolValue, is, os, messageID);
+                TrackMetadata found = getTrackMetadata(currentId, slot, client);
                 if (found != null) {
                     gap = 0;
                     result.put(currentId, found);
@@ -671,7 +507,8 @@ public class MetadataFinder {
 
     /**
      * We have received notification that a device is no longer on the network, so clear out its metadata.
-     * @param announcement
+     *
+     * @param announcement the packet which reported the device’s disappearance
      */
     private static synchronized void clearMetadata(DeviceAnnouncement announcement) {
         metadata.remove(announcement.getNumber());
@@ -722,7 +559,7 @@ public class MetadataFinder {
     /**
      * Keep track of the devices we are currently trying to get metadata from in response to status updates.
      */
-    private static Set<Integer> activeRequests = new HashSet<Integer>();
+    private final static Set<Integer> activeRequests = new HashSet<Integer>();
 
     /**
      * Process an update packet from one of the CDJs. See if it has a valid track loaded; if not, clear any

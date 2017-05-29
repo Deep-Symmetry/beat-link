@@ -111,6 +111,15 @@ public class NumberField extends Field {
     }
 
     /**
+     * Convenience constructor from code, for the most common case of wanting a 4-byte number field.
+     *
+     * @param value the desired value to be represented by this field.
+     */
+    public NumberField(final long value) {
+        this(value, 4);
+    }
+
+    /**
      * Get the numeric value this field represents.
      *
      * @return the number which this field contains.
