@@ -46,6 +46,10 @@ public class Message {
          */
         ARTIST_LIST_REQ  (0x1002, "artist list request", "r:m:s:1", "sort order?"),
         /**
+         * Asks for a list of all the tracks in the specified media slot.
+         */
+        TRACK_LIST_REQ   (0x1004, "track list request", "r:m:s:1", "sort order"),
+        /**
          * Asks for a playlist or folder by ID.
          */
         PLAYLIST_REQ     (0x1105, "playlist/folder request", "r:m:s:1", "sort order", "playlist/folder ID", "0=playlist, 1=folder"),

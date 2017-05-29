@@ -9,16 +9,17 @@ import org.slf4j.LoggerFactory;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Watches for new tracks to be loaded on players, and queries the
@@ -148,6 +149,31 @@ public class MetadataFinder {
     }
 
     /**
+     * Request the list of all tracks in the specified slot, given a connection to a player that has already been
+     * set up.
+     *
+     * @param slot identifies the media slot we are querying
+     * @param client the dbserver client that is communicating with the appropriate player
+     *
+     * @return the retrieved track list entry items
+     *
+     * @throws IOException if there is a communication problem
+     */
+    private static List<Message> getFullTrackList(CdjStatus.TrackSourceSlot slot, Client client)
+        throws IOException {
+        // Send the metadata menu request
+        Message response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
+                new NumberField(0));
+        final long count = response.getMenuResultsCount();
+        if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
+            return Collections.emptyList();
+        }
+
+        // Gather all the metadata menu items
+        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
+    }
+
+    /**
      * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID.
      *
      * @param player the player number whose track is of interest
@@ -186,6 +212,112 @@ public class MetadataFinder {
         return null;
     }
 
+    // TODO: Add method that creates a metadata archive (Zip) file with all the metadata from a player/slot.
+    //       Should include artwork, beat grid, waveforms (once supported), etc. Then create method to do it
+    //       for just a playlist, as well as a method for listing folders/playlists so a user interface can
+    //       be built to select one.
+    // TODO: Add a way to assign a metadata archive to a player/slot so that when metadata retrieval is turned off,
+    //       the archive will be used to find metadata for that player/slot.
+
+    /**
+     * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
+     * previous contents of the specified file will be replaced.
+     *
+     * @param player the player number whose media library is to have its metdata cached
+     * @param slot the slot in which the media to be cached can be found
+     * @param cache the file into which the metadata cache should be written
+     *
+     * @throws IOException if there is a problem communicating with the player or writing the cache file.
+     */
+    public static void createMetadataCache(int player, CdjStatus.TrackSourceSlot slot, File cache)
+            throws IOException {
+        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
+        final int dbServerPort = getPlayerDBServerPort(player);
+        if (deviceAnnouncement == null || dbServerPort < 0) {
+            throw new IOException("Unable to find dbserver on player " + player);
+        }
+
+        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
+        cache.delete();
+        Socket socket = null;
+        Client client = null;
+        FileOutputStream fos = null;
+        BufferedOutputStream bos = null;
+        ZipOutputStream zos = null;
+        WritableByteChannel channel = null;
+        try {
+            InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
+            socket = new Socket();
+            socket.connect(address, 5000);
+            client = new Client(socket, player, posingAsPlayerNumber);
+            fos = new FileOutputStream(cache);
+            bos = new BufferedOutputStream(fos);
+            zos = new ZipOutputStream(bos);
+            channel = Channels.newChannel(zos);
+
+            for (Message entry : getFullTrackList(slot, client)) {
+                if (entry.getMenuItemType() != Message.MenuItemType.TRACK_LIST_ENTRY) {
+                    throw new IOException("Received unexpected item type. Needed TRACK_LIST_ENTRY, got: " + entry);
+                }
+                int rekordBoxId = (int)((NumberField)entry.arguments.get(1)).getValue();
+                TrackMetadata track = getTrackMetadata(rekordBoxId, slot, client);
+                ZipEntry zipEntry = new ZipEntry("BLTMetaCache/metadata/" + rekordBoxId);
+                zos.putNextEntry(zipEntry);
+                for (Message metadataItem : track.getRawItems()) {
+                    client.writeMessage(metadataItem, channel);
+                }
+                if (track.getArtwork() != null) {
+                    zipEntry = new ZipEntry("BLTMetaCache/artwork/" + rekordBoxId + ".png");
+                    zos.putNextEntry(zipEntry);
+                    javax.imageio.ImageIO.write(track.getArtwork(), "png", zos);
+                }
+            }
+        } finally {
+            try {
+                if (channel != null) {
+                    channel.close();
+                }
+            } catch (Exception e) {
+                logger.error("Problem closing byte channel for writing to metadata cache", e);
+            }
+            try {
+                if (zos != null) {
+                    zos.close();
+                }
+            } catch (Exception e) {
+                logger.error("Problem closing Zip Output Stream of metadata cache", e);
+            }
+            try {
+                if (bos != null) {
+                    bos.close();
+                }
+            } catch (Exception e) {
+                logger.error("Problem closing Buffered Output Stream of metadata cahce", e);
+            }
+            try {
+                if (fos != null) {
+                    fos.close();
+                }
+            } catch (Exception e) {
+                logger.error("Problem closing File Output Stream of metadata cache", e);
+            }
+            try {
+                if (client != null) {
+                    client.close();
+                }
+            } catch (Exception e) {
+                logger.error("Problem dbserver client when building metadata cache", e);
+            }
+            try {
+                if (socket != null) {
+                    socket.close();
+                }
+            } catch (Exception e) {
+                logger.error("Problem closing socket when building metadata cache", e);
+            }
+        }
+    }
+
     /**
      * Request the artwork associated with a track whose metadata is being retrieved.
      *
@@ -210,13 +342,6 @@ public class MetadataFinder {
         imageBuffer.get(imageBytes);
         return ImageIO.read(new ByteArrayInputStream(imageBytes));
     }
-
-    // TODO: Add method that creates a metadata archive (Zip) file with all the metadata from a player/slot.
-    //       Should include artwork, beat grid, waveforms (once supported), etc. Then create method to do it
-    //       for just a playlist, as well as a method for listing folders/playlists so a user interface can
-    //       be built to select one.
-    // TODO: Add a way to assign a metadata archive to a player/slot so that when metadata retrieval is turned off,
-    //       the archive will be used to find metadata for that player/slot.
 
     /**
      * Keeps track of the current metadata known for each player.

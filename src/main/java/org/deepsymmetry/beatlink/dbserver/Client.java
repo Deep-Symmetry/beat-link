@@ -163,6 +163,22 @@ public class Client {
     }
 
     /**
+     * Attempt to write the specified field to the specified channel.
+     *
+     * @param field the field to be written
+     * @param channel the channel to which it should be written
+     *
+     * @throws IOException if there is a problem writing to the channel
+     */
+    void writeField(Field field, WritableByteChannel channel) throws IOException {
+        logger.debug("..writing> {}", field);
+        final ByteBuffer buffer = field.getBytes();
+        while (buffer.hasRemaining()) {
+            channel.write(buffer);
+        }
+    }
+
+    /**
      * Attempt to send the specified field to the dbserver.
      * This low-level function is available only to the package itself for use in setting up the connection and
      * sending parts of larger-scale messages.
@@ -173,12 +189,8 @@ public class Client {
      */
     void sendField(Field field) throws IOException {
         if (isConnected()) {
-            logger.debug("..sending> {}", field);
             try {
-                final ByteBuffer buffer = field.getBytes();
-                while (buffer.hasRemaining()) {
-                    channel.write(buffer);
-                }
+                writeField(field, channel);
             } catch (IOException e) {
                 logger.warn("Problem trying to write field to dbserver, closing connection", e);
                 close();
@@ -210,6 +222,22 @@ public class Client {
         for (Field field : message.fields) {
             sendField(field);
         }
+    }
+
+    /**
+     * Writes a message to the specified channel, for example when creating metadata cache files.
+     *
+     * @param message the message to be written
+     * @param channel the channel to which it should be written
+     *
+     * @throws IOException if there is a problem writing to the channel
+     */
+    public void writeMessage(Message message, WritableByteChannel channel) throws IOException {
+        logger.debug("Writing> {}", message);
+        for (Field field : message.fields) {
+            writeField(field, channel);
+        }
+
     }
 
     /**
