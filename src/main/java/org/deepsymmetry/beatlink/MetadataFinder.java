@@ -245,6 +245,7 @@ public class MetadataFinder {
         BufferedOutputStream bos = null;
         ZipOutputStream zos = null;
         WritableByteChannel channel = null;
+        final Set<Integer> artworkAdded = new HashSet<Integer>();
         try {
             InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
             socket = new Socket();
@@ -266,8 +267,9 @@ public class MetadataFinder {
                 for (Message metadataItem : track.getRawItems()) {
                     client.writeMessage(metadataItem, channel);
                 }
-                if (track.getArtwork() != null) {
-                    zipEntry = new ZipEntry("BLTMetaCache/artwork/" + rekordBoxId + ".png");
+                if (track.getArtwork() != null && !artworkAdded.contains(track.getArtworkId())) {
+                    logger.debug("Adding artwork with ID " + track.getArtworkId());
+                    zipEntry = new ZipEntry("BLTMetaCache/artwork/" + track.getArtworkId() + ".png");
                     zos.putNextEntry(zipEntry);
                     javax.imageio.ImageIO.write(track.getArtwork(), "png", zos);
                 }
