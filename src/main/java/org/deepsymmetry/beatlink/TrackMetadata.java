@@ -75,7 +75,7 @@ public class TrackMetadata {
      */
     private String key;
 
-    // TODO: Add Label information to my SD card so I can see how this is transmitted and add it.
+    // TODO: Add Label information to my SD card so I can see how this is transmitted and add it. Same with color.
     /**
      * The label of the track.
      */

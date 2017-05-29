@@ -506,10 +506,17 @@ public class Message {
             } else {
                 result.append("unknown: ").append(arg);
             }
-            // TODO: If this is a menu item, describe the item type field.
             String argDescription = "unknown";
             if (knownType != null) {
                 argDescription = knownType.describeArgument(i);
+                if (knownType == KnownType.MENU_ITEM && i == 6) {
+                    String itemType = "unknown";
+                    MenuItemType match = MENU_ITEM_TYPE_MAP.get(((NumberField) arg).getValue());
+                    if (match != null) {
+                        itemType = match.name();
+                    }
+                    argDescription = argDescription + ": " + itemType;
+                }
             }
             result.append(String.format(" [%s]%n", argDescription));
         }

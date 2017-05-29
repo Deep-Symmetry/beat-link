@@ -79,7 +79,7 @@ public abstract class Field {
                 throw new IOException("Unable to read a field with type tag " + tag);
         }
 
-        logger.debug("  received> {}", result);
+        logger.debug("..received> {}", result);
         return result;
     }
 
