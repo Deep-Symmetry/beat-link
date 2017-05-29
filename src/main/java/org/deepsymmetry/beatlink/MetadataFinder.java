@@ -231,32 +231,40 @@ public class MetadataFinder {
      */
     public static void createMetadataCache(int player, CdjStatus.TrackSourceSlot slot, File cache)
             throws IOException {
-        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
-        final int dbServerPort = getPlayerDBServerPort(player);
-        if (deviceAnnouncement == null || dbServerPort < 0) {
-            throw new IOException("Unable to find dbserver on player " + player);
-        }
+        createMetadataCache(player, slot, cache, null);
+    }
 
-        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
-        cache.delete();
-        Socket socket = null;
-        Client client = null;
+    /**
+     * Finish the process of copying a list of tracks to a metadata cache, once they have been listed. This code
+     * is shared between the implementations that work with the full track list and with playlists.
+     *
+     * @param trackListEntries the list of menu items identifying which tracks need to be copied to the metadata
+     *                         cache
+     * @param client the connection to the dbserver on the player whose metadata is being cached
+     * @param slot the slot in which the media to be cached can be found
+     * @param cache the file into which the metadata cache should be written
+     * @param listener will be informed after each track is added to the cache file being created and offered
+     *                 the opportunity to cancel the process
+     *
+     * @throws IOException if there is a problem communicating with the player or writing the cache file.
+     */
+    private static void copyTracksToCache(List<Message> trackListEntries, Client client, CdjStatus.TrackSourceSlot slot,
+                                   File cache, MetadataCacheUpdateListener listener)
+        throws IOException {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
         ZipOutputStream zos = null;
         WritableByteChannel channel = null;
         final Set<Integer> artworkAdded = new HashSet<Integer>();
         try {
-            InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
-            socket = new Socket();
-            socket.connect(address, 5000);
-            client = new Client(socket, player, posingAsPlayerNumber);
             fos = new FileOutputStream(cache);
             bos = new BufferedOutputStream(fos);
             zos = new ZipOutputStream(bos);
             channel = Channels.newChannel(zos);
+            final int totalToCopy = trackListEntries.size();
+            int tracksCopied = 0;
 
-            for (Message entry : getFullTrackList(slot, client)) {
+            for (Message entry : trackListEntries) {
                 if (entry.getMenuItemType() != Message.MenuItemType.TRACK_LIST_ENTRY) {
                     throw new IOException("Received unexpected item type. Needed TRACK_LIST_ENTRY, got: " + entry);
                 }
@@ -272,6 +280,13 @@ public class MetadataFinder {
                     zipEntry = new ZipEntry("BLTMetaCache/artwork/" + track.getArtworkId() + ".png");
                     zos.putNextEntry(zipEntry);
                     javax.imageio.ImageIO.write(track.getArtwork(), "png", zos);
+                }
+                if (listener != null) {
+                    if (!listener.cacheUpdateContinuing(track, ++tracksCopied, totalToCopy)) {
+                        logger.info("Track metadata cache creation canceled by listener");
+                        cache.delete();
+                        return;
+                    }
                 }
             }
         } finally {
@@ -303,12 +318,51 @@ public class MetadataFinder {
             } catch (Exception e) {
                 logger.error("Problem closing File Output Stream of metadata cache", e);
             }
+        }
+    }
+
+
+    /**
+     * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
+     * previous contents of the specified file will be replaced. If a non-{@code null} {@code listener} is
+     * supplied, its {@link MetadataCacheUpdateListener#cacheUpdateContinuing(TrackMetadata, int, int)} method
+     * will be called after each track is added to the cache, allowing it to display progress updates to the user,
+     * and to continue or cancel the process by returning {@code true} or {@code false}.
+     *
+     * @param player the player number whose media library is to have its metdata cached
+     * @param slot the slot in which the media to be cached can be found
+     * @param cache the file into which the metadata cache should be written
+     * @param listener will be informed after each track is added to the cache file being created and offered
+     *                 the opportunity to cancel the process
+     *
+     * @throws IOException if there is a problem communicating with the player or writing the cache file.
+     */
+    public static void createMetadataCache(int player, CdjStatus.TrackSourceSlot slot, File cache,
+                                           MetadataCacheUpdateListener listener)
+            throws IOException {
+        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
+        final int dbServerPort = getPlayerDBServerPort(player);
+        if (deviceAnnouncement == null || dbServerPort < 0) {
+            throw new IOException("Unable to find dbserver on player " + player);
+        }
+
+        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
+        cache.delete();
+        Socket socket = null;
+        Client client = null;
+        try {
+            InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
+            socket = new Socket();
+            socket.connect(address, 5000);
+            client = new Client(socket, player, posingAsPlayerNumber);
+            copyTracksToCache(getFullTrackList(slot, client), client, slot, cache, listener);
+        } finally {
             try {
                 if (client != null) {
                     client.close();
                 }
             } catch (Exception e) {
-                logger.error("Problem dbserver client when building metadata cache", e);
+                logger.error("Problem closing dbserver client when building metadata cache", e);
             }
             try {
                 if (socket != null) {
