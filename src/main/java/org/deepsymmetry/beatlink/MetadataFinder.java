@@ -207,6 +207,7 @@ public class MetadataFinder {
         // Create an image from the response bytes
         ByteBuffer imageBuffer = ((BinaryField)response.arguments.get(3)).getValue();
         byte[] imageBytes = new byte[imageBuffer.remaining()];
+        imageBuffer.get(imageBytes);
         return ImageIO.read(new ByteArrayInputStream(imageBytes));
     }
 
