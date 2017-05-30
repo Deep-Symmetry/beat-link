@@ -252,9 +252,13 @@ public class Message {
          */
         COLOR (0x0013),
         /**
-         * The a comment assigned a track by the DJ, with an associated color, part of the track metadata response.
+         * A label assigned a track by the DJ, with an associated color, part of the track metadata response.
          */
-        COLOR_COMMENT (0x0016),
+        MY_TAG_1 (0x0014),  // TODO: Verify tags 2, 6-8, and see if they set a separate color than the color entry.
+        /**
+         * A label assigned a track by the DJ, with an associated color, part of the track metadata response.
+         */
+        MY_TAG_3 (0x0016),
         /**
          * The comment assigned a track by the DJ, part of the track metadata response.
          */

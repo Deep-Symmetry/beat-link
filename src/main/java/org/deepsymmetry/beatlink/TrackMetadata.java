@@ -145,21 +145,55 @@ public class TrackMetadata {
                     title = ((StringField)item.arguments.get(3)).getValue();
                     artworkId = (int)((NumberField)item.arguments.get(8)).getValue();
                     break;
-                case ARTIST: artist = ((StringField)item.arguments.get(3)).getValue(); break;
-                case ALBUM_TITLE: album = ((StringField)item.arguments.get(3)).getValue(); break;
-                case DURATION: duration = (int)((NumberField)item.arguments.get(1)).getValue(); break;
-                case TEMPO: tempo = (int)((NumberField)item.arguments.get(1)).getValue(); break;
-                case COMMENT: comment = ((StringField)item.arguments.get(3)).getValue(); break;
-                case COLOR_COMMENT:
+
+                case ARTIST:
+                    artist = ((StringField)item.arguments.get(3)).getValue();
+                    break;
+
+                case ALBUM_TITLE:
+                    album = ((StringField)item.arguments.get(3)).getValue();
+                    break;
+
+                case DURATION:
+                    duration = (int)((NumberField)item.arguments.get(1)).getValue();
+                    break;
+
+                case TEMPO:
+                    tempo = (int)((NumberField)item.arguments.get(1)).getValue();
+                    break;
+
+                case COMMENT:
                     comment = ((StringField)item.arguments.get(3)).getValue();
+                    break;
+
+                case MY_TAG_1:
+                case MY_TAG_3:
+                    comment = ((StringField)item.arguments.get(3)).getValue();  // TODO: This may need to be a separate text field!
+                    color = (int)((NumberField)item.arguments.get(1)).getValue();  // And this may need to be a separate color field.
+                    break;
+
+                case KEY:
+                    key = ((StringField)item.arguments.get(3)).getValue();
+                    break;
+
+                case RATING:
+                    rating = (int)((NumberField)item.arguments.get(1)).getValue();
+                    break;
+
+                case COLOR:
                     color = (int)((NumberField)item.arguments.get(1)).getValue();
                     break;
-                case KEY: key = ((StringField)item.arguments.get(3)).getValue(); break;
-                case RATING: rating = (int)((NumberField)item.arguments.get(1)).getValue(); break;
-                case COLOR: color = (int)((NumberField)item.arguments.get(1)).getValue(); break;
-                case GENRE: genre = ((StringField)item.arguments.get(3)).getValue(); break;
-                case DATE_ADDED: dateAdded = ((StringField)item.arguments.get(3)).getValue(); break;
-                default: logger.warn("Ignoring track metadata item with unknown type: {}", item);
+
+                case GENRE:
+                    genre = ((StringField)item.arguments.get(3)).getValue();
+                    break;
+
+                case DATE_ADDED:
+                    dateAdded = ((StringField)item.arguments.get(3)).getValue();
+                    break;
+
+                default:
+                    logger.warn("Ignoring track metadata item with unknown type: {}", item);
             }
         }
     }
