@@ -689,6 +689,32 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
+     * Is SD media loaded in this particular CDJ?
+     *
+     * @return true if there is a Secure Digital card mounted locally
+     */
+    public boolean isLocalSdLoaded() {
+        return (packetBytes[115] == 0);
+    }
+
+    /**
+     * Is SD media being unloaded from this particular CDJ?
+     *
+     * @return true if there is a local Secure Digital card currently being unmounted
+     */
+    public boolean isLocalSdUnloading() {
+        return (packetBytes[115] == 2);
+    }
+
+    /**
+     * Is SD media absent from this particular CDJ?
+     *
+     * @return true if there is no local Secure Digital card mounted
+     */
+    public boolean isLocalSdEmpty() {
+        return (packetBytes[115] == 4);
+    }
+    /**
      * Is a track loaded?
      *
      * @return true if a track has been loaded
