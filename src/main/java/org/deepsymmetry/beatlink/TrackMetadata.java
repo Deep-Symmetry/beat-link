@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.image.BufferedImage;
 import java.io.UnsupportedEncodingException;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -17,23 +19,14 @@ import java.util.List;
  */
 public class TrackMetadata {
 
-
     private static final Logger logger = LoggerFactory.getLogger(TrackMetadata.class.getName());
 
     /**
-     * The raw dbserver messages containing the metadata when it was read over the network, or {@code null} if
-     * it was constructed some other way.
+     * The raw dbserver messages containing the metadata when it was read over the network.
+     * Can be used to analyze fields that have not yet been reliably understood,
+     * and is also used for storing the metadata in a cache file.
      */
-    private final List<Message> rawItems;
-
-    /**
-     * Get the raw packet data, to analyze fields that have not yet been reliably understood.
-     *
-     * @return the raw bytes we received from the CDJ when asked for metadata
-     */
-    public List<Message> getRawItems() {
-        return rawItems;
-    }
+    public final List<Message> rawItems;
 
     /**
      * The album on which the track was released.
@@ -131,13 +124,13 @@ public class TrackMetadata {
     }
 
     /**
-     * Constructor for when reading from the network. Sets all the interpreted fields based on the received response
-     * messages.
+     * Constructor for when reading from the network or from a cache file.
+     * Sets all the interpreted fields based on the received response messages.
      *
      * @param items the menu item responses that were received in response to the render menu request
      */
     TrackMetadata(List<Message> items) {
-        rawItems = items;
+        rawItems = Collections.unmodifiableList(new LinkedList<Message>(items));
         this.artwork = artwork;
         for (Message item : items) {
             switch (item.getMenuItemType()) {

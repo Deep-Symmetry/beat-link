@@ -76,7 +76,7 @@ public class Client {
      * @throws IOException if there is a problem configuring the socket for use
      */
     public Client(Socket socket, int targetPlayer, int posingAsPlayer) throws IOException {
-        socket.setSoTimeout(3000);
+        socket.setSoTimeout(5000);  // TODO: Make this configurable, with this default
         this.socket = socket;
         is = new DataInputStream(socket.getInputStream());
         os = socket.getOutputStream();
@@ -284,7 +284,7 @@ public class Client {
      * Send a request that expects a single message as its response, then read and return that response.
      *
      * @param requestType identifies what kind of request to send
-     * @param responseType identifies the type of response we expect
+     * @param responseType identifies the type of response we expect, or {@code null} if we’ll accept anything
      * @param arguments The argument fields to send in the request
      *
      * @return the response from the player
@@ -303,7 +303,7 @@ public class Client {
             throw new IOException("Received response with wrong transaction ID. Expected: " + transaction.getValue() +
             ", got: " + response);
         }
-        if (response.knownType != responseType) {
+        if (responseType != null && response.knownType != responseType) {
             throw new IOException("Received response with wrong type. Expected: " + responseType +
             ", got: " + response);
         }

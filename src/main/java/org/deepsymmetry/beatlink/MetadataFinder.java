@@ -13,6 +13,7 @@ import java.io.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -151,6 +152,28 @@ public class MetadataFinder {
     }
 
     /**
+     * Requests the beat grid for a specific track ID, given a connection to a player that has already been set up.
+
+     * @param rekordboxId the track of interest
+     * @param slot identifies the media slot we are querying
+     * @param client the dbserver client that is communicating with the appropriate player
+     *
+     * @return the retrieved beat grid, or {@code null} if there is no such track
+     *
+     * @throws IOException if there is a communication problem
+     */
+    private static BeatGrid getBeatGrid(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
+            throws IOException {
+        Message response = client.simpleRequest(Message.KnownType.BEAT_GRID_REQ, null,
+                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId));
+        if (response.knownType == Message.KnownType.BEAT_GRID) {
+            return new BeatGrid(response);
+        }
+        logger.error("Unexpected response type when requesting beat grid: {}", response);
+        return null;
+    }
+
+    /**
      * Request the list of all tracks in the specified slot, given a connection to a player that has already been
      * set up.
      *
@@ -230,6 +253,42 @@ public class MetadataFinder {
     }
 
     /**
+     * Look up a beat grid in a metadata cache.
+     *
+     * @param cache the appropriate metadata cache file
+     * @param rekordboxId the track whose beat grid is desired
+     *
+     * @return the cached beat grid (if available), or {@code null}
+     */
+    private static BeatGrid getCachedBeatGrid(ZipFile cache, int rekordboxId) {
+        ZipEntry entry = cache.getEntry(getBeatGridEntryName(rekordboxId));
+        if (entry != null) {
+            DataInputStream is = null;
+            try {
+                is = new DataInputStream(cache.getInputStream(entry));
+                final Message result = Message.read(is);
+                try {
+                    is.close();
+                } catch (Exception e) {
+                    is = null;
+                    logger.error("Problem closing Zip File input stream after reading beat grid entry", e);
+                }
+                return new BeatGrid(result);
+            } catch (IOException e) {
+                if (is != null) {
+                    try {
+                        is.close();
+                    } catch (Exception e2) {
+                        logger.error("Problem closing ZipFile input stream after exception", e2);
+                    }
+                }
+                logger.error("Problem reading beat grid from cache file, returning null", e);
+            }
+        }
+        return null;
+    }
+
+    /**
      * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID.
      *
      * @param player the player number whose track is of interest
@@ -282,6 +341,48 @@ public class MetadataFinder {
 
     // TODO: Add method that enumerates a playlist or folder, then one that caches metadata from a playlist.
 
+    public static synchronized BeatGrid requestBeatGridFrom(int player, CdjStatus.TrackSourceSlot slot, int rekordboxId) {
+        // First check if we are using cached data for this request
+        ZipFile cache = getMetadataCache(player, slot);
+        if (cache != null) {
+            return getCachedBeatGrid(cache, rekordboxId);
+        }
+
+        if (passive) {
+            return null;  // We are not allowed to actively query for metadata
+        }
+
+        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
+        final int dbServerPort = getPlayerDBServerPort(player);
+        if (deviceAnnouncement == null || dbServerPort < 0) {
+            return null;  // If the device isn't known, or did not provide a database server, we can't get metadata.
+        }
+
+        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
+
+        Socket socket = null;
+        try {
+            InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
+            socket = new Socket();
+            socket.connect(address, 5000);
+            Client client = new Client(socket, player, posingAsPlayerNumber);
+
+            return getBeatGrid(rekordboxId, slot, client);
+        } catch (Exception e) {
+            logger.warn("Problem requesting beat grid", e);
+        } finally {
+            if (socket != null) {
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    logger.warn("Problem closing metadata request socket", e);
+                }
+            }
+        }
+        return null;
+
+    }
+
     /**
      * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
      * previous contents of the specified file will be replaced.
@@ -316,6 +417,11 @@ public class MetadataFinder {
      * The prefix for cache file entries that will store album art.
      */
     private static final String CACHE_ART_ENTRY_PREFIX = CACHE_PREFIX + "artwork/";
+
+    /**
+     * The prefix for cache file entries that will store beat grids.
+     */
+    private static final String CACHE_BEAT_GRID_ENTRY_PREFIX = CACHE_PREFIX + "beatgrid/";
 
     /**
      * The comment string used to identify a ZIP file as one of our metadata caches.
@@ -372,21 +478,31 @@ public class MetadataFinder {
                 }
                 int rekordBoxId = (int)((NumberField)entry.arguments.get(1)).getValue();
                 TrackMetadata track = getTrackMetadata(rekordBoxId, slot, client);
+                logger.debug("Adding metadata with ID {}", rekordBoxId);
                 zipEntry = new ZipEntry(getMetadataEntryName(rekordBoxId));
                 zos.putNextEntry(zipEntry);
-                for (Message metadataItem : track.getRawItems()) {
+                for (Message metadataItem : track.rawItems) {
                     client.writeMessage(metadataItem, channel);
                 }
                 client.writeMessage(MENU_FOOTER_MESSAGE, channel);  // So we know to stop reading
 
                 // Now the album art, if any
                 if (track.getArtwork() != null && !artworkAdded.contains(track.getArtworkId())) {
-                    logger.debug("Adding artwork with ID " + track.getArtworkId());
+                    logger.debug("Adding artwork with ID {}", track.getArtworkId());
                     zipEntry = new ZipEntry(getArtworkEntryName(track));
                     zos.putNextEntry(zipEntry);
                     javax.imageio.ImageIO.write(track.getArtwork(), "png", zos);
                 }
-                // TODO: Include beat grid, waveforms (once supported), etc.
+
+                BeatGrid beatGrid = getBeatGrid(rekordBoxId, slot, client);
+                if (beatGrid != null) {
+                    logger.debug("Adding beat grid with ID {}", rekordBoxId);
+                    zipEntry = new ZipEntry(getBeatGridEntryName(rekordBoxId));
+                    zos.putNextEntry(zipEntry);
+                    client.writeMessage(beatGrid.rawMessage, channel);
+                }
+
+                // TODO: Include waveforms (once supported), etc.
                 if (listener != null) {
                     if (!listener.cacheUpdateContinuing(track, ++tracksCopied, totalToCopy)) {
                         logger.info("Track metadata cache creation canceled by listener");
@@ -447,6 +563,17 @@ public class MetadataFinder {
      */
     private static String getArtworkEntryName(TrackMetadata track) {
         return CACHE_ART_ENTRY_PREFIX + track.getArtworkId() + ".png";
+    }
+
+    /**
+     * Names the appropriate zip file entry for caching a track's beat grid.
+     *
+     * @param rekordBoxId the id of the track being cached or looked up
+     *
+     * @return the name of the entry where that track's beat grid should be stored
+     */
+    private static String getBeatGridEntryName(int rekordBoxId) {
+        return CACHE_BEAT_GRID_ENTRY_PREFIX + rekordBoxId;
     }
 
     /**
