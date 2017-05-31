@@ -258,9 +258,33 @@ public class Message {
         /**
          * A label assigned a track by the DJ, with an associated color, part of the track metadata response.
          */
+        MY_TAG_2 (0x0015),
+        /**
+         * A label assigned a track by the DJ, marked with a red dot, part of the track metadata response.
+         */
         MY_TAG_3 (0x0016),
         /**
-         * The comment assigned a track by the DJ, part of the track metadata response.
+         * The comment assigned a track by the DJ, marked with an orange dot, part of the track metadata response.
+         */
+        MY_TAG_4 (0x0017),
+        /**
+         * A label assigned a track by the DJ, marked with a yellow dot, part of the track metadata response.
+         */
+        MY_TAG_5 (0x0018),
+        /**
+         * A label assigned a track by the DJ, marked with a green dot, part of the track metadata response.
+         */
+        MY_TAG_6 (0x0019),
+        /**
+         * A label assigned a track by the DJ, marked with an aqua dot, part of the track metadata response.
+         */
+        MY_TAG_7 (0x001a),
+        /**
+         * A label assigned a track by the DJ, marked with a blue dot, part of the track metadata response.
+         */
+        MY_TAG_8 (0x001b),
+        /**
+         * A label assigned a track by the DJ, marked with a purple dot, part of the track metadata response.
          */
         COMMENT (0x0023),
         /**
