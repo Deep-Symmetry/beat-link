@@ -639,7 +639,7 @@ public class VirtualCdj {
 
     /**
      * Adds the specified master listener to receive device updates when there are changes related
-     * to the tempo master. If {@code listener} is {@code null} or already present in the list
+     * to the tempo master. If {@code listener} is {@code null} or already present in the set
      * of registered listeners, no exception is thrown and no action is performed.
      *
      * <p>To reduce latency, tempo master updates are delivered to listeners directly on the thread that is receiving them
@@ -662,7 +662,7 @@ public class VirtualCdj {
     /**
      * Removes the specified master listener so that it no longer receives device updates when
      * there are changes related to the tempo master. If {@code listener} is {@code null} or not present
-     * in the list of registered listeners, no exception is thrown and no action is performed.
+     * in the set of registered listeners, no exception is thrown and no action is performed.
      *
      * @param listener the master listener to remove
      */

@@ -23,7 +23,14 @@ This change log follows the conventions of
 
 - Many more kinds of information can be retrieved from players, and
   the classes and API documentation have been enriched to reflect our
-  deepening understanding of the protocol
+  deepening understanding of the protocol.
+- Metadata cache files can be created by downloading either entire
+  collections or individual playlists from players on the network, and
+  then attached for use in environments (such as busy shows with four
+  physical players) where metadata queries are not reliable.
+- New listener interfaces to provide information about changes to the
+  available metadata caches, as well as changes to metadata about
+  tracks loaded in players on the network.
 
 ## [0.2.1] - 2017-03-14
 

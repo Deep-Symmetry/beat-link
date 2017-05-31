@@ -342,7 +342,7 @@ public class MetadataFinder {
      * @throws IOException if there is a problem communicating with the player or writing the cache file.
      */
     private static void copyTracksToCache(List<Message> trackListEntries, Client client, CdjStatus.TrackSourceSlot slot,
-                                   File cache, MetadataCacheUpdateListener listener)
+                                   File cache, MetadataCreationUpdateListener listener)
         throws IOException {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
@@ -452,7 +452,7 @@ public class MetadataFinder {
     /**
      * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
      * previous contents of the specified file will be replaced. If a non-{@code null} {@code listener} is
-     * supplied, its {@link MetadataCacheUpdateListener#cacheUpdateContinuing(TrackMetadata, int, int)} method
+     * supplied, its {@link MetadataCreationUpdateListener#cacheUpdateContinuing(TrackMetadata, int, int)} method
      * will be called after each track is added to the cache, allowing it to display progress updates to the user,
      * and to continue or cancel the process by returning {@code true} or {@code false}.
      *
@@ -465,7 +465,7 @@ public class MetadataFinder {
      * @throws IOException if there is a problem communicating with the player or writing the cache file.
      */
     public static void createMetadataCache(int player, CdjStatus.TrackSourceSlot slot, File cache,
-                                           MetadataCacheUpdateListener listener)
+                                           MetadataCreationUpdateListener listener)
             throws IOException {
         final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
         final int dbServerPort = getPlayerDBServerPort(player);
@@ -704,14 +704,15 @@ public class MetadataFinder {
     private static Thread queueHandler;
 
     /**
-     * We have received an update that invalidates any previous metadata for that player, so clear it out.
+     * We have received an update that invalidates any previous metadata for that player, so clear it out, and alert
+     * any listeners.
      *
-     * @param update the update which means we can have no metadata for the associated player.
+     * @param update the update which means we can have no metadata for the associated player
      */
     private static synchronized void clearMetadata(CdjStatus update) {
         metadata.remove(update.deviceNumber);
         lastUpdates.remove(update.address);
-        // TODO: Add update listener
+        deliverTrackMetadataUpdate(update.deviceNumber, null);
     }
 
     /**
@@ -725,7 +726,7 @@ public class MetadataFinder {
     }
 
     /**
-     * We have obtained metadata for a device, so store it.
+     * We have obtained metadata for a device, so store it and alert any listeners.
      *
      * @param update the update which caused us to retrieve this metadata
      * @param data the metadata which we received
@@ -733,7 +734,7 @@ public class MetadataFinder {
     private static synchronized void updateMetadata(CdjStatus update, TrackMetadata data) {
         metadata.put(update.deviceNumber, data);
         lastUpdates.put(update.address, update);
-        // TODO: Add update listener
+        deliverTrackMetadataUpdate(update.deviceNumber, data);
     }
 
     /**
@@ -849,6 +850,8 @@ public class MetadataFinder {
                 logger.error("Problem closing previous metadata cache", e);
             }
         }
+
+        deliverCacheUpdate();
     }
 
     /**
@@ -879,6 +882,7 @@ public class MetadataFinder {
             } catch (IOException e) {
                 logger.error("Problem closing metadata cache", e);
             }
+            deliverCacheUpdate();
         }
     }
 
@@ -899,6 +903,133 @@ public class MetadataFinder {
                 return  sdMetadataCaches.get(player);
             default:
                 return null;
+        }
+    }
+
+    /**
+     * Keeps track of the registered cache update listeners.
+     */
+    private static final Set<MetadataCacheUpdateListener> cacheListeners = new HashSet<MetadataCacheUpdateListener>();
+
+    /**
+     * Adds the specified cache update listener to receive updates when a metadata cache is attached or detached.
+     * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
+     * thrown and no action is performed.
+     *
+     * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     *
+     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the cache update listener to add
+     */
+    public static synchronized void addCacheUpdateListener(MetadataCacheUpdateListener listener) {
+        if (listener != null) {
+            cacheListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified cache update listener so that it no longer receives updates when there
+     * are changes to the available set of metadata caches. If {@code listener} is {@code null} or not present
+     * in the set of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the master listener to remove
+     */
+    public static synchronized void removeCacheUpdateListener(MetadataCacheUpdateListener listener) {
+        if (listener != null) {
+            cacheListeners.remove(listener);
+        }
+    }
+
+    /**
+     * Get the set of currently-registered metadata cache update listeners.
+     *
+     * @return the listeners that are currently registered for metadata cache updates
+     */
+    public static synchronized Set<MetadataCacheUpdateListener> getCacheUpdateListeners() {
+        return Collections.unmodifiableSet(new HashSet<MetadataCacheUpdateListener>(cacheListeners));
+    }
+
+    /**
+     * Send a metadata cache update announcement to all registered listeners.
+     */
+    private static void deliverCacheUpdate() {
+        for (final MetadataCacheUpdateListener listener : getCacheUpdateListeners()) {
+            try {
+                listener.cachesChanged(Collections.unmodifiableMap(sdMetadataCaches),
+                        Collections.unmodifiableMap(usbMetadataCaches));
+
+            } catch (Exception e) {
+                logger.warn("Problem delivering metadata cache update to listener", e);
+            }
+        }
+    }
+
+    /**
+     * Keeps track of the registered track metadata update listeners.
+     */
+    private static final Set<TrackMetadataUpdateListener> trackListeners = new HashSet<TrackMetadataUpdateListener>();
+
+    /**
+     * Adds the specified track metadata listener to receive updates when the track metadata for a player changes.
+     * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
+     * thrown and no action is performed.
+     *
+     * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     *
+     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the track metadata update listener to add
+     */
+    public static synchronized void addTrackMetadataUpdateListener(TrackMetadataUpdateListener listener) {
+        if (listener != null) {
+            trackListeners.add(listener);
+        }
+    }
+
+    /**
+     * Get the set of currently-registered metadata cache update listeners.
+     *
+     * @return the listeners that are currently registered for metadata cache updates
+     */
+    public static synchronized Set<TrackMetadataUpdateListener> getTrackMetadataUpdateListeners() {
+        return Collections.unmodifiableSet(new HashSet<TrackMetadataUpdateListener>(trackListeners));
+    }
+
+    /**
+     * Removes the specified track metadata update listener so that it no longer receives updates when track
+     * metadata for a player changes. If {@code listener} is {@code null} or not present
+     * in the set of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the track metadata update listener to remove
+     */
+    public static synchronized void removeTrackMetadataUpdateListener(TrackMetadataUpdateListener listener) {
+        if (listener != null) {
+            trackListeners.remove(listener);
+        }
+    }
+
+    /**
+     * Send a metadata cache update announcement to all registered listeners.
+     */
+    private static void deliverTrackMetadataUpdate(int player, TrackMetadata metadata) {
+        for (final TrackMetadataUpdateListener listener : getTrackMetadataUpdateListeners()) {
+            try {
+                listener.metadataChanged(player, metadata);
+
+            } catch (Exception e) {
+                logger.warn("Problem delivering track metadata update to listener", e);
+            }
         }
     }
 
