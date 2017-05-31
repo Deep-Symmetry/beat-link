@@ -500,9 +500,16 @@ public class Message {
         ((BinaryField)argTypes).getValue().get(argTags);
 
         Field[] arguments = new Field[argCount];
+        Field lastArg = null;
         for (int i = 0; i < argCount; i++) {
-            arguments[i] = Field.read(is);
-            if (arguments[i].getArgumentTag() != argTags[i]) {
+            if (argTags[i] == 3 && lastArg != null && (lastArg instanceof  NumberField) &&
+                    ((NumberField)lastArg).getValue() == 0) {
+                arguments [i] = new BinaryField(new byte[0]);  // Do not attempt to read a zero-length binary field
+            } else {
+                arguments[i] = Field.read(is);
+            }
+            lastArg = arguments[i];
+            if (lastArg.getArgumentTag() != argTags[i]) {
                 throw new IOException("Found argument of wrong type reading message. Expected tag: " + argTags[i] +
                 " and got: " + arguments[i].getArgumentTag());
             }
