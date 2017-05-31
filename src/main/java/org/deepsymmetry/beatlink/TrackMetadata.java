@@ -6,8 +6,12 @@ import org.deepsymmetry.beatlink.dbserver.StringField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -97,7 +101,7 @@ public class TrackMetadata {
     /**
      * The actual track artwork, if any was available.
      */
-    private BufferedImage artwork;
+    private ByteBuffer artwork;
 
     // TODO: Add fields like artist ID, genre ID, key ID, etc.
 
@@ -214,7 +218,25 @@ public class TrackMetadata {
      * @return the artwork image associated with the track, if it is exists and has been loaded
      */
     public BufferedImage getArtwork() {
-        return artwork;
+        artwork.rewind();
+        byte[] imageBytes = new byte[artwork.remaining()];
+        artwork.get(imageBytes);
+        try {
+            return ImageIO.read(new ByteArrayInputStream(imageBytes));
+        } catch (IOException e) {
+            logger.error("Weird! Caught exception creating image from artwork bytes", e);
+            return null;
+        }
+    }
+
+    /**
+     * Get the raw bytes that represent the track artwork.
+     *
+     * @return the bytes that were sent as the track artwork, which are a JPEG-encoded image
+     */
+    public ByteBuffer getRawArtwork() {
+        artwork.rewind();
+        return artwork.slice();
     }
 
     /**
@@ -323,7 +345,7 @@ public class TrackMetadata {
      *
      * @return track metadata with the specified artwork image
      */
-    public TrackMetadata withArtwork(BufferedImage artwork) {
+    public TrackMetadata withArtwork(ByteBuffer artwork) {
         TrackMetadata result = new TrackMetadata(this);
         result.artwork = artwork;
         return result;

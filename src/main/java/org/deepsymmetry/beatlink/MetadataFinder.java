@@ -231,7 +231,9 @@ public class MetadataFinder {
                     if (entry != null) {
                         is = new DataInputStream(cache.getInputStream(entry));
                         try {
-                            result = result.withArtwork(ImageIO.read(is));
+                            byte[] imageBytes = new byte[(int)entry.getSize()];
+                            is.readFully(imageBytes);
+                            result = result.withArtwork(ByteBuffer.wrap(imageBytes).asReadOnlyBuffer());
                         } catch (Exception e) {
                             logger.error("Problem reading artwork from metadata cache, leaving as null", e);
                         }
@@ -487,11 +489,11 @@ public class MetadataFinder {
                 client.writeMessage(MENU_FOOTER_MESSAGE, channel);  // So we know to stop reading
 
                 // Now the album art, if any
-                if (track.getArtwork() != null && !artworkAdded.contains(track.getArtworkId())) {
+                if (track.getRawArtwork() != null && !artworkAdded.contains(track.getArtworkId())) {
                     logger.debug("Adding artwork with ID {}", track.getArtworkId());
                     zipEntry = new ZipEntry(getArtworkEntryName(track));
                     zos.putNextEntry(zipEntry);
-                    javax.imageio.ImageIO.write(track.getArtwork(), "png", zos);
+                    channel.write(track.getRawArtwork());
                 }
 
                 BeatGrid beatGrid = getBeatGrid(rekordBoxId, slot, client);
@@ -562,7 +564,7 @@ public class MetadataFinder {
      * @return the name of entry where that track's artwork should be stored
      */
     private static String getArtworkEntryName(TrackMetadata track) {
-        return CACHE_ART_ENTRY_PREFIX + track.getArtworkId() + ".png";
+        return CACHE_ART_ENTRY_PREFIX + track.getArtworkId() + ".jpg";
     }
 
     /**
@@ -639,7 +641,7 @@ public class MetadataFinder {
      *
      * @throws IOException if there is a problem communicating with the player
      */
-    private static BufferedImage requestArtwork(int artworkId, CdjStatus.TrackSourceSlot slot, Client client)
+    private static ByteBuffer requestArtwork(int artworkId, CdjStatus.TrackSourceSlot slot, Client client)
             throws IOException {
 
         // Send the artwork request
@@ -647,10 +649,7 @@ public class MetadataFinder {
                 client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField((long)artworkId));
 
         // Create an image from the response bytes
-        ByteBuffer imageBuffer = ((BinaryField)response.arguments.get(3)).getValue();
-        byte[] imageBytes = new byte[imageBuffer.remaining()];
-        imageBuffer.get(imageBytes);
-        return ImageIO.read(new ByteArrayInputStream(imageBytes));
+        return ((BinaryField)response.arguments.get(3)).getValue();
     }
 
     /**
