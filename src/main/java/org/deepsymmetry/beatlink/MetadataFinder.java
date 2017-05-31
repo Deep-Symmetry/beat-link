@@ -772,16 +772,16 @@ public class MetadataFinder {
     private final static Set<Integer> activeRequests = new HashSet<Integer>();
 
     /**
-     * Keeps track of any metadata caches that have been attached for the USB slots of players on the network,
-     * keyed by player number.
-     */
-    private final static Map<Integer, ZipFile> usbMetadataCaches = new ConcurrentHashMap<Integer, ZipFile>();
-
-    /**
      * Keeps track of any metadata caches that have been attached for the SD slots of players on the network,
      * keyed by player number.
      */
     private final static Map<Integer, ZipFile> sdMetadataCaches = new ConcurrentHashMap<Integer, ZipFile>();
+
+    /**
+     * Keeps track of any metadata caches that have been attached for the USB slots of players on the network,
+     * keyed by player number.
+     */
+    private final static Map<Integer, ZipFile> usbMetadataCaches = new ConcurrentHashMap<Integer, ZipFile>();
 
     /**
      * Attach a metadata cache file to a particular player media slot, so the cache will be used instead of querying
@@ -840,7 +840,7 @@ public class MetadataFinder {
                 } catch (Exception e) {
                     logger.error("Problem re-closing newly opened candidate metadata cache", e);
                 }
-                throw new IllegalArgumentException("Cannot cache media for slot {}" + slot);
+                throw new IllegalArgumentException("Cannot cache media for slot " + slot);
         }
 
         if (oldCache != null) {
@@ -907,6 +907,80 @@ public class MetadataFinder {
     }
 
     /**
+     * Keeps track of any players with mounted SD media.
+     */
+    private static Set<Integer> sdMounts = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+
+    /**
+     * Keeps track of any players with mounted USB media.
+     */
+    private static Set<Integer> usbMounts = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+
+    /**
+     * Records that there is media mounted in a particular media player slot, updating listeners if this is a change.
+     *
+     * @param player the number of the player that has media in the specified slot
+     * @param slot the slot in which media is mounted
+     */
+    private static void recordMount(int player, CdjStatus.TrackSourceSlot slot) {
+        switch (slot) {
+            case USB_SLOT:
+                if (usbMounts.add(player)) {
+                    deliverCacheUpdate();
+                }
+                break;
+            case SD_SLOT:
+                if (sdMounts.add(player)) {
+                    deliverCacheUpdate();
+                }
+                break;
+            default:
+                throw new IllegalArgumentException("Cannot record mounted media in slot " + slot);
+        }
+    }
+
+    /**
+     * Records that there is no media mounted in a particular media player slot, updating listeners if this is a change.
+     *
+     * @param player the number of the player that has no media in the specified slot
+     * @param slot the slot in which no media is mounted
+     */
+    private static void removeMount(int player, CdjStatus.TrackSourceSlot slot) {
+        switch (slot) {
+            case USB_SLOT:
+                if (usbMounts.remove(player)) {
+                    deliverCacheUpdate();
+                }
+                break;
+            case SD_SLOT:
+                if (sdMounts.remove(player)) {
+                    deliverCacheUpdate();
+                }
+                break;
+            default:
+                logger.warn("Ignoring request to record unmounted media in slot {}", slot);
+        }
+    }
+
+    /**
+     * Returns the set of player numbers that currently have media mounted in the specified slot.
+     *
+     * @param slot the slot of interest, currently must be either {@code SD_SLOT} or {@code USB_SLOT}
+     *
+     * @return the player numbers with media currently mounted in the specified slot
+     */
+    public static Set<Integer> getPlayersWithMediaIn(CdjStatus.TrackSourceSlot slot) {
+        switch (slot) {
+            case USB_SLOT:
+                return Collections.unmodifiableSet(usbMounts);
+            case SD_SLOT:
+                return Collections.unmodifiableSet(sdMounts);
+            default:
+                throw new IllegalArgumentException("Cannot report mounted media in slot " + slot);
+        }
+    }
+
+    /**
      * Keeps track of the registered cache update listeners.
      */
     private static final Set<MetadataCacheUpdateListener> cacheListeners = new HashSet<MetadataCacheUpdateListener>();
@@ -959,10 +1033,13 @@ public class MetadataFinder {
      * Send a metadata cache update announcement to all registered listeners.
      */
     private static void deliverCacheUpdate() {
+        final Map<Integer, ZipFile> sdCaches = Collections.unmodifiableMap(sdMetadataCaches);
+        final Map<Integer, ZipFile> usbCaches = Collections.unmodifiableMap(usbMetadataCaches);
+        final Set<Integer> sdSet = Collections.unmodifiableSet(sdMounts);
+        final Set<Integer> usbSet = Collections.unmodifiableSet(usbMounts);
         for (final MetadataCacheUpdateListener listener : getCacheUpdateListeners()) {
             try {
-                listener.cachesChanged(Collections.unmodifiableMap(sdMetadataCaches),
-                        Collections.unmodifiableMap(usbMetadataCaches));
+                listener.cacheStateChanged(sdCaches, usbCaches, sdSet, usbSet);
 
             } catch (Exception e) {
                 logger.warn("Problem delivering metadata cache update to listener", e);
@@ -1038,20 +1115,29 @@ public class MetadataFinder {
      * metadata we had stored for that player. If so, see if it is the same track we already know about; if not,
      * request the metadata associated with that track.
      *
-     * Also clears out any metadata caches that were attached for slots that no longer have media mounted in them.
+     * Also clears out any metadata caches that were attached for slots that no longer have media mounted in them,
+     * and updates the sets of which players have media mounted in which slots.
+     *
+     * If any of these reflect a change in state, any registered listeners will be informed.
      *
      * @param update an update packet we received from a CDJ
      */
     private static void handleUpdate(final CdjStatus update) {
-        // First see if any metadata caches need evicting
+        // First see if any metadata caches need evicting or mount sets need updating.
         if (update.isLocalUsbEmpty()) {
             detachMetadataCache(update.deviceNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
+            removeMount(update.deviceNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
+        } else if (update.isLocalUsbLoaded()) {
+            recordMount(update.deviceNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
         }
         if (update.isLocalSdEmpty()) {
             detachMetadataCache(update.deviceNumber, CdjStatus.TrackSourceSlot.SD_SLOT);
+            removeMount(update.deviceNumber, CdjStatus.TrackSourceSlot.SD_SLOT);
+        } else if (update.isLocalSdLoaded()){
+            recordMount(update.deviceNumber, CdjStatus.TrackSourceSlot.SD_SLOT);
         }
 
-        // Now see if a track has changed that needs new metadata
+        // Now see if a track has changed that needs new metadata.
         if (update.getTrackType() != CdjStatus.TrackType.REKORDBOX ||
                 update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK ||
                 update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.UNKNOWN ||
