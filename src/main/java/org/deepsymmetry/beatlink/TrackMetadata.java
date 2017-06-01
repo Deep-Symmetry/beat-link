@@ -243,8 +243,11 @@ public class TrackMetadata {
      * @return the bytes that were sent as the track artwork, which are a JPEG-encoded image
      */
     public ByteBuffer getRawArtwork() {
-        artwork.rewind();
-        return artwork.slice();
+        if (artwork != null) {
+            artwork.rewind();
+            return artwork.slice();
+        }
+        return null;
     }
 
     /**
