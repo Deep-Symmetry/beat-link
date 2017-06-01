@@ -25,8 +25,11 @@ public class BeatGrid {
      * @return the bytes that make up the beat grid
      */
     public ByteBuffer getRawData() {
-        rawData.rewind();
-        return rawData.slice();
+        if (rawData != null) {
+            rawData.rewind();
+            return rawData.slice();
+        }
+        return null;
     }
 
     /**
@@ -62,7 +65,7 @@ public class BeatGrid {
         rawData = buffer;
         final byte[] gridBytes = new byte[rawData.remaining()];
         rawData.get(gridBytes);
-        beatCount = (gridBytes.length - 20) / 16;
+        beatCount = Math.max(0, (gridBytes.length - 20) / 16);  // Handle the case of an empty beat grid
         beatWithinBarValues = new int[beatCount];
         timeWithinTrackValues = new long[beatCount];
         for (int beatNumber = 0; beatNumber < beatCount; beatNumber++) {
@@ -87,6 +90,9 @@ public class BeatGrid {
      * @return the offset of the start of our cache arrays for information about that beat
      */
     private int beatOffset(int beatNumber) {
+        if (beatCount == 0) {
+            throw new IllegalStateException("There are no beats in this beat grid.");
+        }
         if (beatNumber < 1 || beatNumber > beatCount) {
             throw new IndexOutOfBoundsException("beatNumber must be between 1 and " + beatCount);
         }
@@ -119,5 +125,11 @@ public class BeatGrid {
      */
     public int getBeatWithinBar(int beatNumber) {
         return beatWithinBarValues[beatOffset(beatNumber)];
+    }
+
+
+    @Override
+    public String toString() {
+        return "BeatGrid[" + beatCount + " beats]";
     }
 }
