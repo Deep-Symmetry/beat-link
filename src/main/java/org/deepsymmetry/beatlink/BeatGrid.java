@@ -13,12 +13,21 @@ import java.nio.ByteBuffer;
  */
 public class BeatGrid {
 
-    /**\
-     * The raw dbserver message containing the beat grid when it was read over the network.
-     * Can be used to analyze fields that have not yet been reliably understood,
-     * and is also used for storing the metadata in a cache file.
+    /**
+     * The message field holding the raw bytes of the beat grid as it was read over the network.
      */
-    public final Message rawMessage;
+    private final ByteBuffer rawData;
+
+    /**
+     * Get the raw bytes of the beat grid as it was read over the network. This can be used to analyze fields
+     * that have not yet been reliably understood, and is also used for storing the beat grid in a cache file.
+     *
+     * @return the bytes that make up the beat grid
+     */
+    public ByteBuffer getRawData() {
+        rawData.rewind();
+        return rawData.slice();
+    }
 
     /**
      * The number of beats in the track.
@@ -31,15 +40,23 @@ public class BeatGrid {
     private final byte[] gridBytes;
 
     /**
-     * Constructor for when reading from the network or from a cache file.
+     * Constructor for when reading from the network.
      *
      * @param message the response that contained the beat grid data
      */
     public BeatGrid(Message message) {
-        rawMessage = message;
-        BinaryField gridField = (BinaryField)message.arguments.get(3);
-        gridBytes = new byte[gridField.getValue().remaining()];
-        gridField.getValue().get(gridBytes);
+        this(((BinaryField)message.arguments.get(3)).getValue());
+    }
+
+    /**
+     * Constructor for reading from a cache file.
+     *
+     * @param buffer the raw bytes representing the beat grid
+     */
+    public BeatGrid(ByteBuffer buffer) {
+        rawData = buffer;
+        gridBytes = new byte[rawData.remaining()];
+        rawData.get(gridBytes);
         beatCount = (gridBytes.length - 20) / 16;
     }
 

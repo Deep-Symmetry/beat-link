@@ -10,7 +10,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -24,6 +23,11 @@ import java.util.List;
 public class TrackMetadata {
 
     private static final Logger logger = LoggerFactory.getLogger(TrackMetadata.class.getName());
+
+    /**
+     * The rekordbox ID that was used to request this track metadata.
+     */
+    public final int rekordboxId;
 
     /**
      * The raw dbserver messages containing the metadata when it was read over the network.
@@ -110,6 +114,7 @@ public class TrackMetadata {
      *
      */
     private TrackMetadata(TrackMetadata original) {
+        rekordboxId = original.rekordboxId;
         rawItems = original.rawItems;
         album = original.album;
         artist = original.artist;
@@ -131,9 +136,12 @@ public class TrackMetadata {
      * Constructor for when reading from the network or from a cache file.
      * Sets all the interpreted fields based on the received response messages.
      *
+     * @param rekordboxId the rekordbox ID that was used to request this track metadata
+     *
      * @param items the menu item responses that were received in response to the render menu request
      */
-    TrackMetadata(List<Message> items) {
+    TrackMetadata(int rekordboxId, List<Message> items) {
+        this.rekordboxId = rekordboxId;
         rawItems = Collections.unmodifiableList(new LinkedList<Message>(items));
         this.artwork = artwork;
         for (Message item : items) {
@@ -197,10 +205,10 @@ public class TrackMetadata {
 
     @Override
     public String toString() {
-        return "Track Metadata: Title: " + title + ", Artist: " + artist + ", Album: " + album +
+        return "Track Metadata[ID: " + rekordboxId +", Title: " + title + ", Artist: " + artist + ", Album: " + album +
                 ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
                 ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre + ", Label: " + label +
-                ", Artwork ID: " + artworkId;
+                ", Artwork ID: " + artworkId +"]";
     }
 
     /**

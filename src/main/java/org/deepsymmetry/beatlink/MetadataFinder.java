@@ -7,13 +7,10 @@ import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -144,7 +141,7 @@ public class MetadataFinder {
 
         // Gather all the metadata menu items
         final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
-        TrackMetadata result = new TrackMetadata(items);
+        TrackMetadata result = new TrackMetadata(rekordboxId, items);
         if (result.getArtworkId() != 0) {
             result = result.withArtwork(requestArtwork(result.getArtworkId(), slot, client));
         }
@@ -219,7 +216,7 @@ public class MetadataFinder {
                     items.add(current);
                     current = Message.read(is);
                 }
-                TrackMetadata result = new TrackMetadata(items);
+                TrackMetadata result = new TrackMetadata(rekordboxId, items);
                 try {
                     is.close();
                 } catch (Exception e) {
@@ -268,14 +265,15 @@ public class MetadataFinder {
             DataInputStream is = null;
             try {
                 is = new DataInputStream(cache.getInputStream(entry));
-                final Message result = Message.read(is);
+                byte[] gridBytes = new byte[(int)entry.getSize()];
+                is.readFully(gridBytes);
                 try {
                     is.close();
                 } catch (Exception e) {
                     is = null;
                     logger.error("Problem closing Zip File input stream after reading beat grid entry", e);
                 }
-                return new BeatGrid(result);
+                return new BeatGrid(ByteBuffer.wrap(gridBytes).asReadOnlyBuffer());
             } catch (IOException e) {
                 if (is != null) {
                     try {
@@ -306,6 +304,8 @@ public class MetadataFinder {
         if (cache != null) {
             return getCachedMetadata(cache, rekordboxId);
         }
+
+        // TODO: Once we understand and track cue points, keep an in-memory cache of any loaded hot-cue tracks.
 
         if (passive) {
             return null;  // We are not allowed to actively query for metadata
@@ -493,7 +493,7 @@ public class MetadataFinder {
                     logger.debug("Adding artwork with ID {}", track.getArtworkId());
                     zipEntry = new ZipEntry(getArtworkEntryName(track));
                     zos.putNextEntry(zipEntry);
-                    channel.write(track.getRawArtwork());
+                    Util.writeFully(track.getRawArtwork(), channel);
                 }
 
                 BeatGrid beatGrid = getBeatGrid(rekordBoxId, slot, client);
@@ -501,7 +501,7 @@ public class MetadataFinder {
                     logger.debug("Adding beat grid with ID {}", rekordBoxId);
                     zipEntry = new ZipEntry(getBeatGridEntryName(rekordBoxId));
                     zos.putNextEntry(zipEntry);
-                    client.writeMessage(beatGrid.rawMessage, channel);
+                    Util.writeFully(beatGrid.getRawData(), channel);
                 }
 
                 // TODO: Include waveforms (once supported), etc.

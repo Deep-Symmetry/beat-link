@@ -1,7 +1,11 @@
 package org.deepsymmetry.beatlink;
 
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,6 +129,21 @@ public class Util {
      */
     public static double pitchToMultiplier(long pitch) {
         return pitch / 1048576.0;
+    }
+
+    /**
+     * Writes the entire remaining contents of the buffer to the channel. May complete in one operation, but the
+     * documentation is vague, so this keeps going until we are sure.
+     *
+     * @param buffer the data to be written
+     * @param channel the channel to which we want to write data
+     *
+     * @throws IOException if there is a problem writing to the channel
+     */
+    public static void writeFully(ByteBuffer buffer, WritableByteChannel channel) throws IOException {
+        while (buffer.hasRemaining()) {
+            channel.write(buffer);
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.dbserver;
 
 import org.deepsymmetry.beatlink.CdjStatus;
+import org.deepsymmetry.beatlink.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -172,10 +173,7 @@ public class Client {
      */
     void writeField(Field field, WritableByteChannel channel) throws IOException {
         logger.debug("..writing> {}", field);
-        final ByteBuffer buffer = field.getBytes();
-        while (buffer.hasRemaining()) {
-            channel.write(buffer);
-        }
+        Util.writeFully(field.getBytes(), channel);
     }
 
     /**
