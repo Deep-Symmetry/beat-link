@@ -77,7 +77,6 @@ public class Client {
      * @throws IOException if there is a problem configuring the socket for use
      */
     public Client(Socket socket, int targetPlayer, int posingAsPlayer) throws IOException {
-        socket.setSoTimeout(5000);  // TODO: Make this configurable, with this default
         this.socket = socket;
         is = new DataInputStream(socket.getInputStream());
         os = socket.getOutputStream();

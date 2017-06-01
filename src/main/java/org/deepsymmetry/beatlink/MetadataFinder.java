@@ -32,6 +32,36 @@ public class MetadataFinder {
     private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class.getName());
 
     /**
+     * The default value we will use for timeouts on opening and reading from sockets.
+     */
+    public static final int DEFAULT_SOCKET_TIMEOUT = 10000;
+
+    /**
+     * The number of milliseconds after which an attempt to open or read from a socket will fail.
+     */
+    private static int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
+
+    /**
+     * Set how long we will wait for a socket to connect or for a read operation to complete.
+     * Adjust this if your players or network require it.
+     *
+     * @param timeout after how many milliseconds will an attempt to open or read from a socket fail
+     */
+    public static void setSocketTimeout(int timeout) {
+        socketTimeout = timeout;
+    }
+
+    /**
+     * Check how long we will wait for a socket to connect or for a read operation to complete.
+     * Adjust this if your players or network require it.
+     *
+     * @return the number of milliseconds after which an attempt to open or read from a socket will fail
+     */
+    public static int getSocketTimeout() {
+        return socketTimeout;
+    }
+
+    /**
      * Given a status update from a CDJ, find the metadata for the track that it has loaded, if any.
      *
      * @param status the CDJ status update that will be used to determine the loaded track and ask the appropriate
@@ -296,9 +326,11 @@ public class MetadataFinder {
      * @param rekordboxId the track of interest
      *
      * @return the metadata, if any
+     *
+     * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
      */
-    public static synchronized TrackMetadata requestMetadataFrom(int player, CdjStatus.TrackSourceSlot slot, int rekordboxId) {
-
+    public static synchronized TrackMetadata requestMetadataFrom(int player, CdjStatus.TrackSourceSlot slot,
+                                                                 int rekordboxId) {
         // First check if we are using cached data for this request
         ZipFile cache = getMetadataCache(player, slot);
         if (cache != null) {
@@ -310,6 +342,9 @@ public class MetadataFinder {
         if (passive) {
             return null;  // We are not allowed to actively query for metadata
         }
+
+        // We need to perform an actual query, so at this point we need to bail if a cache is being created
+        failIfCreatingCache();
 
         final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
         final int dbServerPort = getPlayerDBServerPort(player);
@@ -323,7 +358,8 @@ public class MetadataFinder {
         try {
             InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
             socket = new Socket();
-            socket.connect(address, 5000);
+            socket.connect(address, socketTimeout);
+            socket.setSoTimeout(socketTimeout);
             Client client = new Client(socket, player, posingAsPlayerNumber);
 
             return getTrackMetadata(rekordboxId, slot, client);
@@ -343,6 +379,17 @@ public class MetadataFinder {
 
     // TODO: Add method that enumerates a playlist or folder, then one that caches metadata from a playlist.
 
+    /**
+     * Ask the specified player for the beat grid pf the track in the specified slot with the specified rekordbox ID.
+     *
+     * @param player the player number whose track is of interest
+     * @param slot the slot in which the track can be found
+     * @param rekordboxId the track of interest
+     *
+     * @return the beat grid, if any
+     *
+     * @throws IllegalStateException if a metadata cache is being created and we need to talk to the CDJs
+     */
     public static synchronized BeatGrid requestBeatGridFrom(int player, CdjStatus.TrackSourceSlot slot, int rekordboxId) {
         // First check if we are using cached data for this request
         ZipFile cache = getMetadataCache(player, slot);
@@ -353,6 +400,9 @@ public class MetadataFinder {
         if (passive) {
             return null;  // We are not allowed to actively query for metadata
         }
+
+        // We need to perform an actual query, so at this point we need to bail if a cache is being created
+        failIfCreatingCache();
 
         final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
         final int dbServerPort = getPlayerDBServerPort(player);
@@ -366,7 +416,7 @@ public class MetadataFinder {
         try {
             InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
             socket = new Socket();
-            socket.connect(address, 5000);
+            socket.connect(address, socketTimeout);
             Client client = new Client(socket, player, posingAsPlayerNumber);
 
             return getBeatGrid(rekordboxId, slot, client);
@@ -579,11 +629,45 @@ public class MetadataFinder {
     }
 
     /**
+     * Is set to {@code true} when a lengthy cache creation process is underway, to prevent other requests that might
+     * interfere with it.
+     */
+    private static boolean creatingCache = false;
+
+    /**
+     * Record whether cache creation is taking place, so we can block other inquiries during that process.
+     *
+     * @param inProgress {@code true} if we are building a metadata cache file
+     *
+     * @throws IllegalStateException if a cache is already being created
+     */
+    private static synchronized void setCreatingCache(boolean inProgress) {
+        if (creatingCache && inProgress) {
+            throw new IllegalStateException("Already creating a metadata cache");
+        }
+        creatingCache = inProgress;
+    }
+
+    /**
+     * Check whether cache creation is taking place, so we can block other inquiries during that process.
+     *
+     * @throws IllegalStateException if a cache is being created
+     */
+    private static synchronized void failIfCreatingCache() {
+        if (creatingCache) {
+            throw new IllegalStateException("Cannot perform the requested operation while a metadata cache is being created");
+        }
+    }
+
+    /**
      * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
      * previous contents of the specified file will be replaced. If a non-{@code null} {@code listener} is
      * supplied, its {@link MetadataCreationUpdateListener#cacheUpdateContinuing(TrackMetadata, int, int)} method
      * will be called after each track is added to the cache, allowing it to display progress updates to the user,
      * and to continue or cancel the process by returning {@code true} or {@code false}.
+     *
+     * Because this takes a huge amount of time relative to CDJ status updates, it can only be performed while
+     * the MetadataFinder is in passive mode.
      *
      * @param player the player number whose media library is to have its metdata cached
      * @param slot the slot in which the media to be cached can be found
@@ -591,11 +675,21 @@ public class MetadataFinder {
      * @param listener will be informed after each track is added to the cache file being created and offered
      *                 the opportunity to cancel the process
      *
-     * @throws IOException if there is a problem communicating with the player or writing the cache file.
+     * @throws IOException if there is a problem communicating with the player or writing the cache file
+     * @throws IllegalStateException if the MetadataFinder is not running or not in passive mode when this is called,
+     *                               or if another cache is already in the process of being created
      */
     public static void createMetadataCache(int player, CdjStatus.TrackSourceSlot slot, File cache,
                                            MetadataCreationUpdateListener listener)
             throws IOException {
+
+        if (!running) {
+            throw new IllegalStateException("must be running to create a metadata cache");
+        }
+        if (!passive) {
+            throw new IllegalStateException("must be in passive mode to create a metadata cache");
+        }
+
         final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
         final int dbServerPort = getPlayerDBServerPort(player);
         if (deviceAnnouncement == null || dbServerPort < 0) {
@@ -603,13 +697,14 @@ public class MetadataFinder {
         }
 
         final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
-        cache.delete();
         Socket socket = null;
         Client client = null;
         try {
+            setCreatingCache(true);
+            cache.delete();
             InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
             socket = new Socket();
-            socket.connect(address, 5000);
+            socket.connect(address, socketTimeout);
             client = new Client(socket, player, posingAsPlayerNumber);
             copyTracksToCache(getFullTrackList(slot, client), client, slot, cache, listener);
         } finally {
@@ -627,6 +722,7 @@ public class MetadataFinder {
             } catch (Exception e) {
                 logger.error("Problem closing socket when building metadata cache", e);
             }
+            setCreatingCache(false);
         }
     }
 
@@ -818,8 +914,13 @@ public class MetadataFinder {
      *
      * @param passive {@code true} if only cached metadata will be used, or {@code false} if metadata will be requested
      *                from a player if a track is loaded from a media slot to which no cache has been assigned
+     *
+     * @throws IllegalStateException if you try to turn off passive mode while a metadata cache is being created
      */
     public static synchronized void setPassive(boolean passive) {
+        if (!passive) {
+            failIfCreatingCache();
+        }
         MetadataFinder.passive = passive;
     }
 
