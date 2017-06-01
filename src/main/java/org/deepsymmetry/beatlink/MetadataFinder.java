@@ -831,10 +831,12 @@ public class MetadataFinder {
     private static void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
         Socket socket = null;
         try {
-            socket = new Socket(announcement.getAddress(), DB_SERVER_QUERY_PORT);
+            InetSocketAddress address = new InetSocketAddress(announcement.getAddress(), DB_SERVER_QUERY_PORT);
+            socket = new Socket();
+            socket.connect(address, socketTimeout);
             InputStream is = socket.getInputStream();
             OutputStream os = socket.getOutputStream();
-            socket.setSoTimeout(3000);
+            socket.setSoTimeout(socketTimeout);
             os.write(DB_SERVER_QUERY_PACKET);
             byte[] response = readResponseWithExpectedSize(is, 2, "database server port query packet");
             if (response.length == 2) {
