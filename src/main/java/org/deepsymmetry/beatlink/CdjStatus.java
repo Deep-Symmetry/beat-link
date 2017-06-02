@@ -16,6 +16,7 @@ public class CdjStatus extends DeviceUpdate {
      * The byte within the packet which contains useful status information, labeled <i>F</i> in Figure 11 of the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final int STATUS_FLAGS = 137;
 
     /**
@@ -24,12 +25,14 @@ public class CdjStatus extends DeviceUpdate {
      * A player is considered to be on the air when it is connected to a mixer channel that is not faded out.
      * Only Nexus mixers seem to support this capability.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final int ON_AIR_FLAG = 0x08;
 
     /**
      * The bit within the status flag that indicates the player is synced, as illustrated in Figure 12 of the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final int SYNCED_FLAG = 0x10;
 
     /**
@@ -42,6 +45,7 @@ public class CdjStatus extends DeviceUpdate {
      * The bit within the status flag that indicates the player is playing, as illustrated in Figure 12 of the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final int PLAYING_FLAG = 0x40;
 
     /**
@@ -101,6 +105,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known track source slot value to be looked up based on the byte that was seen in a status update.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Map<Byte,TrackSourceSlot> TRACK_SOURCE_SLOT_MAP;
 
     static {
@@ -165,6 +170,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known track source type value to be looked up based on the byte that was seen in a status update.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Map<Byte,TrackType> TRACK_TYPE_MAP;
 
     static {
@@ -268,6 +274,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known <i>P<sub>1</sub></i> value to be looked up based on the byte that was seen in a status update.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Map<Byte,PlayState1> PLAY_STATE_1_MAP;
 
     static {
@@ -290,6 +297,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the first play state element
      */
+    @SuppressWarnings("WeakerAccess")
     public PlayState1 getPlayState1() {
         return playState1;
     }
@@ -325,6 +333,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known <i>P<sub>2</sub></i> value to be looked up based on the byte that was seen in a status update.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Map<Byte,PlayState2> PLAY_STATE_2_MAP;
 
     static {
@@ -347,6 +356,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the second play state element
      */
+    @SuppressWarnings("WeakerAccess")
     public PlayState2 getPlayState2() {
         return playState2;
     }
@@ -355,7 +365,7 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values of the third play state found in the packet, labeled <i>P<sub>3</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    public static enum PlayState3 {
+    public enum PlayState3 {
         /**
          * No track has been loaded.
          */
@@ -390,6 +400,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known <i>P<sub>3</sub></i> value to be looked up based on the byte that was seen in a status update.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Map<Byte,PlayState3> PLAY_STATE_3_MAP;
 
     static {
@@ -631,6 +642,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return true if the play flag was set, or, if this seems to be a non-nexus player, if <em>P<sub>1</sub></em>
      *         has a value corresponding to a playing state.
      */
+    @SuppressWarnings("WeakerAccess")
     public boolean isPlaying() {
         if (packetBytes.length == 212) {
             return (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
@@ -646,6 +658,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the sync flag was set
      */
+    @SuppressWarnings("WeakerAccess")
     public boolean isSynced() {
         return (packetBytes[STATUS_FLAGS] & SYNCED_FLAG) > 0;
     }
@@ -657,6 +670,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the on-air flag was set
      */
+    @SuppressWarnings("WeakerAccess")
     public boolean isOnAir() {
         return (packetBytes[STATUS_FLAGS] & ON_AIR_FLAG) > 0;
     }
@@ -818,6 +832,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the player is playing, searching, or loading a track
      */
+    @SuppressWarnings("WeakerAccess")
     public boolean isBusy() {
         return packetBytes[39] != 0;
     }
@@ -828,6 +843,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the index of the current track
      */
+    @SuppressWarnings("WeakerAccess")
     public int getTrackNumber() {
         return (int)Util.bytesToNumber(packetBytes, 50, 2);
     }
@@ -851,6 +867,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the number of the beat within the track that is currently being played, or -1 if unknown
      */
+    @SuppressWarnings("WeakerAccess")
     public int getBeatNumber() {
         long result = Util.bytesToNumber(packetBytes, 160, 4);
         if (result != 0xffffffffL) {
@@ -871,6 +888,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the cue beat countdown, or 511 if no countdown is in effect
      * @see #formatCueCountdown()
      */
+    @SuppressWarnings("WeakerAccess")
     public int getCueCountdown() {
         return (int)Util.bytesToNumber(packetBytes, 164, 2);
     }
@@ -881,6 +899,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the value that the CDJ would display to indicate the distance to the next cue
      * @see #getCueCountdown()
      */
+    @SuppressWarnings("WeakerAccess")
     public String formatCueCountdown() {
         int count = getCueCountdown();
 

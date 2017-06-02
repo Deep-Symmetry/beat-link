@@ -12,6 +12,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public interface TrackMetadataUpdateListener {
     void metadataChanged(int player, TrackMetadata currentMetadata);
 }

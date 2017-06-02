@@ -87,6 +87,7 @@ public class Util {
      *
      * @return the integer corresponding to that address
      */
+    @SuppressWarnings("WeakerAccess")
     public static long addressToLong(InetAddress address) {
         long result = 0;
         for (byte element : address.getAddress()) {

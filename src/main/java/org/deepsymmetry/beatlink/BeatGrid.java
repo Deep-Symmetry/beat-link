@@ -35,6 +35,7 @@ public class BeatGrid {
     /**
      * The number of beats in the track.
      */
+    @SuppressWarnings("WeakerAccess")
     public final int beatCount;
 
     /**
@@ -117,7 +118,7 @@ public class BeatGrid {
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      * A number from 1 to 4, where 1 is the down beat, or the start of a new measure.
      *
-     * @param beatNumber the number of the beat of interest, must fall within the range 1..beatcount
+     * @param beatNumber the number of the beat of interest, must fall within the range 1..beatCount
      *
      * @return where that beat falls in a bar of music
      *

@@ -22,6 +22,7 @@ public class Message {
     /**
      * The special field that marks the start of a new message.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final NumberField MESSAGE_START = new NumberField(0x872349ae, 4);
 
     /**
@@ -152,7 +153,7 @@ public class Message {
         /**
          * Descriptions of any arguments with known purposes.
          */
-        private String[] arguments;
+        private final String[] arguments;
 
         KnownType(long value, String description, String... arguments) {
             protocolValue = value;
@@ -179,6 +180,7 @@ public class Message {
          *
          * @return a list of the descriptions of the arguments that are expected for this message type.
          */
+        @SuppressWarnings("unused")
         public List<String> arguments() {
             return Collections.unmodifiableList(Arrays.asList(arguments));
         }
@@ -187,6 +189,7 @@ public class Message {
     /**
      * Allows a known message type to be looked up by the message type number.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Map<Long, KnownType> KNOWN_TYPE_MAP;
 
     static {
@@ -227,7 +230,7 @@ public class Message {
          */
         ARTIST (0x0007),
         /**
-         * When listing playlists, reports the name and ID of an actual playlist, as opposed to a subfolder.
+         * When listing playlists, reports the name and ID of an actual playlist, as opposed to a sub-folder.
          */
         PLAYLIST (0x0008),
         /**
@@ -337,6 +340,7 @@ public class Message {
      * Allows a menu item type to be looked up by the value seen in the seventh argument of a
      * {@link KnownType#MENU_ITEM} response.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Map<Long, MenuItemType> MENU_ITEM_TYPE_MAP;
 
     static {
@@ -351,6 +355,7 @@ public class Message {
      * The 4-byte number field that provides the sequence number tying a query to its response messages, immediately
      * following the message start field.
      */
+    @SuppressWarnings("WeakerAccess")
     public final NumberField transaction;
 
     /**
@@ -367,6 +372,7 @@ public class Message {
     /**
      * The 1-byte number field that specifies how many arguments the message has.
      */
+    @SuppressWarnings("WeakerAccess")
     public final NumberField argumentCount;
 
     /**
@@ -386,6 +392,7 @@ public class Message {
      * @param messageType identifies the purpose and structure of the message
      * @param arguments the arguments to send with the message
      */
+    @SuppressWarnings("WeakerAccess")
     public Message(long transaction, long messageType, Field... arguments) {
         this(new NumberField(transaction, 4), new NumberField(messageType, 2), arguments);
     }
@@ -397,6 +404,7 @@ public class Message {
      * @param messageType identifies the purpose and structure of the message
      * @param arguments the arguments to send with the message
      */
+    @SuppressWarnings("SameParameterValue")
     public Message(long transaction, KnownType messageType, Field... arguments) {
         this(transaction, messageType.protocolValue, arguments);
     }
@@ -408,6 +416,7 @@ public class Message {
      * @param messageType identifies the purpose and structure of the message
      * @param arguments the arguments to send with the message
      */
+    @SuppressWarnings("WeakerAccess")
     public Message(NumberField transaction, NumberField messageType, Field... arguments) {
         if (transaction.getSize() != 4) {
             throw new IllegalArgumentException("Message transaction sequence number must be 4 bytes long");
@@ -552,7 +561,7 @@ public class Message {
             String argDescription = "unknown";
             if (knownType != null) {
                 argDescription = knownType.describeArgument(i);
-                if (knownType == KnownType.MENU_ITEM && i == 6) {
+                if (knownType == KnownType.MENU_ITEM && i == 6 && (arg instanceof NumberField)) {
                     String itemType = "unknown";
                     MenuItemType match = MENU_ITEM_TYPE_MAP.get(((NumberField) arg).getValue());
                     if (match != null) {
@@ -573,7 +582,7 @@ public class Message {
      * loaded, the third byte identifies the media <em>slot</em> (USB or SD) being asked about (as described in
      * {@link org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot}), and the fourth byte
      * always seems to be <em>1</em> (Austin's libpdjl called it <em>sourceAnalyzed</em>). This enumeration lists
-     * the known valus for the second, menu, byte.
+     * the known values for the second, menu, byte.
      */
     public enum MenuIdentifier {
         /**
@@ -613,6 +622,7 @@ public class Message {
      * Allows a menu/destination to be looked up by the value seen in the second byte of the first argument of many
      * request messages.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Map<Byte, MenuIdentifier> MENU_IDENTIFIER_MAP;
 
     static {

@@ -8,6 +8,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public interface BeatListener {
 
     /**
@@ -27,6 +28,7 @@ public interface BeatListener {
      *
      * @param beat the message which announced the start of the new beat
      */
+    @SuppressWarnings({"EmptyMethod", "unused"})
     void newBeat(Beat beat);
 
 }

@@ -13,6 +13,7 @@ public class MixerStatus extends DeviceUpdate {
      * The byte within the packet which contains useful status information, labeled <i>F</i> in Figure 10 of the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final int STATUS_FLAGS = 39;
 
     /**

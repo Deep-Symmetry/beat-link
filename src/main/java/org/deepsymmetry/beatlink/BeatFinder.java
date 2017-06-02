@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public class BeatFinder {
 
     private static final Logger logger = LoggerFactory.getLogger(BeatFinder.class.getName());
@@ -34,6 +35,7 @@ public class BeatFinder {
     /**
      * The port to which devices broadcast beat messages.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final int BEAT_PORT = 50001;
 
     /**
@@ -46,6 +48,7 @@ public class BeatFinder {
      *
      * @return {@code true} if our socket is open and monitoring for DJ Link beat packets on the network
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized boolean isActive() {
         return socket != null;
     }
@@ -98,6 +101,7 @@ public class BeatFinder {
     /**
      * Stop listening for beats.
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized void stop() {
         if (isActive()) {
             socket.close();
@@ -150,6 +154,7 @@ public class BeatFinder {
      *
      * @return the currently registered beat listeners
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized Set<BeatListener> getBeatListeners() {
         return Collections.unmodifiableSet(new HashSet<BeatListener>(listeners));
     }

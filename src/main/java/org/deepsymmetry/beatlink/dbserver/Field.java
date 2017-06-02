@@ -89,7 +89,7 @@ public abstract class Field {
      *
      * @return the hex representations of the bytes that this field will send over the network.
      */
-    protected String getHexString() {
+    String getHexString() {
         final ByteBuffer bytes = getBytes();
         final byte[] array = new byte[bytes.remaining()];
         bytes.get(array);

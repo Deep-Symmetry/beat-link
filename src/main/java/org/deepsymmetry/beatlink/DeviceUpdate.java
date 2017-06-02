@@ -13,27 +13,28 @@ public abstract class DeviceUpdate {
     /**
      * The address from which this device update was received.
      */
-    protected final InetAddress address;
+    final InetAddress address;
 
     /**
      * When this update was received.
      */
-    protected final long timestamp;
+    @SuppressWarnings("WeakerAccess")
+    final long timestamp;
 
     /**
      * The name of the device sending the update.
      */
-    protected final String deviceName;
+    final String deviceName;
 
     /**
      * The player/device number sending the update.
      */
-    protected final int deviceNumber;
+    final int deviceNumber;
 
     /**
      * The packet data containing the device update.
      */
-    protected final byte[] packetBytes;
+    final byte[] packetBytes;
 
     /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
@@ -42,6 +43,7 @@ public abstract class DeviceUpdate {
      * @param name the type of packet that is being processed, in case a problem needs to be reported
      * @param length the expected length of the packet
      */
+    @SuppressWarnings("WeakerAccess")
     public DeviceUpdate(DatagramPacket packet, String name, int length) {
         timestamp = System.nanoTime();
         if (packet.getLength() != length) {
@@ -133,5 +135,6 @@ public abstract class DeviceUpdate {
      *
      * @return true for status packets from players, false for status packets from mixers
      */
+    @SuppressWarnings("WeakerAccess")
     public abstract boolean isBeatWithinBarMeaningful();
 }

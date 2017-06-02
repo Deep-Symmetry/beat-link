@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public class DeviceFinder {
 
     private static final Logger logger = LoggerFactory.getLogger(DeviceFinder.class.getName());
@@ -50,6 +51,7 @@ public class DeviceFinder {
      *
      * @return {@code true} if our socket is open and monitoring for DJ Link device announcements on the network
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized boolean isActive() {
         return socket != null;
     }
@@ -124,17 +126,17 @@ public class DeviceFinder {
      *
      * @param announcement the message from the device to be considered
      *
-     * @return true if we have already seen messages from this device
+     * @return true if this is the first message from this device
      */
-    private static synchronized boolean isDeviceKnown(DeviceAnnouncement announcement) {
-        return devices.containsKey(announcement.getAddress());
+    private static synchronized boolean isDeviceNew(DeviceAnnouncement announcement) {
+        return !devices.containsKey(announcement.getAddress());
     }
 
     /**
      * Maintain a set of addresses from which device announcements should be ignored. The {@link VirtualCdj} will add
      * its socket to this set when it is active so that it does not show up in the set of devices found on the network.
      */
-    private static Set<InetAddress> ignoredAddresses = new HashSet<InetAddress>();
+    private static final Set<InetAddress> ignoredAddresses = new HashSet<InetAddress>();
 
     /**
      * Start ignoring any device updates which are received from the specified address. Intended for use by the
@@ -199,7 +201,7 @@ public class DeviceFinder {
                                     Util.validateHeader(packet, 6, "device announcement")) {
                                 // Looks like the kind of packet we need
                                 DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
-                                final boolean foundNewDevice = !isDeviceKnown(announcement);
+                                final boolean foundNewDevice = isDeviceNew(announcement);
                                 updateDevices(announcement);
                                 if (foundNewDevice) {
                                     deliverFoundAnnouncement(announcement);
@@ -221,6 +223,7 @@ public class DeviceFinder {
      * Stop listening for device announcements. Also discard any announcements which had been received, and
      * notify any registered listeners that those devices have been lost.
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized void stop() {
         if (isActive()) {
             final Set<DeviceAnnouncement> lastDevices = currentDevices();
@@ -283,6 +286,7 @@ public class DeviceFinder {
      *
      * @param listener the device announcement listener to add
      */
+    @SuppressWarnings("SameParameterValue")
     public static synchronized void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
         if (listener != null) {
             listeners.add(listener);
@@ -307,6 +311,7 @@ public class DeviceFinder {
      *
      * @return the currently registered device announcement listeners
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
         return Collections.unmodifiableSet(new HashSet<DeviceAnnouncementListener>(listeners));
     }

@@ -28,42 +28,45 @@ public class Client {
     /**
      * The socket on which we are communicating with the player's dbserver.
      */
-    final Socket socket;
+    private final Socket socket;
 
     /**
      * The stream used to read input from the dbserver.
      */
-    final DataInputStream is;
+    private final DataInputStream is;
 
     /**
      * The stream used to send messages to the dbserver.
      */
-    final OutputStream os;
+    private final OutputStream os;
 
     /**
      * The channel used to write byte buffers to the dbserver.
      */
-    final WritableByteChannel channel;
+    private final WritableByteChannel channel;
 
     /**
      * The player number we are communicating with.
      */
-    final int targetPlayer;
+    @SuppressWarnings("WeakerAccess")
+    public final int targetPlayer;
 
     /**
      * The player we are pretending to be.
      */
-    final int posingAsPlayer;
+    @SuppressWarnings("WeakerAccess")
+    public final int posingAsPlayer;
 
     /**
      * The greeting message exchanged over a new connection consists of a 4-byte number field containing the value 1.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final NumberField GREETING_FIELD = new NumberField(1, 4);
 
     /**
      * Used to assign unique numbers to each transaction.
      */
-    long transactionCounter = 0;
+    private long transactionCounter = 0;
 
     /**
      * The dbserver client must be constructed with a freshly-opened socket to the dbserver port on the specified
@@ -131,6 +134,7 @@ public class Client {
      *
      * @return {@code true} if this instance can still be used to query the connected dbserver
      */
+    @SuppressWarnings("WeakerAccess")
     public boolean isConnected() {
         return socket.isConnected();
     }
@@ -138,6 +142,7 @@ public class Client {
     /**
      * Closes the connection to the dbserver. This instance can no longer be used after this action.
      */
+    @SuppressWarnings("WeakerAccess")
     public void close() {
         try {
             channel.close();
@@ -169,6 +174,7 @@ public class Client {
      *
      * @throws IOException if there is a problem writing to the channel
      */
+    @SuppressWarnings("WeakerAccess")
     void writeField(Field field, WritableByteChannel channel) throws IOException {
         logger.debug("..writing> {}", field);
         Util.writeFully(field.getBytes(), channel);
@@ -183,6 +189,7 @@ public class Client {
      *
      * @throws IOException if the field cannot be sent
      */
+    @SuppressWarnings("WeakerAccess")
     void sendField(Field field) throws IOException {
         if (isConnected()) {
             try {
@@ -202,6 +209,7 @@ public class Client {
      *
      * @return the appropriate number field to use for the new message’s transaction argument
      */
+    @SuppressWarnings("WeakerAccess")
     public synchronized NumberField assignTransactionNumber() {
         return new NumberField(++transactionCounter, 4);
     }
@@ -213,6 +221,7 @@ public class Client {
      *
      * @throws IOException if there is a problem sending it
      */
+    @SuppressWarnings("WeakerAccess")
     public synchronized void sendMessage(Message message) throws IOException {
         logger.debug("Sending> {}", message);
         for (Field field : message.fields) {
@@ -251,6 +260,7 @@ public class Client {
      *
      * @return the first argument to send with the query in order to obtain the desired information
      */
+    @SuppressWarnings("WeakerAccess")
     public static NumberField buildRMS1(int requestingPlayer, Message.MenuIdentifier targetMenu,
                                         CdjStatus.TrackSourceSlot slot) {
         return new NumberField(((requestingPlayer & 0x0ff) << 24) |
@@ -318,8 +328,9 @@ public class Client {
      *
      * @throws IOException if there is a problem communicating, or if the requested menu is not available
      */
+    @SuppressWarnings("SameParameterValue")
     public synchronized Message menuRequest(Message.KnownType requestType, Message.MenuIdentifier targetMenu,
-                               CdjStatus.TrackSourceSlot slot, Field... arguments)
+                                            CdjStatus.TrackSourceSlot slot, Field... arguments)
         throws IOException {
         Field[] combinedArguments = new Field[arguments.length + 1];
         combinedArguments[0] = buildRMS1(targetMenu, slot);
@@ -338,6 +349,7 @@ public class Client {
      * The default maximum number of menu items we will request at a single time. We are not sure what the largest safe
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final long DEFAULT_MENU_BATCH_SIZE = 64;
 
     /**
@@ -386,8 +398,9 @@ public class Client {
      *
      * @throws IOException if there is a problem reading the menu items
      */
-    public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot,
-                                                      Message availableResponse)
+    @SuppressWarnings("SameParameterValue")
+    public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu,
+                                                      CdjStatus.TrackSourceSlot slot, Message availableResponse)
             throws IOException {
         final long count = availableResponse.getMenuResultsCount();
         if (count == Message.NO_MENU_RESULTS_AVAILABLE) {

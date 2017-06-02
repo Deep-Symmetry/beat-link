@@ -94,7 +94,7 @@ This change log follows the conventions of
   section of the packet.
 - Now uses slf4j to abstract over whatever logging framework is being
   used by projects that embed beat-link.
-- Can now obtain track metadata (title and arist, so far), from the
+- Can now obtain track metadata (title and artist, so far), from the
   CDJs! Not yet reliable or safe, however, so not documented.
 - As part of that, the rekordbox track id and source player / slot
   information have been found in the CDJ status packets. This part is
@@ -166,7 +166,7 @@ This change log follows the conventions of
   non-rekordbox track is being played, or a non-nexus player sent the
   update), `CdjStatus.getBeatNumber()` now returns `-1`.
 - A new method `DeviceFinder.getLatestAnnouncementFrom()` and
-  a new overload of `VirtualCdj.getLatustStatusFor()` which take a
+  a new overload of `VirtualCdj.getLatestStatusFor()` which take a
   device (player) number and look for matching announcement or status
   reports.
 
@@ -218,7 +218,7 @@ This change log follows the conventions of
 
 ### Added
 
-- Intial early release of DeviceFinder.
+- Initial early release of DeviceFinder.
 
 
 [unreleased]: https://github.com/brunchboy/beat-link/compare/v0.2.1...HEAD

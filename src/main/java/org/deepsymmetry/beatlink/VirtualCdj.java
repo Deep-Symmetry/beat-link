@@ -1,6 +1,5 @@
 package org.deepsymmetry.beatlink;
 
-import java.awt.EventQueue;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
@@ -15,6 +14,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public class VirtualCdj {
 
     private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class.getName());
@@ -22,6 +22,7 @@ public class VirtualCdj {
     /**
      * The port to which other devices will send status update messages.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final int UPDATE_PORT = 50002;
 
     /**
@@ -128,6 +129,7 @@ public class VirtualCdj {
      *
      * @param number the virtual player number
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized void setDeviceNumber(byte number) {
         if (number == 0 && isActive()) {
             selfAssignDeviceNumber();
@@ -171,7 +173,7 @@ public class VirtualCdj {
      * and IP address, as described in Figure 8 in the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    private static byte[] announcementBytes = {
+    private static final byte[] announcementBytes = {
             0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x06, 0x00,  0x62, 0x65, 0x61, 0x74,
             0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
             0x01, 0x02, 0x00, 0x36,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
@@ -509,6 +511,7 @@ public class VirtualCdj {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
+    @SuppressWarnings("UnusedReturnValue")
     public static synchronized boolean start() throws SocketException {
         if (!isActive()) {
 
@@ -536,6 +539,7 @@ public class VirtualCdj {
     /**
      * Stop announcing ourselves and listening for status updates.
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized void stop() {
         if (isActive()) {
             DeviceFinder.removeIgnoredAddress(socket.getLocalAddress());
@@ -677,6 +681,7 @@ public class VirtualCdj {
      *
      * @return the currently registered tempo master listeners
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized Set<MasterListener> getMasterListeners() {
         return Collections.unmodifiableSet(new HashSet<MasterListener>(masterListeners));
     }
@@ -747,6 +752,7 @@ public class VirtualCdj {
      *
      * @param listener the device update listener to add
      */
+    @SuppressWarnings("SameParameterValue")
     public static synchronized void addUpdateListener(DeviceUpdateListener listener) {
         if (listener != null) {
             updateListeners.add(listener);
@@ -760,6 +766,7 @@ public class VirtualCdj {
      *
      * @param listener the device update listener to remove
      */
+    @SuppressWarnings("SameParameterValue")
     public static synchronized void removeUpdateListener(DeviceUpdateListener listener) {
         if (listener != null) {
             updateListeners.remove(listener);
@@ -771,6 +778,7 @@ public class VirtualCdj {
      *
      * @return the currently registered update listeners
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized Set<DeviceUpdateListener> getUpdateListeners() {
         return Collections.unmodifiableSet(new HashSet<DeviceUpdateListener>(updateListeners));
     }

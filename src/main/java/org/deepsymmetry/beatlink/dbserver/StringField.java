@@ -21,12 +21,6 @@ public class StringField extends Field {
     private final byte typeTag = (byte)0x26;
 
     /**
-     * The byte which identifies this type of field within a message's argument list, which for some reason is
-     * different than the type tag itself.
-     */
-    private final byte argumentTag = (byte)0x02;
-
-    /**
      * The number of bytes making up the network representation of the value of this field, excluding the type tag.
      */
     private final int size;
@@ -99,7 +93,7 @@ public class StringField extends Field {
 
     @Override
     public byte getArgumentTag() {
-        return argumentTag;
+        return (byte) 0x02;
     }
 
     @Override

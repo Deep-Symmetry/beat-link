@@ -3,7 +3,6 @@ package org.deepsymmetry.beatlink.dbserver;
 import org.deepsymmetry.beatlink.Util;
 
 import java.io.DataInputStream;
-import java.io.InputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -19,12 +18,6 @@ public class NumberField extends Field {
      * The byte which identifies the specific type of number field that is coming next in a network stream.
      */
     private final byte typeTag;
-
-    /**
-     * The byte which identifies this type of field within a message's argument list, which for some reason is
-     * different than the type tag itself.
-     */
-    private final byte argumentTag = (byte)0x06;
 
     /**
      * The number of bytes making up the network representation of the value of this field, excluding the type tag.
@@ -135,7 +128,7 @@ public class NumberField extends Field {
 
     @Override
     public byte getArgumentTag() {
-        return argumentTag;
+        return (byte) 0x06;
     }
 
     @Override

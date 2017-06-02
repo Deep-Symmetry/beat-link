@@ -13,6 +13,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public interface MasterListener extends BeatListener {
 
     /**
@@ -29,6 +30,7 @@ public interface MasterListener extends BeatListener {
      *
      * @param update the message identifying the new master, or {@code null} if there is now none
      */
+    @SuppressWarnings({"EmptyMethod", "unused"})
     void masterChanged(DeviceUpdate update);
 
     /**
@@ -45,6 +47,7 @@ public interface MasterListener extends BeatListener {
      *
      * @param tempo the new master tempo
      */
+    @SuppressWarnings({"EmptyMethod", "unused"})
     void tempoChanged(double tempo);
 
 }

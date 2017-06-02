@@ -9,6 +9,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public interface DeviceUpdateListener {
 
     /**

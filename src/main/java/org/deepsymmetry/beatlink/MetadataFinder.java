@@ -27,6 +27,7 @@ import java.util.zip.ZipOutputStream;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public class MetadataFinder {
 
     private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class.getName());
@@ -34,6 +35,7 @@ public class MetadataFinder {
     /**
      * The default value we will use for timeouts on opening and reading from sockets.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final int DEFAULT_SOCKET_TIMEOUT = 10000;
 
     /**
@@ -68,6 +70,7 @@ public class MetadataFinder {
      *               player for metadata about it
      * @return the metadata that was obtained, if any
      */
+    @SuppressWarnings("WeakerAccess")
     public static TrackMetadata requestMetadataFrom(CdjStatus status) {
         if (status.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK || status.getRekordboxId() == 0) {
             return null;
@@ -102,6 +105,7 @@ public class MetadataFinder {
      *
      * @throws IOException if there is a problem reading the response.
      */
+    @SuppressWarnings("SameParameterValue")
     private static byte[] readResponseWithExpectedSize(InputStream is, int size, String description) throws IOException {
         byte[] result = receiveBytes(is);
         if (result.length != size) {
@@ -324,7 +328,7 @@ public class MetadataFinder {
      *
      * @param <T> the type returned by the activity
      */
-    private interface ClientTask<T extends Object> {
+    private interface ClientTask<T> {
         T runWithClient(Client client) throws Exception;
     }
 
@@ -342,8 +346,8 @@ public class MetadataFinder {
      *
      * @return the value returned by running the task if all went well, or {@code null} if there was a problem
      */
-    private static <T extends Object> T runWithClient(int player, CdjStatus.TrackSourceSlot slot,
-                                                      ClientTask<T> task, String description, boolean evenIfPassive) {
+    private static <T> T runWithClient(int player, CdjStatus.TrackSourceSlot slot,
+                                       ClientTask<T> task, String description, boolean evenIfPassive) {
         if (passive && !evenIfPassive) {
             logger.info("Skipping {} while in passive mode", description);
             return null;  // We are not allowed to actively query for metadata
@@ -391,6 +395,7 @@ public class MetadataFinder {
      *
      * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized TrackMetadata requestMetadataFrom(final int player, final CdjStatus.TrackSourceSlot slot,
                                                                  final int rekordboxId) {
         // First check if we are using cached data for this request
@@ -503,7 +508,7 @@ public class MetadataFinder {
      * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
      * previous contents of the specified file will be replaced.
      *
-     * @param player the player number whose media library is to have its metdata cached
+     * @param player the player number whose media library is to have its metadata cached
      * @param slot the slot in which the media to be cached can be found
      * @param playlistId the id of playlist to be cached, or 0 of all tracks should be cached
      * @param cache the file into which the metadata cache should be written
@@ -543,6 +548,7 @@ public class MetadataFinder {
     /**
      * The comment string used to identify a ZIP file as one of our metadata caches.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final String CACHE_FORMAT_IDENTIFIER = "BeatLink Metadata Cache version 1";
 
     /**
@@ -593,28 +599,34 @@ public class MetadataFinder {
                 if (entry.getMenuItemType() != Message.MenuItemType.TRACK_LIST_ENTRY) {
                     throw new IOException("Received unexpected item type. Needed TRACK_LIST_ENTRY, got: " + entry);
                 }
-                int rekordBoxId = (int)((NumberField)entry.arguments.get(1)).getValue();
-                TrackMetadata track = getTrackMetadata(rekordBoxId, slot, client);
-                logger.debug("Adding metadata with ID {}", rekordBoxId);
-                zipEntry = new ZipEntry(getMetadataEntryName(rekordBoxId));
-                zos.putNextEntry(zipEntry);
-                for (Message metadataItem : track.rawItems) {
-                    client.writeMessage(metadataItem, channel);
+                int rekordboxId = (int)((NumberField)entry.arguments.get(1)).getValue();
+                TrackMetadata track = getTrackMetadata(rekordboxId, slot, client);
+
+                if (track != null) {
+                    logger.debug("Adding metadata with ID {}", rekordboxId);
+                    zipEntry = new ZipEntry(getMetadataEntryName(rekordboxId));
+                    zos.putNextEntry(zipEntry);
+                    for (Message metadataItem : track.rawItems) {
+                        client.writeMessage(metadataItem, channel);
+                    }
+                    client.writeMessage(MENU_FOOTER_MESSAGE, channel);  // So we know to stop reading
+                } else {
+                    logger.warn("Unable to retrieve metadata with ID {}", rekordboxId);
                 }
-                client.writeMessage(MENU_FOOTER_MESSAGE, channel);  // So we know to stop reading
 
                 // Now the album art, if any
-                if (track.getRawArtwork() != null && !artworkAdded.contains(track.getArtworkId())) {
+                if (track != null && track.getRawArtwork() != null && !artworkAdded.contains(track.getArtworkId())) {
                     logger.debug("Adding artwork with ID {}", track.getArtworkId());
                     zipEntry = new ZipEntry(getArtworkEntryName(track));
                     zos.putNextEntry(zipEntry);
                     Util.writeFully(track.getRawArtwork(), channel);
+                    artworkAdded.add(track.getArtworkId());
                 }
 
-                BeatGrid beatGrid = getBeatGrid(rekordBoxId, slot, client);
+                BeatGrid beatGrid = getBeatGrid(rekordboxId, slot, client);
                 if (beatGrid != null) {
-                    logger.debug("Adding beat grid with ID {}", rekordBoxId);
-                    zipEntry = new ZipEntry(getBeatGridEntryName(rekordBoxId));
+                    logger.debug("Adding beat grid with ID {}", rekordboxId);
+                    zipEntry = new ZipEntry(getBeatGridEntryName(rekordboxId));
                     zos.putNextEntry(zipEntry);
                     Util.writeFully(beatGrid.getRawData(), channel);
                 }
@@ -623,7 +635,9 @@ public class MetadataFinder {
                 if (listener != null) {
                     if (!listener.cacheUpdateContinuing(track, ++tracksCopied, totalToCopy)) {
                         logger.info("Track metadata cache creation canceled by listener");
-                        cache.delete();
+                        if (!cache.delete()) {
+                            logger.warn("Unable to delete cache metadata file, {}", cache);
+                        }
                         return;
                     }
                 }
@@ -648,7 +662,7 @@ public class MetadataFinder {
                     bos.close();
                 }
             } catch (Exception e) {
-                logger.error("Problem closing Buffered Output Stream of metadata cahce", e);
+                logger.error("Problem closing Buffered Output Stream of metadata cache", e);
             }
             try {
                 if (fos != null) {
@@ -663,12 +677,12 @@ public class MetadataFinder {
     /**
      * Names the appropriate zip file entry for caching a track's metadata.
      *
-     * @param rekordBoxId the id of the track being cached or looked up
+     * @param rekordboxId the id of the track being cached or looked up
      *
      * @return the name of the entry where that track's metadata should be stored
      */
-    private static String getMetadataEntryName(int rekordBoxId) {
-        return CACHE_METADATA_ENTRY_PREFIX + rekordBoxId;
+    private static String getMetadataEntryName(int rekordboxId) {
+        return CACHE_METADATA_ENTRY_PREFIX + rekordboxId;
     }
 
     /**
@@ -685,12 +699,12 @@ public class MetadataFinder {
     /**
      * Names the appropriate zip file entry for caching a track's beat grid.
      *
-     * @param rekordBoxId the id of the track being cached or looked up
+     * @param rekordboxId the id of the track being cached or looked up
      *
      * @return the name of the entry where that track's beat grid should be stored
      */
-    private static String getBeatGridEntryName(int rekordBoxId) {
-        return CACHE_BEAT_GRID_ENTRY_PREFIX + rekordBoxId;
+    private static String getBeatGridEntryName(int rekordboxId) {
+        return CACHE_BEAT_GRID_ENTRY_PREFIX + rekordboxId;
     }
 
     /**
@@ -734,7 +748,7 @@ public class MetadataFinder {
      * Because this takes a huge amount of time relative to CDJ status updates, it can only be performed while
      * the MetadataFinder is in passive mode.
      *
-     * @param player the player number whose media library is to have its metdata cached
+     * @param player the player number whose media library is to have its metadata cached
      * @param slot the slot in which the media to be cached can be found
      * @param playlistId the id of playlist to be cached, or 0 of all tracks should be cached
      * @param cache the file into which the metadata cache should be written
@@ -745,6 +759,7 @@ public class MetadataFinder {
      * @throws IllegalStateException if the MetadataFinder is not running or not in passive mode when this is called,
      *                               or if another cache is already in the process of being created
      */
+    @SuppressWarnings({"SameParameterValue", "WeakerAccess"})
     public static void createMetadataCache(final int player, final CdjStatus.TrackSourceSlot slot, final int playlistId,
                                            final File cache, final MetadataCreationUpdateListener listener)
             throws IOException {
@@ -776,7 +791,9 @@ public class MetadataFinder {
             }
         };
 
-        cache.delete();
+        if (!cache.delete()) {
+            logger.warn("Unable to delete cache file, {}", cache);
+        }
         runWithClient(player, slot, task, "building metadata cache", true);
 
     }
@@ -818,7 +835,7 @@ public class MetadataFinder {
      * A queue used to hold CDJ status updates we receive from the {@link VirtualCdj} so we can process them on a
      * lower priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private static LinkedBlockingDeque<CdjStatus> pendingUpdates = new LinkedBlockingDeque<CdjStatus>(100);
+    private static final LinkedBlockingDeque<CdjStatus> pendingUpdates = new LinkedBlockingDeque<CdjStatus>(100);
 
     /**
      * Our update listener just puts appropriate device updates on our queue, so we can process them on a lower
@@ -848,6 +865,7 @@ public class MetadataFinder {
      *
      * @return the port number on which its database server is running, or -1 if unknown.
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized int getPlayerDBServerPort(int player) {
         Integer result = dbServerPorts.get(player);
         if (result == null) {
@@ -947,12 +965,13 @@ public class MetadataFinder {
      *
      * @return true if track metadata is being sought for all active players
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized boolean isRunning() {
         return running;
     }
 
     /**
-     * Indicates whether we should use metdata only from caches, never actively requesting it from a player.
+     * Indicates whether we should use metadata only from caches, never actively requesting it from a player.
      */
     private static boolean passive = false;
 
@@ -1036,6 +1055,7 @@ public class MetadataFinder {
      * @param player the device number whose track metadata is desired
      * @return information about the track loaded on that player, if available
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized TrackMetadata getLatestMetadataFor(int player) {
         return metadata.get(player);
     }
@@ -1080,7 +1100,7 @@ public class MetadataFinder {
      *
      * @throws IOException if there is a problem reading the cache file
      * @throws IllegalArgumentException if an invalid player number or slot is supplied
-     * @throws IllegalStateException if the metadatafinder is not running
+     * @throws IllegalStateException if the metadata finder is not running
      */
     public static void attachMetadataCache(int player, CdjStatus.TrackSourceSlot slot, File cache)
             throws IOException {
@@ -1090,7 +1110,7 @@ public class MetadataFinder {
         if (player < 1 || player > 4 || DeviceFinder.getLatestAnnouncementFrom(player) == null) {
             throw new IllegalArgumentException("unable to attach metadata cache for player " + player);
         }
-        ZipFile oldCache = null;
+        ZipFile oldCache;
 
         // Open and validate the cache
         ZipFile newCache = new ZipFile(cache, ZipFile.OPEN_READ);
@@ -1145,6 +1165,7 @@ public class MetadataFinder {
      * @param player the player number for which a metadata cache is to be attached
      * @param slot the media slot to which a meta data cache is to be attached
      */
+    @SuppressWarnings("WeakerAccess")
     public static void detachMetadataCache(int player, CdjStatus.TrackSourceSlot slot) {
         ZipFile oldCache = null;
         switch (slot) {
@@ -1179,6 +1200,7 @@ public class MetadataFinder {
      * @return the zip file being used as a metadata cache for that player and slot, or {@code null} if no cache
      *         has been attached
      */
+    @SuppressWarnings("WeakerAccess")
     public static ZipFile getMetadataCache(int player, CdjStatus.TrackSourceSlot slot) {
         switch (slot) {
             case USB_SLOT:
@@ -1193,12 +1215,12 @@ public class MetadataFinder {
     /**
      * Keeps track of any players with mounted SD media.
      */
-    private static Set<Integer> sdMounts = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private static final Set<Integer> sdMounts = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
 
     /**
      * Keeps track of any players with mounted USB media.
      */
-    private static Set<Integer> usbMounts = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private static final Set<Integer> usbMounts = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
 
     /**
      * Records that there is media mounted in a particular media player slot, updating listeners if this is a change.
@@ -1309,6 +1331,7 @@ public class MetadataFinder {
      *
      * @return the listeners that are currently registered for metadata cache updates
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized Set<MetadataCacheUpdateListener> getCacheUpdateListeners() {
         return Collections.unmodifiableSet(new HashSet<MetadataCacheUpdateListener>(cacheListeners));
     }
@@ -1363,6 +1386,7 @@ public class MetadataFinder {
      *
      * @return the listeners that are currently registered for metadata cache updates
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized Set<TrackMetadataUpdateListener> getTrackMetadataUpdateListeners() {
         return Collections.unmodifiableSet(new HashSet<TrackMetadataUpdateListener>(trackListeners));
     }

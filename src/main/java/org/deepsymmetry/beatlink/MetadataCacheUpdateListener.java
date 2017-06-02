@@ -14,6 +14,7 @@ import java.util.zip.ZipFile;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public interface MetadataCacheUpdateListener {
     /**
      * Invoked whenever there is a change in state relevant to metadata caches: A cache for some device slot has been

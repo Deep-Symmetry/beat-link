@@ -17,6 +17,7 @@ import java.io.File;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public interface MetadataCreationUpdateListener {
     /**
      * Called to inform the listener that another track has been added to the metadata cache file being created.

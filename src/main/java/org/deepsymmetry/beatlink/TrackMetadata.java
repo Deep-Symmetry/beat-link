@@ -27,6 +27,7 @@ public class TrackMetadata {
     /**
      * The rekordbox ID that was used to request this track metadata.
      */
+    @SuppressWarnings("WeakerAccess")
     public final int rekordboxId;
 
     /**
@@ -143,7 +144,6 @@ public class TrackMetadata {
     TrackMetadata(int rekordboxId, List<Message> items) {
         this.rekordboxId = rekordboxId;
         rawItems = Collections.unmodifiableList(new LinkedList<Message>(items));
-        this.artwork = artwork;
         for (Message item : items) {
             switch (item.getMenuItemType()) {
                 case TRACK_TITLE:
@@ -278,7 +278,7 @@ public class TrackMetadata {
     }
 
     /**
-     * Get the date the track was added to the colletion. This information seems to proagate from iTunes.
+     * Get the date the track was added to the collection. This information seems to propagate from iTunes.
      *
      * @return the date the track was added to the collection, in the form "YYYY-MM-DD"
      */

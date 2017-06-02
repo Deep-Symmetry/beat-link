@@ -1,7 +1,6 @@
 package org.deepsymmetry.beatlink;
 
 import java.net.DatagramPacket;
-import java.net.InetAddress;
 
 /**
  * A device update that announces the start of a new beat on a DJ Link network. Even though beats contain
