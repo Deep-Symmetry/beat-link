@@ -319,31 +319,36 @@ public class MetadataFinder {
     }
 
     /**
-     * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID.
+     * An interface for all the kinds of activities we need a connection to the dbserver for, so we can share the
+     * setup and teardown code in one place.
      *
-     * @param player the player number whose track is of interest
-     * @param slot the slot in which the track can be found
-     * @param rekordboxId the track of interest
-     *
-     * @return the metadata, if any
-     *
-     * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
+     * @param <T> the type returned by the activity
      */
-    public static synchronized TrackMetadata requestMetadataFrom(int player, CdjStatus.TrackSourceSlot slot,
-                                                                 int rekordboxId) {
-        // First check if we are using cached data for this request
-        ZipFile cache = getMetadataCache(player, slot);
-        if (cache != null) {
-            return getCachedMetadata(cache, rekordboxId);
-        }
+    private interface ClientTask<T extends Object> {
+        T runWithClient(Client client) throws Exception;
+    }
 
-        // TODO: Once we understand and track cue points, keep an in-memory cache of any loaded hot-cue tracks.
-
-        if (passive) {
+    /**
+     * The shared setup and teardown code for the various activities which require exclusive access to a connection
+     * to the dbserver on a particular player.
+     *
+     * @param player the player number whose dbserver we wish to communicate with
+     * @param slot the media slot containing the data we want to query
+     * @param task the activity that will be performed with exclusive access to a dbserver connection
+     * @param description a short description of the task being performed for error reporting if it fails
+     * @param evenIfPassive unless this is {@code true}, the task will be skipped and {@code null} will be returned
+     *        if we are in passive mode when this method is called
+     * @param <T> the type returned by the activity
+     *
+     * @return the value returned by running the task if all went well, or {@code null} if there was a problem
+     */
+    private static <T extends Object> T runWithClient(int player, CdjStatus.TrackSourceSlot slot,
+                                                      ClientTask<T> task, String description, boolean evenIfPassive) {
+        if (passive && !evenIfPassive) {
+            logger.info("Skipping {} while in passive mode", description);
             return null;  // We are not allowed to actively query for metadata
         }
 
-        // We need to perform an actual query, so at this point we need to bail if a cache is being created
         failIfCreatingCache();
 
         final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
@@ -360,27 +365,113 @@ public class MetadataFinder {
             socket = new Socket();
             socket.connect(address, socketTimeout);
             socket.setSoTimeout(socketTimeout);
-            Client client = new Client(socket, player, posingAsPlayerNumber);
-
-            return getTrackMetadata(rekordboxId, slot, client);
+            return task.runWithClient(new Client(socket, player, posingAsPlayerNumber));
         } catch (Exception e) {
-            logger.warn("Problem requesting metadata", e);
+            logger.warn("Problem " + description, e);
         } finally {
             if (socket != null) {
                 try {
                     socket.close();
                 } catch (IOException e) {
-                    logger.warn("Problem closing metadata request socket", e);
+                    logger.warn("Problem closing socket for " + description, e);
                 }
             }
         }
         return null;
     }
 
-    // TODO: Add method that enumerates a playlist or folder, then one that caches metadata from a playlist.
+    /**
+     * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID.
+     *
+     * @param player the player number whose track is of interest
+     * @param slot the slot in which the track can be found
+     * @param rekordboxId the track of interest
+     *
+     * @return the metadata, if any
+     *
+     * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
+     */
+    public static synchronized TrackMetadata requestMetadataFrom(final int player, final CdjStatus.TrackSourceSlot slot,
+                                                                 final int rekordboxId) {
+        // First check if we are using cached data for this request
+        ZipFile cache = getMetadataCache(player, slot);
+        if (cache != null) {
+            return getCachedMetadata(cache, rekordboxId);
+        }
+
+        // TODO: Once we understand and track cue points, keep an in-memory cache of any loaded hot-cue tracks.
+
+        ClientTask<TrackMetadata> task = new ClientTask<TrackMetadata>() {
+            @Override
+            public TrackMetadata runWithClient(Client client) throws Exception {
+                return getTrackMetadata(rekordboxId, slot, client);
+            }
+        };
+        return runWithClient(player, slot, task, "requesting metadata", false);
+    }
 
     /**
-     * Ask the specified player for the beat grid pf the track in the specified slot with the specified rekordbox ID.
+     * Ask the connected dbserver for the playlist entries of the specified playlist (if {@code folder} is {@code false},
+     * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}.
+     * Pulled into a separate method so it can be used from multiple different client transactions.
+     *
+     * @param slot the slot in which the track can be found
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 5.10.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     * @param playlistOrFolderId the database ID of the desired playlist or folder
+     * @param folder indicates whether we are asking for the contents of a folder or playlist
+     * @param client the dbserver client that is communicating with the appropriate player
+
+     * @return the items that are found in the specified playlist or folder; they will be tracks if we are asking
+     *         for a playlist, or playlists and folders if we are asking for a folder
+
+     * @throws IOException if there is a problem communicating
+     */
+    private static List<Message> getPlaylistItems(CdjStatus.TrackSourceSlot slot, int sortOrder, int playlistOrFolderId,
+                                                  boolean folder, Client client) throws IOException {
+        Message response = client.menuRequest(Message.KnownType.PLAYLIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
+                new NumberField(sortOrder), new NumberField(playlistOrFolderId), new NumberField(folder? 1 : 0));
+        final long count = response.getMenuResultsCount();
+        if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
+            return Collections.emptyList();
+        }
+
+        // Gather all the metadata menu items
+        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
+    }
+
+    /**
+     * Ask the specified player for the playlist entries of the specified playlist (if {@code folder} is {@code false},
+     * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}.
+     *
+     * @param player the player number whose track is of interest
+     * @param slot the slot in which the track can be found
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 5.10.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     * @param playlistOrFolderId the database ID of the desired playlist or folder
+     * @param folder indicates whether we are asking for the contents of a folder or playlist
+     *
+     * @return the items that are found in the specified playlist or folder; they will be tracks if we are asking
+     *         for a playlist, or playlists and folders if we are asking for a folder
+     */
+    public static synchronized List<Message> requestPlaylistItemsFrom(final int player,
+                                                                      final CdjStatus.TrackSourceSlot slot,
+                                                                      final int sortOrder,
+                                                                      final int playlistOrFolderId,
+                                                                      final boolean folder) {
+        ClientTask<List<Message>> task = new ClientTask<List<Message>>() {
+            @Override
+            public List<Message> runWithClient(Client client) throws Exception {
+               return getPlaylistItems(slot, sortOrder, playlistOrFolderId, folder, client);
+            }
+        };
+        return runWithClient(player, slot, task, "requesting playlist information", true);
+    }
+
+    /**
+     * Ask the specified player for the beat grid of the track in the specified slot with the specified rekordbox ID.
      *
      * @param player the player number whose track is of interest
      * @param slot the slot in which the track can be found
@@ -390,49 +481,22 @@ public class MetadataFinder {
      *
      * @throws IllegalStateException if a metadata cache is being created and we need to talk to the CDJs
      */
-    public static synchronized BeatGrid requestBeatGridFrom(int player, CdjStatus.TrackSourceSlot slot, int rekordboxId) {
+    public static synchronized BeatGrid requestBeatGridFrom(final int player, final CdjStatus.TrackSourceSlot slot,
+                                                            final int rekordboxId) {
         // First check if we are using cached data for this request
         ZipFile cache = getMetadataCache(player, slot);
         if (cache != null) {
             return getCachedBeatGrid(cache, rekordboxId);
         }
 
-        if (passive) {
-            return null;  // We are not allowed to actively query for metadata
-        }
-
-        // We need to perform an actual query, so at this point we need to bail if a cache is being created
-        failIfCreatingCache();
-
-        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
-        final int dbServerPort = getPlayerDBServerPort(player);
-        if (deviceAnnouncement == null || dbServerPort < 0) {
-            return null;  // If the device isn't known, or did not provide a database server, we can't get metadata.
-        }
-
-        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
-
-        Socket socket = null;
-        try {
-            InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
-            socket = new Socket();
-            socket.connect(address, socketTimeout);
-            Client client = new Client(socket, player, posingAsPlayerNumber);
-
-            return getBeatGrid(rekordboxId, slot, client);
-        } catch (Exception e) {
-            logger.warn("Problem requesting beat grid", e);
-        } finally {
-            if (socket != null) {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    logger.warn("Problem closing metadata request socket", e);
-                }
+        ClientTask<BeatGrid> task = new ClientTask<BeatGrid>() {
+            @Override
+            public BeatGrid runWithClient(Client client) throws Exception {
+                return getBeatGrid(rekordboxId, slot, client);
             }
-        }
-        return null;
+        };
 
+        return runWithClient(player, slot, task, "requesting beat grid", false);
     }
 
     /**
@@ -441,13 +505,14 @@ public class MetadataFinder {
      *
      * @param player the player number whose media library is to have its metdata cached
      * @param slot the slot in which the media to be cached can be found
+     * @param playlistId the id of playlist to be cached, or 0 of all tracks should be cached
      * @param cache the file into which the metadata cache should be written
      *
      * @throws IOException if there is a problem communicating with the player or writing the cache file.
      */
-    public static void createMetadataCache(int player, CdjStatus.TrackSourceSlot slot, File cache)
+    public static void createMetadataCache(int player, CdjStatus.TrackSourceSlot slot, int playlistId, File cache)
             throws IOException {
-        createMetadataCache(player, slot, cache, null);
+        createMetadataCache(player, slot, playlistId, cache, null);
     }
 
     /**
@@ -671,6 +736,7 @@ public class MetadataFinder {
      *
      * @param player the player number whose media library is to have its metdata cached
      * @param slot the slot in which the media to be cached can be found
+     * @param playlistId the id of playlist to be cached, or 0 of all tracks should be cached
      * @param cache the file into which the metadata cache should be written
      * @param listener will be informed after each track is added to the cache file being created and offered
      *                 the opportunity to cancel the process
@@ -679,51 +745,40 @@ public class MetadataFinder {
      * @throws IllegalStateException if the MetadataFinder is not running or not in passive mode when this is called,
      *                               or if another cache is already in the process of being created
      */
-    public static void createMetadataCache(int player, CdjStatus.TrackSourceSlot slot, File cache,
-                                           MetadataCreationUpdateListener listener)
+    public static void createMetadataCache(final int player, final CdjStatus.TrackSourceSlot slot, final int playlistId,
+                                           final File cache, final MetadataCreationUpdateListener listener)
             throws IOException {
 
         if (!running) {
             throw new IllegalStateException("must be running to create a metadata cache");
         }
+
         if (!passive) {
             throw new IllegalStateException("must be in passive mode to create a metadata cache");
         }
 
-        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
-        final int dbServerPort = getPlayerDBServerPort(player);
-        if (deviceAnnouncement == null || dbServerPort < 0) {
-            throw new IOException("Unable to find dbserver on player " + player);
-        }
+        ClientTask<Object> task = new ClientTask<Object>() {
+            @Override
+            public Object runWithClient(Client client) throws Exception {
+                try {
+                    setCreatingCache(true);
+                    final List<Message> trackList;
+                    if (playlistId == 0) {
+                        trackList = getFullTrackList(slot, client);
+                    } else {
+                        trackList = getPlaylistItems(slot, 0, playlistId, false, client);
+                    }
+                    copyTracksToCache(trackList, client, slot, cache, listener);
+                    return null;
+                } finally {
+                    setCreatingCache(false);
+                }
+            }
+        };
 
-        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
-        Socket socket = null;
-        Client client = null;
-        try {
-            setCreatingCache(true);
-            cache.delete();
-            InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
-            socket = new Socket();
-            socket.connect(address, socketTimeout);
-            client = new Client(socket, player, posingAsPlayerNumber);
-            copyTracksToCache(getFullTrackList(slot, client), client, slot, cache, listener);
-        } finally {
-            try {
-                if (client != null) {
-                    client.close();
-                }
-            } catch (Exception e) {
-                logger.error("Problem closing dbserver client when building metadata cache", e);
-            }
-            try {
-                if (socket != null) {
-                    socket.close();
-                }
-            } catch (Exception e) {
-                logger.error("Problem closing socket when building metadata cache", e);
-            }
-            setCreatingCache(false);
-        }
+        cache.delete();
+        runWithClient(player, slot, task, "building metadata cache", true);
+
     }
 
     /**

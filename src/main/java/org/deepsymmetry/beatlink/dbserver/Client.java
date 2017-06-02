@@ -9,11 +9,10 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -394,7 +393,7 @@ public class Client {
         if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
             return Collections.emptyList();
         }
-        final LinkedList<Message> results = new LinkedList<Message>();
+        final ArrayList<Message> results = new ArrayList<Message>((int)count);
         final Field zeroField = new NumberField(0);
         long offset = 0;
         while (offset < count) {
