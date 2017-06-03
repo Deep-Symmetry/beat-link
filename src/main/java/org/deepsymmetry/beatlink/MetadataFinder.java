@@ -180,6 +180,28 @@ public class MetadataFinder {
     }
 
     /**
+     * Requests the waveform preview for a specific track ID, given a connection to a player that has already been
+     * set up.
+     *
+     * @param rekordboxId the track of interest
+     * @param slot identifies the media slot we are querying
+     * @param client the dbserver client that is communicating with the appropriate player
+     *
+     * @return the retrieved waveform preview, or {@code null} if none was available
+     * @throws IOException if there is a communication problem
+     */
+    private static WaveformPreview getWaveformPreview(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
+        throws IOException {
+        Message response = client.simpleRequest(Message.KnownType.CUE_LIST_REQ, null,
+                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId));
+        if (response.knownType == Message.KnownType.CUE_LIST) {
+            return new WaveformPreview(response);
+        }
+        logger.error("Unexpected response type when requesting waveform preview: {}", response);
+        return null;
+    }
+
+    /**
      * Request the list of all tracks in the specified slot, given a connection to a player that has already been
      * set up.
      *
@@ -325,6 +347,37 @@ public class MetadataFinder {
     }
 
     /**
+     * Look up a waveform preview in a metadata cache.
+     *
+     * @param cache the appropriate metadata cache file
+     * @param rekordboxId the track whose preview is desired
+     *
+     * @return the cached waveform preview (if available), or {@code null}
+     */
+    private static WaveformPreview getCachedWaveformPreview(ZipFile cache, int rekordboxId) {
+        ZipEntry entry = cache.getEntry(getCueListEntryName(rekordboxId));
+        if (entry != null) {
+            DataInputStream is = null;
+            try {
+                is = new DataInputStream(cache.getInputStream(entry));
+                Message message = Message.read(is);
+                return new WaveformPreview(message);
+            } catch (IOException e) {
+                logger.error("Problem reading waveform preview from cache file, returning null", e);
+            } finally {
+                if (is != null) {
+                    try {
+                        is.close();
+                    } catch (Exception e) {
+                        logger.error("Problem closing ZipFile input stream for waveform preview", e);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Ask the connected dbserver for the playlist entries of the specified playlist (if {@code folder} is {@code false},
      * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}.
      * Pulled into a separate method so it can be used from multiple different client transactions.
@@ -451,6 +504,38 @@ public class MetadataFinder {
     }
 
     /**
+     * Ask the specified player for the waveform preview of the track in the specified slot with the specified
+     * rekordbox ID, first checking if we have a cache we can use instead.
+     *
+     * @param player the player number whose track is of interest
+     * @param slot the slot in which the track can be found
+     * @param rekordboxId the track of interest
+     *
+     * @return the preview, if any
+     *
+     * @throws Exception if there is a problem getting the waveform preview
+     */
+    public static WaveformPreview requestWaveformPreviewFrom(final int player, final CdjStatus.TrackSourceSlot slot,
+                                                             final int rekordboxId)
+            throws Exception {
+
+        // First check if we are using cached data for this request
+        ZipFile cache = getMetadataCache(player, slot);
+        if (cache != null) {
+            return getCachedWaveformPreview(cache, rekordboxId);
+        }
+
+        ConnectionManager.ClientTask<WaveformPreview> task = new ConnectionManager.ClientTask<WaveformPreview>() {
+            @Override
+            public WaveformPreview useClient(Client client) throws Exception {
+                return getWaveformPreview(rekordboxId, slot, client);
+            }
+        };
+
+        return ConnectionManager.invokeWithClientSession(player, task, "requesting cue list");
+    }
+
+    /**
      * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
      * previous contents of the specified file will be replaced.
      *
@@ -489,12 +574,17 @@ public class MetadataFinder {
     /**
      * The prefix for cache file entries that will store beat grids.
      */
-    private static final String CACHE_BEAT_GRID_ENTRY_PREFIX = CACHE_PREFIX + "beatgrid/";
+    private static final String CACHE_BEAT_GRID_ENTRY_PREFIX = CACHE_PREFIX + "beatGrid/";
 
     /**
      * The prefix for cache file entries that will store beat grids.
      */
-    private static final String CACHE_CUE_LIST_ENTRY_PREFIX = CACHE_PREFIX + "cuelist/";
+    private static final String CACHE_CUE_LIST_ENTRY_PREFIX = CACHE_PREFIX + "cueList/";
+
+    /**
+     * The prefix for cache file entries that will store waveform previews.
+     */
+    private static final String CACHE_WAVEFORM_PREVIEW_ENTRY_PREFIX = CACHE_PREFIX + "wavePrev/";
 
     /**
      * The comment string used to identify a ZIP file as one of our metadata caches.
@@ -590,6 +680,14 @@ public class MetadataFinder {
                     cueList.rawMessage.write(channel);
                 }
 
+                WaveformPreview preview = getWaveformPreview(rekordboxId, slot, client);
+                if (preview != null) {
+                    logger.debug("Adding waveform preview entry with ID {}", rekordboxId);
+                    zipEntry = new ZipEntry((getWaveformPreviewEntryName(rekordboxId)));
+                    zos.putNextEntry(zipEntry);
+                    preview.rawMessage.write(channel);
+                }
+
                 // TODO: Include waveforms (once supported), etc.
                 if (listener != null) {
                     if (!listener.cacheUpdateContinuing(track, ++tracksCopied, totalToCopy)) {
@@ -675,6 +773,17 @@ public class MetadataFinder {
      */
     private static String getCueListEntryName(int rekordboxId) {
         return CACHE_CUE_LIST_ENTRY_PREFIX + rekordboxId;
+    }
+
+    /**
+     * Names the appropriate zip file entry for caching a track's waveform preview.
+     *
+     * @param rekordboxId the id of the track being cached or looked up
+     *
+     * @return the name of the entry where that track's cue list should be stored
+     */
+    private static String getWaveformPreviewEntryName(int rekordboxId) {
+        return CACHE_WAVEFORM_PREVIEW_ENTRY_PREFIX + rekordboxId;
     }
 
     /**
