@@ -128,7 +128,7 @@ public class CueList {
                     sb.append("Memory Point[");
                 }
             } else {
-                sb.append("Hot Cue ").append((char)hotCueNumber + '@').append('[');
+                sb.append("Hot Cue ").append((char)(hotCueNumber + '@')).append('[');
             }
             sb.append("time ").append(cueTime).append("ms");
             if (isLoop) {
