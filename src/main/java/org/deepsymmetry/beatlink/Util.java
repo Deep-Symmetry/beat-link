@@ -80,6 +80,24 @@ public class Util {
     }
 
     /**
+     * Reconstructs a number that is represented by more than one byte in a network packet in little-endian order, for
+     * the very few protocol values that are sent in this quirky way.
+     *
+     * @param buffer the byte array containing the packet data
+     * @param start the index of the first byte containing a numeric value
+     * @param length the number of bytes making up the value
+     * @return the reconstructed number
+     */
+    @SuppressWarnings("SameParameterValue")
+    public static long bytesToNumberLittleEndian(byte[] buffer, int start, int length) {
+        long result = 0;
+        for (int index = start + length - 1; index >= start; index--) {
+            result = (result << 8) + unsign(buffer[index]);
+        }
+        return result;
+    }
+
+    /**
      * Converts the bytes that make up an internet address into the corresponding integer value to make
      * it easier to perform bit-masking operations on them.
      *

@@ -73,11 +73,7 @@ public class BeatGrid {
             final int base = 20 + beatNumber * 16;  // Data for the current beat starts here
             beatWithinBarValues[beatNumber] = Util.unsign(gridBytes[base]);
             // For some reason, unlike every other number in the protocol, beat timings are little-endian
-            timeWithinTrackValues[beatNumber] = 0;
-            for (int offset = base + 7; offset >= base + 4; offset--) {
-                timeWithinTrackValues[beatNumber] = (timeWithinTrackValues[beatNumber] << 8) +
-                        Util.unsign(gridBytes[offset]);
-            }
+            timeWithinTrackValues[beatNumber] = Util.bytesToNumberLittleEndian(gridBytes, base + 4, 4);
         }
     }
 
