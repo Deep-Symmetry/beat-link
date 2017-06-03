@@ -144,7 +144,7 @@ public class CueList {
      * ordinary memory points if both are at the same position (as often seems to happen).
      */
     @SuppressWarnings("WeakerAccess")
-    final List<Entry> entries;
+    public final List<Entry> entries;
 
     /**
      * Constructor when reading from the network or a cache file.
