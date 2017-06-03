@@ -1,7 +1,6 @@
 package org.deepsymmetry.beatlink.dbserver;
 
 import org.deepsymmetry.beatlink.CdjStatus;
-import org.deepsymmetry.beatlink.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +16,8 @@ import java.util.List;
 
 /**
  * Manages a connection to the dbserver port on a particular player, allowing queries to be sent, and their
- * responses to be interpreted.
+ * responses to be interpreted. Direct instantiation is not available outside the package, instead
+ * {@link ConnectionManager#invokeWithClientSession(int, ConnectionManager.ClientTask, String)} must be used.
  *
  * @author James Elliott
  */
@@ -70,7 +70,8 @@ public class Client {
 
     /**
      * The dbserver client must be constructed with a freshly-opened socket to the dbserver port on the specified
-     * player number. It must be in charge of all communication with that socket.
+     * player number. It must be in charge of all communication with that socket. The {@link ConnectionManager} is
+     * expected to be the only class that instantiates clients.
      *
      * @param socket the newly opened network socket to the dbserver on a player
      * @param targetPlayer the player number to which the socket was opened
@@ -78,7 +79,7 @@ public class Client {
      *
      * @throws IOException if there is a problem configuring the socket for use
      */
-    public Client(Socket socket, int targetPlayer, int posingAsPlayer) throws IOException {
+    Client(Socket socket, int targetPlayer, int posingAsPlayer) throws IOException {
         this.socket = socket;
         is = new DataInputStream(socket.getInputStream());
         os = socket.getOutputStream();
@@ -167,20 +168,6 @@ public class Client {
     }
 
     /**
-     * Attempt to write the specified field to the specified channel.
-     *
-     * @param field the field to be written
-     * @param channel the channel to which it should be written
-     *
-     * @throws IOException if there is a problem writing to the channel
-     */
-    @SuppressWarnings("WeakerAccess")
-    void writeField(Field field, WritableByteChannel channel) throws IOException {
-        logger.debug("..writing> {}", field);
-        Util.writeFully(field.getBytes(), channel);
-    }
-
-    /**
      * Attempt to send the specified field to the dbserver.
      * This low-level function is available only to the package itself for use in setting up the connection and
      * sending parts of larger-scale messages.
@@ -193,7 +180,7 @@ public class Client {
     void sendField(Field field) throws IOException {
         if (isConnected()) {
             try {
-                writeField(field, channel);
+                field.write(channel);
             } catch (IOException e) {
                 logger.warn("Problem trying to write field to dbserver, closing connection", e);
                 close();
@@ -227,22 +214,6 @@ public class Client {
         for (Field field : message.fields) {
             sendField(field);
         }
-    }
-
-    /**
-     * Writes a message to the specified channel, for example when creating metadata cache files.
-     *
-     * @param message the message to be written
-     * @param channel the channel to which it should be written
-     *
-     * @throws IOException if there is a problem writing to the channel
-     */
-    public void writeMessage(Message message, WritableByteChannel channel) throws IOException {
-        logger.debug("Writing> {}", message);
-        for (Field field : message.fields) {
-            writeField(field, channel);
-        }
-
     }
 
     /**

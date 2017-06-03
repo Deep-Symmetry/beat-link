@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.util.*;
 
 /**
@@ -671,5 +672,19 @@ public class Message {
             return MenuItemType.UNKNOWN;
         }
         return result;
+    }
+
+    /**
+     * Writes the message to the specified channel, for example when creating metadata cache files.
+     *
+     * @param channel the channel to which it should be written
+     *
+     * @throws IOException if there is a problem writing to the channel
+     */
+    public void write(WritableByteChannel channel) throws IOException {
+        logger.debug("Writing> {}", this);
+        for (Field field : fields) {
+            field.write(channel);
+        }
     }
 }

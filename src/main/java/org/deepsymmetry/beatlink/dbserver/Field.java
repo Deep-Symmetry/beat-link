@@ -1,11 +1,13 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.deepsymmetry.beatlink.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 
 /**
  * All dbserver messages are made up of lists of fields, which are type-tagged values.
@@ -21,6 +23,7 @@ public abstract class Field {
      *
      * @return a freshly rewound buffer containing the full set of bytes which should be transmitted for this field.
      */
+    @SuppressWarnings("WeakerAccess")
     public abstract ByteBuffer getBytes();
 
     /**
@@ -98,5 +101,17 @@ public abstract class Field {
             sb.append(String.format("%02x ", b));
         }
         return sb.toString();
+    }
+
+    /**
+     * Write the field to the specified channel.
+     *
+     * @param channel the channel to which it should be written
+     *
+     * @throws IOException if there is a problem writing to the channel
+     */
+    public void write(WritableByteChannel channel) throws IOException {
+        logger.debug("..writing> {}", this);
+        Util.writeFully(getBytes(), channel);
     }
 }

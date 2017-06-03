@@ -1,16 +1,11 @@
 package org.deepsymmetry.beatlink;
 
-import org.deepsymmetry.beatlink.dbserver.BinaryField;
-import org.deepsymmetry.beatlink.dbserver.Client;
-import org.deepsymmetry.beatlink.dbserver.Message;
-import org.deepsymmetry.beatlink.dbserver.NumberField;
+import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -33,41 +28,12 @@ public class MetadataFinder {
     private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class.getName());
 
     /**
-     * The default value we will use for timeouts on opening and reading from sockets.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static final int DEFAULT_SOCKET_TIMEOUT = 10000;
-
-    /**
-     * The number of milliseconds after which an attempt to open or read from a socket will fail.
-     */
-    private static int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
-
-    /**
-     * Set how long we will wait for a socket to connect or for a read operation to complete.
-     * Adjust this if your players or network require it.
-     *
-     * @param timeout after how many milliseconds will an attempt to open or read from a socket fail
-     */
-    public static void setSocketTimeout(int timeout) {
-        socketTimeout = timeout;
-    }
-
-    /**
-     * Check how long we will wait for a socket to connect or for a read operation to complete.
-     * Adjust this if your players or network require it.
-     *
-     * @return the number of milliseconds after which an attempt to open or read from a socket will fail
-     */
-    public static int getSocketTimeout() {
-        return socketTimeout;
-    }
-
-    /**
-     * Given a status update from a CDJ, find the metadata for the track that it has loaded, if any.
+     * Given a status update from a CDJ, find the metadata for the track that it has loaded, if any. If there is
+     * an appropriate metadata cache, will use that, otherwise makes a query to the players dbserver.
      *
      * @param status the CDJ status update that will be used to determine the loaded track and ask the appropriate
      *               player for metadata about it
+     *
      * @return the metadata that was obtained, if any
      */
     @SuppressWarnings("WeakerAccess")
@@ -78,80 +44,70 @@ public class MetadataFinder {
         return requestMetadataFrom(status.getTrackSourcePlayer(), status.getTrackSourceSlot(), status.getRekordboxId());
     }
 
+
     /**
-     * Receive some bytes from the player we are requesting metadata from.
+     * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID,
+     * unless we have a metadata cache available for the specified media slot, in which case that will be used instead.
      *
-     * @param is the input stream associated with the player metadata socket.
-     * @return the bytes read.
+     * @param player the player number whose track is of interest
+     * @param slot the slot in which the track can be found
+     * @param rekordboxId the track of interest
      *
-     * @throws IOException if there is a problem reading the response
+     * @return the metadata, if any
+     *
+     * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
      */
-    private static byte[] receiveBytes(InputStream is) throws IOException {
-        byte[] buffer = new byte[8192];
-        int len = (is.read(buffer));
-        if (len < 1) {
-            throw new IOException("receiveBytes read " + len + " bytes.");
-        }
-        return Arrays.copyOf(buffer, len);
+    @SuppressWarnings("WeakerAccess")
+    public static TrackMetadata requestMetadataFrom(int player, CdjStatus.TrackSourceSlot slot, int rekordboxId) {
+        return requestMetadataInternal(player, slot, rekordboxId, false);
     }
 
     /**
-     * Receive an expected number of bytes from the player, logging a warning if we get a different number of them.
+     * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID,
+     * using cached media instead if it is available, and possibly giving up if we are in passive mode.
      *
-     * @param is the input stream associated with the player metadata socket.
-     * @param size the number of bytes we expect to receive.
-     * @param description the type of response being processed, for use in the warning message.
-     * @return the bytes read.
+     * @param player the player number whose track is of interest
+     * @param slot the slot in which the track can be found
+     * @param rekordboxId the track of interest
+     * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
+     *                      metadata updates will use available caches only
      *
-     * @throws IOException if there is a problem reading the response.
+     * @return the metadata found, if any
+     *
+     * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
      */
-    @SuppressWarnings("SameParameterValue")
-    private static byte[] readResponseWithExpectedSize(InputStream is, int size, String description) throws IOException {
-        byte[] result = receiveBytes(is);
-        if (result.length != size) {
-            logger.warn("Expected " + size + " bytes while reading " + description + " response, received " + result.length);
-        }
-        return result;
-    }
-
-    /**
-     * Finds a valid  player number that is currently visible but which is different from the one specified, so it can
-     * be used as the source player for a query being sent to the specified one. If the virtual CDJ is running on an
-     * acceptable player number (which must be 1-4 to request metadata from an actual CDJ, but can be anything if we
-     * are talking to rekordbox), uses that, since it will always be safe. Otherwise, picks an existing player number,
-     * but this will cause the query to fail if that player has mounted media from the player we are querying.
-     *
-     * @param player the player to which a metadata query is being sent
-     * @param slot the media slot from which the track of interest was loaded
-     *
-     * @return some other currently active player number
-     *
-     * @throws IllegalStateException if there is no other player number available to use.
-     */
-    private static int chooseAskingPlayerNumber(int player, CdjStatus.TrackSourceSlot slot) {
-        final int fakeDevice = VirtualCdj.getDeviceNumber();
-        if (slot == CdjStatus.TrackSourceSlot.COLLECTION || (fakeDevice >= 1 && fakeDevice <= 4)) {
-            return fakeDevice;
+    private static TrackMetadata requestMetadataInternal(final int player, final CdjStatus.TrackSourceSlot slot,
+                                                         final int rekordboxId, boolean failIfPassive) {
+        // First check if we are using cached data for this request
+        ZipFile cache = getMetadataCache(player, slot);
+        if (cache != null) {
+            return getCachedMetadata(cache, rekordboxId);
         }
 
-        for (DeviceAnnouncement candidate : DeviceFinder.currentDevices()) {
-            final int realDevice = candidate.getNumber();
-            if (realDevice != player && realDevice >= 1 && realDevice <= 4) {
-                final DeviceUpdate lastUpdate =  VirtualCdj.getLatestStatusFor(realDevice);
-                if (lastUpdate != null && lastUpdate instanceof CdjStatus &&
-                        ((CdjStatus)lastUpdate).getTrackSourcePlayer() != player) {
-                    return candidate.getNumber();
-                }
+        if (passive && failIfPassive) {
+            return null;
+        }
+
+        // TODO: Once we understand and track cue points, keep an in-memory cache of any loaded hot-cue tracks.
+
+        ConnectionManager.ClientTask<TrackMetadata> task = new ConnectionManager.ClientTask<TrackMetadata>() {
+            @Override
+            public TrackMetadata useClient(Client client) throws Exception {
+                return queryMetadata(rekordboxId, slot, client);
             }
+        };
+
+        try {
+            return ConnectionManager.invokeWithClientSession(player, task, "requesting metadata");
+        } catch (Exception e) {
+            logger.error("Problem requesting metadata, returning null", e);
         }
-        throw new IllegalStateException("No player number available to query player " + player +
-                ". If they are on the network, they must be using Link to play a track from that player, " +
-                "so we can't use their ID.");
+        return null;
     }
 
     /**
      * Request metadata for a specific track ID, given a connection to a player that has already been set up.
-     * Separated into its own method so it could be used multiple times on the same connection when gathering
+     * Separated into its own method so it could be used multiple times with the same connection when gathering
      * all track metadata.
      *
      * @param rekordboxId the track of interest
@@ -162,7 +118,7 @@ public class MetadataFinder {
      *
      * @throws IOException if there is a communication problem
      */
-    private static TrackMetadata getTrackMetadata(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
+    private static TrackMetadata queryMetadata(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
             throws IOException {
 
         // Send the metadata menu request
@@ -323,99 +279,6 @@ public class MetadataFinder {
     }
 
     /**
-     * An interface for all the kinds of activities we need a connection to the dbserver for, so we can share the
-     * setup and teardown code in one place.
-     *
-     * @param <T> the type returned by the activity
-     */
-    private interface ClientTask<T> {
-        T runWithClient(Client client) throws Exception;
-    }
-
-    /**
-     * The shared setup and teardown code for the various activities which require exclusive access to a connection
-     * to the dbserver on a particular player.
-     *
-     * @param player the player number whose dbserver we wish to communicate with
-     * @param slot the media slot containing the data we want to query
-     * @param task the activity that will be performed with exclusive access to a dbserver connection
-     * @param description a short description of the task being performed for error reporting if it fails
-     * @param evenIfPassive unless this is {@code true}, the task will be skipped and {@code null} will be returned
-     *        if we are in passive mode when this method is called
-     * @param <T> the type returned by the activity
-     *
-     * @return the value returned by running the task if all went well, or {@code null} if there was a problem
-     */
-    private static <T> T runWithClient(int player, CdjStatus.TrackSourceSlot slot,
-                                       ClientTask<T> task, String description, boolean evenIfPassive) {
-        if (passive && !evenIfPassive) {
-            logger.info("Skipping {} while in passive mode", description);
-            return null;  // We are not allowed to actively query for metadata
-        }
-
-        failIfCreatingCache();
-
-        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(player);
-        final int dbServerPort = getPlayerDBServerPort(player);
-        if (deviceAnnouncement == null || dbServerPort < 0) {
-            return null;  // If the device isn't known, or did not provide a database server, we can't get metadata.
-        }
-
-        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(player, slot);
-
-        Socket socket = null;
-        try {
-            InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
-            socket = new Socket();
-            socket.connect(address, socketTimeout);
-            socket.setSoTimeout(socketTimeout);
-            return task.runWithClient(new Client(socket, player, posingAsPlayerNumber));
-        } catch (Exception e) {
-            logger.warn("Problem " + description, e);
-        } finally {
-            if (socket != null) {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    logger.warn("Problem closing socket for " + description, e);
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID.
-     *
-     * @param player the player number whose track is of interest
-     * @param slot the slot in which the track can be found
-     * @param rekordboxId the track of interest
-     *
-     * @return the metadata, if any
-     *
-     * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static synchronized TrackMetadata requestMetadataFrom(final int player, final CdjStatus.TrackSourceSlot slot,
-                                                                 final int rekordboxId) {
-        // First check if we are using cached data for this request
-        ZipFile cache = getMetadataCache(player, slot);
-        if (cache != null) {
-            return getCachedMetadata(cache, rekordboxId);
-        }
-
-        // TODO: Once we understand and track cue points, keep an in-memory cache of any loaded hot-cue tracks.
-
-        ClientTask<TrackMetadata> task = new ClientTask<TrackMetadata>() {
-            @Override
-            public TrackMetadata runWithClient(Client client) throws Exception {
-                return getTrackMetadata(rekordboxId, slot, client);
-            }
-        };
-        return runWithClient(player, slot, task, "requesting metadata", false);
-    }
-
-    /**
      * Ask the connected dbserver for the playlist entries of the specified playlist (if {@code folder} is {@code false},
      * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}.
      * Pulled into a separate method so it can be used from multiple different client transactions.
@@ -460,19 +323,23 @@ public class MetadataFinder {
      *
      * @return the items that are found in the specified playlist or folder; they will be tracks if we are asking
      *         for a playlist, or playlists and folders if we are asking for a folder
+     *
+     * @throws Exception if there is a problem obtaining the playlist information
      */
     public static synchronized List<Message> requestPlaylistItemsFrom(final int player,
                                                                       final CdjStatus.TrackSourceSlot slot,
                                                                       final int sortOrder,
                                                                       final int playlistOrFolderId,
-                                                                      final boolean folder) {
-        ClientTask<List<Message>> task = new ClientTask<List<Message>>() {
+                                                                      final boolean folder)
+            throws Exception {
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
             @Override
-            public List<Message> runWithClient(Client client) throws Exception {
+            public List<Message> useClient(Client client) throws Exception {
                return getPlaylistItems(slot, sortOrder, playlistOrFolderId, folder, client);
             }
         };
-        return runWithClient(player, slot, task, "requesting playlist information", true);
+
+        return ConnectionManager.invokeWithClientSession(player, task, "requesting playlist information");
     }
 
     /**
@@ -484,24 +351,25 @@ public class MetadataFinder {
      *
      * @return the beat grid, if any
      *
-     * @throws IllegalStateException if a metadata cache is being created and we need to talk to the CDJs
+     * @throws Exception if there is a problem getting the beat grid information
      */
     public static synchronized BeatGrid requestBeatGridFrom(final int player, final CdjStatus.TrackSourceSlot slot,
-                                                            final int rekordboxId) {
+                                                            final int rekordboxId
+    ) throws Exception {
         // First check if we are using cached data for this request
         ZipFile cache = getMetadataCache(player, slot);
         if (cache != null) {
             return getCachedBeatGrid(cache, rekordboxId);
         }
 
-        ClientTask<BeatGrid> task = new ClientTask<BeatGrid>() {
+        ConnectionManager.ClientTask<BeatGrid> task = new ConnectionManager.ClientTask<BeatGrid>() {
             @Override
-            public BeatGrid runWithClient(Client client) throws Exception {
+            public BeatGrid useClient(Client client) throws Exception {
                 return getBeatGrid(rekordboxId, slot, client);
             }
         };
 
-        return runWithClient(player, slot, task, "requesting beat grid", false);
+        return ConnectionManager.invokeWithClientSession(player, task, "requesting beat grid");
     }
 
     /**
@@ -513,10 +381,10 @@ public class MetadataFinder {
      * @param playlistId the id of playlist to be cached, or 0 of all tracks should be cached
      * @param cache the file into which the metadata cache should be written
      *
-     * @throws IOException if there is a problem communicating with the player or writing the cache file.
+     * @throws Exception if there is a problem communicating with the player or writing the cache file.
      */
     public static void createMetadataCache(int player, CdjStatus.TrackSourceSlot slot, int playlistId, File cache)
-            throws IOException {
+            throws Exception {
         createMetadataCache(player, slot, playlistId, cache, null);
     }
 
@@ -600,16 +468,16 @@ public class MetadataFinder {
                     throw new IOException("Received unexpected item type. Needed TRACK_LIST_ENTRY, got: " + entry);
                 }
                 int rekordboxId = (int)((NumberField)entry.arguments.get(1)).getValue();
-                TrackMetadata track = getTrackMetadata(rekordboxId, slot, client);
+                TrackMetadata track = queryMetadata(rekordboxId, slot, client);
 
                 if (track != null) {
                     logger.debug("Adding metadata with ID {}", rekordboxId);
                     zipEntry = new ZipEntry(getMetadataEntryName(rekordboxId));
                     zos.putNextEntry(zipEntry);
                     for (Message metadataItem : track.rawItems) {
-                        client.writeMessage(metadataItem, channel);
+                        metadataItem.write(channel);
                     }
-                    client.writeMessage(MENU_FOOTER_MESSAGE, channel);  // So we know to stop reading
+                    MENU_FOOTER_MESSAGE.write(channel);  // So we know to stop reading
                 } else {
                     logger.warn("Unable to retrieve metadata with ID {}", rekordboxId);
                 }
@@ -708,37 +576,6 @@ public class MetadataFinder {
     }
 
     /**
-     * Is set to {@code true} when a lengthy cache creation process is underway, to prevent other requests that might
-     * interfere with it.
-     */
-    private static boolean creatingCache = false;
-
-    /**
-     * Record whether cache creation is taking place, so we can block other inquiries during that process.
-     *
-     * @param inProgress {@code true} if we are building a metadata cache file
-     *
-     * @throws IllegalStateException if a cache is already being created
-     */
-    private static synchronized void setCreatingCache(boolean inProgress) {
-        if (creatingCache && inProgress) {
-            throw new IllegalStateException("Already creating a metadata cache");
-        }
-        creatingCache = inProgress;
-    }
-
-    /**
-     * Check whether cache creation is taking place, so we can block other inquiries during that process.
-     *
-     * @throws IllegalStateException if a cache is being created
-     */
-    private static synchronized void failIfCreatingCache() {
-        if (creatingCache) {
-            throw new IllegalStateException("Cannot perform the requested operation while a metadata cache is being created");
-        }
-    }
-
-    /**
      * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
      * previous contents of the specified file will be replaced. If a non-{@code null} {@code listener} is
      * supplied, its {@link MetadataCreationUpdateListener#cacheUpdateContinuing(TrackMetadata, int, int)} method
@@ -755,47 +592,30 @@ public class MetadataFinder {
      * @param listener will be informed after each track is added to the cache file being created and offered
      *                 the opportunity to cancel the process
      *
-     * @throws IOException if there is a problem communicating with the player or writing the cache file
-     * @throws IllegalStateException if the MetadataFinder is not running or not in passive mode when this is called,
-     *                               or if another cache is already in the process of being created
+     * @throws Exception if there is a problem communicating with the player or writing the cache file
      */
     @SuppressWarnings({"SameParameterValue", "WeakerAccess"})
     public static void createMetadataCache(final int player, final CdjStatus.TrackSourceSlot slot, final int playlistId,
                                            final File cache, final MetadataCreationUpdateListener listener)
-            throws IOException {
-
-        if (!running) {
-            throw new IllegalStateException("must be running to create a metadata cache");
-        }
-
-        if (!passive) {
-            throw new IllegalStateException("must be in passive mode to create a metadata cache");
-        }
-
-        ClientTask<Object> task = new ClientTask<Object>() {
+            throws Exception {
+        ConnectionManager.ClientTask<Object> task = new ConnectionManager.ClientTask<Object>() {
             @Override
-            public Object runWithClient(Client client) throws Exception {
-                try {
-                    setCreatingCache(true);
-                    final List<Message> trackList;
-                    if (playlistId == 0) {
-                        trackList = getFullTrackList(slot, client);
-                    } else {
-                        trackList = getPlaylistItems(slot, 0, playlistId, false, client);
-                    }
-                    copyTracksToCache(trackList, client, slot, cache, listener);
-                    return null;
-                } finally {
-                    setCreatingCache(false);
+            public Object useClient(Client client) throws Exception {
+                final List<Message> trackList;
+                if (playlistId == 0) {
+                    trackList = getFullTrackList(slot, client);
+                } else {
+                    trackList = getPlaylistItems(slot, 0, playlistId, false, client);
                 }
+                copyTracksToCache(trackList, client, slot, cache, listener);
+                return null;
             }
         };
 
         if (!cache.delete()) {
             logger.warn("Unable to delete cache file, {}", cache);
         }
-        runWithClient(player, slot, task, "building metadata cache", true);
-
+        ConnectionManager.invokeWithClientSession(player, task, "building metadata cache");
     }
 
     /**
@@ -853,83 +673,6 @@ public class MetadataFinder {
         }
     };
 
-    /**
-     * Keeps track of the database server ports of all the players we have seen on the network.
-     */
-    private static final Map<Integer, Integer> dbServerPorts = new HashMap<Integer, Integer>();
-
-    /**
-     * Look up the database server port reported by a given player.
-     *
-     * @param player the player number of interest.
-     *
-     * @return the port number on which its database server is running, or -1 if unknown.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static synchronized int getPlayerDBServerPort(int player) {
-        Integer result = dbServerPorts.get(player);
-        if (result == null) {
-            return -1;
-        }
-        return result;
-    }
-
-    /**
-     * Record the database server port reported by a player.
-     *
-     * @param player the player number whose server port has been determined.
-     * @param port the port number on which the player's database server is running.
-     */
-    private static synchronized void setPlayerDBServerPort(int player, int port) {
-        dbServerPorts.put(player, port);
-    }
-
-    /**
-     * The port on which we can request information about a player, including the port on which its database server
-     * is running.
-     */
-    private static final int DB_SERVER_QUERY_PORT = 12523;
-
-    private static final byte[] DB_SERVER_QUERY_PACKET = {
-            0x00, 0x00, 0x00, 0x0f,
-            0x52, 0x65, 0x6d, 0x6f, 0x74, 0x65, 0x44, 0x42, 0x53, 0x65, 0x72, 0x76, 0x65, 0x72,  // RemoteDBServer
-            0x00
-    };
-
-    /**
-     * Query a player to determine the port on which its database server is running.
-     *
-     * @param announcement the device announcement with which we detected a new player on the network.
-     */
-    private static void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
-        Socket socket = null;
-        try {
-            InetSocketAddress address = new InetSocketAddress(announcement.getAddress(), DB_SERVER_QUERY_PORT);
-            socket = new Socket();
-            socket.connect(address, socketTimeout);
-            InputStream is = socket.getInputStream();
-            OutputStream os = socket.getOutputStream();
-            socket.setSoTimeout(socketTimeout);
-            os.write(DB_SERVER_QUERY_PACKET);
-            byte[] response = readResponseWithExpectedSize(is, 2, "database server port query packet");
-            if (response.length == 2) {
-                setPlayerDBServerPort(announcement.getNumber(), (int)Util.bytesToNumber(response, 0, 2));
-            }
-        } catch (java.net.ConnectException ce) {
-            logger.info("Player " + announcement.getNumber() +
-                    " doesn't answer rekordbox port queries, connection refused. Won't attempt to request metadata.");
-        } catch (Exception e) {
-            logger.warn("Problem requesting database server port number", e);
-        } finally {
-            if (socket != null) {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    logger.warn("Problem closing database server port request socket", e);
-                }
-            }
-        }
-    }
 
     /**
      * Our announcement listener watches for devices to appear on the network so we can ask them for their database
@@ -938,17 +681,11 @@ public class MetadataFinder {
     private static final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    requestPlayerDBServerPort(announcement);
-                }
-            }).start();
+            logger.debug("Currently nothing for MetaDataListener to do when devices appear.");
         }
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
-            setPlayerDBServerPort(announcement.getNumber(), -1);
             clearMetadata(announcement);
             detachMetadataCache(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT);
             detachMetadataCache(announcement.getNumber(), CdjStatus.TrackSourceSlot.USB_SLOT);
@@ -990,19 +727,14 @@ public class MetadataFinder {
      *
      * @param passive {@code true} if only cached metadata will be used, or {@code false} if metadata will be requested
      *                from a player if a track is loaded from a media slot to which no cache has been assigned
-     *
-     * @throws IllegalStateException if you try to turn off passive mode while a metadata cache is being created
      */
     public static synchronized void setPassive(boolean passive) {
-        if (!passive) {
-            failIfCreatingCache();
-        }
         MetadataFinder.passive = passive;
     }
 
     /**
-     * We process our updates on a separate thread so as not to slow down the high-priority update delivery thread;
-     * we perform potentially slow I/O.
+     * We process our player status updates on a separate thread so as not to slow down the high-priority update
+     * delivery thread; we perform potentially slow I/O.
      */
     private static Thread queueHandler;
 
@@ -1073,7 +805,7 @@ public class MetadataFinder {
     /**
      * Keep track of the devices we are currently trying to get metadata from in response to status updates.
      */
-    private final static Set<Integer> activeRequests = new HashSet<Integer>();
+    private static final Set<Integer> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
 
     /**
      * Keeps track of any metadata caches that have been attached for the SD slots of players on the network,
@@ -1456,28 +1188,25 @@ public class MetadataFinder {
             if (lastStatus == null || lastStatus.getTrackSourceSlot() != update.getTrackSourceSlot() ||
                     lastStatus.getTrackSourcePlayer() != update.getTrackSourcePlayer() ||
                     lastStatus.getRekordboxId() != update.getRekordboxId()) {  // We have something new!
-                synchronized (activeRequests) {
-                    // Make sure we are not already talking to the device before we try hitting it again.
-                    if (!activeRequests.contains(update.getTrackSourcePlayer())) {
-                        activeRequests.add(update.getTrackSourcePlayer());
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    TrackMetadata data = requestMetadataFrom(update);
-                                    if (data != null) {
-                                        updateMetadata(update, data);
-                                    }
-                                } catch (Exception e) {
-                                    logger.warn("Problem requesting track metadata from update" + update, e);
-                                } finally {
-                                    synchronized (activeRequests) {
-                                        activeRequests.remove(update.getTrackSourcePlayer());
-                                    }
+                if (activeRequests.add(update.getTrackSourcePlayer())) {
+                    clearMetadata(update);  // We won't know what it is until our request completes.
+                    // We had to make sure we were not already asking for this track.
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                TrackMetadata data = requestMetadataInternal(update.getTrackSourcePlayer(),
+                                        update.getTrackSourceSlot(), update.getRekordboxId(), true);
+                                if (data != null) {
+                                    updateMetadata(update, data);
                                 }
+                            } catch (Exception e) {
+                                logger.warn("Problem requesting track metadata from update" + update, e);
+                            } finally {
+                                activeRequests.remove(update.getTrackSourcePlayer());
                             }
-                        }).start();
-                    }
+                        }
+                    }).start();
                 }
             }
         }
@@ -1491,11 +1220,9 @@ public class MetadataFinder {
      */
     public static synchronized void start() throws Exception {
         if (!running) {
+            ConnectionManager.start();
             DeviceFinder.start();
             DeviceFinder.addDeviceAnnouncementListener(announcementListener);
-            for (DeviceAnnouncement device: DeviceFinder.currentDevices()) {
-                requestPlayerDBServerPort(device);
-            }
             VirtualCdj.start();
             VirtualCdj.addUpdateListener(updateListener);
             queueHandler = new Thread(new Runnable() {
