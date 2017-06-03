@@ -185,4 +185,9 @@ public class CueList {
         });
         entries = Collections.unmodifiableList(scratch);
     }
+
+    @Override
+    public String toString() {
+        return "Cue List[entries: " + entries + "]";
+    }
 }
