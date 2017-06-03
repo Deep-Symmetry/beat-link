@@ -194,7 +194,7 @@ public class Client {
      *
      * @return the appropriate number field to use for the new message’s transaction argument
      */
-    private synchronized NumberField assignTransactionNumber() {
+    private NumberField assignTransactionNumber() {
         return new NumberField(++transactionCounter, 4);
     }
 
@@ -205,7 +205,7 @@ public class Client {
      *
      * @throws IOException if there is a problem sending it
      */
-    private synchronized void sendMessage(Message message) throws IOException {
+    private void sendMessage(Message message) throws IOException {
         logger.debug("Sending> {}", message);
         for (Field field : message.fields) {
             sendField(field);

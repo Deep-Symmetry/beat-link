@@ -42,7 +42,7 @@ public class ConnectionManager {
     /**
      * Keeps track of how many tasks are currently using each client.
      */
-    private static final Map<Client,Integer> useCount = new HashMap<Client, Integer>();
+    private static final Map<Client,Integer> useCounts = new HashMap<Client, Integer>();
 
     /**
      * Finds or opens a client to talk to the dbserver on the specified player, incrementing its use count.
@@ -85,9 +85,9 @@ public class ConnectionManager {
                 throw e;
             }
             openClients.put(targetPlayer, result);
-            useCount.put(result, 0);
+            useCounts.put(result, 0);
         }
-        useCount.put(result, useCount.get(result) + 1);
+        useCounts.put(result, useCounts.get(result) + 1);
         return result;
     }
 
@@ -97,9 +97,9 @@ public class ConnectionManager {
      * @param client the dbserver connection client which is no longer being used for a task
      */
     private static synchronized void freeClient(Client client) {
-        int current = useCount.get(client);
+        int current = useCounts.get(client);
         if (current > 0) {
-            useCount.put(client, current - 1);
+            useCounts.put(client, current - 1);
             if (current == 1) {
                 // This was the last use, so close it.
                 // TODO: To be fancier, we could keep it around for a while and close it after an idle period.
@@ -128,6 +128,9 @@ public class ConnectionManager {
      */
     public static <T> T invokeWithClientSession(int targetPlayer, ClientTask<T> task, String description)
             throws Exception {
+        if (!isRunning()) {
+            throw new IllegalStateException("ConnectionManager is not running, aborting " + description);
+        }
 
         final Client client = allocateClient(targetPlayer, description);
         try {
@@ -375,13 +378,20 @@ public class ConnectionManager {
     /**
      * Stop offering shared dbserver sessions.
      */
-    public static synchronized  void stop() {
+    public static synchronized void stop() {
         if (running) {
             running = false;
             DeviceFinder.removeDeviceAnnouncementListener(announcementListener);
             dbServerPorts.clear();
-            // TODO: Clean up anything else!
+            for (Client client : openClients.values()) {
+                try {
+                    client.close();
+                } catch (Exception e) {
+                    logger.warn("Problem closing " + client + " when stopping", e);
+                }
+            }
+            openClients.clear();
+            useCounts.clear();
         }
     }
-
 }
