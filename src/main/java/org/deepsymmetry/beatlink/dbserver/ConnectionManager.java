@@ -35,6 +35,83 @@ public class ConnectionManager {
     }
 
     /**
+     * Keeps track of the clients that are currently active, indexed by player number
+     */
+    private static final Map<Integer,Client> openClients = new HashMap<Integer, Client>();
+
+    /**
+     * Keeps track of how many tasks are currently using each client.
+     */
+    private static final Map<Client,Integer> useCount = new HashMap<Client, Integer>();
+
+    /**
+     * Finds or opens a client to talk to the dbserver on the specified player, incrementing its use count.
+     *
+     * @param targetPlayer the player number whose database needs to be interacted with
+     * @param description a short description of the task being performed for error reporting if it fails,
+     *                    should be a verb phrase like "requesting track metadata"
+     *
+     * @return the communication client for talking to that player, or {@code null} if the player could not be found
+     *
+     * @throws IllegalStateException if we can't find the target player or there is no suitable player number for us
+     *                               to pretend to be
+     * @throws IOException if there is a problem communicating
+     */
+    private static synchronized Client allocateClient(int targetPlayer, String description) throws IOException {
+        Client result = openClients.get(targetPlayer);
+        if (result == null) {
+            // We need to open a new connection.
+            final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(targetPlayer);
+            final int dbServerPort = getPlayerDBServerPort(targetPlayer);
+            if (deviceAnnouncement == null || dbServerPort < 0) {
+                throw new IllegalStateException("Player " + targetPlayer + " could not be found " + description);
+            }
+
+            final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(targetPlayer);
+
+            Socket socket = null;
+            try {
+                InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
+                socket = new Socket();
+                socket.connect(address, socketTimeout);
+                socket.setSoTimeout(socketTimeout);
+                result = new Client(socket, targetPlayer, posingAsPlayerNumber);
+            } catch (IOException e) {
+                try {
+                    socket.close();
+                } catch (IOException e2) {
+                    logger.error("Problem closing socket for failed client creation attempt " + description);
+                }
+                throw e;
+            }
+            openClients.put(targetPlayer, result);
+            useCount.put(result, 0);
+        }
+        useCount.put(result, useCount.get(result) + 1);
+        return result;
+    }
+
+    /**
+     * Decrements the client's use count, and makes it eligible for closing if it is no longer in use.
+     *
+     * @param client the dbserver connection client which is no longer being used for a task
+     */
+    private static synchronized void freeClient(Client client) {
+        int current = useCount.get(client);
+        if (current > 0) {
+            useCount.put(client, current - 1);
+            if (current == 1) {
+                // This was the last use, so close it.
+                // TODO: To be fancier, we could keep it around for a while and close it after an idle period.
+                client.close();
+                openClients.remove(client.targetPlayer);
+            }
+        } else {
+            logger.error("Ignoring attempt to free a client that is not allocated: {}", client);
+        }
+    }
+
+    /**
      * Obtain a dbserver client session that can be used to perform some task, call that task with the client,
      * then release the client.
      *
@@ -51,32 +128,12 @@ public class ConnectionManager {
      */
     public static <T> T invokeWithClientSession(int targetPlayer, ClientTask<T> task, String description)
             throws Exception {
-        // TODO: look for an existing client
 
-        final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(targetPlayer);
-        final int dbServerPort = getPlayerDBServerPort(targetPlayer);
-        if (deviceAnnouncement == null || dbServerPort < 0) {
-            throw new IllegalStateException("Player " + targetPlayer + " could not be found " + description);
-        }
-
-        final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(targetPlayer);
-
-        Socket socket = null;
+        final Client client = allocateClient(targetPlayer, description);
         try {
-            InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
-            socket = new Socket();
-            socket.connect(address, socketTimeout);
-            socket.setSoTimeout(socketTimeout);
-            return task.useClient(new Client(socket, targetPlayer, posingAsPlayerNumber));
+            return task.useClient(client);
         } finally {
-            // TODO: release the client to the pool rather than just closing it
-            if (socket != null) {
-                try {
-                    socket.close();
-                } catch (IOException e) {
-                    logger.warn("Problem closing socket for " + description, e);
-                }
-            }
+            freeClient(client);
         }
     }
 

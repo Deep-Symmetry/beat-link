@@ -143,8 +143,7 @@ public class Client {
     /**
      * Closes the connection to the dbserver. This instance can no longer be used after this action.
      */
-    @SuppressWarnings("WeakerAccess")
-    public void close() {
+    void close() {
         try {
             channel.close();
         } catch (IOException e) {
@@ -176,8 +175,7 @@ public class Client {
      *
      * @throws IOException if the field cannot be sent
      */
-    @SuppressWarnings("WeakerAccess")
-    void sendField(Field field) throws IOException {
+    private void sendField(Field field) throws IOException {
         if (isConnected()) {
             try {
                 field.write(channel);
@@ -196,8 +194,7 @@ public class Client {
      *
      * @return the appropriate number field to use for the new message’s transaction argument
      */
-    @SuppressWarnings("WeakerAccess")
-    public synchronized NumberField assignTransactionNumber() {
+    private synchronized NumberField assignTransactionNumber() {
         return new NumberField(++transactionCounter, 4);
     }
 
@@ -208,8 +205,7 @@ public class Client {
      *
      * @throws IOException if there is a problem sending it
      */
-    @SuppressWarnings("WeakerAccess")
-    public synchronized void sendMessage(Message message) throws IOException {
+    private synchronized void sendMessage(Message message) throws IOException {
         logger.debug("Sending> {}", message);
         for (Field field : message.fields) {
             sendField(field);
@@ -257,6 +253,7 @@ public class Client {
         return buildRMS1(posingAsPlayer, targetMenu, slot);
     }
 
+    // TODO build an asynch lower-level mechanism underneath this so multiple requests can be outstanding at once?
     /**
      * Send a request that expects a single message as its response, then read and return that response.
      *
@@ -331,7 +328,7 @@ public class Client {
      * @return the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}
      *         will request at once
      */
-    public synchronized long getMenuBatchSize() {
+    public static synchronized long getMenuBatchSize() {
         return menuBatchSize;
     }
 
@@ -340,11 +337,11 @@ public class Client {
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players. Changing this will affect future calls
      * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}.
      *
-     * @param menuBatchSize the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}
+     * @param batchSize the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}
      *                      will request at once
      */
-    public synchronized void setMenuBatchSize(long menuBatchSize) {
-        this.menuBatchSize = menuBatchSize;
+    public static synchronized void setMenuBatchSize(long batchSize) {
+        menuBatchSize = batchSize;
     }
 
     /**
@@ -352,7 +349,7 @@ public class Client {
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players. Changing this will affect future calls
      * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}.
      */
-    private long menuBatchSize = DEFAULT_MENU_BATCH_SIZE;
+    private static long menuBatchSize = DEFAULT_MENU_BATCH_SIZE;
 
 
     /**
@@ -392,6 +389,10 @@ public class Client {
             sendMessage(request);
             Message response = Message.read(is);
 
+            if (response.transaction.getValue() != transaction.getValue()) {
+                throw new IOException("Received response with wrong transaction ID. Expected: " + transaction.getValue() +
+                        ", got: " + response);
+            }
             if (response.knownType != Message.KnownType.MENU_HEADER) {
                 throw new IOException("Expecting MENU_HEADER, instead got: " + response);
             }
@@ -409,5 +410,11 @@ public class Client {
             offset += batchSize;
         }
         return Collections.unmodifiableList(results);
+    }
+
+    @Override
+    public String toString() {
+        return "DBServer Client[targetPlayer: " + targetPlayer + ", posingAsPlayer: " + posingAsPlayer +
+                ", transactionCounter: " + transactionCounter + "]";
     }
 }

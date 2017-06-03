@@ -326,11 +326,9 @@ public class MetadataFinder {
      *
      * @throws Exception if there is a problem obtaining the playlist information
      */
-    public static synchronized List<Message> requestPlaylistItemsFrom(final int player,
-                                                                      final CdjStatus.TrackSourceSlot slot,
-                                                                      final int sortOrder,
-                                                                      final int playlistOrFolderId,
-                                                                      final boolean folder)
+    public static List<Message> requestPlaylistItemsFrom(final int player, final CdjStatus.TrackSourceSlot slot,
+                                                         final int sortOrder, final int playlistOrFolderId,
+                                                         final boolean folder)
             throws Exception {
         ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
             @Override
@@ -353,9 +351,10 @@ public class MetadataFinder {
      *
      * @throws Exception if there is a problem getting the beat grid information
      */
-    public static synchronized BeatGrid requestBeatGridFrom(final int player, final CdjStatus.TrackSourceSlot slot,
-                                                            final int rekordboxId
-    ) throws Exception {
+    public static BeatGrid requestBeatGridFrom(final int player, final CdjStatus.TrackSourceSlot slot,
+                                               final int rekordboxId)
+            throws Exception {
+
         // First check if we are using cached data for this request
         ZipFile cache = getMetadataCache(player, slot);
         if (cache != null) {
