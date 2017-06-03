@@ -61,6 +61,19 @@ public class BinaryField extends Field {
     }
 
     /**
+     * Get the bytes which represent the payload of this field, without the leading type tag and length header, as
+     * a newly-allocated byte array.
+     *
+     * @return a new byte array containing a copy of the bytes this field contains
+     */
+    public byte[] getValueAsArray() {
+        ByteBuffer buffer = getValue();
+        byte[] result = new byte[buffer.remaining()];
+        buffer.get(result);
+        return result;
+    }
+
+    /**
      * Constructor for reading from the network.
      *
      * @param is the stream on which the field value is to be read.

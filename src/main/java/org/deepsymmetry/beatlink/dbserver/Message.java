@@ -70,7 +70,7 @@ public class Message {
         /**
          * Asks for the cue points of a track, by rekordbox ID.
          */
-        CUE_POINTS_REQ   (0x2104, "track cue points request", "r:m:s:1", "rekordbox id"),
+        CUE_LIST_REQ     (0x2104, "track cue list request", "r:m:s:1", "rekordbox id"),
         /**
          * Asks for metadata about a CD track, by track number.
          */
@@ -133,7 +133,7 @@ public class Message {
         /**
          * Returns information about any cue points set in the track.
          */
-        CUE_POINTS       (0x4702, "cue points", "request type", "unknown", "blob 1 length", "blob 1", "unknown (0x24)",
+        CUE_LIST         (0x4702, "cue points", "request type", "unknown", "blob 1 length", "blob 1", "unknown (0x24)",
                 "unknown", "unknown", "blob 2 length", "blob 2"),
         /**
          * Returns the bytes of the detailed waveform which is scrolled through while the track is playing.

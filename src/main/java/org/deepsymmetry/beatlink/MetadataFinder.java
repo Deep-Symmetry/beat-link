@@ -88,8 +88,6 @@ public class MetadataFinder {
             return null;
         }
 
-        // TODO: Once we understand and track cue points, keep an in-memory cache of any loaded hot-cue tracks.
-
         ConnectionManager.ClientTask<TrackMetadata> task = new ConnectionManager.ClientTask<TrackMetadata>() {
             @Override
             public TrackMetadata useClient(Client client) throws Exception {
@@ -145,7 +143,7 @@ public class MetadataFinder {
      * @param slot identifies the media slot we are querying
      * @param client the dbserver client that is communicating with the appropriate player
      *
-     * @return the retrieved beat grid, or {@code null} if there is no such track
+     * @return the retrieved beat grid, or {@code null} if there was none available
      *
      * @throws IOException if there is a communication problem
      */
@@ -157,6 +155,27 @@ public class MetadataFinder {
             return new BeatGrid(response);
         }
         logger.error("Unexpected response type when requesting beat grid: {}", response);
+        return null;
+    }
+
+    /**
+     * Requests the cue list for a specific track ID, given a connection to a player that has already been set up.
+     *
+     * @param rekordboxId the track of interest
+     * @param slot identifies the media slot we are querying
+     * @param client the dbserver client that is communicating with the appropriate player
+     *
+     * @return the retrieved cue list, or {@code null} if none was available
+     * @throws IOException if there is a communication problem
+     */
+    private static CueList getCueList(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
+            throws IOException {
+        Message response = client.simpleRequest(Message.KnownType.CUE_LIST_REQ, null,
+                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId));
+        if (response.knownType == Message.KnownType.CUE_LIST) {
+            return new CueList(response);
+        }
+        logger.error("Unexpected response type when requesting cue list: {}", response);
         return null;
     }
 
@@ -228,14 +247,15 @@ public class MetadataFinder {
                 }
                 return result;
             } catch (IOException e) {
+                logger.error("Problem reading metadata from cache file, returning null", e);
+            } finally {
                 if (is != null) {
                     try {
                         is.close();
-                    } catch (Exception e2) {
-                        logger.error("Problem closing ZipFile input stream after exception", e2);
+                    } catch (Exception e) {
+                        logger.error("Problem closing ZipFile input stream for reading metadata entry", e);
                     }
                 }
-                logger.error("Problem reading metadata from cache file, returning null", e);
             }
         }
         return null;
@@ -257,22 +277,48 @@ public class MetadataFinder {
                 is = new DataInputStream(cache.getInputStream(entry));
                 byte[] gridBytes = new byte[(int)entry.getSize()];
                 is.readFully(gridBytes);
-                try {
-                    is.close();
-                } catch (Exception e) {
-                    is = null;
-                    logger.error("Problem closing Zip File input stream after reading beat grid entry", e);
-                }
                 return new BeatGrid(ByteBuffer.wrap(gridBytes).asReadOnlyBuffer());
             } catch (IOException e) {
+                logger.error("Problem reading beat grid from cache file, returning null", e);
+            } finally {
                 if (is != null) {
                     try {
                         is.close();
-                    } catch (Exception e2) {
-                        logger.error("Problem closing ZipFile input stream after exception", e2);
+                    } catch (Exception e) {
+                        logger.error("Problem closing ZipFile input stream for reading beat grid entry", e);
                     }
                 }
-                logger.error("Problem reading beat grid from cache file, returning null", e);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Look up a cue list in a metadata cache.
+     *
+     * @param cache the appropriate metadata cache file
+     * @param rekordboxId the track whose cue list is desired
+     *
+     * @return the cached cue list (if available), or {@code null}
+     */
+    private static CueList getCachedCueList(ZipFile cache, int rekordboxId) {
+        ZipEntry entry = cache.getEntry(getCueListEntryName(rekordboxId));
+        if (entry != null) {
+            DataInputStream is = null;
+            try {
+                is = new DataInputStream(cache.getInputStream(entry));
+                Message message = Message.read(is);
+                return new CueList(message);
+            } catch (IOException e) {
+                logger.error("Problem reading cue list from cache file, returning null", e);
+            } finally {
+                if (is != null) {
+                    try {
+                        is.close();
+                    } catch (Exception e) {
+                        logger.error("Problem closing ZipFile input stream for reading cue list", e);
+                    }
+                }
             }
         }
         return null;
@@ -341,7 +387,8 @@ public class MetadataFinder {
     }
 
     /**
-     * Ask the specified player for the beat grid of the track in the specified slot with the specified rekordbox ID.
+     * Ask the specified player for the beat grid of the track in the specified slot with the specified rekordbox ID,
+     * first checking if we have a cache we can use instead.
      *
      * @param player the player number whose track is of interest
      * @param slot the slot in which the track can be found
@@ -369,6 +416,38 @@ public class MetadataFinder {
         };
 
         return ConnectionManager.invokeWithClientSession(player, task, "requesting beat grid");
+    }
+
+    /**
+     * Ask the specified player for the cue list of the track in the specified slot with the specified rekordbox ID,
+     * first checking if we have a cache we can use instead.
+     *
+     * @param player the player number whose track is of interest
+     * @param slot the slot in which the track can be found
+     * @param rekordboxId the track of interest
+     *
+     * @return the cue list, if any
+     *
+     * @throws Exception if there is a problem getting the cue list information
+     */
+    public static CueList requestCueListFrom(final int player, final CdjStatus.TrackSourceSlot slot,
+                                             final int rekordboxId)
+        throws Exception {
+
+        // First check if we are using cached data for this request
+        ZipFile cache = getMetadataCache(player, slot);
+        if (cache != null) {
+            return getCachedCueList(cache, rekordboxId);
+        }
+
+        ConnectionManager.ClientTask<CueList> task = new ConnectionManager.ClientTask<CueList>() {
+            @Override
+            public CueList useClient(Client client) throws Exception {
+                return getCueList(rekordboxId, slot, client);
+            }
+        };
+
+        return ConnectionManager.invokeWithClientSession(player, task, "requesting cue list");
     }
 
     /**
@@ -411,6 +490,11 @@ public class MetadataFinder {
      * The prefix for cache file entries that will store beat grids.
      */
     private static final String CACHE_BEAT_GRID_ENTRY_PREFIX = CACHE_PREFIX + "beatgrid/";
+
+    /**
+     * The prefix for cache file entries that will store beat grids.
+     */
+    private static final String CACHE_CUE_LIST_ENTRY_PREFIX = CACHE_PREFIX + "cuelist/";
 
     /**
      * The comment string used to identify a ZIP file as one of our metadata caches.
@@ -498,6 +582,14 @@ public class MetadataFinder {
                     Util.writeFully(beatGrid.getRawData(), channel);
                 }
 
+                CueList cueList = getCueList(rekordboxId, slot, client);
+                if (cueList != null) {
+                    logger.debug("Adding cue list entry with ID {}", rekordboxId);
+                    zipEntry = new ZipEntry((getCueListEntryName(rekordboxId)));
+                    zos.putNextEntry(zipEntry);
+                    cueList.rawMessage.write(channel);
+                }
+
                 // TODO: Include waveforms (once supported), etc.
                 if (listener != null) {
                     if (!listener.cacheUpdateContinuing(track, ++tracksCopied, totalToCopy)) {
@@ -572,6 +664,17 @@ public class MetadataFinder {
      */
     private static String getBeatGridEntryName(int rekordboxId) {
         return CACHE_BEAT_GRID_ENTRY_PREFIX + rekordboxId;
+    }
+
+    /**
+     * Names the appropriate zip file entry for caching a track's cue list.
+     *
+     * @param rekordboxId the id of the track being cached or looked up
+     *
+     * @return the name of the entry where that track's cue list should be stored
+     */
+    private static String getCueListEntryName(int rekordboxId) {
+        return CACHE_CUE_LIST_ENTRY_PREFIX + rekordboxId;
     }
 
     /**
@@ -1198,6 +1301,7 @@ public class MetadataFinder {
                                         update.getTrackSourceSlot(), update.getRekordboxId(), true);
                                 if (data != null) {
                                     updateMetadata(update, data);
+                                    // TODO: Now that we understand cue points, we could keep an in-memory cache of any loaded hot-cue tracks.
                                 }
                             } catch (Exception e) {
                                 logger.warn("Problem requesting track metadata from update" + update, e);

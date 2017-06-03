@@ -253,7 +253,6 @@ public class Client {
         return buildRMS1(posingAsPlayer, targetMenu, slot);
     }
 
-    // TODO build an asynch lower-level mechanism underneath this so multiple requests can be outstanding at once?
     /**
      * Send a request that expects a single message as its response, then read and return that response.
      *
