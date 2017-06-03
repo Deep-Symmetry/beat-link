@@ -162,9 +162,9 @@ public class CueList {
             final int hotCueNumber = entryBytes[offset + 2];
             if ((cueFlag != 0) || (hotCueNumber != 0)) {
                 // This entry is not empty, so represent it.
-                final long position = Util.bytesToNumberLittleEndian(entryBytes, 12, 4);
+                final long position = Util.bytesToNumberLittleEndian(entryBytes, offset + 12, 4);
                 if (entryBytes[offset] != 0) {  // This is a loop
-                    final long endPosition = Util.bytesToNumberLittleEndian(entryBytes, 16, 4);
+                    final long endPosition = Util.bytesToNumberLittleEndian(entryBytes, offset + 16, 4);
                     scratch.add(new Entry(hotCueNumber, position, endPosition));
                 } else {
                     scratch.add(new Entry(hotCueNumber, position));
