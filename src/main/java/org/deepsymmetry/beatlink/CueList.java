@@ -174,11 +174,11 @@ public class CueList {
         Collections.sort(scratch, new Comparator<Entry>() {
             @Override
             public int compare(Entry entry1, Entry entry2) {
-                int result = (int) (entry2.cuePosition - entry1.cuePosition);
+                int result = (int) (entry1.cuePosition - entry2.cuePosition);
                 if (result == 0) {
                     int h1 = (entry1.hotCueNumber != 0) ? 1 : 0;
                     int h2 = (entry2.hotCueNumber != 0) ? 1 : 0;
-                    result = h2 - h1;
+                    result = h1 - h2;
                 }
                 return result;
             }
