@@ -93,26 +93,31 @@ public class WaveformPreview {
     /**
      * The color at which segments of the waveform marked most intense are drawn.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Color INTENSE_COLOR = new Color(116, 246, 244);
 
     /**
      * The color at which non-intense waveform segments are drawn.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Color NORMAL_COLOR = new Color(43, 89, 255);
 
     /**
      * The color for brighter sections of the already-played section of the playback progress bar.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Color BRIGHT_PLAYED = new Color(75, 75, 75);
 
     /**
      * The color for darker sections of the already-played section of the playback progress bar.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Color DIM_PLAYED = new Color(35, 35, 35);
 
     /**
      * The color for the darker sections of hte not-yet-played sections of the playback progress bar.
      */
+    @SuppressWarnings("WeakerAccess")
     public static final Color DIM_UNPLAYED = new Color(170, 170, 170);
 
     /**
@@ -149,11 +154,11 @@ public class WaveformPreview {
                 int left;
                 int right;
                 if (milliseconds > playbackPosition) {
-                    left = Math.max(0, Math.min(408,millsecondsToX(playbackPosition) - 6));
-                    right = Math.max(0, Math.min(408,millsecondsToX(milliseconds) + 6));
+                    left = Math.max(0, Math.min(408, millisecondsToX(playbackPosition) - 6));
+                    right = Math.max(0, Math.min(408, millisecondsToX(milliseconds) + 6));
                 } else {
-                    left = Math.max(0, Math.min(408,millsecondsToX(milliseconds) - 6));
-                    right = Math.max(0, Math.min(408,millsecondsToX(playbackPosition) + 6));
+                    left = Math.max(0, Math.min(408, millisecondsToX(milliseconds) - 6));
+                    right = Math.max(0, Math.min(408, millisecondsToX(playbackPosition) + 6));
                 }
                 playbackPosition = milliseconds;
                 repaint(left, 0, right - left, VIEW_HEIGHT);
@@ -195,7 +200,7 @@ public class WaveformPreview {
          *
          * @return the component x coordinate at which it should be drawn
          */
-        private int millsecondsToX(long milliseconds) {
+        private int millisecondsToX(long milliseconds) {
             long result = milliseconds * 4 / (metadata.getDuration() * 10);
             return WAVEFORM_MARGIN + Math.max(0, Math.min(400, (int) result));
         }
@@ -217,7 +222,7 @@ public class WaveformPreview {
                     g.drawLine(x, WAVEFORM_TOP + WAVEFORM_HEIGHT, x, WAVEFORM_TOP + WAVEFORM_HEIGHT - height);
 
                     if (metadata != null) { // Draw the playback progress bar
-                        if (x < millsecondsToX(playbackPosition) - 1) {  // The played section
+                        if (x < millisecondsToX(playbackPosition) - 1) {  // The played section
                             g.setColor((x % 2 == 0)? BRIGHT_PLAYED : DIM_PLAYED);
                             if (x == WAVEFORM_MARGIN) {
                                 g.drawLine(x, PLAYBACK_BAR_TOP, x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT);
@@ -225,7 +230,7 @@ public class WaveformPreview {
                                 g.drawLine(x, PLAYBACK_BAR_TOP, x, PLAYBACK_BAR_TOP);
                                 g.drawLine(x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT, x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT);
                             }
-                        } else if (x > millsecondsToX(playbackPosition) + 1) {  // The unplayed section
+                        } else if (x > millisecondsToX(playbackPosition) + 1) {  // The unplayed section
                             g.setColor((x % 2 == 0)? Color.WHITE : DIM_UNPLAYED);
                             g.drawLine(x, PLAYBACK_BAR_TOP, x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT);
                         }
@@ -236,17 +241,17 @@ public class WaveformPreview {
             if (metadata != null) {  // Draw the minute marks and playback position
                 g.setColor(Color.WHITE);
                 for (int time = 60; time < metadata.getDuration(); time += 60) {
-                    final int x = millsecondsToX(time * 1000);
+                    final int x = millisecondsToX(time * 1000);
                     g.drawLine(x, MINUTE_MARKER_TOP, x, MINUTE_MARKER_TOP + MINUTE_MARKER_HEIGHT);
                 }
-                final int x = millsecondsToX(playbackPosition);
+                final int x = millisecondsToX(playbackPosition);
                 g.fillRect(x - 1, POSITION_MARKER_TOP, 2, POSITION_MARKER_HEIGHT);
             }
 
             // Finally, draw the cue points
             if (cueList != null && metadata != null) {
                 for (CueList.Entry entry : cueList.entries) {
-                    final int x = millsecondsToX(entry.cueTime);
+                    final int x = millisecondsToX(entry.cueTime);
                     if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
                         g.setColor((entry.hotCueNumber > 0)? Color.GREEN : Color.RED);
                         for (int i = 0; i < 4; i++) {
@@ -279,6 +284,7 @@ public class WaveformPreview {
      *
      * @param message the response that contains the preview
      */
+    @SuppressWarnings("WeakerAccess")
     public WaveformPreview(Message message) {
         rawMessage = message;
     }
