@@ -43,6 +43,8 @@ public class DeckReference {
      *
      * @param player the player in which the track is loaded
      * @param hotCue hot cue number in which the track is loaded, or 0 if it is actively loaded on the playback deck
+     *
+     * @return the instance that will always represent a reference to the specified player and hot cue
      */
     public static synchronized DeckReference getDeckReference(int player, int hotCue) {
         Map<Integer, DeckReference> playerMap = instances.get(player);

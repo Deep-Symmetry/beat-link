@@ -30,6 +30,7 @@ public class TrackMetadata {
      * Can be used to analyze fields that have not yet been reliably understood,
      * and is also used for storing the metadata in a cache file.
      */
+    @SuppressWarnings("WeakerAccess")
     public final List<Message> rawItems;
 
     /**

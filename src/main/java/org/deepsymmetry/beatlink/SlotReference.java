@@ -47,6 +47,8 @@ public class SlotReference {
      * @param player the player in which the slot is found
      * @param slot the specific type of the slot
      *
+     * @return the instance that will always represent the specified slot
+     *
      * @throws NullPointerException if {@code slot} is {@code null}
      */
     public static synchronized SlotReference getSlotReference(int player, CdjStatus.TrackSourceSlot slot) {
@@ -67,6 +69,8 @@ public class SlotReference {
      * Get a unique reference to the media slot on the network from which the specified track was loaded.
      *
      * @param track the track whose media slot is of interest
+     *
+     * @return the instance that will always represent the slot associated with the specified track
      */
     public static SlotReference getSlotReference(TrackReference track) {
         return getSlotReference(track.player, track.slot);
