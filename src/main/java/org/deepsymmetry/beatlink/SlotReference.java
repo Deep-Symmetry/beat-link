@@ -20,6 +20,7 @@ public class SlotReference {
     /**
      * The specific type of the slot.
      */
+    @SuppressWarnings("WeakerAccess")
     public final CdjStatus.TrackSourceSlot slot;
 
     /**
@@ -51,6 +52,7 @@ public class SlotReference {
      *
      * @throws NullPointerException if {@code slot} is {@code null}
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized SlotReference getSlotReference(int player, CdjStatus.TrackSourceSlot slot) {
         Map<CdjStatus.TrackSourceSlot, SlotReference> playerMap = instances.get(player);
         if (playerMap == null) {
@@ -72,6 +74,7 @@ public class SlotReference {
      *
      * @return the instance that will always represent the slot associated with the specified track
      */
+    @SuppressWarnings("WeakerAccess")
     public static SlotReference getSlotReference(TrackReference track) {
         return getSlotReference(track.player, track.slot);
     }
