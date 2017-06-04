@@ -49,14 +49,14 @@ public class CueList {
      * @return the corresponding millisecond time
      */
     @SuppressWarnings("WeakerAccess")
-    public long timeFromHalfFramePosition(long position) {
+    public static long timeFromHalfFramePosition(long position) {
         return (position * 100) / 15;
     }
 
     /**
      * Breaks out information about each entry in the cue list.
      */
-    public class Entry {
+    public static class Entry {
         /**
          * If this has a non-zero value, this entry is a hot cue with that identifier.
          */
