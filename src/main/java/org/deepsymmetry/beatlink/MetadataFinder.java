@@ -927,15 +927,16 @@ public class MetadataFinder {
     }
 
     /**
-     * Keeps track of the current metadata known for each player.
+     * Keeps track of the current metadata cached for each player. We cache metadata for any track which is currently
+     * on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
-    private static final Map<Integer, TrackMetadata> metadata = new HashMap<Integer, TrackMetadata>();
+    private static final Map<DeckReference, TrackMetadata> hotCache = new ConcurrentHashMap<DeckReference, TrackMetadata>();
 
     /**
      * Keeps track of the previous update from each player that we retrieved metadata about, to check whether a new
      * track has been loaded.
      */
-    private static final Map<InetAddress, CdjStatus> lastUpdates = new HashMap<InetAddress, CdjStatus>();
+    private static final Map<InetAddress, CdjStatus> lastUpdates = new ConcurrentHashMap<InetAddress, CdjStatus>();
 
     /**
      * A queue used to hold CDJ status updates we receive from the {@link VirtualCdj} so we can process them on a
@@ -1026,12 +1027,13 @@ public class MetadataFinder {
 
     /**
      * We have received an update that invalidates any previous metadata for that player, so clear it out, and alert
-     * any listeners.
+     * any listeners. This does not affect the hot cues; they will stick around until the player loads a new track
+     * that overwrites one or more of them.
      *
      * @param update the update which means we can have no metadata for the associated player
      */
-    private static synchronized void clearMetadata(CdjStatus update) {
-        metadata.remove(update.deviceNumber);
+    private static synchronized void clearDeck(CdjStatus update) {
+        hotCache.remove(DeckReference.getDeckReference(update.deviceNumber, 0));
         lastUpdates.remove(update.address);
         deliverTrackMetadataUpdate(update.deviceNumber, null);
     }
@@ -1043,7 +1045,11 @@ public class MetadataFinder {
      */
     private static synchronized void clearMetadata(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
-        metadata.remove(player);
+        for (DeckReference deck : hotCache.keySet()) {
+            if (deck.player == announcement.getNumber()) {
+                hotCache.remove(deck);
+            }
+        }
         lastUpdates.remove(announcement.getAddress());
         for (TrackReference artReference : artCache.keySet()) {
             if (artReference.player == player) {
@@ -1059,29 +1065,36 @@ public class MetadataFinder {
      * @param data the metadata which we received
      */
     private static synchronized void updateMetadata(CdjStatus update, TrackMetadata data) {
-        metadata.put(update.deviceNumber, data);
+        hotCache.put(DeckReference.getDeckReference(update.deviceNumber, 0), data);  // Main deck
+        if (data.getCueList() != null) {  // Update the cache with any hot cues in this track as well
+            for (CueList.Entry entry : data.getCueList().entries) {
+                if (entry.hotCueNumber != 0) {
+                    hotCache.put(DeckReference.getDeckReference(update.deviceNumber, entry.hotCueNumber), data);
+                }
+            }
+        }
         lastUpdates.put(update.address, update);
         deliverTrackMetadataUpdate(update.deviceNumber, data);
     }
 
     /**
-     * Get all currently known metadata.
+     * Get the metadata of all tracks currently loaded in any player, either on the play deck, or in a hot cue.
      *
-     * @return the track information reported by all current players
+     * @return the track information reported by all current players, including any tracks loaded in their hot cue slots
      */
-    public static synchronized Map<Integer, TrackMetadata> getLatestMetadata() {
-        return Collections.unmodifiableMap(new TreeMap<Integer, TrackMetadata>(metadata));
+    public static synchronized Map<DeckReference, TrackMetadata> getLoadedTracks() {
+        return Collections.unmodifiableMap(new HashMap<DeckReference, TrackMetadata>(hotCache));
     }
 
     /**
-     * Look up the track metadata we have for a given player number.
+     * Look up the track metadata we have for the track loaded in the main deck of a given player number.
      *
-     * @param player the device number whose track metadata is desired
+     * @param player the device number whose track metadata for the playing track is desired
      * @return information about the track loaded on that player, if available
      */
     @SuppressWarnings("WeakerAccess")
     public static synchronized TrackMetadata getLatestMetadataFor(int player) {
-        return metadata.get(player);
+        return hotCache.get(DeckReference.getDeckReference(player, 0));
     }
 
     /**
@@ -1396,14 +1409,14 @@ public class MetadataFinder {
                 update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK ||
                 update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.UNKNOWN ||
                 update.getRekordboxId() == 0) {  // We no longer have metadata for this device
-            clearMetadata(update);
+            clearDeck(update);
         } else {  // We can gather metadata for this device; check if we already looked up this track
             CdjStatus lastStatus = lastUpdates.get(update.address);
             if (lastStatus == null || lastStatus.getTrackSourceSlot() != update.getTrackSourceSlot() ||
                     lastStatus.getTrackSourcePlayer() != update.getTrackSourcePlayer() ||
                     lastStatus.getRekordboxId() != update.getRekordboxId()) {  // We have something new!
                 if (activeRequests.add(update.getTrackSourcePlayer())) {
-                    clearMetadata(update);  // We won't know what it is until our request completes.
+                    clearDeck(update);  // We won't know what it is until our request completes.
                     // We had to make sure we were not already asking for this track.
                     new Thread(new Runnable() {
                         @Override
@@ -1414,7 +1427,6 @@ public class MetadataFinder {
                                         update.getTrackSourceSlot(), update.getRekordboxId()), true);
                                 if (data != null) {
                                     updateMetadata(update, data);
-                                    // TODO: Now that we understand cue points, we could keep an in-memory cache of any loaded hot-cue tracks.
                                 }
                             } catch (Exception e) {
                                 logger.warn("Problem requesting track metadata from update" + update, e);
@@ -1469,7 +1481,7 @@ public class MetadataFinder {
             queueHandler.interrupt();
             queueHandler = null;
             lastUpdates.clear();
-            metadata.clear();
+            hotCache.clear();
         }
     }
 }
