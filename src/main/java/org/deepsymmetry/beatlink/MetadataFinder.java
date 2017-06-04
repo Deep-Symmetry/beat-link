@@ -192,9 +192,10 @@ public class MetadataFinder {
      */
     private static WaveformPreview getWaveformPreview(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
         throws IOException {
-        Message response = client.simpleRequest(Message.KnownType.CUE_LIST_REQ, null,
-                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId));
-        if (response.knownType == Message.KnownType.CUE_LIST) {
+        Message response = client.simpleRequest(Message.KnownType.WAVE_PREVIEW_REQ, null,
+                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField(1),
+                new NumberField(rekordboxId), new NumberField(0));
+        if (response.knownType == Message.KnownType.WAVE_PREVIEW) {
             return new WaveformPreview(response);
         }
         logger.error("Unexpected response type when requesting waveform preview: {}", response);
