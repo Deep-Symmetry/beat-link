@@ -1415,6 +1415,18 @@ public class MetadataFinder {
             if (lastStatus == null || lastStatus.getTrackSourceSlot() != update.getTrackSourceSlot() ||
                     lastStatus.getTrackSourcePlayer() != update.getTrackSourcePlayer() ||
                     lastStatus.getRekordboxId() != update.getRekordboxId()) {  // We have something new!
+
+                // First see if we can find the new track in the hot cache, in case it was a hot cue
+                final TrackReference trackReference = new TrackReference(update.getTrackSourcePlayer(),
+                        update.getTrackSourceSlot(), update.getRekordboxId());
+                for (TrackMetadata cached : hotCache.values()) {
+                    if (cached.trackReference.equals(trackReference)) {
+                        updateMetadata(update, cached);
+                        return;
+                    }
+                }
+
+                // Not in the hot cache so try actually retrieving it.
                 if (activeRequests.add(update.getTrackSourcePlayer())) {
                     clearDeck(update);  // We won't know what it is until our request completes.
                     // We had to make sure we were not already asking for this track.
@@ -1422,9 +1434,7 @@ public class MetadataFinder {
                         @Override
                         public void run() {
                             try {
-                                TrackMetadata data = requestMetadataInternal(
-                                        new TrackReference(update.getTrackSourcePlayer(),
-                                        update.getTrackSourceSlot(), update.getRekordboxId()), true);
+                                TrackMetadata data = requestMetadataInternal(trackReference, true);
                                 if (data != null) {
                                     updateMetadata(update, data);
                                 }
