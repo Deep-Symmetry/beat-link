@@ -138,11 +138,6 @@ public class WaveformPreview {
         private final TrackMetadata metadata;
 
         /**
-         * Information about the cues in the track whose waveform we are drawing, so we can draw them too.
-         */
-        private final CueList cueList;
-
-        /**
          * Set the current playback position. Will cause  part the component to be redrawn if the position has
          * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
          * component).
@@ -170,11 +165,9 @@ public class WaveformPreview {
          *
          * @param metadata Information about the track whose waveform we are drawing, so we can translate times into
          *                 positions
-         * @param cueList Information about the cues in the track whose waveform we are drawing, so we can draw them too
          */
-        ViewComponent(final TrackMetadata metadata, final CueList cueList) {
+        ViewComponent(final TrackMetadata metadata) {
             this.metadata = metadata;
-            this.cueList = cueList;
         }
 
         @Override
@@ -249,8 +242,8 @@ public class WaveformPreview {
             }
 
             // Finally, draw the cue points
-            if (cueList != null && metadata != null) {
-                for (CueList.Entry entry : cueList.entries) {
+            if (metadata != null && metadata.getCueList() != null) {
+                for (CueList.Entry entry : metadata.getCueList().entries) {
                     final int x = millisecondsToX(entry.cueTime);
                     if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
                         g.setColor((entry.hotCueNumber > 0)? Color.GREEN : Color.RED);
@@ -271,12 +264,11 @@ public class WaveformPreview {
      *
      * @param metadata Information about the track whose waveform we are drawing, so we can translate times into
      *                 positions
-     * @param cueList Information about the cues in the track whose waveform we are drawing, so we can draw them too
      *
      * @return the component which will draw the annotated waveform preview
      */
-    public JComponent createViewComponent(TrackMetadata metadata, CueList cueList) {
-        return new ViewComponent(metadata, cueList);
+    public JComponent createViewComponent(TrackMetadata metadata) {
+        return new ViewComponent(metadata);
     }
 
     /**
