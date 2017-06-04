@@ -20,10 +20,10 @@ public class TrackMetadata {
     private static final Logger logger = LoggerFactory.getLogger(TrackMetadata.class.getName());
 
     /**
-     * The rekordbox ID that was used to request this track metadata.
+     * The unique track identifier that was used to request this track metadata.
      */
     @SuppressWarnings("WeakerAccess")
-    public final int rekordboxId;
+    public final TrackReference trackReference;
 
     /**
      * The raw dbserver messages containing the metadata when it was read over the network.
@@ -109,12 +109,12 @@ public class TrackMetadata {
      * Constructor for when reading from the network or from a cache file.
      * Sets all the interpreted fields based on the received response messages.
      *
-     * @param rekordboxId the rekordbox ID that was used to request this track metadata
+     * @param reference the unique track reference that was used to request this track metadata
      * @param items the menu item responses that were received in response to the render menu request
      * @param cueList the cues associated with the track, if any
      */
-    TrackMetadata(int rekordboxId, List<Message> items, CueList cueList) {
-        this.rekordboxId = rekordboxId;
+    TrackMetadata(TrackReference reference, List<Message> items, CueList cueList) {
+        trackReference = reference;
         this.cueList = cueList;
         rawItems = Collections.unmodifiableList(new LinkedList<Message>(items));
         for (Message item : items) {
@@ -178,7 +178,8 @@ public class TrackMetadata {
 
     @Override
     public String toString() {
-        return "Track Metadata[ID: " + rekordboxId +", Title: " + title + ", Artist: " + artist + ", Album: " + album +
+        return "Track Metadata[trackReference: " + trackReference +
+                ", Title: " + title + ", Artist: " + artist + ", Album: " + album +
                 ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
                 ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre + ", Label: " + label +
                 ", Artwork ID: " + artworkId +"]";

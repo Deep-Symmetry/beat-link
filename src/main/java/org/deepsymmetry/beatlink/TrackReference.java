@@ -49,6 +49,16 @@ public class TrackReference {
 
     }
 
+    /**
+     * Create a unique reference to a track that is currently available on the network.
+     *
+     * @param slot the slot in which the track is mounted
+     * @param rekordboxId the unique ID of the track within that media database
+     */
+    public TrackReference(SlotReference slot, int rekordboxId) {
+        this(slot.player, slot.slot, rekordboxId);
+    }
+
     @Override
     public int hashCode() {
         return hash;
@@ -58,8 +68,13 @@ public class TrackReference {
     public boolean equals(Object obj) {
         if (obj instanceof TrackReference) {
             TrackReference other = (TrackReference) obj;
-            return (other.player == player) && (other.slot == slot) && other.rekordboxId == rekordboxId;
+            return (other.player == player) && (other.slot == slot) && (other.rekordboxId == rekordboxId);
         }
         return false;
+    }
+
+    @Override
+    public String toString() {
+        return "TrackReference[player:" + player + ", slot:" + slot + ", rekordboxId:" + rekordboxId + "]";
     }
 }
