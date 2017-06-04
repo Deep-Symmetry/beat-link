@@ -1077,8 +1077,14 @@ public class MetadataFinder {
      * @param announcement the packet which reported the device’s disappearance
      */
     private static synchronized void clearMetadata(DeviceAnnouncement announcement) {
-        metadata.remove(announcement.getNumber());
+        final int player = announcement.getNumber();
+        metadata.remove(player);
         lastUpdates.remove(announcement.getAddress());
+        for (TrackReference artReference : artCache.keySet()) {
+            if (artReference.player == player) {
+                artCache.remove(artReference);
+            }
+        }
     }
 
     /**
@@ -1299,7 +1305,8 @@ public class MetadataFinder {
     }
 
     /**
-     * Records that there is no media mounted in a particular media player slot, updating listeners if this is a change.
+     * Records that there is no media mounted in a particular media player slot, updating listeners if this is a change,
+     * and clearing any affected items from our in-memory caches.
      *
      * @param player the number of the player that has no media in the specified slot
      * @param slot the slot in which no media is mounted
@@ -1309,11 +1316,21 @@ public class MetadataFinder {
             case USB_SLOT:
                 if (usbMounts.remove(player)) {
                     deliverCacheUpdate();
+                    for (TrackReference artReference : artCache.keySet()) {
+                        if ((artReference.player == player) && (artReference.slot == slot)) {
+                            artCache.remove(artReference);
+                        }
+                    }
                 }
                 break;
             case SD_SLOT:
                 if (sdMounts.remove(player)) {
                     deliverCacheUpdate();
+                    for (TrackReference artReference : artCache.keySet()) {
+                        if ((artReference.player == player) && (artReference.slot == slot)) {
+                            artCache.remove(artReference);
+                        }
+                    }
                 }
                 break;
             default:
