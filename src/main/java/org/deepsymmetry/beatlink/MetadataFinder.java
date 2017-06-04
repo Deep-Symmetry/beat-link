@@ -4,6 +4,8 @@ import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
@@ -41,7 +43,8 @@ public class MetadataFinder {
         if (status.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK || status.getRekordboxId() == 0) {
             return null;
         }
-        return requestMetadataFrom(status.getTrackSourcePlayer(), status.getTrackSourceSlot(), status.getRekordboxId());
+        return requestMetadataFrom(new TrackReference(status.getTrackSourcePlayer(),
+                status.getTrackSourceSlot(), status.getRekordboxId()));
     }
 
 
@@ -49,26 +52,22 @@ public class MetadataFinder {
      * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID,
      * unless we have a metadata cache available for the specified media slot, in which case that will be used instead.
      *
-     * @param player the player number whose track is of interest
-     * @param slot the slot in which the track can be found
-     * @param rekordboxId the track of interest
+     * @param track uniquely identifies the track whose metadata is desired
      *
      * @return the metadata, if any
      *
      * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
      */
     @SuppressWarnings("WeakerAccess")
-    public static TrackMetadata requestMetadataFrom(int player, CdjStatus.TrackSourceSlot slot, int rekordboxId) {
-        return requestMetadataInternal(player, slot, rekordboxId, false);
+    public static TrackMetadata requestMetadataFrom(TrackReference track) {
+        return requestMetadataInternal(track, false);
     }
 
     /**
      * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID,
      * using cached media instead if it is available, and possibly giving up if we are in passive mode.
      *
-     * @param player the player number whose track is of interest
-     * @param slot the slot in which the track can be found
-     * @param rekordboxId the track of interest
+     * @param track uniquely identifies the track whose metadata is desired
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
      *                      metadata updates will use available caches only
      *
@@ -76,12 +75,11 @@ public class MetadataFinder {
      *
      * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
      */
-    private static TrackMetadata requestMetadataInternal(final int player, final CdjStatus.TrackSourceSlot slot,
-                                                         final int rekordboxId, boolean failIfPassive) {
+    private static TrackMetadata requestMetadataInternal(final TrackReference track, boolean failIfPassive) {
         // First check if we are using cached data for this request
-        ZipFile cache = getMetadataCache(player, slot);
+        ZipFile cache = getMetadataCache(track.player, track.slot);
         if (cache != null) {
-            return getCachedMetadata(cache, rekordboxId);
+            return getCachedMetadata(cache, track.rekordboxId);
         }
 
         if (passive && failIfPassive) {
@@ -91,12 +89,12 @@ public class MetadataFinder {
         ConnectionManager.ClientTask<TrackMetadata> task = new ConnectionManager.ClientTask<TrackMetadata>() {
             @Override
             public TrackMetadata useClient(Client client) throws Exception {
-                return queryMetadata(rekordboxId, slot, client);
+                return queryMetadata(track.rekordboxId, track.slot, client);
             }
         };
 
         try {
-            return ConnectionManager.invokeWithClientSession(player, task, "requesting metadata");
+            return ConnectionManager.invokeWithClientSession(track.player, task, "requesting metadata");
         } catch (Exception e) {
             logger.error("Problem requesting metadata, returning null", e);
         }
@@ -127,13 +125,32 @@ public class MetadataFinder {
             return null;
         }
 
-        // Gather all the metadata menu items
+        // Gather the cue list and all the metadata menu items
+        final CueList cueList = getCueList(rekordboxId, slot, client);
         final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
-        TrackMetadata result = new TrackMetadata(rekordboxId, items);
-        if (result.getArtworkId() != 0) {
-            result = result.withArtwork(requestArtwork(result.getArtworkId(), slot, client));
-        }
-        return result;
+        return new TrackMetadata(rekordboxId, items, cueList);
+    }
+
+    /**
+     * Request the artwork with a particular artwork ID, given a connection to a player that has already been set up.
+     *
+     * @param artworkId identifies the album art to retrieve
+     * @param slot the slot identifier from which the associated track was loaded
+     * @param client the dbserver client that is communicating with the appropriate player
+     *
+     * @return the track's artwork, or null if none is available
+     *
+     * @throws IOException if there is a problem communicating with the player
+     */
+    private static ByteBuffer getArtwork(int artworkId, CdjStatus.TrackSourceSlot slot, Client client)
+            throws IOException {
+
+        // Send the artwork request
+        Message response = client.simpleRequest(Message.KnownType.ALBUM_ART_REQ, Message.KnownType.ALBUM_ART,
+                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField((long)artworkId));
+
+        // Create an image from the response bytes
+        return ((BinaryField)response.arguments.get(3)).getValue();
     }
 
     /**
@@ -248,27 +265,7 @@ public class MetadataFinder {
                     items.add(current);
                     current = Message.read(is);
                 }
-                TrackMetadata result = new TrackMetadata(rekordboxId, items);
-                try {
-                    is.close();
-                } catch (Exception e) {
-                    is = null;
-                    logger.error("Problem closing Zip File input stream after reading metadata entry", e);
-                }
-                if (result.getArtworkId() != 0) {
-                    entry = cache.getEntry(getArtworkEntryName(result));
-                    if (entry != null) {
-                        is = new DataInputStream(cache.getInputStream(entry));
-                        try {
-                            byte[] imageBytes = new byte[(int)entry.getSize()];
-                            is.readFully(imageBytes);
-                            result = result.withArtwork(ByteBuffer.wrap(imageBytes).asReadOnlyBuffer());
-                        } catch (Exception e) {
-                            logger.error("Problem reading artwork from metadata cache, leaving as null", e);
-                        }
-                    }
-                }
-                return result;
+                return new TrackMetadata(rekordboxId, items, getCachedCueList(cache, rekordboxId));
             } catch (IOException e) {
                 logger.error("Problem reading metadata from cache file, returning null", e);
             } finally {
@@ -277,6 +274,38 @@ public class MetadataFinder {
                         is.close();
                     } catch (Exception e) {
                         logger.error("Problem closing ZipFile input stream for reading metadata entry", e);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Look up artwork from a cache.
+     *
+     * @param cache the appropriate metadata cache file
+     * @param artworkId the database ID of the desired artwork
+     *
+     * @return the cached artwork bytes (if available), or {@code null}
+     */
+    private static ByteBuffer getCachedArtwork(ZipFile cache, int artworkId) {
+        ZipEntry entry = cache.getEntry(getArtworkEntryName(artworkId));
+        if (entry != null) {
+            DataInputStream is = null;
+            try {
+                is = new DataInputStream(cache.getInputStream(entry));
+                byte[] imageBytes = new byte[(int)entry.getSize()];
+                is.readFully(imageBytes);
+                return(ByteBuffer.wrap(imageBytes).asReadOnlyBuffer());
+            } catch (IOException e) {
+                logger.error("Problem reading artwork from cache file, returning null", e);
+            } finally {
+                if (is != null) {
+                    try {
+                        is.close();
+                    } catch (Exception e) {
+                        logger.error("Problem closing ZipFile input stream for reading artwork entry", e);
                     }
                 }
             }
@@ -413,8 +442,8 @@ public class MetadataFinder {
      * Ask the specified player for the playlist entries of the specified playlist (if {@code folder} is {@code false},
      * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}.
      *
-     * @param player the player number whose track is of interest
-     * @param slot the slot in which the track can be found
+     * @param player the player number whose playlist entries are of interest
+     * @param slot the slot in which the playlist can be found
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 5.10.1 of the
      *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
@@ -441,99 +470,201 @@ public class MetadataFinder {
     }
 
     /**
+     * Provide a least-recently used cache mechanism so we can keep artwork around for reuse, since it is often shared
+     * between tracks, and does not take up much space.
+     *
+     * @param <A> the type of the keys that will be used in the cache
+     * @param <B> the type of the values that will be used in the cache
+     */
+    private static class LruCache<A, B> extends LinkedHashMap<A, B> {
+
+        /**
+         * How many entries are we to retain.
+         */
+        private final int maxEntries;
+
+        /**
+         * Set the cache size cap and then delegate to the superclass constructor.
+         *
+         * @param maxEntries the largest number of entries we will retain
+         */
+        @SuppressWarnings("SameParameterValue")
+        public LruCache(final int maxEntries) {
+            super(maxEntries + 1, 1.0f, true);
+            this.maxEntries = maxEntries;
+        }
+
+        /**
+         * Returns <tt>true</tt> if this <code>LruCache</code> has more entries than the maximum specified when it was
+         * created.
+         *
+         * This method <em>does not</em> modify the underlying <code>Map</code>; it relies on the implementation of
+         * {@link LinkedHashMap} to do that, but that behavior is documented in the JavaDoc for
+         * <code>LinkedHashMap</code>
+         *
+         * @param eldest the {@link java.util.Map.Entry} in question; this implementation doesn't care what it is,
+         *               since the implementation is only dependent on the size of the cache
+         *
+         * @return <tt>true</tt> if the map has overflowed, so the oldest entry should be removed
+         *
+         * @see LinkedHashMap#removeEldestEntry(Map.Entry)
+         */
+        @Override
+        protected boolean removeEldestEntry(final Map.Entry<A, B> eldest) {
+            return (size() > maxEntries);
+        }
+    }
+
+    /**
+     * The maximum number of artwork images we will retain in our cache
+     */
+    private static final int ART_CACHE_SIZE = 100;
+
+    /**
+     * Establish the artwork cache. Even though we are not caching tracks, the {@link TrackReference} tuple has
+     * exactly the information we need to identify cached artwork.
+     */
+    private static final Map<TrackReference, ByteBuffer> artCache =
+            Collections.synchronizedMap(new LruCache<TrackReference, ByteBuffer>(ART_CACHE_SIZE));
+
+    /**
+     * Ask the specified player for the specified artwork from the specified media slot, first checking if we have a
+     * cached copy.
+     *
+     * @param player the player number whose artwork is of interest
+     * @param slot the slot in which the artwork can be found
+     * @param artworkId the unique database ID of the desired artwork
+     *
+     * @return a newly allocated image containing the artwork, if it was found, or {@code null}
+     *
+     * @throws Exception if there is a problem obtaining the artwork
+     */
+    public static BufferedImage requestArtworkFrom(final int player, final CdjStatus.TrackSourceSlot slot,
+                                                   final int artworkId)
+            throws Exception {
+
+        // First check the in-memory artwork cache
+        final TrackReference ref = new TrackReference(player, slot, artworkId);
+        ByteBuffer artwork = artCache.get(ref);
+        if (artwork == null) {
+            // Then check if we are using cached data for this slot
+            ZipFile cache = getMetadataCache(player, slot);
+            if (cache != null) {
+                artwork = getCachedArtwork(cache, artworkId);
+            } else {
+                // Have to actually request it.
+                ConnectionManager.ClientTask<ByteBuffer> task = new ConnectionManager.ClientTask<ByteBuffer>() {
+                    @Override
+                    public ByteBuffer useClient(Client client) throws Exception {
+                        return getArtwork(artworkId, slot, client);
+                    }
+                };
+                artwork = ConnectionManager.invokeWithClientSession(player, task, "requesting artwork");
+            }
+            if (artwork != null) {  // Our cache file load or network request succeeded, so add to the in-memory cache.
+                artCache.put(ref, artwork);
+            }
+        }
+        if (artwork != null) {  // We found artwork somewhere, so create an image from it
+            artwork.rewind();
+            byte[] imageBytes = new byte[artwork.remaining()];
+            artwork.get(imageBytes);
+            try {
+                return ImageIO.read(new ByteArrayInputStream(imageBytes));
+            } catch (IOException e) {
+                logger.error("Weird! Caught exception creating image from artwork bytes", e);
+                return null;
+            }
+        }
+        return null;  // We were not able to find the artwork.
+    }
+
+    /**
      * Ask the specified player for the beat grid of the track in the specified slot with the specified rekordbox ID,
      * first checking if we have a cache we can use instead.
      *
-     * @param player the player number whose track is of interest
-     * @param slot the slot in which the track can be found
-     * @param rekordboxId the track of interest
+     *
+     * @param track uniquely identifies the track whose beat grid is desired
      *
      * @return the beat grid, if any
      *
      * @throws Exception if there is a problem getting the beat grid information
      */
-    public static BeatGrid requestBeatGridFrom(final int player, final CdjStatus.TrackSourceSlot slot,
-                                               final int rekordboxId)
+    public static BeatGrid requestBeatGridFrom(final TrackReference track)
             throws Exception {
 
-        // First check if we are using cached data for this request
-        ZipFile cache = getMetadataCache(player, slot);
+        // First check if we are using cached data for this slot
+        ZipFile cache = getMetadataCache(track.player, track.slot);
         if (cache != null) {
-            return getCachedBeatGrid(cache, rekordboxId);
+            return getCachedBeatGrid(cache, track.rekordboxId);
         }
 
         ConnectionManager.ClientTask<BeatGrid> task = new ConnectionManager.ClientTask<BeatGrid>() {
             @Override
             public BeatGrid useClient(Client client) throws Exception {
-                return getBeatGrid(rekordboxId, slot, client);
+                return getBeatGrid(track.rekordboxId, track.slot, client);
             }
         };
 
-        return ConnectionManager.invokeWithClientSession(player, task, "requesting beat grid");
+        return ConnectionManager.invokeWithClientSession(track.player, task, "requesting beat grid");
     }
 
     /**
      * Ask the specified player for the cue list of the track in the specified slot with the specified rekordbox ID,
      * first checking if we have a cache we can use instead.
      *
-     * @param player the player number whose track is of interest
-     * @param slot the slot in which the track can be found
-     * @param rekordboxId the track of interest
+     * @param track uniquely identifies the track whose cue list is desired
      *
      * @return the cue list, if any
      *
      * @throws Exception if there is a problem getting the cue list information
      */
-    public static CueList requestCueListFrom(final int player, final CdjStatus.TrackSourceSlot slot,
-                                             final int rekordboxId)
+    public static CueList requestCueListFrom(final TrackReference track)
         throws Exception {
 
-        // First check if we are using cached data for this request
-        ZipFile cache = getMetadataCache(player, slot);
+        // First check if we are using cached data for this slot
+        ZipFile cache = getMetadataCache(track.player, track.slot);
         if (cache != null) {
-            return getCachedCueList(cache, rekordboxId);
+            return getCachedCueList(cache, track.rekordboxId);
         }
 
         ConnectionManager.ClientTask<CueList> task = new ConnectionManager.ClientTask<CueList>() {
             @Override
             public CueList useClient(Client client) throws Exception {
-                return getCueList(rekordboxId, slot, client);
+                return getCueList(track.rekordboxId, track.slot, client);
             }
         };
 
-        return ConnectionManager.invokeWithClientSession(player, task, "requesting cue list");
+        return ConnectionManager.invokeWithClientSession(track.player, task, "requesting cue list");
     }
 
     /**
      * Ask the specified player for the waveform preview of the track in the specified slot with the specified
      * rekordbox ID, first checking if we have a cache we can use instead.
      *
-     * @param player the player number whose track is of interest
-     * @param slot the slot in which the track can be found
-     * @param rekordboxId the track of interest
+     * @param track uniquely identifies the track whose waveform preview is desired
      *
      * @return the preview, if any
      *
      * @throws Exception if there is a problem getting the waveform preview
      */
-    public static WaveformPreview requestWaveformPreviewFrom(final int player, final CdjStatus.TrackSourceSlot slot,
-                                                             final int rekordboxId)
+    public static WaveformPreview requestWaveformPreviewFrom(final TrackReference track)
             throws Exception {
 
-        // First check if we are using cached data for this request
-        ZipFile cache = getMetadataCache(player, slot);
+        // First check if we are using cached data for this slot
+        ZipFile cache = getMetadataCache(track.player, track.slot);
         if (cache != null) {
-            return getCachedWaveformPreview(cache, rekordboxId);
+            return getCachedWaveformPreview(cache, track.rekordboxId);
         }
 
         ConnectionManager.ClientTask<WaveformPreview> task = new ConnectionManager.ClientTask<WaveformPreview>() {
             @Override
             public WaveformPreview useClient(Client client) throws Exception {
-                return getWaveformPreview(rekordboxId, slot, client);
+                return getWaveformPreview(track.rekordboxId, track.slot, client);
             }
         };
 
-        return ConnectionManager.invokeWithClientSession(player, task, "requesting cue list");
+        return ConnectionManager.invokeWithClientSession(track.player, task, "requesting cue list");
     }
 
     /**
@@ -657,11 +788,11 @@ public class MetadataFinder {
                 }
 
                 // Now the album art, if any
-                if (track != null && track.getRawArtwork() != null && !artworkAdded.contains(track.getArtworkId())) {
+                if (track != null && track.getArtworkId() != 0 && !artworkAdded.contains(track.getArtworkId())) {
                     logger.debug("Adding artwork with ID {}", track.getArtworkId());
-                    zipEntry = new ZipEntry(getArtworkEntryName(track));
+                    zipEntry = new ZipEntry(getArtworkEntryName(track.getArtworkId()));
                     zos.putNextEntry(zipEntry);
-                    Util.writeFully(track.getRawArtwork(), channel);
+                    Util.writeFully(getArtwork(track.getArtworkId(), slot, client), channel);
                     artworkAdded.add(track.getArtworkId());
                 }
 
@@ -744,14 +875,14 @@ public class MetadataFinder {
     }
 
     /**
-     * Names the appropriate zip file entry for caching a track's album art.
+     * Names the appropriate zip file entry for caching album art.
      *
-     * @param track the track being cached or looked up
+     * @param artworkId the database ID of the artwork being cached or looked up
      *
-     * @return the name of entry where that track's artwork should be stored
+     * @return the name of entry where that artwork should be stored
      */
-    private static String getArtworkEntryName(TrackMetadata track) {
-        return CACHE_ART_ENTRY_PREFIX + track.getArtworkId() + ".jpg";
+    private static String getArtworkEntryName(int artworkId) {
+        return CACHE_ART_ENTRY_PREFIX + artworkId + ".jpg";
     }
 
     /**
@@ -828,28 +959,6 @@ public class MetadataFinder {
             logger.warn("Unable to delete cache file, {}", cache);
         }
         ConnectionManager.invokeWithClientSession(player, task, "building metadata cache");
-    }
-
-    /**
-     * Request the artwork associated with a track whose metadata is being retrieved.
-     *
-     * @param artworkId identifies the album art to retrieve
-     * @param slot the slot identifier from which the track was loaded
-     * @param client the dbserver client that is communicating with the appropriate player
-     *
-     * @return the track's artwork, or null if none is available
-     *
-     * @throws IOException if there is a problem communicating with the player
-     */
-    private static ByteBuffer requestArtwork(int artworkId, CdjStatus.TrackSourceSlot slot, Client client)
-            throws IOException {
-
-        // Send the artwork request
-        Message response = client.simpleRequest(Message.KnownType.ALBUM_ART_REQ, Message.KnownType.ALBUM_ART,
-                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField((long)artworkId));
-
-        // Create an image from the response bytes
-        return ((BinaryField)response.arguments.get(3)).getValue();
     }
 
     /**
@@ -1407,8 +1516,9 @@ public class MetadataFinder {
                         @Override
                         public void run() {
                             try {
-                                TrackMetadata data = requestMetadataInternal(update.getTrackSourcePlayer(),
-                                        update.getTrackSourceSlot(), update.getRekordboxId(), true);
+                                TrackMetadata data = requestMetadataInternal(
+                                        new TrackReference(update.getTrackSourcePlayer(),
+                                        update.getTrackSourceSlot(), update.getRekordboxId()), true);
                                 if (data != null) {
                                     updateMetadata(update, data);
                                     // TODO: Now that we understand cue points, we could keep an in-memory cache of any loaded hot-cue tracks.

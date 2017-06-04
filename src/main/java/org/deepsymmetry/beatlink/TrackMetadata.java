@@ -6,11 +6,6 @@ import org.deepsymmetry.beatlink.dbserver.StringField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -104,45 +99,23 @@ public class TrackMetadata {
     private int artworkId;
 
     /**
-     * The actual track artwork, if any was available.
+     * The cue list, if any, associated with the track.
      */
-    private ByteBuffer artwork;
+    private final CueList cueList;
 
     // TODO: Add fields like artist ID, genre ID, key ID, etc.
-
-    /**
-     * Copy constructor for building a variant with altered field values.
-     *
-     */
-    private TrackMetadata(TrackMetadata original) {
-        rekordboxId = original.rekordboxId;
-        rawItems = original.rawItems;
-        album = original.album;
-        artist = original.artist;
-        color = original.color;
-        comment = original.comment;
-        dateAdded = original.dateAdded;
-        duration = original.duration;
-        genre = original.genre;
-        key = original.key;
-        label = original.label;
-        rating = original.rating;
-        tempo = original.tempo;
-        title = original.title;
-        artworkId = original.artworkId;
-        artwork = original.artwork;
-    }
 
     /**
      * Constructor for when reading from the network or from a cache file.
      * Sets all the interpreted fields based on the received response messages.
      *
      * @param rekordboxId the rekordbox ID that was used to request this track metadata
-     *
      * @param items the menu item responses that were received in response to the render menu request
+     * @param cueList the cues associated with the track, if any
      */
-    TrackMetadata(int rekordboxId, List<Message> items) {
+    TrackMetadata(int rekordboxId, List<Message> items, CueList cueList) {
         this.rekordboxId = rekordboxId;
+        this.cueList = cueList;
         rawItems = Collections.unmodifiableList(new LinkedList<Message>(items));
         for (Message item : items) {
             switch (item.getMenuItemType()) {
@@ -221,36 +194,6 @@ public class TrackMetadata {
     }
 
     /**
-     * Get the track artwork.
-     *
-     * @return the artwork image associated with the track, if it is exists and has been loaded
-     */
-    public BufferedImage getArtwork() {
-        artwork.rewind();
-        byte[] imageBytes = new byte[artwork.remaining()];
-        artwork.get(imageBytes);
-        try {
-            return ImageIO.read(new ByteArrayInputStream(imageBytes));
-        } catch (IOException e) {
-            logger.error("Weird! Caught exception creating image from artwork bytes", e);
-            return null;
-        }
-    }
-
-    /**
-     * Get the raw bytes that represent the track artwork.
-     *
-     * @return the bytes that were sent as the track artwork, which are a JPEG-encoded image
-     */
-    public ByteBuffer getRawArtwork() {
-        if (artwork != null) {
-            artwork.rewind();
-            return artwork.slice();
-        }
-        return null;
-    }
-
-    /**
      * Get the artwork ID for the track. Will be zero for tracks that have no artwork.
      *
      * @return the value that can be used to request the artwork image, if any, associated with the track
@@ -275,6 +218,16 @@ public class TrackMetadata {
      */
     public String getComment() {
         return comment;
+    }
+
+    /**
+     * Get the cue list associated with the track. Will be {@code null} if no hot cues, loops, or memory points are
+     * found in the track.
+     *
+     * @return the hot cues, loops and memory points stored for the track, if any
+     */
+    public CueList getCueList() {
+        return cueList;
     }
 
     /**
@@ -347,18 +300,5 @@ public class TrackMetadata {
      */
     public String getTitle() {
         return title;
-    }
-
-    /**
-     * Return a copy of this metadata with the specified artwork.
-     *
-     * @param artwork the artwork to assign the metadata
-     *
-     * @return track metadata with the specified artwork image
-     */
-    public TrackMetadata withArtwork(ByteBuffer artwork) {
-        TrackMetadata result = new TrackMetadata(this);
-        result.artwork = artwork;
-        return result;
     }
 }
