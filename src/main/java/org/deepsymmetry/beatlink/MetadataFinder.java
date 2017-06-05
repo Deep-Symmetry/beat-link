@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -933,12 +932,6 @@ public class MetadataFinder {
     private static final Map<DeckReference, TrackMetadata> hotCache = new ConcurrentHashMap<DeckReference, TrackMetadata>();
 
     /**
-     * Keeps track of the previous update from each player that we retrieved metadata about, to check whether a new
-     * track has been loaded.
-     */
-    private static final Map<InetAddress, CdjStatus> lastUpdates = new ConcurrentHashMap<InetAddress, CdjStatus>();
-
-    /**
      * A queue used to hold CDJ status updates we receive from the {@link VirtualCdj} so we can process them on a
      * lower priority thread, and not hold up delivery to more time-sensitive listeners.
      */
@@ -1034,7 +1027,6 @@ public class MetadataFinder {
      */
     private static synchronized void clearDeck(CdjStatus update) {
         hotCache.remove(DeckReference.getDeckReference(update.deviceNumber, 0));
-        lastUpdates.remove(update.address);
         deliverTrackMetadataUpdate(update.deviceNumber, null);
     }
 
@@ -1046,11 +1038,10 @@ public class MetadataFinder {
     private static synchronized void clearMetadata(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
         for (DeckReference deck : hotCache.keySet()) {
-            if (deck.player == announcement.getNumber()) {
+            if (deck.player == player) {
                 hotCache.remove(deck);
             }
         }
-        lastUpdates.remove(announcement.getAddress());
         for (TrackReference artReference : artCache.keySet()) {
             if (artReference.player == player) {
                 artCache.remove(artReference);
@@ -1073,7 +1064,6 @@ public class MetadataFinder {
                 }
             }
         }
-        lastUpdates.put(update.address, update);
         deliverTrackMetadataUpdate(update.deviceNumber, data);
     }
 
@@ -1408,19 +1398,16 @@ public class MetadataFinder {
         if (update.getTrackType() != CdjStatus.TrackType.REKORDBOX ||
                 update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK ||
                 update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.UNKNOWN ||
-                update.getRekordboxId() == 0) {  // We no longer have metadata for this device
+                update.getRekordboxId() == 0) {  // We no longer have metadata for this device.
             clearDeck(update);
-        } else {  // We can gather metadata for this device; check if we already looked up this track
-            CdjStatus lastStatus = lastUpdates.get(update.address);
-            if (lastStatus == null || lastStatus.getTrackSourceSlot() != update.getTrackSourceSlot() ||
-                    lastStatus.getTrackSourcePlayer() != update.getTrackSourcePlayer() ||
-                    lastStatus.getRekordboxId() != update.getRekordboxId()) {  // We have something new!
-
-                // First see if we can find the new track in the hot cache, in case it was a hot cue
-                final TrackReference trackReference = new TrackReference(update.getTrackSourcePlayer(),
-                        update.getTrackSourceSlot(), update.getRekordboxId());
+        } else {  // We can offer metadata for this device; check if we already looked up this track.
+            final TrackMetadata lastMetadata = hotCache.get(DeckReference.getDeckReference(update.deviceNumber, 0));
+            final TrackReference trackReference = new TrackReference(update.getTrackSourcePlayer(),
+                    update.getTrackSourceSlot(), update.getRekordboxId());
+            if (lastMetadata == null || !lastMetadata.trackReference.equals(trackReference)) {  // We have something new!
+                // First see if we can find the new track in the hot cache as a hot cue
                 for (TrackMetadata cached : hotCache.values()) {
-                    if (cached.trackReference.equals(trackReference)) {
+                    if (cached.trackReference.equals(trackReference)) {  // Found a hot cue hit, use it.
                         updateMetadata(update, cached);
                         return;
                     }
@@ -1490,7 +1477,6 @@ public class MetadataFinder {
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
-            lastUpdates.clear();
             hotCache.clear();
         }
     }
