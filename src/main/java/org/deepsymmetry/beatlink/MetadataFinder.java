@@ -1020,14 +1020,15 @@ public class MetadataFinder {
 
     /**
      * We have received an update that invalidates any previous metadata for that player, so clear it out, and alert
-     * any listeners. This does not affect the hot cues; they will stick around until the player loads a new track
-     * that overwrites one or more of them.
+     * any listeners if this represents a change. This does not affect the hot cues; they will stick around until the
+     * player loads a new track that overwrites one or more of them.
      *
      * @param update the update which means we can have no metadata for the associated player
      */
     private static synchronized void clearDeck(CdjStatus update) {
-        hotCache.remove(DeckReference.getDeckReference(update.deviceNumber, 0));
-        deliverTrackMetadataUpdate(update.deviceNumber, null);
+        if (hotCache.remove(DeckReference.getDeckReference(update.deviceNumber, 0)) != null) {
+            deliverTrackMetadataUpdate(update.deviceNumber, null);
+        }
     }
 
     /**
