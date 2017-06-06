@@ -305,10 +305,14 @@ public class ArtFinder {
      *         of the older images will be immediately discarded so that only the number you specified remain
      *
      * @throws IllegalArgumentException if {@code} size is less than 1
+     * @throws IllegalStateException if you try to resize the cache while {@link #isRunning()} is true
      */
     public void setArtCacheSize(int size) {
         if (size < 1) {
             throw new IllegalArgumentException("size must be at least 1");
+        }
+        if (isRunning()) {
+            throw new IllegalStateException("cannot resize cache while running");
         }
         if (size != getArtCacheSize()) {
             Map<DataReference, AlbumArt> newCache =
