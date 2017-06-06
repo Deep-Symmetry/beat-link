@@ -316,7 +316,7 @@ public class ArtFinder {
             Iterator<Map.Entry<DataReference, AlbumArt>> iterator = artCache.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<DataReference, AlbumArt> entry = iterator.next();
-                artCache.remove(entry.getKey());
+                iterator.remove();
                 newCache.put(entry.getKey(), entry.getValue());
             }
             artCache = newCache;
