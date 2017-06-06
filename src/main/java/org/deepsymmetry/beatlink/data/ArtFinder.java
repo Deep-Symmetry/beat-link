@@ -303,12 +303,20 @@ public class ArtFinder {
      * @param size the maximum number of distinct album art images that will automatically be kept for reuse in the
      *         in-memory art cache; if you set this to a smaller number than are currently present in the cache, some
      *         of the older images will be immediately discarded so that only the number you specified remain
+     *
+     * @throws IllegalArgumentException if {@code} size is less than 1
      */
     public void setArtCacheSize(int size) {
+        if (size < 1) {
+            throw new IllegalArgumentException("size must be at least 1");
+        }
         if (size != getArtCacheSize()) {
             Map<DataReference, AlbumArt> newCache =
                     Collections.synchronizedMap(new LruCache<DataReference, AlbumArt>(size));
-            for (Map.Entry<DataReference, AlbumArt> entry : artCache.entrySet()) {
+            Iterator<Map.Entry<DataReference, AlbumArt>> iterator = artCache.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<DataReference, AlbumArt> entry = iterator.next();
+                artCache.remove(entry.getKey());
                 newCache.put(entry.getKey(), entry.getValue());
             }
             artCache = newCache;
