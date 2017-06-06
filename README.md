@@ -12,7 +12,7 @@ for examples of what you can do with this.
 
 > :construction: beat-link is being worked on very heavily at the
 > moment to incorporate some
-> [amazing new discoveries](https://github.com/brunchboy/dysentery#history).
+> [amazing new discoveries](https://github.com/brunchboy/dysentery#robust-metadata-understanding).
 > Expect a major release in the next week or so, which breaks API
 > compatibility for the metadata features, but which makes it very
 > easy to build graphical interfaces showing detailed information
