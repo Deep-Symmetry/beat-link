@@ -1,6 +1,7 @@
 # beat-link
 
-A Java library for synchronizing with beats from Pioneer DJ Link equipment.
+A Java library for synchronizing with beats from Pioneer DJ Link
+equipment, and finding out details about the tracks that are playing.
 
 See
 [beat-link-trigger](https://github.com/brunchboy/beat-link-trigger#beat-link-trigger) and
@@ -120,9 +121,11 @@ method will throw an `IllegalStateException`.)
 
 To find some kinds of information, like which device is the tempo master,
 how many beats of a track have been played, or how many beats there are
-until the next cue point in a track, you need to have beat-link create a virtual
+until the next cue point in a track, and any detailed information about
+the tracks themselved, you need to have beat-link create a virtual
 player on the network. This causes the other players to send detailed status
-updates directly to beat-link, so it can track this information for you.
+updates directly to beat-link, so it can interpret and keep track of
+this information for you.
 
 ```java
 import org.deepsymmetry.beatlink.VirtualCdj;
@@ -174,7 +177,7 @@ images, start the `MetadataFinder`, which will also start the
 `VirtualCdj` if it is not already running.
 
 ```java
-import org.deepsymmetry.beatlink.MetadataFinder;
+import org.deepsymmetry.beatlink.data.MetadataFinder;
 
 // ...
 
@@ -199,20 +202,30 @@ import org.deepsymmetry.beatlink.MetadataFinder;
 > metadata, to be safe, reserve a physical player number from 1 to 4
 > for the exclusive use of beat-link, or have all the CDJs load tracks
 > from rekordbox, rather than from each other.
+>
+> Alternately, you can tell the `MetadataFinder` to create a cache file
+> of the metadata from a media slot when you have a convenient moment,
+> and then have it use that cache file during a busy show when the
+> players would have a hard time responding to queries.
 
 Once the `MetadataFinder` is running, you can access all the metadata
 for currently-loaded tracks by calling
-[`MetadataFinder.getLatestMetadata()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MetadataFinder.html#getLatestMetadata--),
-which returns a `Map` from player numbers to
-[`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/TrackMetadata.html)
-objects describing the track currently loaded in that player. You can
-also call [`MetadataFinder.getLatestMetadataFor(int player)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MetadataFinder.html#getLatestMetadataFor-int-)
-to find the metadata for the track loaded in the specified player. See
-the [`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/TrackMetadata.html)
-API documentation for all the details it provides, and note that you
-can call its [`getArtwork()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/TrackMetadata.html#getArtwork--)
-method to get the artwork image associated with the track, if there
-is one.
+[`MetadataFinder.getLoadedTracks()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLoadedTracks--),
+which returns a `Map` from deck references (player numbers and
+hotcue numbers) to
+[`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
+objects describing the track currently loaded in that player slot. You can
+also call [`MetadataFinder.getLatestMetadataFor(int player)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLatestMetadataFor-int-)
+to find the metadata for the track loaded in the playback deck of the specified player. See
+the [`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
+API documentation for all the details it provides.
+
+With the `MetadataFinder` running, you can also start the `ArtFinder`,
+and use its
+can call its [`getLoadedArt()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/ArtFinder.html#getLoadedArt--)
+or [`getLatestArtFor()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/ArtFinder.html#getLatestArtFor-int-)
+methods to get the artwork images associated with the tracks, if there
+are any.
 
 ## An Example
 
