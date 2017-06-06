@@ -241,7 +241,7 @@ public class ArtFinder {
         /**
          * How many entries are we to retain.
          */
-        private final int maxEntries;
+        final int maxEntries;
 
         /**
          * Set the cache size cap and then delegate to the superclass constructor.
@@ -278,14 +278,42 @@ public class ArtFinder {
     /**
      * The maximum number of artwork images we will retain in our cache.
      */
-    private static final int ART_CACHE_SIZE = 100;  // TODO: Make this configurable
+    public static final int DEFAULT_ART_CACHE_SIZE = 100;
 
     /**
      * Establish the artwork cache. Even though we are not caching tracks, the {@link DataReference} tuple has
      * exactly the information we need to identify cached artwork.
      */
-    private static final Map<DataReference, AlbumArt> artCache =
-            Collections.synchronizedMap(new LruCache<DataReference, AlbumArt>(ART_CACHE_SIZE));
+    private static volatile Map<DataReference, AlbumArt> artCache =
+            Collections.synchronizedMap(new LruCache<DataReference, AlbumArt>(DEFAULT_ART_CACHE_SIZE));
+
+    /**
+     * Check how many album art images can be kept in the in-memory cache.
+     *
+     * @return the maximum number of distinct album art images that will automatically be kept for reuse in the
+     *         in-memory art cache.
+     */
+    public int getArtCacheSize() {
+        return ((LruCache<DataReference,AlbumArt>) artCache).maxEntries;
+    }
+
+    /**
+     * Set how many album art images can be kept in the in-memory cache.
+     *
+     * @param size the maximum number of distinct album art images that will automatically be kept for reuse in the
+     *         in-memory art cache; if you set this to a smaller number than are currently present in the cache, some
+     *         of the older images will be immediately discarded so that only the number you specified remain
+     */
+    public void setArtCacheSize(int size) {
+        if (size != getArtCacheSize()) {
+            Map<DataReference, AlbumArt> newCache =
+                    Collections.synchronizedMap(new LruCache<DataReference, AlbumArt>(size));
+            for (Map.Entry<DataReference, AlbumArt> entry : artCache.entrySet()) {
+                newCache.put(entry.getKey(), entry.getValue());
+            }
+            artCache = newCache;
+        }
+    }
 
     /**
      * Ask the specified player for the album art in the specified slot with the specified rekordbox ID,
