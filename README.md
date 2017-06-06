@@ -122,7 +122,7 @@ method will throw an `IllegalStateException`.)
 To find some kinds of information, like which device is the tempo master,
 how many beats of a track have been played, or how many beats there are
 until the next cue point in a track, and any detailed information about
-the tracks themselved, you need to have beat-link create a virtual
+the tracks themselves, you need to have beat-link create a virtual
 player on the network. This causes the other players to send detailed status
 updates directly to beat-link, so it can interpret and keep track of
 this information for you.
@@ -212,7 +212,7 @@ Once the `MetadataFinder` is running, you can access all the metadata
 for currently-loaded tracks by calling
 [`MetadataFinder.getLoadedTracks()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLoadedTracks--),
 which returns a `Map` from deck references (player numbers and
-hotcue numbers) to
+hot cue numbers) to
 [`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
 objects describing the track currently loaded in that player slot. You can
 also call [`MetadataFinder.getLatestMetadataFor(int player)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLatestMetadataFor-int-)
