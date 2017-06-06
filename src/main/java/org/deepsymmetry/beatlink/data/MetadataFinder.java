@@ -1001,7 +1001,7 @@ public class MetadataFinder {
             }
         }
 
-        deliverCacheUpdate();
+        deliverCacheUpdate(slot, newCache);
     }
 
     /**
@@ -1019,7 +1019,7 @@ public class MetadataFinder {
             } catch (IOException e) {
                 logger.error("Problem closing metadata cache", e);
             }
-            deliverCacheUpdate();
+            deliverCacheUpdate(slot, null);
         }
     }
 
@@ -1197,13 +1197,18 @@ public class MetadataFinder {
 
     /**
      * Send a metadata cache update announcement to all registered listeners.
+     *
+     * @param slot the media slot whose cache status has changed
+     * @param cache the cache file which has been attached, or, if {@code null}, the previous cache has been detached
      */
-    private static void deliverCacheUpdate() {
-        final Map<SlotReference, ZipFile> caches = Collections.unmodifiableMap(metadataCacheFiles);
+    private static void deliverCacheUpdate(SlotReference slot, ZipFile cache) {
         for (final MetadataCacheListener listener : getCacheListeners()) {
             try {
-                listener.cacheStateChanged(caches);
-
+                if (cache == null) {
+                    listener.cacheDetached(slot);
+                } else {
+                    listener.cacheAttached(slot, cache);
+                }
             } catch (Exception e) {
                 logger.warn("Problem delivering metadata cache update to listener", e);
             }
