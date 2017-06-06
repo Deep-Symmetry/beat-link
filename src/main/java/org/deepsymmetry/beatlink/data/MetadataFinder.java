@@ -552,7 +552,7 @@ public class MetadataFinder {
      * @throws IOException if there is a problem communicating with the player or writing the cache file.
      */
     private static void copyTracksToCache(List<Message> trackListEntries, Client client, SlotReference slot,
-                                          File cache, MetadataCreationUpdateListener listener)
+                                          File cache, MetadataCacheCreationListener listener)
         throws IOException {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
@@ -630,7 +630,7 @@ public class MetadataFinder {
 
                 // TODO: Include waveforms (once supported), etc.
                 if (listener != null) {
-                    if (!listener.cacheUpdateContinuing(track, ++tracksCopied, totalToCopy)) {
+                    if (!listener.cacheCreationContinuing(track, ++tracksCopied, totalToCopy)) {
                         logger.info("Track metadata cache creation canceled by listener");
                         if (!cache.delete()) {
                             logger.warn("Unable to delete cache metadata file, {}", cache);
@@ -729,7 +729,7 @@ public class MetadataFinder {
     /**
      * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
      * previous contents of the specified file will be replaced. If a non-{@code null} {@code listener} is
-     * supplied, its {@link MetadataCreationUpdateListener#cacheUpdateContinuing(TrackMetadata, int, int)} method
+     * supplied, its {@link MetadataCacheCreationListener#cacheCreationContinuing(TrackMetadata, int, int)} method
      * will be called after each track is added to the cache, allowing it to display progress updates to the user,
      * and to continue or cancel the process by returning {@code true} or {@code false}.
      *
@@ -746,7 +746,7 @@ public class MetadataFinder {
      */
     @SuppressWarnings({"SameParameterValue", "WeakerAccess"})
     public static void createMetadataCache(final SlotReference slot, final int playlistId,
-                                           final File cache, final MetadataCreationUpdateListener listener)
+                                           final File cache, final MetadataCacheCreationListener listener)
             throws Exception {
         ConnectionManager.ClientTask<Object> task = new ConnectionManager.ClientTask<Object>() {
             @Override
@@ -1076,7 +1076,7 @@ public class MetadataFinder {
     /**
      * Keeps track of the registered mount update listeners.
      */
-    private static final Set<MountUpdateListener> mountListeners = new HashSet<MountUpdateListener>();
+    private static final Set<MountListener> mountListeners = new HashSet<MountListener>();
 
     /**
      * Adds the specified mount update listener to receive updates when media is mounted or unmounted by any player.
@@ -1095,7 +1095,7 @@ public class MetadataFinder {
      * @param listener the mount update listener to add
      */
     @SuppressWarnings("SameParameterValue")
-    public static synchronized void addMountUpdateListener(MountUpdateListener listener) {
+    public static synchronized void addMountListener(MountListener listener) {
         if (listener != null) {
             mountListeners.add(listener);
         }
@@ -1108,7 +1108,7 @@ public class MetadataFinder {
      *
      * @param listener the mount update listener to remove
      */
-    public static synchronized void removeMountUpdateListener(MountUpdateListener listener) {
+    public static synchronized void removeMountListener(MountListener listener) {
         if (listener != null) {
             mountListeners.remove(listener);
         }
@@ -1120,8 +1120,8 @@ public class MetadataFinder {
      * @return the listeners that are currently registered for mount updates
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized Set<MountUpdateListener> getMountListeners() {
-        return Collections.unmodifiableSet(new HashSet<MountUpdateListener>(mountListeners));
+    public static synchronized Set<MountListener> getMountListeners() {
+        return Collections.unmodifiableSet(new HashSet<MountListener>(mountListeners));
     }
 
     /**
@@ -1131,7 +1131,7 @@ public class MetadataFinder {
      * @param mounted will be {@code true} if there is now media mounted in the specified slot
      */
     private static void deliverMountUpdate(SlotReference slot, boolean mounted) {
-        for (final MountUpdateListener listener : getMountListeners()) {
+        for (final MountListener listener : getMountListeners()) {
             try {
                 if (mounted) {
                     listener.mediaMounted(slot);
@@ -1148,7 +1148,7 @@ public class MetadataFinder {
     /**
      * Keeps track of the registered cache update listeners.
      */
-    private static final Set<MetadataCacheUpdateListener> cacheListeners = new HashSet<MetadataCacheUpdateListener>();
+    private static final Set<MetadataCacheListener> cacheListeners = new HashSet<MetadataCacheListener>();
 
     /**
      * Adds the specified cache update listener to receive updates when a metadata cache is attached or detached.
@@ -1166,7 +1166,7 @@ public class MetadataFinder {
      *
      * @param listener the cache update listener to add
      */
-    public static synchronized void addCacheUpdateListener(MetadataCacheUpdateListener listener) {
+    public static synchronized void addCacheListener(MetadataCacheListener listener) {
         if (listener != null) {
             cacheListeners.add(listener);
         }
@@ -1179,7 +1179,7 @@ public class MetadataFinder {
      *
      * @param listener the cache update listener to remove
      */
-    public static synchronized void removeCacheUpdateListener(MetadataCacheUpdateListener listener) {
+    public static synchronized void removeCacheListener(MetadataCacheListener listener) {
         if (listener != null) {
             cacheListeners.remove(listener);
         }
@@ -1191,8 +1191,8 @@ public class MetadataFinder {
      * @return the listeners that are currently registered for metadata cache updates
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized Set<MetadataCacheUpdateListener> getCacheUpdateListeners() {
-        return Collections.unmodifiableSet(new HashSet<MetadataCacheUpdateListener>(cacheListeners));
+    public static synchronized Set<MetadataCacheListener> getCacheListeners() {
+        return Collections.unmodifiableSet(new HashSet<MetadataCacheListener>(cacheListeners));
     }
 
     /**
@@ -1200,7 +1200,7 @@ public class MetadataFinder {
      */
     private static void deliverCacheUpdate() {
         final Map<SlotReference, ZipFile> caches = Collections.unmodifiableMap(metadataCacheFiles);
-        for (final MetadataCacheUpdateListener listener : getCacheUpdateListeners()) {
+        for (final MetadataCacheListener listener : getCacheListeners()) {
             try {
                 listener.cacheStateChanged(caches);
 
@@ -1213,7 +1213,7 @@ public class MetadataFinder {
     /**
      * Keeps track of the registered track metadata update listeners.
      */
-    private static final Set<TrackMetadataUpdateListener> trackListeners = new HashSet<TrackMetadataUpdateListener>();
+    private static final Set<TrackMetadataListener> trackListeners = new HashSet<TrackMetadataListener>();
 
     /**
      * Adds the specified track metadata listener to receive updates when the track metadata for a player changes.
@@ -1232,7 +1232,7 @@ public class MetadataFinder {
      * @param listener the track metadata update listener to add
      */
     @SuppressWarnings("SameParameterValue")
-    public static synchronized void addTrackMetadataUpdateListener(TrackMetadataUpdateListener listener) {
+    public static synchronized void addTrackMetadataListener(TrackMetadataListener listener) {
         if (listener != null) {
             trackListeners.add(listener);
         }
@@ -1244,8 +1244,8 @@ public class MetadataFinder {
      * @return the listeners that are currently registered for track metadata updates
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized Set<TrackMetadataUpdateListener> getTrackMetadataUpdateListeners() {
-        return Collections.unmodifiableSet(new HashSet<TrackMetadataUpdateListener>(trackListeners));
+    public static synchronized Set<TrackMetadataListener> getTrackMetadataListeners() {
+        return Collections.unmodifiableSet(new HashSet<TrackMetadataListener>(trackListeners));
     }
 
     /**
@@ -1256,7 +1256,7 @@ public class MetadataFinder {
      * @param listener the track metadata update listener to remove
      */
     @SuppressWarnings("SameParameterValue")
-    public static synchronized void removeTrackMetadataUpdateListener(TrackMetadataUpdateListener listener) {
+    public static synchronized void removeTrackMetadataListener(TrackMetadataListener listener) {
         if (listener != null) {
             trackListeners.remove(listener);
         }
@@ -1266,9 +1266,9 @@ public class MetadataFinder {
      * Send a track metadata update announcement to all registered listeners.
      */
     private static void deliverTrackMetadataUpdate(int player, TrackMetadata metadata) {
-        if (!getTrackMetadataUpdateListeners().isEmpty()) {
+        if (!getTrackMetadataListeners().isEmpty()) {
             final TrackMetadataUpdate update = new TrackMetadataUpdate(player, metadata);
-            for (final TrackMetadataUpdateListener listener : getTrackMetadataUpdateListeners()) {
+            for (final TrackMetadataListener listener : getTrackMetadataListeners()) {
                 try {
                     listener.metadataChanged(update);
 

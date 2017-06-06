@@ -1,21 +1,20 @@
 package org.deepsymmetry.beatlink.data;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.zip.ZipFile;
 
 /**
  * The listener interface for receiving updates when the set of attached metadata caches changes.
  *
  * Classes that are interested displaying up-to-date information about attached metadata caches can implement this
- * interface, and then pass the implementing instance to {@link MetadataFinder#addCacheUpdateListener(MetadataCacheUpdateListener)}.
+ * interface, and then pass the implementing instance to {@link MetadataFinder#addCacheListener(MetadataCacheListener)}.
  * Then, whenever a metadata cache is attached or detached, {@link #cacheStateChanged(Map)} will be called, with the
  * current mapping of player numbers to available metadata cache files.
  *
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public interface MetadataCacheUpdateListener {
+public interface MetadataCacheListener {
     /**
      * Invoked whenever there is a change in the attached metadata caches.
      *

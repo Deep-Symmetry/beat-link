@@ -50,7 +50,7 @@ public class ArtFinder {
      * Our metadata listener just puts metadata updates on our queue, so we can process them on a lower
      * priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private static final TrackMetadataUpdateListener metadataListener = new TrackMetadataUpdateListener() {
+    private static final TrackMetadataListener metadataListener = new TrackMetadataListener() {
         @Override
         public void metadataChanged(TrackMetadataUpdate update) {
             logger.debug("Received metadata update {}", update);
@@ -64,7 +64,7 @@ public class ArtFinder {
      * Our mount listener evicts any cached artwork that belong to media databases which have been unmounted, since
      * they are no longer valid.
      */
-    private static final MountUpdateListener mountListener = new MountUpdateListener() {
+    private static final MountListener mountListener = new MountListener() {
         @Override
         public void mediaMounted(SlotReference slot) {
             logger.debug("ArtFinder doesn't yet need to do anything in response to a media mount.");
@@ -430,7 +430,7 @@ public class ArtFinder {
     /**
      * Keeps track of the registered track metadata update listeners.
      */
-    private static final Set<AlbumArtUpdateListener> artListeners = new HashSet<AlbumArtUpdateListener>();
+    private static final Set<AlbumArtListener> artListeners = new HashSet<AlbumArtListener>();
 
     /**
      * Adds the specified album art listener to receive updates when the album art for a player changes.
@@ -448,7 +448,7 @@ public class ArtFinder {
      *
      * @param listener the album art update listener to add
      */
-    public static synchronized void addAlbumArtUpdateListener(AlbumArtUpdateListener listener) {
+    public static synchronized void addAlbumArtListener(AlbumArtListener listener) {
         if (listener != null) {
             artListeners.add(listener);
         }
@@ -460,8 +460,8 @@ public class ArtFinder {
      * @return the listeners that are currently registered for album art updates
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized Set<AlbumArtUpdateListener> getAlbumArtUpdateListeners() {
-        return Collections.unmodifiableSet(new HashSet<AlbumArtUpdateListener>(artListeners));
+    public static synchronized Set<AlbumArtListener> getAlbumArtListeners() {
+        return Collections.unmodifiableSet(new HashSet<AlbumArtListener>(artListeners));
     }
 
     /**
@@ -471,7 +471,7 @@ public class ArtFinder {
      *
      * @param listener the album art update listener to remove
      */
-    public static synchronized void removeAlbumArtUpdateListener(AlbumArtUpdateListener listener) {
+    public static synchronized void removeAlbumArtListener(AlbumArtListener listener) {
         if (listener != null) {
             artListeners.remove(listener);
         }
@@ -481,9 +481,9 @@ public class ArtFinder {
      * Send an album art update announcement to all registered listeners.
      */
     private static void deliverAlbumArtUpdate(int player, AlbumArt art) {
-        if (!getAlbumArtUpdateListeners().isEmpty()) {
+        if (!getAlbumArtListeners().isEmpty()) {
             final AlbumArtUpdate update = new AlbumArtUpdate(player, art);
-            for (final AlbumArtUpdateListener listener : getAlbumArtUpdateListeners()) {
+            for (final AlbumArtListener listener : getAlbumArtListeners()) {
                 try {
                     listener.albumArtChanged(update);
 
@@ -557,8 +557,8 @@ public class ArtFinder {
             DeviceFinder.start();
             DeviceFinder.addDeviceAnnouncementListener(announcementListener);
             MetadataFinder.start();
-            MetadataFinder.addTrackMetadataUpdateListener(metadataListener);
-            MetadataFinder.addMountUpdateListener(mountListener);
+            MetadataFinder.addTrackMetadataListener(metadataListener);
+            MetadataFinder.addMountListener(mountListener);
             queueHandler = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -581,7 +581,7 @@ public class ArtFinder {
      */
     public static synchronized void stop() {
         if (running) {
-            MetadataFinder.removeTrackMetadataUpdateListener(metadataListener);
+            MetadataFinder.removeTrackMetadataListener(metadataListener);
             running = false;
             pendingUpdates.clear();
             queueHandler.interrupt();

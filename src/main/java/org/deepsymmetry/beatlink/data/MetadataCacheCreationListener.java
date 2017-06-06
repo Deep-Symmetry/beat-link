@@ -9,16 +9,16 @@ import java.io.File;
  * the user to cancel it, can implement this interface.
  *
  * The listener object created from that class is then passed to
- * {@link MetadataFinder#createMetadataCache(SlotReference, int, File)}
+ * {@link MetadataFinder#createMetadataCache(SlotReference, int, File, MetadataCacheCreationListener)}
  * in order to be able to display progress during the process of creating the cache file. As each track is added
- * to the cache, {@link #cacheUpdateContinuing(TrackMetadata, int, int)} is called, with the most recent track
+ * to the cache, {@link #cacheCreationContinuing(TrackMetadata, int, int)} is called, with the most recent track
  * added, the number of tracks that have been added so far, and the total that need to  be added. If it returns
  * {@code false}, the creation of the cache file will be canceled.
  *
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public interface MetadataCreationUpdateListener {
+public interface MetadataCacheCreationListener {
     /**
      * Called to inform the listener that another track has been added to the metadata cache file being created.
      * Allows the progress to be displayed, and for the process to be canceled if so desired.
@@ -29,5 +29,5 @@ public interface MetadataCreationUpdateListener {
      *
      * @return {@code true} if creation of the cache should continue, {@code false} if it should be aborted
      */
-    boolean cacheUpdateContinuing(TrackMetadata lastTrackAdded, int tracksAdded, int totalTracksToAdd);
+    boolean cacheCreationContinuing(TrackMetadata lastTrackAdded, int tracksAdded, int totalTracksToAdd);
 }
