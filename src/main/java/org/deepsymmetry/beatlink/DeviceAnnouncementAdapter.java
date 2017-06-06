@@ -1,8 +1,8 @@
 package org.deepsymmetry.beatlink;
 
 /**
- * An abstract adapter class for receiving device announcements. The methods in this class are empty; it exists as a
- * convenience for creating listener objects.
+ * <p>An abstract adapter class for receiving device announcements. The methods in this class are empty; it exists as a
+ * convenience for creating listener objects.</p>
  *
  * <p>Extend this class to create a {@link DeviceAnnouncementListener} and override only the methods for events that you
  * care about. If you plan to implement all the methods in the interface, you might as well implement

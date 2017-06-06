@@ -10,8 +10,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * Represents album artwork associated with tracks loaded into players on a DJ Link network, and provides a convenience
- * method for getting a buffered image for drawing the art.
+ * <p>Represents album artwork associated with tracks loaded into players on a DJ Link network, and provides a
+ * convenience method for getting a buffered image for drawing the art.</p>
  *
  * @author James Elliott
  */

@@ -3,10 +3,10 @@ package org.deepsymmetry.beatlink.data;
 import java.io.File;
 
 /**
- * The listener interface for receiving updates on the progress of creating a metadata cache file.
+ * <p>The listener interface for receiving updates on the progress of creating a metadata cache file.</p>
  *
- * Classes that are interested in displaying a progress bar during the (potentially lengthy) process, and allowing
- * the user to cancel it, can implement this interface.
+ * <p>Classes that are interested in displaying a progress bar during the (potentially lengthy) process, and allowing
+ * the user to cancel it, can implement this interface.</p>
  *
  * The listener object created from that class is then passed to
  * {@link MetadataFinder#createMetadataCache(SlotReference, int, File, MetadataCacheCreationListener)}

@@ -1,8 +1,8 @@
 package org.deepsymmetry.beatlink;
 
 /**
- An abstract adapter class for receiving updates related to the tempo master.
- * The methods in this class are empty; it exists as a convenience for creating listener objects.
+ * <p>An abstract adapter class for receiving updates related to the tempo master.
+ * The methods in this class are empty; it exists as a convenience for creating listener objects.</p>
  *
  * <p>Extend this class to create a {@link MasterListener} and override only the methods for events that you
  * care about. If you plan to implement all the methods in the interface, you might as well implement
@@ -21,17 +21,17 @@ public abstract class MasterAdapter implements MasterListener{
     }
 
     /**
-     * Invoked when a beat is reported by the tempo master, as long as the {@link BeatFinder} is active.
+     * <p>Invoked when a beat is reported by the tempo master, as long as the {@link BeatFinder} is active.
      * Even though beats contain far less detailed information than status updates, they can be passed to
      * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
-     * as long as the Virtual CDJ is active.
+     * as long as the Virtual CDJ is active.</p>
      *
      * <p>To reduce latency, tempo master updates are delivered to listeners directly on the thread that is receiving them
      * from the network, so if you want to interact with user interface objects in this method, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in this method
+     * <p>Even if you are not interacting with user interface objects, any code in this method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and master updates will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *

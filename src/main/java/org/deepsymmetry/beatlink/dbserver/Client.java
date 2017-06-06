@@ -213,13 +213,13 @@ public class Client {
     }
 
     /**
-     * Build the <em>R:M:S:1</em> parameter that begins many queries.
+     * <p>Build the <em>R:M:S:1</em> parameter that begins many queries.</p>
      *
-     * Many request messages take, as their first argument, a 4-byte value where each byte has a special meaning.
+     * <p>Many request messages take, as their first argument, a 4-byte value where each byte has a special meaning.
      * The first byte is the player number of the requesting player. The second identifies the menu into which
      * the response is being loaded, as described by {@link Message.MenuIdentifier}. The third specifies the media
      * slot from which information is desired, as described by {@link CdjStatus.TrackSourceSlot}, and the fourth
-     * byte always seems to be <em>1</em> (Austin's libpdjl called it <em>sourceAnalyzed</em>).
+     * byte always seems to be <em>1</em> (Austin's libpdjl called it <em>sourceAnalyzed</em>).</p>
      *
      * @param requestingPlayer the player number that is asking the question
      * @param targetMenu the destination for the response to this query
@@ -236,13 +236,13 @@ public class Client {
     }
 
     /**
-     * Build the <em>R:M:S:1</em> parameter that begins many queries.
+     * <p>Build the <em>R:M:S:1</em> parameter that begins many queries.</p>
      *
-     * Many request messages take, as their first argument, a 4-byte value where each byte has a special meaning.
+     * <p>Many request messages take, as their first argument, a 4-byte value where each byte has a special meaning.
      * The first byte is the player number of the requesting player. The second identifies the menu into which
      * the response is being loaded, as described by {@link Message.MenuIdentifier}. The third specifies the media
      * slot from which information is desired, as described by {@link CdjStatus.TrackSourceSlot}, and the fourth
-     * byte always seems to be <em>1</em> (Austin's libpdjl called it <em>sourceAnalyzed</em>).
+     * byte always seems to be <em>1</em> (Austin's libpdjl called it <em>sourceAnalyzed</em>).</p>
      *
      * @param targetMenu the destination for the response to this query
      * @param slot the media library of interest for this query

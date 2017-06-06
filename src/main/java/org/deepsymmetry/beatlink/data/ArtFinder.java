@@ -255,12 +255,12 @@ public class ArtFinder {
         }
 
         /**
-         * Returns <tt>true</tt> if this <code>LruCache</code> has more entries than the maximum specified when it was
-         * created.
+         * <p>Returns <tt>true</tt> if this <code>LruCache</code> has more entries than the maximum specified when it was
+         * created.</p>
          *
-         * This method <em>does not</em> modify the underlying <code>Map</code>; it relies on the implementation of
+         * <p>This method <em>does not</em> modify the underlying <code>Map</code>; it relies on the implementation of
          * {@link LinkedHashMap} to do that, but that behavior is documented in the JavaDoc for
-         * <code>LinkedHashMap</code>
+         * <code>LinkedHashMap</code>.</p>
          *
          * @param eldest the {@link java.util.Map.Entry} in question; this implementation doesn't care what it is,
          *               since the implementation is only dependent on the size of the cache
@@ -433,9 +433,9 @@ public class ArtFinder {
     private static final Set<AlbumArtListener> artListeners = new HashSet<AlbumArtListener>();
 
     /**
-     * Adds the specified album art listener to receive updates when the album art for a player changes.
+     * <p>Adds the specified album art listener to receive updates when the album art for a player changes.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
-     * thrown and no action is performed.
+     * thrown and no action is performed.</p>
      *
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use

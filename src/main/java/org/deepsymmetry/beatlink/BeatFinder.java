@@ -11,13 +11,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Watches for devices to report new beats by broadcasting beat packets on port 50001,
+ * <p>Watches for devices to report new beats by broadcasting beat packets on port 50001,
  * and passes them on to registered listeners. When players are actively playing music,
  * they send beat packets at the start of each beat which, in addition to announcing the
  * start of the beat, provide information about where the beat falls within a measure of
  * music (assuming that the track was properly configured in rekordbox, and is in 4/4 time),
  * the current BPM of the track being played, and the current player pitch adjustment, from
- * which the actual effective BPM can be calculated.
+ * which the actual effective BPM can be calculated.</p>
  *
  * <p>When players are stopped, they do not send beat packets, but the mixer continues sending them
  * at the last BPM reported by the master player, so it acts as the most reliable synchronization
@@ -115,9 +115,9 @@ public class BeatFinder {
     private static final Set<BeatListener> listeners = new HashSet<BeatListener>();
 
     /**
-     * Adds the specified beat listener to receive beat announcements when DJ Link devices broadcast
+     * <p>Adds the specified beat listener to receive beat announcements when DJ Link devices broadcast
      * them on the network. If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed.
+     * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use

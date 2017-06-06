@@ -68,8 +68,8 @@ public class Beat extends DeviceUpdate {
     }
 
     /**
-     * Returns {@code true} if this beat is coming from a device where {@link #getBeatWithinBar()} can reasonably
-     * be expected to have musical significance, because it respects the way a track was configured within rekordbox.
+     * <p>Returns {@code true} if this beat is coming from a device where {@link #getBeatWithinBar()} can reasonably
+     * be expected to have musical significance, because it respects the way a track was configured within rekordbox.</p>
      *
      * <p>If the {@link VirtualCdj} is running, we can check the latest status update received from this device to
      * get a definitive answer. Otherwise we guess based on the device number; mixers seem to fall in the range

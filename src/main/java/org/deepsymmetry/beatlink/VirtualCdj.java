@@ -12,7 +12,9 @@ import org.slf4j.LoggerFactory;
  * Provides the ability to create a virtual CDJ device that can lurk on a DJ Link network and receive packets sent to
  * players, monitoring the detailed state of the other devices. This detailed information is helpful for augmenting
  * what {@link BeatFinder} reports, allowing you to keep track of which player is the tempo master, how many beats of
- * a track have been played, how close a player is getting to its next cue point, and more.
+ * a track have been played, how close a player is getting to its next cue point, and more. It is also the foundation
+ * for finding out the rekordbox ID of the loaded track, which supports all the features associated with the
+ * {@link MetadataFinder}.
  *
  * @author James Elliott
  */
@@ -644,16 +646,16 @@ public class VirtualCdj {
     private static final Set<MasterListener> masterListeners = new HashSet<MasterListener>();
 
     /**
-     * Adds the specified master listener to receive device updates when there are changes related
+     * <p>Adds the specified master listener to receive device updates when there are changes related
      * to the tempo master. If {@code listener} is {@code null} or already present in the set
-     * of registered listeners, no exception is thrown and no action is performed.
+     * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, tempo master updates are delivered to listeners directly on the thread that is receiving them
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and master updates will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
@@ -739,16 +741,16 @@ public class VirtualCdj {
     private static final Set<DeviceUpdateListener> updateListeners = new HashSet<DeviceUpdateListener>();
 
     /**
-     * Adds the specified device update listener to receive device updates whenever they come in.
+     * <p>Adds the specified device update listener to receive device updates whenever they come in.
      * If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed.
+     * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, device updates are delivered to listeners directly on the thread that is receiving them
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and device updates will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
