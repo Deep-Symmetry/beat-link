@@ -10,6 +10,16 @@ for examples of what you can do with this.
 
 [![License](https://img.shields.io/badge/License-Eclipse%20Public%20License%201.0-blue.svg)](#license)
 
+> :construction: beat-link is being worked on very heavily at the
+> moment to incorporate some
+> [amazing new discoveries](https://github.com/brunchboy/dysentery#history).
+> Expect a major release in the next week or so, which breaks API
+> compatibility for the metadata features, but which makes it very
+> easy to build graphical interfaces showing detailed information
+> about player states—including track waveforms, cue and memory
+> points, and the current playback position and state. It will also
+> soon offer support for generating timecode as a track plays.
+
 ## Installing
 
 Beat-link is available through Maven Central, so to use it in your
