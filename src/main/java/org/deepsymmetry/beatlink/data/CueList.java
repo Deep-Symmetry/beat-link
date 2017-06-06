@@ -1,5 +1,6 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
 
+import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
@@ -60,32 +61,32 @@ public class CueList {
         /**
          * If this has a non-zero value, this entry is a hot cue with that identifier.
          */
-        final int hotCueNumber;
+        public final int hotCueNumber;
 
         /**
          * Indicates whether this entry represents a loop, as opposed to a simple cue point.
          */
-        final boolean isLoop;
+        public final boolean isLoop;
 
         /**
          * Indicates the location of the cue in half-frame units, which are 1/150 of a second.
          */
-        final long cuePosition;
+        public final long cuePosition;
 
         /**
          * Indicates the location of the cue in milliseconds.
          */
-        final long cueTime;
+        public final long cueTime;
 
         /**
          * If the entry represents a loop, indicates the loop point in half-frame units, which are 1/150 of a second.
          */
-        final long loopPosition;
+        public final long loopPosition;
 
         /**
          * If the entry represents a loop, indicates the loop point in milliseconds.
          */
-        final long loopTime;
+        public final long loopTime;
 
         /**
          * Constructor for non-loop entries.

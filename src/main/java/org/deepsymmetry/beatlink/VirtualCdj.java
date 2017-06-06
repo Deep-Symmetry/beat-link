@@ -3,6 +3,8 @@ package org.deepsymmetry.beatlink;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
+
+import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

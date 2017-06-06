@@ -1,11 +1,10 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
 
+import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
@@ -18,15 +17,25 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 /**
- * Watches for new tracks to be loaded on players, and queries the
- * appropriate player for the metadata information when that happens.<p>
+ * <p>Watches for new tracks to be loaded on players, and queries the
+ * appropriate player for the metadata information when that happens.</p>
+ *
+ * <p>Maintains a hot cache of metadata about any track currently loaded in a player, either on the main playback
+ * deck, or as a hot cue, since those tracks could start playing instantly.</p>
+ *
+ * <p>Can also create cache files containing metadata about either all tracks in a media library, or tracks from a
+ * specific play list, and attach those cache files to be used instead of actually querying the player about tracks
+ * loaded from that library. This can be used in busy performance situations where all four usable player numbers
+ * are in use by actual players, to avoid conflicting queries yet still have useful metadata available. In such
+ * situations, you may want to go into passive mode, using {@link #setPassive(boolean)}, to prevent metadata queries
+ * about tracks that are not available from the attached metadata cache files.</p>
  *
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
 public class MetadataFinder {
 
-    private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class);
 
     /**
      * Given a status update from a CDJ, find the metadata for the track that it has loaded, if any. If there is
@@ -42,7 +51,7 @@ public class MetadataFinder {
         if (status.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK || status.getRekordboxId() == 0) {
             return null;
         }
-        return requestMetadataFrom(new TrackReference(status.getTrackSourcePlayer(),
+        return requestMetadataFrom(new DataReference(status.getTrackSourcePlayer(),
                 status.getTrackSourceSlot(), status.getRekordboxId()));
     }
 
@@ -54,11 +63,9 @@ public class MetadataFinder {
      * @param track uniquely identifies the track whose metadata is desired
      *
      * @return the metadata, if any
-     *
-     * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
      */
     @SuppressWarnings("WeakerAccess")
-    public static TrackMetadata requestMetadataFrom(TrackReference track) {
+    public static TrackMetadata requestMetadataFrom(DataReference track) {
         return requestMetadataInternal(track, false);
     }
 
@@ -71,10 +78,8 @@ public class MetadataFinder {
      *                      metadata updates will use available caches only
      *
      * @return the metadata found, if any
-     *
-     * @throws IllegalStateException if a metadata cache is being created amd we need to talk to the CDJs
      */
-    private static TrackMetadata requestMetadataInternal(final TrackReference track, boolean failIfPassive) {
+    private static TrackMetadata requestMetadataInternal(final DataReference track, boolean failIfPassive) {
         // First check if we are using cached data for this request
         ZipFile cache = getMetadataCache(SlotReference.getSlotReference(track));
         if (cache != null) {
@@ -112,7 +117,7 @@ public class MetadataFinder {
      *
      * @throws IOException if there is a communication problem
      */
-    private static TrackMetadata queryMetadata(TrackReference track, Client client)
+    private static TrackMetadata queryMetadata(DataReference track, Client client)
             throws IOException {
 
         // Send the metadata menu request
@@ -127,28 +132,6 @@ public class MetadataFinder {
         final CueList cueList = getCueList(track.rekordboxId, track.slot, client);
         final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, response);
         return new TrackMetadata(track, items, cueList);
-    }
-
-    /**
-     * Request the artwork with a particular artwork ID, given a connection to a player that has already been set up.
-     *
-     * @param artworkId identifies the album art to retrieve
-     * @param slot the slot identifier from which the associated track was loaded
-     * @param client the dbserver client that is communicating with the appropriate player
-     *
-     * @return the track's artwork, or null if none is available
-     *
-     * @throws IOException if there is a problem communicating with the player
-     */
-    private static ByteBuffer getArtwork(int artworkId, CdjStatus.TrackSourceSlot slot, Client client)
-            throws IOException {
-
-        // Send the artwork request
-        Message response = client.simpleRequest(Message.KnownType.ALBUM_ART_REQ, Message.KnownType.ALBUM_ART,
-                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField((long)artworkId));
-
-        // Create an image from the response bytes
-        return ((BinaryField)response.arguments.get(3)).getValue();
     }
 
     /**
@@ -251,7 +234,7 @@ public class MetadataFinder {
      *
      * @return the cached metadata, including album art (if available), or {@code null}
      */
-    private static TrackMetadata getCachedMetadata(ZipFile cache, TrackReference track) {
+    private static TrackMetadata getCachedMetadata(ZipFile cache, DataReference track) {
         ZipEntry entry = cache.getEntry(getMetadataEntryName(track.rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
@@ -272,38 +255,6 @@ public class MetadataFinder {
                         is.close();
                     } catch (Exception e) {
                         logger.error("Problem closing ZipFile input stream for reading metadata entry", e);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Look up artwork from a cache.
-     *
-     * @param cache the appropriate metadata cache file
-     * @param artworkId the database ID of the desired artwork
-     *
-     * @return the cached artwork bytes (if available), or {@code null}
-     */
-    private static ByteBuffer getCachedArtwork(ZipFile cache, int artworkId) {
-        ZipEntry entry = cache.getEntry(getArtworkEntryName(artworkId));
-        if (entry != null) {
-            DataInputStream is = null;
-            try {
-                is = new DataInputStream(cache.getInputStream(entry));
-                byte[] imageBytes = new byte[(int)entry.getSize()];
-                is.readFully(imageBytes);
-                return(ByteBuffer.wrap(imageBytes).asReadOnlyBuffer());
-            } catch (IOException e) {
-                logger.error("Problem reading artwork from cache file, returning null", e);
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (Exception e) {
-                        logger.error("Problem closing ZipFile input stream for reading artwork entry", e);
                     }
                 }
             }
@@ -468,114 +419,6 @@ public class MetadataFinder {
     }
 
     /**
-     * Provide a least-recently used cache mechanism so we can keep artwork around for reuse, since it is often shared
-     * between tracks, and does not take up much space.
-     *
-     * @param <A> the type of the keys that will be used in the cache
-     * @param <B> the type of the values that will be used in the cache
-     */
-    private static class LruCache<A, B> extends LinkedHashMap<A, B> {
-
-        /**
-         * How many entries are we to retain.
-         */
-        private final int maxEntries;
-
-        /**
-         * Set the cache size cap and then delegate to the superclass constructor.
-         *
-         * @param maxEntries the largest number of entries we will retain
-         */
-        @SuppressWarnings("SameParameterValue")
-        public LruCache(final int maxEntries) {
-            super(maxEntries + 1, 1.0f, true);
-            this.maxEntries = maxEntries;
-        }
-
-        /**
-         * Returns <tt>true</tt> if this <code>LruCache</code> has more entries than the maximum specified when it was
-         * created.
-         *
-         * This method <em>does not</em> modify the underlying <code>Map</code>; it relies on the implementation of
-         * {@link LinkedHashMap} to do that, but that behavior is documented in the JavaDoc for
-         * <code>LinkedHashMap</code>
-         *
-         * @param eldest the {@link java.util.Map.Entry} in question; this implementation doesn't care what it is,
-         *               since the implementation is only dependent on the size of the cache
-         *
-         * @return <tt>true</tt> if the map has overflowed, so the oldest entry should be removed
-         *
-         * @see LinkedHashMap#removeEldestEntry(Map.Entry)
-         */
-        @Override
-        protected boolean removeEldestEntry(final Map.Entry<A, B> eldest) {
-            return (size() > maxEntries);
-        }
-    }
-
-    /**
-     * The maximum number of artwork images we will retain in our cache
-     */
-    private static final int ART_CACHE_SIZE = 100;
-
-    /**
-     * Establish the artwork cache. Even though we are not caching tracks, the {@link TrackReference} tuple has
-     * exactly the information we need to identify cached artwork.
-     */
-    private static final Map<TrackReference, ByteBuffer> artCache =
-            Collections.synchronizedMap(new LruCache<TrackReference, ByteBuffer>(ART_CACHE_SIZE));
-
-    /**
-     * Ask the specified player for the specified artwork from the specified media slot, first checking if we have a
-     * cached copy.
-     *
-     * @param slot the slot in which the artwork can be found
-     * @param artworkId the unique database ID of the desired artwork
-     *
-     * @return a newly allocated image containing the artwork, if it was found, or {@code null}
-     *
-     * @throws Exception if there is a problem obtaining the artwork
-     */
-    public static BufferedImage requestArtworkFrom(final SlotReference slot, final int artworkId)
-            throws Exception {
-
-        // First check the in-memory artwork cache
-        final TrackReference ref = new TrackReference(slot.player, slot.slot, artworkId);
-        ByteBuffer artwork = artCache.get(ref);
-        if (artwork == null) {
-            // Then check if we are using cached data for this slot
-            ZipFile cache = getMetadataCache(slot);
-            if (cache != null) {
-                artwork = getCachedArtwork(cache, artworkId);
-            } else {
-                // Have to actually request it.
-                ConnectionManager.ClientTask<ByteBuffer> task = new ConnectionManager.ClientTask<ByteBuffer>() {
-                    @Override
-                    public ByteBuffer useClient(Client client) throws Exception {
-                        return getArtwork(artworkId, slot.slot, client);
-                    }
-                };
-                artwork = ConnectionManager.invokeWithClientSession(slot.player, task, "requesting artwork");
-            }
-            if (artwork != null) {  // Our cache file load or network request succeeded, so add to the in-memory cache.
-                artCache.put(ref, artwork);
-            }
-        }
-        if (artwork != null) {  // We found artwork somewhere, so create an image from it
-            artwork.rewind();
-            byte[] imageBytes = new byte[artwork.remaining()];
-            artwork.get(imageBytes);
-            try {
-                return ImageIO.read(new ByteArrayInputStream(imageBytes));
-            } catch (IOException e) {
-                logger.error("Weird! Caught exception creating image from artwork bytes", e);
-                return null;
-            }
-        }
-        return null;  // We were not able to find the artwork.
-    }
-
-    /**
      * Ask the specified player for the beat grid of the track in the specified slot with the specified rekordbox ID,
      * first checking if we have a cache we can use instead.
      *
@@ -585,7 +428,7 @@ public class MetadataFinder {
      *
      * @throws Exception if there is a problem getting the beat grid information
      */
-    public static BeatGrid requestBeatGridFrom(final TrackReference track)
+    public static BeatGrid requestBeatGridFrom(final DataReference track)
             throws Exception {
 
         // First check if we are using cached data for this slot
@@ -614,7 +457,7 @@ public class MetadataFinder {
      *
      * @throws Exception if there is a problem getting the waveform preview
      */
-    public static WaveformPreview requestWaveformPreviewFrom(final TrackReference track)
+    public static WaveformPreview requestWaveformPreviewFrom(final DataReference track)
             throws Exception {
 
         // First check if we are using cached data for this slot
@@ -738,7 +581,7 @@ public class MetadataFinder {
                     throw new IOException("Received unexpected item type. Needed TRACK_LIST_ENTRY, got: " + entry);
                 }
                 int rekordboxId = (int)((NumberField)entry.arguments.get(1)).getValue();
-                TrackMetadata track = queryMetadata(new TrackReference(slot, rekordboxId), client);
+                TrackMetadata track = queryMetadata(new DataReference(slot, rekordboxId), client);
 
                 if (track != null) {
                     logger.debug("Adding metadata with ID {}", rekordboxId);
@@ -757,7 +600,7 @@ public class MetadataFinder {
                     logger.debug("Adding artwork with ID {}", track.getArtworkId());
                     zipEntry = new ZipEntry(getArtworkEntryName(track.getArtworkId()));
                     zos.putNextEntry(zipEntry);
-                    Util.writeFully(getArtwork(track.getArtworkId(), slot.slot, client), channel);
+                    Util.writeFully(ArtFinder.getArtwork(track.getArtworkId(), slot, client).getRawBytes(), channel);
                     artworkAdded.add(track.getArtworkId());
                 }
 
@@ -846,7 +689,7 @@ public class MetadataFinder {
      *
      * @return the name of entry where that artwork should be stored
      */
-    private static String getArtworkEntryName(int artworkId) {
+    static String getArtworkEntryName(int artworkId) {
         return CACHE_ART_ENTRY_PREFIX + artworkId + ".jpg";
     }
 
@@ -955,8 +798,8 @@ public class MetadataFinder {
 
 
     /**
-     * Our announcement listener watches for devices to appear on the network so we can ask them for their database
-     * server port, and when they disappear discards all information about them.
+     * Our announcement listener watches for devices to disappear from the network so we can discard all information
+     * about them.
      */
     private static final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
@@ -978,9 +821,13 @@ public class MetadataFinder {
     private static boolean running = false;
 
     /**
-     * Check whether we are currently running.
+     * Check whether we are currently running. Unless we are in passive mode, we will also automatically request
+     * metadata from the appropriate player when a new track is loaded that is not found in the hot cache or an
+     * attached metadata cache file.
      *
-     * @return true if track metadata is being sought for all active players
+     * @return true if track metadata is being kept track of for all active players
+     *
+     * @see #isPassive()
      */
     @SuppressWarnings("WeakerAccess")
     public static synchronized boolean isRunning() {
@@ -1026,8 +873,8 @@ public class MetadataFinder {
      * @param update the update which means we can have no metadata for the associated player
      */
     private static synchronized void clearDeck(CdjStatus update) {
-        if (hotCache.remove(DeckReference.getDeckReference(update.deviceNumber, 0)) != null) {
-            deliverTrackMetadataUpdate(update.deviceNumber, null);
+        if (hotCache.remove(DeckReference.getDeckReference(update.getDeviceNumber(), 0)) != null) {
+            deliverTrackMetadataUpdate(update.getDeviceNumber(), null);
         }
     }
 
@@ -1043,11 +890,6 @@ public class MetadataFinder {
                 hotCache.remove(deck);
             }
         }
-        for (TrackReference artReference : artCache.keySet()) {
-            if (artReference.player == player) {
-                artCache.remove(artReference);
-            }
-        }
     }
 
     /**
@@ -1057,15 +899,15 @@ public class MetadataFinder {
      * @param data the metadata which we received
      */
     private static synchronized void updateMetadata(CdjStatus update, TrackMetadata data) {
-        hotCache.put(DeckReference.getDeckReference(update.deviceNumber, 0), data);  // Main deck
+        hotCache.put(DeckReference.getDeckReference(update.getDeviceNumber(), 0), data);  // Main deck
         if (data.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : data.getCueList().entries) {
                 if (entry.hotCueNumber != 0) {
-                    hotCache.put(DeckReference.getDeckReference(update.deviceNumber, entry.hotCueNumber), data);
+                    hotCache.put(DeckReference.getDeckReference(update.getDeviceNumber(), entry.hotCueNumber), data);
                 }
             }
         }
-        deliverTrackMetadataUpdate(update.deviceNumber, data);
+        deliverTrackMetadataUpdate(update.getDeviceNumber(), data);
     }
 
     /**
@@ -1084,7 +926,7 @@ public class MetadataFinder {
      * @return information about the track loaded on that player, if available
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized TrackMetadata getLatestMetadataFor(int player) {
+    public static TrackMetadata getLatestMetadataFor(int player) {
         return hotCache.get(DeckReference.getDeckReference(player, 0));
     }
 
@@ -1095,7 +937,7 @@ public class MetadataFinder {
      * @return information about the track loaded on that player, if available
      */
     public static TrackMetadata getLatestMetadataFor(DeviceUpdate update) {
-        return getLatestMetadataFor(update.deviceNumber);
+        return getLatestMetadataFor(update.getDeviceNumber());
     }
 
     /**
@@ -1206,7 +1048,7 @@ public class MetadataFinder {
      */
     private static void recordMount(SlotReference slot) {
         if (mediaMounts.add(slot)) {
-            deliverCacheUpdate();
+            deliverMountUpdate(slot, true);
         }
     }
 
@@ -1218,12 +1060,7 @@ public class MetadataFinder {
      */
     private static void removeMount(SlotReference slot) {
         if (mediaMounts.remove(slot)) {
-            deliverCacheUpdate();
-            for (TrackReference artReference : artCache.keySet()) {
-                if (SlotReference.getSlotReference(artReference) == slot) {
-                    artCache.remove(artReference);
-                }
-            }
+            deliverMountUpdate(slot, false);
         }
     }
 
@@ -1234,6 +1071,78 @@ public class MetadataFinder {
      */
     public static Set<SlotReference> getMountedMediaSlots() {
         return Collections.unmodifiableSet(mediaMounts);
+    }
+
+    /**
+     * Keeps track of the registered mount update listeners.
+     */
+    private static final Set<MountUpdateListener> mountListeners = new HashSet<MountUpdateListener>();
+
+    /**
+     * Adds the specified mount update listener to receive updates when media is mounted or unmounted by any player.
+     * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
+     * thrown and no action is performed.
+     *
+     * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     *
+     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the mount update listener to add
+     */
+    @SuppressWarnings("SameParameterValue")
+    public static synchronized void addMountUpdateListener(MountUpdateListener listener) {
+        if (listener != null) {
+            mountListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified mount update listener so that it no longer receives updates when a player mounts or
+     * unmounts media in one of its media slots. If {@code listener} is {@code null} or not present
+     * in the set of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the mount update listener to remove
+     */
+    public static synchronized void removeMountUpdateListener(MountUpdateListener listener) {
+        if (listener != null) {
+            mountListeners.remove(listener);
+        }
+    }
+
+    /**
+     * Get the set of currently-registered mount update listeners.
+     *
+     * @return the listeners that are currently registered for mount updates
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static synchronized Set<MountUpdateListener> getMountListeners() {
+        return Collections.unmodifiableSet(new HashSet<MountUpdateListener>(mountListeners));
+    }
+
+    /**
+     * Send a mount update announcement to all registered listeners.
+     *
+     * @param slot the slot in which media has been mounted or unmounted
+     * @param mounted will be {@code true} if there is now media mounted in the specified slot
+     */
+    private static void deliverMountUpdate(SlotReference slot, boolean mounted) {
+        for (final MountUpdateListener listener : getMountListeners()) {
+            try {
+                if (mounted) {
+                    listener.mediaMounted(slot);
+                } else {
+                    listener.mediaUnmounted(slot);
+                }
+
+            } catch (Exception e) {
+                logger.warn("Problem delivering mount update to listener", e);
+            }
+        }
     }
 
     /**
@@ -1268,7 +1177,7 @@ public class MetadataFinder {
      * are changes to the available set of metadata caches. If {@code listener} is {@code null} or not present
      * in the set of registered listeners, no exception is thrown and no action is performed.
      *
-     * @param listener the master listener to remove
+     * @param listener the cache update listener to remove
      */
     public static synchronized void removeCacheUpdateListener(MetadataCacheUpdateListener listener) {
         if (listener != null) {
@@ -1291,10 +1200,9 @@ public class MetadataFinder {
      */
     private static void deliverCacheUpdate() {
         final Map<SlotReference, ZipFile> caches = Collections.unmodifiableMap(metadataCacheFiles);
-        final Set<SlotReference> mounts = Collections.unmodifiableSet(mediaMounts);
         for (final MetadataCacheUpdateListener listener : getCacheUpdateListeners()) {
             try {
-                listener.cacheStateChanged(caches, mounts);
+                listener.cacheStateChanged(caches);
 
             } catch (Exception e) {
                 logger.warn("Problem delivering metadata cache update to listener", e);
@@ -1323,6 +1231,7 @@ public class MetadataFinder {
      *
      * @param listener the track metadata update listener to add
      */
+    @SuppressWarnings("SameParameterValue")
     public static synchronized void addTrackMetadataUpdateListener(TrackMetadataUpdateListener listener) {
         if (listener != null) {
             trackListeners.add(listener);
@@ -1330,9 +1239,9 @@ public class MetadataFinder {
     }
 
     /**
-     * Get the set of currently-registered metadata cache update listeners.
+     * Get the set of currently-registered track metadata update listeners.
      *
-     * @return the listeners that are currently registered for metadata cache updates
+     * @return the listeners that are currently registered for track metadata updates
      */
     @SuppressWarnings("WeakerAccess")
     public static synchronized Set<TrackMetadataUpdateListener> getTrackMetadataUpdateListeners() {
@@ -1346,6 +1255,7 @@ public class MetadataFinder {
      *
      * @param listener the track metadata update listener to remove
      */
+    @SuppressWarnings("SameParameterValue")
     public static synchronized void removeTrackMetadataUpdateListener(TrackMetadataUpdateListener listener) {
         if (listener != null) {
             trackListeners.remove(listener);
@@ -1353,15 +1263,18 @@ public class MetadataFinder {
     }
 
     /**
-     * Send a metadata cache update announcement to all registered listeners.
+     * Send a track metadata update announcement to all registered listeners.
      */
     private static void deliverTrackMetadataUpdate(int player, TrackMetadata metadata) {
-        for (final TrackMetadataUpdateListener listener : getTrackMetadataUpdateListeners()) {
-            try {
-                listener.metadataChanged(player, metadata);
+        if (!getTrackMetadataUpdateListeners().isEmpty()) {
+            final TrackMetadataUpdate update = new TrackMetadataUpdate(player, metadata);
+            for (final TrackMetadataUpdateListener listener : getTrackMetadataUpdateListeners()) {
+                try {
+                    listener.metadataChanged(update);
 
-            } catch (Exception e) {
-                logger.warn("Problem delivering track metadata update to listener", e);
+                } catch (Exception e) {
+                    logger.warn("Problem delivering track metadata update to listener", e);
+                }
             }
         }
     }
@@ -1381,18 +1294,18 @@ public class MetadataFinder {
     private static void handleUpdate(final CdjStatus update) {
         // First see if any metadata caches need evicting or mount sets need updating.
         if (update.isLocalUsbEmpty()) {
-            final SlotReference slot = SlotReference.getSlotReference(update.deviceNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
+            final SlotReference slot = SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.USB_SLOT);
             detachMetadataCache(slot);
             removeMount(slot);
         } else if (update.isLocalUsbLoaded()) {
-            recordMount(SlotReference.getSlotReference(update.deviceNumber, CdjStatus.TrackSourceSlot.USB_SLOT));
+            recordMount(SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
         }
         if (update.isLocalSdEmpty()) {
-            final SlotReference slot = SlotReference.getSlotReference(update.deviceNumber, CdjStatus.TrackSourceSlot.SD_SLOT);
+            final SlotReference slot = SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT);
             detachMetadataCache(slot);
             removeMount(slot);
         } else if (update.isLocalSdLoaded()){
-            recordMount(SlotReference.getSlotReference(update.deviceNumber, CdjStatus.TrackSourceSlot.SD_SLOT));
+            recordMount(SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
         }
 
         // Now see if a track has changed that needs new metadata.
@@ -1402,8 +1315,8 @@ public class MetadataFinder {
                 update.getRekordboxId() == 0) {  // We no longer have metadata for this device.
             clearDeck(update);
         } else {  // We can offer metadata for this device; check if we already looked up this track.
-            final TrackMetadata lastMetadata = hotCache.get(DeckReference.getDeckReference(update.deviceNumber, 0));
-            final TrackReference trackReference = new TrackReference(update.getTrackSourcePlayer(),
+            final TrackMetadata lastMetadata = hotCache.get(DeckReference.getDeckReference(update.getDeviceNumber(), 0));
+            final DataReference trackReference = new DataReference(update.getTrackSourcePlayer(),
                     update.getTrackSourceSlot(), update.getRekordboxId());
             if (lastMetadata == null || !lastMetadata.trackReference.equals(trackReference)) {  // We have something new!
                 // First see if we can find the new track in the hot cache as a hot cue
@@ -1440,7 +1353,10 @@ public class MetadataFinder {
 
     /**
      * Start finding track metadata for all active players. Starts the {@link VirtualCdj} if it is not already
-     * running, because we need it to send us device status updates to notice when new tracks are loaded.
+     * running, because we need it to send us device status updates to notice when new tracks are loaded. Also
+     * starts the {@link DeviceFinder} (which is also needed by the {@code VirtualCdj}) so we can keep track of
+     * the comings and goings of players themselves, and the {@link ConnectionManager} in order to make queries
+     * to obtain metadata.
      *
      * @throws Exception if there is a problem starting the required components
      */

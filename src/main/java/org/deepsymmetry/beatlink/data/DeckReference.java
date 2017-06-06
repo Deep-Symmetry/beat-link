@@ -1,4 +1,4 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,6 +19,7 @@ public class DeckReference {
     /**
      * The hot cue number in which the track is loaded, or 0 if it is actively loaded on the playback deck.
      */
+    @SuppressWarnings("WeakerAccess")
     public final int hotCue;
 
     /**

@@ -1,4 +1,6 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
+
+import org.deepsymmetry.beatlink.CdjStatus;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -68,15 +70,15 @@ public class SlotReference {
     }
 
     /**
-     * Get a unique reference to the media slot on the network from which the specified track was loaded.
+     * Get a unique reference to the media slot on the network from which the specified data was loaded.
      *
-     * @param track the track whose media slot is of interest
+     * @param dataReference the data whose media slot is of interest
      *
-     * @return the instance that will always represent the slot associated with the specified track
+     * @return the instance that will always represent the slot associated with the specified data
      */
     @SuppressWarnings("WeakerAccess")
-    public static SlotReference getSlotReference(TrackReference track) {
-        return getSlotReference(track.player, track.slot);
+    public static SlotReference getSlotReference(DataReference dataReference) {
+        return getSlotReference(dataReference.player, dataReference.slot);
     }
 
     @Override

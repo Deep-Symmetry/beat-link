@@ -1,17 +1,8 @@
 /**
- * A library for synchronizing with beats from Pioneer DJ Link equipment.
+ * <p>Offers rich information about the tracks loaded in players on the network.</p>
  *
- * <p>Overview and installation instructions are found on the <a href="https://github.com/brunchboy/beat-link"
- * target="_blank">Project page</a> on GitHub.</p>
- *
- * <p>This top level package provides classes for finding a DJ Link network, watching for devices to appear and
- * disappear on it, and creating a {@link org.deepsymmetry.beatlink.VirtualCdj} which can obtain more detailed
- * information about what other players are doing, like their current tempo, pitch, playback state, which player is
- * the current tempo master, and the source and database ID of the currently-loaded rekordbox track. See the
- * {@link org.deepsymmetry.beatlink.CdjStatus} class for more details.</p>
- *
- * <p>The classes in the {@link org.deepsymmetry.beatlink.data} package can augment this low-level information with
- * rich details about the track metadata, including album art, cue point locations, beat grid, and waveforms, both
+ * <p>The classes in this package can augment the low-level information offered by the packet listeners with
+ * rich details about track metadata, including album art, cue point locations, beat grid, and waveforms, both
  * the whole-track preview, and full detailed waveform for scrolling through. The
  * {@link org.deepsymmetry.beatlink.data.MetadataFinder} is the main coordinator for obtaining and caching this
  * information, and it keeps track of the track metadata for all tracks loaded on decks, either for current playback,
@@ -35,4 +26,4 @@
  *
  * @author  James Elliott
  */
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;

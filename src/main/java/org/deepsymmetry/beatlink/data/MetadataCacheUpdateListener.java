@@ -1,15 +1,15 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipFile;
 
 /**
- * The listener interface for receiving updates when the set of available metadata caches or physical media changes.
+ * The listener interface for receiving updates when the set of attached metadata caches changes.
  *
  * Classes that are interested displaying up-to-date information about attached metadata caches can implement this
  * interface, and then pass the implementing instance to {@link MetadataFinder#addCacheUpdateListener(MetadataCacheUpdateListener)}.
- * Then, whenever a metadata cache is attached or detached, {@link #cacheStateChanged(Map, Set)} will be called, with the
+ * Then, whenever a metadata cache is attached or detached, {@link #cacheStateChanged(Map)} will be called, with the
  * current mapping of player numbers to available metadata cache files.
  *
  * @author James Elliott
@@ -17,8 +17,7 @@ import java.util.zip.ZipFile;
 @SuppressWarnings("WeakerAccess")
 public interface MetadataCacheUpdateListener {
     /**
-     * Invoked whenever there is a change in state relevant to metadata caches: A cache for some device slot has been
-     * attached or detached, or actual media has been mounted or unmounted in a slot.
+     * Invoked whenever there is a change in the attached metadata caches.
      *
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in this method, you need to use
@@ -31,8 +30,7 @@ public interface MetadataCacheUpdateListener {
      *
      * @param caches every player that has a cache attached for one of its media slot will be represented by an entry
      *               in this map, with the key identifying the player and slot, and the value being the cache file
-     *                itself
-     * @param mounts will include the slots with media mounted in them currently visible on the network
+     *               itself
      */
-    void cacheStateChanged(Map<SlotReference, ZipFile> caches, Set<SlotReference> mounts);
+    void cacheStateChanged(Map<SlotReference, ZipFile> caches);
 }

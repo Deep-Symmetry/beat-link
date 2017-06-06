@@ -1,4 +1,4 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
 
 import java.io.File;
 

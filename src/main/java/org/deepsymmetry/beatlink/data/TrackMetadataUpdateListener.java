@@ -1,4 +1,4 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
 
 /**
  * The listener interface for receiving updates when the metadata available about a track loaded in any player changes.
@@ -7,12 +7,17 @@ package org.deepsymmetry.beatlink;
  * interface, and then pass the implementing instance to
  * {@link MetadataFinder#addTrackMetadataUpdateListener(TrackMetadataUpdateListener)}.
  * Then, whenever a player loads a new track (or the set of available metadata changes, so we know more or less about
- * tracks in any loaded player), {@link #metadataChanged(int, TrackMetadata)} will be called, with the currently
+ * tracks in any loaded player), {@link #metadataChanged(TrackMetadataUpdate)} will be called, with the currently
  * available metadata about the track (if any) loaded in the player.
  *
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
 public interface TrackMetadataUpdateListener {
-    void metadataChanged(int player, TrackMetadata currentMetadata);
+    /**
+     * Called when the metadata available for a player has changed.
+     *
+     * @param update provides information about what has changed
+     */
+    void metadataChanged(TrackMetadataUpdate update);
 }

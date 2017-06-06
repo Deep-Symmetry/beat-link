@@ -1,4 +1,4 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
@@ -23,7 +23,7 @@ public class TrackMetadata {
      * The unique track identifier that was used to request this track metadata.
      */
     @SuppressWarnings("WeakerAccess")
-    public final TrackReference trackReference;
+    public final DataReference trackReference;
 
     /**
      * The raw dbserver messages containing the metadata when it was read over the network.
@@ -114,7 +114,7 @@ public class TrackMetadata {
      * @param items the menu item responses that were received in response to the render menu request
      * @param cueList the cues associated with the track, if any
      */
-    TrackMetadata(TrackReference reference, List<Message> items, CueList cueList) {
+    TrackMetadata(DataReference reference, List<Message> items, CueList cueList) {
         trackReference = reference;
         this.cueList = cueList;
         rawItems = Collections.unmodifiableList(new LinkedList<Message>(items));

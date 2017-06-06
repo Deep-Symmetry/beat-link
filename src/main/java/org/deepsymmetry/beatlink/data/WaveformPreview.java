@@ -1,4 +1,4 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
@@ -8,7 +8,9 @@ import java.awt.*;
 import java.nio.ByteBuffer;
 
 /**
- * Gives a birds-eye view of the audio content of a track.
+ * Gives a birds-eye view of the audio content of a track, and offers a Swing component for rendering that view
+ * as part of a user interface, along with annotations showing the current playback position and cue points, if the
+ * appropriate metadata is available.
  *
  * @author James Elliott
  */
@@ -26,6 +28,7 @@ public class WaveformPreview {
      * @return the bytes from which the preview can be drawn, as described in Section 5.8 of the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
+    @SuppressWarnings("WeakerAccess")
     public ByteBuffer getData() {
         return ((BinaryField) rawMessage.arguments.get(3)).getValue();
     }
