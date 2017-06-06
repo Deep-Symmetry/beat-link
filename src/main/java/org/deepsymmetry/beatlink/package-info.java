@@ -1,5 +1,6 @@
 /**
- * A library for synchronizing with beats from Pioneer DJ Link equipment.
+ * <p>A library for synchronizing with beats from Pioneer DJ Link equipment,
+ * and finding out details about the tracks that are playing.</p>
  *
  * <p>Overview and installation instructions are found on the <a href="https://github.com/brunchboy/beat-link"
  * target="_blank">Project page</a> on GitHub.</p>
