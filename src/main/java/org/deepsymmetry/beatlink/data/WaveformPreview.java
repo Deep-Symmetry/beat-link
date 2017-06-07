@@ -4,7 +4,6 @@ import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 
 import javax.swing.*;
-import java.awt.*;
 import java.nio.ByteBuffer;
 
 /**

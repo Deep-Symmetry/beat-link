@@ -173,7 +173,7 @@ public class WaveformPreviewComponent extends JComponent {
         }
         this.monitoredPlayer = player;
         if (player > 0) {  // Start monitoring the specified player
-            MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);;
+            MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             if (MetadataFinder.getInstance().isRunning()) {
                 metadata = MetadataFinder.getInstance().getLatestMetadataFor(monitoredPlayer);
             } else {
@@ -276,7 +276,7 @@ public class WaveformPreviewComponent extends JComponent {
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = x - WAVEFORM_MARGIN;
             if ((segment >= 0) && (segment < 400)) {
-                if (preview != null) {  // Draw the waveform
+                if (waveBytes != null) {  // Draw the waveform
                     final int height = waveBytes.get(segment * 2) & 0x1f;
                     final int intensity = waveBytes.get(segment * 2 + 1) & 0x5;
                     g.setColor((intensity == 5) ? INTENSE_COLOR : NORMAL_COLOR);
