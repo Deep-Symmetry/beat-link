@@ -759,7 +759,7 @@ public class MetadataFinder extends LifecycleParticipant {
             }
         };
 
-        if (!cache.delete()) {
+        if (cache.exists() && !cache.delete()) {
             logger.warn("Unable to delete cache file, {}", cache);
         }
         ConnectionManager.getInstance().invokeWithClientSession(slot.player, task, "building metadata cache");
