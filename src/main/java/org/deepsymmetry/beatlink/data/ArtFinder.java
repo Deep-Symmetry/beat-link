@@ -648,6 +648,11 @@ public class ArtFinder extends LifecycleParticipant {
             running = true;
             queueHandler.start();
             deliverLifecycleAnnouncement(logger, true);
+
+            // Send ourselves "updates" about any tracks that were loaded before we started, since we missed those.
+            for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+                handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+            }
         }
     }
 
