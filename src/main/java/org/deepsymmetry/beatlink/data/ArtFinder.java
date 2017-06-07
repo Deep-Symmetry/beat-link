@@ -612,6 +612,7 @@ public class ArtFinder extends LifecycleParticipant {
         public void stopped(LifecycleParticipant sender) {
             if (isRunning()) {
                 logger.info("ArtFinder stopping because {} has.", sender);
+                stop();
             }
         }
     };
