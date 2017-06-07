@@ -15,6 +15,13 @@ import java.nio.ByteBuffer;
  * @author James Elliott
  */
 public class WaveformPreview {
+
+    /**
+     * The unique identifier that was used to request this waveform preview.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public final DataReference dataReference;
+
     /**
      * The message holding the preview as it was read over the network. This can be used to analyze fields
      * that have not yet been reliably understood, and is also used for storing the cue list in a cache file.
@@ -260,6 +267,9 @@ public class WaveformPreview {
     }
 
     // TODO: Have the view able to automatically update itself in response to messages from the VirtualCDJ!
+    // TODO: Move the view into its own class, either construct with the waveform and metadata directly for
+    //       a static view, or with a player number in which case it registers with the finders and obtains
+    //       all the pieces it needs to stay up to date with whatever is loaded in that player!
 
     /**
      * Create a standard Swing component which can be added to a user interface that will draw this waveform preview,
@@ -279,10 +289,17 @@ public class WaveformPreview {
     /**
      * Constructor when reading from the network or a cache file.
      *
+     * @param reference the unique database reference that was used to request this waveform preview
      * @param message the response that contains the preview
      */
     @SuppressWarnings("WeakerAccess")
-    public WaveformPreview(Message message) {
+    public WaveformPreview(DataReference reference, Message message) {
+        dataReference = reference;
         rawMessage = message;
+    }
+
+    @Override
+    public String toString() {
+        return "WaveformPreview[dataReference=" + dataReference + ", size:" + getData().remaining() + "]";
     }
 }

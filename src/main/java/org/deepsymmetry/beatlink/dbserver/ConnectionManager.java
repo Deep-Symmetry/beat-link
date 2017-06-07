@@ -25,7 +25,7 @@ public class ConnectionManager extends LifecycleParticipant {
     private static final Logger logger = LoggerFactory.getLogger(ConnectionManager.class);
 
     /**
-     * An interface for all the kinds of activities that need a connection to the dbserver for, so we can keep track
+     * An interface for all the kinds of activities that need a connection to the dbserver, so we can keep track
      * of how many sessions are in effect, clean up after them, and know when the client is idle and can be closed.
      *
      * @param <T> the type returned by the activity

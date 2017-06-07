@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.*;
@@ -135,28 +134,6 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Requests the beat grid for a specific track ID, given a connection to a player that has already been set up.
-
-     * @param rekordboxId the track of interest
-     * @param slot identifies the media slot we are querying
-     * @param client the dbserver client that is communicating with the appropriate player
-     *
-     * @return the retrieved beat grid, or {@code null} if there was none available
-     *
-     * @throws IOException if there is a communication problem
-     */
-    private BeatGrid getBeatGrid(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
-            throws IOException {
-        Message response = client.simpleRequest(Message.KnownType.BEAT_GRID_REQ, null,
-                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId));
-        if (response.knownType == Message.KnownType.BEAT_GRID) {
-            return new BeatGrid(response);
-        }
-        logger.error("Unexpected response type when requesting beat grid: {}", response);
-        return null;
-    }
-
-    /**
      * Requests the cue list for a specific track ID, given a connection to a player that has already been set up.
      *
      * @param rekordboxId the track of interest
@@ -174,29 +151,6 @@ public class MetadataFinder extends LifecycleParticipant {
             return new CueList(response);
         }
         logger.error("Unexpected response type when requesting cue list: {}", response);
-        return null;
-    }
-
-    /**
-     * Requests the waveform preview for a specific track ID, given a connection to a player that has already been
-     * set up.
-     *
-     * @param rekordboxId the track of interest
-     * @param slot identifies the media slot we are querying
-     * @param client the dbserver client that is communicating with the appropriate player
-     *
-     * @return the retrieved waveform preview, or {@code null} if none was available
-     * @throws IOException if there is a communication problem
-     */
-    private WaveformPreview getWaveformPreview(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
-        throws IOException {
-        Message response = client.simpleRequest(Message.KnownType.WAVE_PREVIEW_REQ, null,
-                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField(1),
-                new NumberField(rekordboxId), new NumberField(0));
-        if (response.knownType == Message.KnownType.WAVE_PREVIEW) {
-            return new WaveformPreview(response);
-        }
-        logger.error("Unexpected response type when requesting waveform preview: {}", response);
         return null;
     }
 
@@ -263,38 +217,6 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Look up a beat grid in a metadata cache.
-     *
-     * @param cache the appropriate metadata cache file
-     * @param rekordboxId the track whose beat grid is desired
-     *
-     * @return the cached beat grid (if available), or {@code null}
-     */
-    private BeatGrid getCachedBeatGrid(ZipFile cache, int rekordboxId) {
-        ZipEntry entry = cache.getEntry(getBeatGridEntryName(rekordboxId));
-        if (entry != null) {
-            DataInputStream is = null;
-            try {
-                is = new DataInputStream(cache.getInputStream(entry));
-                byte[] gridBytes = new byte[(int)entry.getSize()];
-                is.readFully(gridBytes);
-                return new BeatGrid(ByteBuffer.wrap(gridBytes).asReadOnlyBuffer());
-            } catch (IOException e) {
-                logger.error("Problem reading beat grid from cache file, returning null", e);
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (Exception e) {
-                        logger.error("Problem closing ZipFile input stream for reading beat grid entry", e);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
      * Look up a cue list in a metadata cache.
      *
      * @param cache the appropriate metadata cache file
@@ -318,37 +240,6 @@ public class MetadataFinder extends LifecycleParticipant {
                         is.close();
                     } catch (Exception e) {
                         logger.error("Problem closing ZipFile input stream for reading cue list", e);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Look up a waveform preview in a metadata cache.
-     *
-     * @param cache the appropriate metadata cache file
-     * @param rekordboxId the track whose preview is desired
-     *
-     * @return the cached waveform preview (if available), or {@code null}
-     */
-    private WaveformPreview getCachedWaveformPreview(ZipFile cache, int rekordboxId) {
-        ZipEntry entry = cache.getEntry(getCueListEntryName(rekordboxId));
-        if (entry != null) {
-            DataInputStream is = null;
-            try {
-                is = new DataInputStream(cache.getInputStream(entry));
-                Message message = Message.read(is);
-                return new WaveformPreview(message);
-            } catch (IOException e) {
-                logger.error("Problem reading waveform preview from cache file, returning null", e);
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (Exception e) {
-                        logger.error("Problem closing ZipFile input stream for waveform preview", e);
                     }
                 }
             }
@@ -419,62 +310,6 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Ask the specified player for the beat grid of the track in the specified slot with the specified rekordbox ID,
-     * first checking if we have a cache we can use instead.
-     *
-     * @param track uniquely identifies the track whose beat grid is desired
-     *
-     * @return the beat grid, if any
-     *
-     * @throws Exception if there is a problem getting the beat grid information
-     */
-    public BeatGrid requestBeatGridFrom(final DataReference track) throws Exception {
-
-        // First check if we are using cached data for this slot
-        ZipFile cache = getMetadataCache(SlotReference.getSlotReference(track));
-        if (cache != null) {
-            return getCachedBeatGrid(cache, track.rekordboxId);
-        }
-
-        ConnectionManager.ClientTask<BeatGrid> task = new ConnectionManager.ClientTask<BeatGrid>() {
-            @Override
-            public BeatGrid useClient(Client client) throws Exception {
-                return getBeatGrid(track.rekordboxId, track.slot, client);
-            }
-        };
-
-        return ConnectionManager.getInstance().invokeWithClientSession(track.player, task, "requesting beat grid");
-    }
-
-    /**
-     * Ask the specified player for the waveform preview of the track in the specified slot with the specified
-     * rekordbox ID, first checking if we have a cache we can use instead.
-     *
-     * @param track uniquely identifies the track whose waveform preview is desired
-     *
-     * @return the preview, if any
-     *
-     * @throws Exception if there is a problem getting the waveform preview
-     */
-    public WaveformPreview requestWaveformPreviewFrom(final DataReference track) throws Exception {
-
-        // First check if we are using cached data for this slot
-        ZipFile cache = getMetadataCache(SlotReference.getSlotReference(track));
-        if (cache != null) {
-            return getCachedWaveformPreview(cache, track.rekordboxId);
-        }
-
-        ConnectionManager.ClientTask<WaveformPreview> task = new ConnectionManager.ClientTask<WaveformPreview>() {
-            @Override
-            public WaveformPreview useClient(Client client) throws Exception {
-                return getWaveformPreview(track.rekordboxId, track.slot, client);
-            }
-        };
-
-        return ConnectionManager.getInstance().invokeWithClientSession(track.player, task, "requesting cue list");
-    }
-
-    /**
      * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
      * previous contents of the specified file will be replaced.
      *
@@ -522,6 +357,11 @@ public class MetadataFinder extends LifecycleParticipant {
      * The prefix for cache file entries that will store waveform previews.
      */
     private static final String CACHE_WAVEFORM_PREVIEW_ENTRY_PREFIX = CACHE_PREFIX + "wavePrev/";
+
+    /**
+     * The prefix for cache file entries that will store waveform previews.
+     */
+    private static final String CACHE_WAVEFORM_DETAIL_ENTRY_PREFIX = CACHE_PREFIX + "waveform/";
 
     /**
      * The comment string used to identify a ZIP file as one of our metadata caches.
@@ -597,11 +437,14 @@ public class MetadataFinder extends LifecycleParticipant {
                     logger.debug("Adding artwork with ID {}", track.getArtworkId());
                     zipEntry = new ZipEntry(getArtworkEntryName(track.getArtworkId()));
                     zos.putNextEntry(zipEntry);
-                    Util.writeFully(ArtFinder.getInstance().getArtwork(track.getArtworkId(), slot, client).getRawBytes(), channel);
-                    artworkAdded.add(track.getArtworkId());
+                    AlbumArt art = ArtFinder.getInstance().getArtwork(track.getArtworkId(), slot, client);
+                    if (art != null) {
+                        Util.writeFully(art.getRawBytes(), channel);
+                        artworkAdded.add(track.getArtworkId());
+                    }
                 }
 
-                BeatGrid beatGrid = getBeatGrid(rekordboxId, slot.slot, client);
+                BeatGrid beatGrid = BeatGridFinder.getInstance().getBeatGrid(rekordboxId, slot, client);
                 if (beatGrid != null) {
                     logger.debug("Adding beat grid with ID {}", rekordboxId);
                     zipEntry = new ZipEntry(getBeatGridEntryName(rekordboxId));
@@ -617,7 +460,7 @@ public class MetadataFinder extends LifecycleParticipant {
                     cueList.rawMessage.write(channel);
                 }
 
-                WaveformPreview preview = getWaveformPreview(rekordboxId, slot.slot, client);
+                WaveformPreview preview = WaveformFinder.getInstance().getWaveformPreview(rekordboxId, slot, client);
                 if (preview != null) {
                     logger.debug("Adding waveform preview entry with ID {}", rekordboxId);
                     zipEntry = new ZipEntry((getWaveformPreviewEntryName(rekordboxId)));
@@ -625,7 +468,14 @@ public class MetadataFinder extends LifecycleParticipant {
                     preview.rawMessage.write(channel);
                 }
 
-                // TODO: Include waveforms (once supported), etc.
+                WaveformDetail detail = WaveformFinder.getInstance().getWaveformDetail(rekordboxId, slot, client);
+                if (detail != null) {
+                    logger.debug("Adding waveform detail entry with ID {}", rekordboxId);
+                    zipEntry = new ZipEntry((getWaveformDetailEntryName(rekordboxId)));
+                    zos.putNextEntry(zipEntry);
+                    detail.rawMessage.write(channel);
+                }
+
                 if (listener != null) {
                     if (!listener.cacheCreationContinuing(track, ++tracksCopied, totalToCopy)) {
                         logger.info("Track metadata cache creation canceled by listener");
@@ -697,7 +547,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the name of the entry where that track's beat grid should be stored
      */
-    private String getBeatGridEntryName(int rekordboxId) {
+    String getBeatGridEntryName(int rekordboxId) {
         return CACHE_BEAT_GRID_ENTRY_PREFIX + rekordboxId;
     }
 
@@ -717,10 +567,21 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param rekordboxId the id of the track being cached or looked up
      *
-     * @return the name of the entry where that track's cue list should be stored
+     * @return the name of the entry where that track's waveform preview should be stored
      */
-    private String getWaveformPreviewEntryName(int rekordboxId) {
+    String getWaveformPreviewEntryName(int rekordboxId) {
         return CACHE_WAVEFORM_PREVIEW_ENTRY_PREFIX + rekordboxId;
+    }
+
+    /**
+     * Names the appropriate zip file entry for caching a track's waveform detail.
+     *
+     * @param rekordboxId the id of the track being cached or looked up
+     *
+     * @return the name of the entry where that track's waveform detail should be stored
+     */
+    String getWaveformDetailEntryName(int rekordboxId) {
+        return CACHE_WAVEFORM_DETAIL_ENTRY_PREFIX + rekordboxId;
     }
 
     /**
@@ -801,7 +662,7 @@ public class MetadataFinder extends LifecycleParticipant {
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
-            logger.debug("Currently nothing for MetaDataListener to do when devices appear.");
+            logger.debug("Currently nothing for MetadataFinder to do when devices appear.");
         }
 
         @Override
@@ -838,6 +699,9 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * Check whether we are configured to use metadata only from caches, never actively requesting it from a player.
+     * Note that this will implicitly mean all of the metadata-related finders ({@link ArtFinder}, {@link BeatGridFinder},
+     * and {@link WaveformFinder}) are in passive mode as well, because their activity is triggered by the availability
+     * of new track metadata.
      *
      * @return {@code true} if only cached metadata will be used, or {@code false} if metadata will be requested from
      *         a player if a track is loaded from a media slot to which no cache has been assigned
@@ -848,6 +712,9 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * Set whether we are configured to use metadata only from caches, never actively requesting it from a player.
+     * Note that this will implicitly put all of the metadata-related finders ({@link ArtFinder}, {@link BeatGridFinder},
+     * and {@link WaveformFinder}) into a passive mode as well, because their activity is triggered by the availability
+     * of new track metadata.
      *
      * @param passive {@code true} if only cached metadata will be used, or {@code false} if metadata will be requested
      *                from a player if a track is loaded from a media slot to which no cache has been assigned
@@ -913,8 +780,11 @@ public class MetadataFinder extends LifecycleParticipant {
      * Get the metadata of all tracks currently loaded in any player, either on the play deck, or in a hot cue.
      *
      * @return the track information reported by all current players, including any tracks loaded in their hot cue slots
+     *
+     * @throws IllegalStateException if the MetadataFinder is not running
      */
     public Map<DeckReference, TrackMetadata> getLoadedTracks() {
+        ensureRunning();
         // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableMap(new HashMap<DeckReference, TrackMetadata>(hotCache));
     }
@@ -923,10 +793,14 @@ public class MetadataFinder extends LifecycleParticipant {
      * Look up the track metadata we have for the track loaded in the main deck of a given player number.
      *
      * @param player the device number whose track metadata for the playing track is desired
+     *
      * @return information about the track loaded on that player, if available
+     *
+     * @throws IllegalStateException if the MetadataFinder is not running
      */
     @SuppressWarnings("WeakerAccess")
     public TrackMetadata getLatestMetadataFor(int player) {
+        ensureRunning();
         return hotCache.get(DeckReference.getDeckReference(player, 0));
     }
 
@@ -934,7 +808,10 @@ public class MetadataFinder extends LifecycleParticipant {
      * Look up the track metadata we have for a given player, identified by a status update received from that player.
      *
      * @param update a status update from the player for which track metadata is desired
+     *
      * @return information about the track loaded on that player, if available
+     *
+     * @throws IllegalStateException if the MetadataFinder is not running
      */
     public TrackMetadata getLatestMetadataFor(DeviceUpdate update) {
         return getLatestMetadataFor(update.getDeviceNumber());
@@ -1018,6 +895,19 @@ public class MetadataFinder extends LifecycleParticipant {
                 logger.error("Problem closing metadata cache", e);
             }
             deliverCacheUpdate(slot, null);
+        }
+    }
+
+    /**
+     * Discards any tracks from the hot cache that were loaded from a now-unmounted media slot, because they are no
+     * longer valid.
+     */
+    private void flushHotCacheSlot(SlotReference slot) {
+        for (Map.Entry<DeckReference, TrackMetadata> entry : hotCache.entrySet()) {
+            if (slot == SlotReference.getSlotReference(entry.getValue().trackReference)) {
+                logger.debug("Evicting cached metadata in response to unmount report {}", entry.getValue());
+                hotCache.remove(entry.getKey());
+            }
         }
     }
 
@@ -1306,6 +1196,7 @@ public class MetadataFinder extends LifecycleParticipant {
         if (update.isLocalUsbEmpty()) {
             final SlotReference slot = SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.USB_SLOT);
             detachMetadataCache(slot);
+            flushHotCacheSlot(slot);
             removeMount(slot);
         } else if (update.isLocalUsbLoaded()) {
             recordMount(SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
@@ -1313,6 +1204,7 @@ public class MetadataFinder extends LifecycleParticipant {
         if (update.isLocalSdEmpty()) {
             final SlotReference slot = SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT);
             detachMetadataCache(slot);
+            flushHotCacheSlot(slot);
             removeMount(slot);
         } else if (update.isLocalSdLoaded()){
             recordMount(SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
@@ -1425,6 +1317,11 @@ public class MetadataFinder extends LifecycleParticipant {
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
+            for (DeckReference deck : hotCache.keySet()) {  // Report the loss of our hot cached metadata
+                if (deck.player == 0) {
+                    deliverTrackMetadataUpdate(deck.player, null);
+                }
+            }
             hotCache.clear();
             deliverLifecycleAnnouncement(logger, false);
         }

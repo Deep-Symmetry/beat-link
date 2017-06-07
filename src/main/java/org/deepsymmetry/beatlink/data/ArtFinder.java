@@ -15,16 +15,16 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * <p>Watches for new tracks to be loaded on players, and queries the
+ * <p>Watches for new metadata to become available for tracks loaded on players, and queries the
  * appropriate player for the album art when that happens.</p>
  *
  * <p>Maintains a hot cache of art for any track currently loaded in a player, either on the main playback
- * deck, or as a hot cue, since those tracks could start playing instantly.</p>
+ * deck, or as a hot cue, since those tracks could start playing instantly. Also maintains a second-level
+ * in-memory cache of artwork, discarding the least-recently-used art when the cache fills, because tracks
+ * can share artwork, so the DJ may load another track with the same album art.</p>
  *
- * <p>In busy performance situations where all four usable player numbers are in use by actual players,
- * you may want to use a metadata cache with the {@link MetadataFinder} to avoid conflicting queries yet still have
- * art available. In such situations, you may want to go into passive mode, using {@link #setPassive(boolean)}, to
- * prevent art queries about tracks that are not available from the attached metadata cache files.</p>
+ * <p>Implicitly honors the active/passive setting of the {@link MetadataFinder}
+ * (see {@link MetadataFinder#setPassive(boolean)}), because art is loaded in response to metadata updates.</p>
  *
  * @author James Elliott
  */
@@ -34,7 +34,7 @@ public class ArtFinder extends LifecycleParticipant {
     private static final Logger logger = LoggerFactory.getLogger(ArtFinder.class);
 
     /**
-     * Keeps track of the current metadata cached for each player. We cache metadata for any track which is currently
+     * Keeps track of the current album art cached for each player. We hot cache art for any track which is currently
      * on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
     private final Map<DeckReference, AlbumArt> hotCache = new ConcurrentHashMap<DeckReference, AlbumArt>();
@@ -78,6 +78,12 @@ public class ArtFinder extends LifecycleParticipant {
                     artCache.remove(artReference);
                 }
             }
+            for (Map.Entry<DeckReference, AlbumArt> entry : hotCache.entrySet()) {
+                if (slot == SlotReference.getSlotReference(entry.getValue().artReference)) {
+                    logger.debug("Evicting hot cached artwork in response to unmount report {}", entry.getValue());
+                    hotCache.remove(entry.getKey());
+                }
+            }
         }
     };
 
@@ -88,7 +94,7 @@ public class ArtFinder extends LifecycleParticipant {
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
-            logger.debug("Currently nothing for MetaDataListener to do when devices appear.");
+            logger.debug("Currently nothing for ArtFinder to do when devices appear.");
         }
 
         @Override
@@ -104,43 +110,17 @@ public class ArtFinder extends LifecycleParticipant {
     private boolean running = false;
 
     /**
-     * Check whether we are currently running. Unless we are in passive mode, we will also automatically request
-     * album art from the appropriate player when a new track is loaded that is not found in the hot cache or an
-     * attached metadata cache file.
+     * Check whether we are currently running. Unless the {@link MetadataFinder} is in passive mode, we will
+     * automatically request album art from the appropriate player when a new track is loaded that is not found
+     * in the hot cache, second-level memory cache, or an attached metadata cache file.
      *
      * @return true if album art is being kept track of for all active players
      *
-     * @see #isPassive()
+     * @see MetadataFinder#isPassive()
      */
     @SuppressWarnings("WeakerAccess")
     public synchronized boolean isRunning() {
         return running;
-    }
-
-    /**
-     * Indicates whether we should use metadata only from caches, never actively requesting it from a player.
-     */
-    private boolean passive = false;
-
-    /**
-     * Check whether we are configured to use art only from caches, never actively requesting it from a player.
-     *
-     * @return {@code true} if only cached art will be used, or {@code false} if art will be requested from the
-     *         appropriate player when a track is loaded from a media slot to which no cache has been assigned
-     */
-    public synchronized boolean isPassive() {
-        return passive;
-    }
-
-    /**
-     * Set whether we are configured to use art only from caches, never actively requesting it from a player.
-     *
-     * @param passive {@code true} if only cached art will be used, or {@code false} if art will be requested
-     *                from the appropriate player if a track is loaded from a media slot to which no cache has
-     *                been assigned
-     */
-    public synchronized void setPassive(boolean passive) {
-        this.passive = passive;
     }
 
     /**
@@ -150,7 +130,7 @@ public class ArtFinder extends LifecycleParticipant {
     private Thread queueHandler;
 
     /**
-     * We have received an update that invalidates any previous metadata for a player, so clear it out, and alert
+     * We have received an update that invalidates any previous metadata for a player, so clear its art, and alert
      * any listeners if this represents a change. This does not affect the hot cues; they will stick around until the
      * player loads a new track that overwrites one or more of them.
      *
@@ -203,6 +183,8 @@ public class ArtFinder extends LifecycleParticipant {
      * Get the art available for all tracks currently loaded in any player, either on the play deck, or in a hot cue.
      *
      * @return the album art associated with all current players, including for any tracks loaded in their hot cue slots
+     *
+     * @throws IllegalStateException if the ArtFinder is not running
      */
     public Map<DeckReference, AlbumArt> getLoadedArt() {
         ensureRunning();
@@ -229,10 +211,12 @@ public class ArtFinder extends LifecycleParticipant {
      * Look up the album art we have for a given player, identified by a status update received from that player.
      *
      * @param update a status update from the player for which album art is desired
+     *
      * @return the album art for the track loaded on that player, if available
+     *
+     * @throws IllegalStateException if the ArtFinder is not running
      */
     public AlbumArt getLatestArtworkFor(DeviceUpdate update) {
-        ensureRunning();
         return getLatestArtFor(update.getDeviceNumber());
     }
 
@@ -288,8 +272,9 @@ public class ArtFinder extends LifecycleParticipant {
     public static final int DEFAULT_ART_CACHE_SIZE = 100;
 
     /**
-     * Establish the artwork cache. Even though we are not caching tracks, the {@link DataReference} tuple has
-     * exactly the information we need to identify cached artwork.
+     * Establish the second-level artwork cache. Since multiple tracks share the same art, it can be worthwhile to keep
+     * art around even for tracks that are not currently loaded, to save on having to request it again when another
+     * track from the same album is loaded.
      */
     private LruCache<DataReference, AlbumArt> lruCache = new LruCache<DataReference, AlbumArt>(DEFAULT_ART_CACHE_SIZE);
 
@@ -299,7 +284,7 @@ public class ArtFinder extends LifecycleParticipant {
     private Map<DataReference, AlbumArt> artCache = Collections.synchronizedMap(lruCache);
 
     /**
-     * Check how many album art images can be kept in the in-memory cache.
+     * Check how many album art images can be kept in the in-memory second-level cache.
      *
      * @return the maximum number of distinct album art images that will automatically be kept for reuse in the
      *         in-memory art cache.
@@ -309,7 +294,7 @@ public class ArtFinder extends LifecycleParticipant {
     }
 
     /**
-     * Set how many album art images can be kept in the in-memory cache.
+     * Set how many album art images can be kept in the in-memory second-level cache.
      *
      * @param size the maximum number of distinct album art images that will automatically be kept for reuse in the
      *         in-memory art cache; if you set this to a smaller number than are currently present in the cache, some
@@ -356,7 +341,8 @@ public class ArtFinder extends LifecycleParticipant {
             return getCachedArtwork(cache, artReference);
         }
 
-        if (passive && failIfPassive) {  // We are not allowed to perform actual requests in passive mode.
+        if (MetadataFinder.getInstance().isPassive() && failIfPassive) {
+            // We are not allowed to perform actual requests in passive mode.
             return null;
         }
 
@@ -370,7 +356,7 @@ public class ArtFinder extends LifecycleParticipant {
 
         try {
             AlbumArt artwork = ConnectionManager.getInstance().invokeWithClientSession(artReference.player, task, "requesting artwork");
-            if (artwork != null) {  // Our cache file load or network request succeeded, so add to the in-memory cache.
+            if (artwork != null) {  // Our cache file load or network request succeeded, so add to the level 2 cache.
                 artCache.put(artReference, artwork);
             }
             return artwork;
@@ -511,7 +497,7 @@ public class ArtFinder extends LifecycleParticipant {
     }
 
     /**
-     * Removes the specified album art update listener so that it no longer receives updates when the
+     * Removes the specified album art listener so that it no longer receives updates when the
      * album art for a player changes. If {@code listener} is {@code null} or not present
      * in the set of registered listeners, no exception is thrown and no action is performed.
      *
@@ -524,7 +510,7 @@ public class ArtFinder extends LifecycleParticipant {
     }
 
     /**
-     * Get the set of currently-registered album art update listeners.
+     * Get the set of currently-registered album art listeners.
      *
      * @return the listeners that are currently registered for album art updates
      */
@@ -652,7 +638,9 @@ public class ArtFinder extends LifecycleParticipant {
 
             // Send ourselves "updates" about any tracks that were loaded before we started, since we missed those.
             for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-                handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+                if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                    handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+                }
             }
         }
     }
@@ -667,6 +655,11 @@ public class ArtFinder extends LifecycleParticipant {
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
+            for (DeckReference deck : hotCache.keySet()) {  // Report the loss of our hot cached art
+                if (deck.hotCue == 0) {
+                    deliverAlbumArtUpdate(deck.player, null);
+                }
+            }
             hotCache.clear();
             artCache.clear();
             deliverLifecycleAnnouncement(logger, false);
@@ -696,8 +689,8 @@ public class ArtFinder extends LifecycleParticipant {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("ArtFinder[running:").append(isRunning());
-        sb.append(", passive:").append(isPassive()).append(", artCacheSize:").append(getArtCacheSize());
+        StringBuilder sb = new StringBuilder("ArtFinder[running:").append(isRunning()).append(", passive:");
+        sb.append(MetadataFinder.getInstance().isPassive()).append(", artCacheSize:").append(getArtCacheSize());
         if (isRunning()) {
             sb.append(", loadedArt:").append(getLoadedArt()).append(", cached art:").append(artCache.size());
         }

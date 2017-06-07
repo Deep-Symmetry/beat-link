@@ -1,5 +1,6 @@
-package org.deepsymmetry.beatlink;
+package org.deepsymmetry.beatlink.data;
 
+import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 
@@ -12,6 +13,12 @@ import java.nio.ByteBuffer;
  * @author James Elliott
  */
 public class BeatGrid {
+
+    /**
+     * The unique identifier that was used to request this beat grid.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public final DataReference dataReference;
 
     /**
      * The message field holding the raw bytes of the beat grid as it was read over the network.
@@ -51,18 +58,21 @@ public class BeatGrid {
     /**
      * Constructor for when reading from the network.
      *
+     * @param reference the unique database reference that was used to request this waveform detail
      * @param message the response that contained the beat grid data
      */
-    public BeatGrid(Message message) {
-        this(((BinaryField) message.arguments.get(3)).getValue());
+    public BeatGrid(DataReference reference, Message message) {
+        this(reference, ((BinaryField) message.arguments.get(3)).getValue());
     }
 
     /**
      * Constructor for reading from a cache file.
      *
+     * @param reference the unique database reference that was used to request this waveform detail
      * @param buffer the raw bytes representing the beat grid
      */
-    public BeatGrid(ByteBuffer buffer) {
+    public BeatGrid(DataReference reference, ByteBuffer buffer) {
+        dataReference = reference;
         rawData = buffer;
         final byte[] gridBytes = new byte[rawData.remaining()];
         rawData.get(gridBytes);
@@ -127,6 +137,6 @@ public class BeatGrid {
 
     @Override
     public String toString() {
-        return "BeatGrid[" + beatCount + " beats]";
+        return "BeatGrid[dataReference:" + dataReference + ", beats:" + beatCount + "]";
     }
 }
