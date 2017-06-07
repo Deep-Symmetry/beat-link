@@ -588,7 +588,7 @@ public class ArtFinder extends LifecycleParticipant {
                                     updateArt(update, art);
                                 }
                             } catch (Exception e) {
-                                logger.warn("Problem requesting track metadata from update" + update, e);
+                                logger.warn("Problem requesting album art from update" + update, e);
                             } finally {
                                 activeRequests.remove(update.player);
                             }
