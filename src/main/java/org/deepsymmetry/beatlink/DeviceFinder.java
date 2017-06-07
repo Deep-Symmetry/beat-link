@@ -4,6 +4,8 @@ import java.awt.EventQueue;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,9 +16,9 @@ import org.slf4j.LoggerFactory;
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public class DeviceFinder {
+public class DeviceFinder extends LifecycleParticipant {
 
-    private static final Logger logger = LoggerFactory.getLogger(DeviceFinder.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(DeviceFinder.class);
 
     /**
      * The port to which devices broadcast announcement messages to report their presence on the network.
@@ -32,7 +34,7 @@ public class DeviceFinder {
     /**
      * The socket used to listen for announcement packets while we are active.
      */
-    private static DatagramSocket socket;
+    private DatagramSocket socket;
 
     /**
      * Track when we started listening for announcement packets.
@@ -44,15 +46,14 @@ public class DeviceFinder {
      * to watch for devices in order to avoid conflicts when self-assigning a device number. Will be zero when none
      * have yet been seen.
      */
-    private static long firstDeviceTime = 0;
+    private long firstDeviceTime = 0;
 
     /**
      * Check whether we are presently listening for device announcements.
      *
      * @return {@code true} if our socket is open and monitoring for DJ Link device announcements on the network
      */
-    @SuppressWarnings("WeakerAccess")
-    public static synchronized boolean isActive() {
+    public synchronized boolean isRunning() {
         return socket != null;
     }
 
@@ -62,10 +63,8 @@ public class DeviceFinder {
      * @return the system millisecond timestamp when {@link #start()} was called.
      * @throws IllegalStateException if we are not listening for announcements.
      */
-    public static synchronized long getStartTime() {
-        if (!isActive()) {
-            throw new IllegalStateException("DeviceFinder is not active");
-        }
+    public synchronized long getStartTime() {
+        ensureRunning();
         return startTime;
     }
 
@@ -76,10 +75,8 @@ public class DeviceFinder {
      * @return the system millisecond timestamp when the first device announcement was received.
      * @throws IllegalStateException if we are not listening for announcements, or if none have been seen.
      */
-    public static synchronized long getFirstDeviceTime() {
-        if (!isActive()) {
-            throw new IllegalStateException("DeviceFinder is not active");
-        }
+    public synchronized long getFirstDeviceTime() {
+        ensureRunning();
         if (firstDeviceTime == 0) {
             throw new IllegalStateException("No device announcements have yet been seen");
         }
@@ -89,12 +86,12 @@ public class DeviceFinder {
     /**
      * Keep track of the announcements we have seen.
      */
-    private static final Map<InetAddress, DeviceAnnouncement> devices = new HashMap<InetAddress, DeviceAnnouncement>();
+    private final Map<InetAddress, DeviceAnnouncement> devices = new ConcurrentHashMap<InetAddress, DeviceAnnouncement>();
 
     /**
      * Remove any device announcements that are so old that the device seems to have gone away.
      */
-    private static synchronized void expireDevices() {
+    private synchronized void expireDevices() {
         long now = System.currentTimeMillis();
         Iterator<Map.Entry<InetAddress, DeviceAnnouncement>> it = devices.entrySet().iterator();
         while (it.hasNext()) {
@@ -114,7 +111,7 @@ public class DeviceFinder {
      *
      * @param announcement the announcement to be recorded
      */
-    private static synchronized void updateDevices(DeviceAnnouncement announcement) {
+    private synchronized void updateDevices(DeviceAnnouncement announcement) {
         if (firstDeviceTime == 0) {
             firstDeviceTime = System.currentTimeMillis();
         }
@@ -128,7 +125,7 @@ public class DeviceFinder {
      *
      * @return true if this is the first message from this device
      */
-    private static synchronized boolean isDeviceNew(DeviceAnnouncement announcement) {
+    private boolean isDeviceNew(DeviceAnnouncement announcement) {
         return !devices.containsKey(announcement.getAddress());
     }
 
@@ -136,7 +133,8 @@ public class DeviceFinder {
      * Maintain a set of addresses from which device announcements should be ignored. The {@link VirtualCdj} will add
      * its socket to this set when it is active so that it does not show up in the set of devices found on the network.
      */
-    private static final Set<InetAddress> ignoredAddresses = new HashSet<InetAddress>();
+    private final Set<InetAddress> ignoredAddresses =
+            Collections.newSetFromMap(new ConcurrentHashMap<InetAddress, Boolean>());
 
     /**
      * Start ignoring any device updates which are received from the specified address. Intended for use by the
@@ -144,7 +142,7 @@ public class DeviceFinder {
      *
      * @param address the address from which any device updates should be ignored.
      */
-    public static synchronized void addIgnoredAddress(InetAddress address) {
+    public void addIgnoredAddress(InetAddress address) {
         ignoredAddresses.add(address);
     }
 
@@ -154,7 +152,7 @@ public class DeviceFinder {
      *
      * @param address the address from which any device updates should be ignored.
      */
-    public static synchronized  void removeIgnoredAddress(InetAddress address) {
+    public void removeIgnoredAddress(InetAddress address) {
         ignoredAddresses.remove(address);
     }
 
@@ -164,11 +162,12 @@ public class DeviceFinder {
      *
      * @throws SocketException if the socket to listen on port 50000 cannot be created
      */
-    public static synchronized void start() throws SocketException {
+    public synchronized void start() throws SocketException {
 
-        if (!isActive()) {
+        if (!isRunning()) {
             socket = new DatagramSocket(ANNOUNCEMENT_PORT);
             startTime = System.currentTimeMillis();
+            deliverLifecycleAnnouncement(logger, true);
 
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -176,9 +175,9 @@ public class DeviceFinder {
                 @Override
                 public void run() {
                     boolean received;
-                    while (isActive()) {
+                    while (isRunning()) {
                         try {
-                            if (currentDevices().isEmpty()) {
+                            if (getCurrentDevices().isEmpty()) {
                                 socket.setSoTimeout(0);  // We have no devices to check for timeout; block indefinitely
                             } else {
                                 socket.setSoTimeout(1000);  // Check every second to see if a device has vanished
@@ -189,7 +188,7 @@ public class DeviceFinder {
                             received = false;
                         } catch (IOException e) {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
-                            if (isActive()) {
+                            if (isRunning()) {
                                 // We did not expect to have a problem; log a warning and shut down.
                                 logger.warn("Problem reading from DeviceAnnouncement socket, stopping", e);
                                 stop();
@@ -224,9 +223,9 @@ public class DeviceFinder {
      * notify any registered listeners that those devices have been lost.
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized void stop() {
-        if (isActive()) {
-            final Set<DeviceAnnouncement> lastDevices = currentDevices();
+    public synchronized void stop() {
+        if (isRunning()) {
+            final Set<DeviceAnnouncement> lastDevices = getCurrentDevices();
             socket.close();
             socket = null;
             devices.clear();
@@ -234,6 +233,7 @@ public class DeviceFinder {
             for (DeviceAnnouncement announcement : lastDevices) {
                 deliverLostAnnouncement(announcement);
             }
+            deliverLifecycleAnnouncement(logger, false);
         }
     }
 
@@ -243,13 +243,15 @@ public class DeviceFinder {
      * as long as the Virtual CDJ is active.
      *
      * @return the devices which have been heard from recently enough to be considered present on the network
+     *
      * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
-    public static synchronized Set<DeviceAnnouncement> currentDevices() {
-        if (!isActive()) {
+    public Set<DeviceAnnouncement> getCurrentDevices() {
+        if (!isRunning()) {
             throw new IllegalStateException("DeviceFinder is not active");
         }
-        expireDevices();
+        expireDevices();  // Get rid of anything past its sell-by date.
+        // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableSet(new HashSet<DeviceAnnouncement>(devices.values()));
     }
 
@@ -258,10 +260,14 @@ public class DeviceFinder {
      * with the specified device number, if any.
      *
      * @param deviceNumber the device number of interest
+     *
      * @return the matching announcement or null if no such device has been heard from
+     *
+     * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
-    public static DeviceAnnouncement getLatestAnnouncementFrom(int deviceNumber) {
-        for (DeviceAnnouncement announcement : currentDevices()) {
+    public DeviceAnnouncement getLatestAnnouncementFrom(int deviceNumber) {
+        ensureRunning();
+        for (DeviceAnnouncement announcement : getCurrentDevices()) {
             if (announcement.getNumber() == deviceNumber) {
                 return announcement;
             }
@@ -272,8 +278,8 @@ public class DeviceFinder {
     /**
      * Keeps track of the registered device announcement listeners.
      */
-    private static final Set<DeviceAnnouncementListener> listeners = new HashSet<DeviceAnnouncementListener>();
-
+    private final Set<DeviceAnnouncementListener> deviceListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<DeviceAnnouncementListener, Boolean>());
     /**
      * Adds the specified device announcement listener to receive device announcements when DJ Link devices
      * are found on or leave the network. If {@code listener} is {@code null} or already present in the list
@@ -286,10 +292,9 @@ public class DeviceFinder {
      *
      * @param listener the device announcement listener to add
      */
-    @SuppressWarnings("SameParameterValue")
-    public static synchronized void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+    public void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
         if (listener != null) {
-            listeners.add(listener);
+            deviceListeners.add(listener);
         }
     }
 
@@ -300,9 +305,9 @@ public class DeviceFinder {
      *
      * @param listener the device announcement listener to remove
      */
-    public static synchronized void removeDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+    public void removeDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
         if (listener != null) {
-            listeners.remove(listener);
+            deviceListeners.remove(listener);
         }
     }
 
@@ -312,8 +317,9 @@ public class DeviceFinder {
      * @return the currently registered device announcement listeners
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
-        return Collections.unmodifiableSet(new HashSet<DeviceAnnouncementListener>(listeners));
+    public Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Collections.unmodifiableSet(new HashSet<DeviceAnnouncementListener>(deviceListeners));
     }
 
     /**
@@ -321,7 +327,7 @@ public class DeviceFinder {
      *
      * @param announcement the message announcing the new device
      */
-    private static void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
+    private void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
         for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
             EventQueue.invokeLater(new Runnable() {
                 @Override
@@ -341,7 +347,7 @@ public class DeviceFinder {
      *
      * @param announcement the last message received from the vanished device
      */
-    private static void deliverLostAnnouncement(final DeviceAnnouncement announcement) {
+    private void deliverLostAnnouncement(final DeviceAnnouncement announcement) {
         for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
             EventQueue.invokeLater(new Runnable() {
                 @Override
@@ -357,9 +363,34 @@ public class DeviceFinder {
     }
 
     /**
-     * Prevent instantiation.
+     * Holds the singleton instance of this class.
+     */
+    private static final DeviceFinder ourInstance = new DeviceFinder();
+
+    /**
+     * Get the singleton instance of this class.
+     *
+     * @return the only instance of this class which exists.
+     */
+    public static DeviceFinder getInstance() {
+        return ourInstance;
+    }
+
+    /**
+     * Prevent direct instantiation.
      */
     private DeviceFinder() {
         // Nothing to do.
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder() ;
+        sb.append("DeviceFinder[active:").append(isRunning());
+        if (isRunning()) {
+            sb.append(", startTime:").append(getStartTime()).append(", firstDeviceTime:").append(getFirstDeviceTime());
+            sb.append(", currentDevices:").append(getCurrentDevices());
+        }
+        return sb.append("]").toString();
     }
 }

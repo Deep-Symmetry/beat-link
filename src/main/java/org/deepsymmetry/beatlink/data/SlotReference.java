@@ -22,7 +22,6 @@ public class SlotReference {
     /**
      * The specific type of the slot.
      */
-    @SuppressWarnings("WeakerAccess")
     public final CdjStatus.TrackSourceSlot slot;
 
     /**

@@ -24,4 +24,9 @@ public class TrackMetadataUpdate {
         this.player = player;
         this.metadata = metadata;
     }
+
+    @Override
+    public String toString() {
+        return "TrackMetadataUpdate[player:" + player + ", metadata:" + metadata + "]";
+    }
 }

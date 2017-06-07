@@ -79,8 +79,8 @@ public class Beat extends DeviceUpdate {
      */
     @Override
     public boolean isBeatWithinBarMeaningful() {
-        if (VirtualCdj.isActive()) {
-            return VirtualCdj.getLatestStatusFor(this).isBeatWithinBarMeaningful();
+        if (VirtualCdj.getInstance().isRunning()) {
+            return VirtualCdj.getInstance().getLatestStatusFor(this).isBeatWithinBarMeaningful();
         }
 
         return deviceNumber < 33;
@@ -103,7 +103,7 @@ public class Beat extends DeviceUpdate {
      */
     @Override
     public boolean isTempoMaster() {
-        DeviceUpdate master = VirtualCdj.getTempoMaster();
+        DeviceUpdate master = VirtualCdj.getInstance().getTempoMaster();
         return (master != null) && master.getAddress().equals(address);
     }
 

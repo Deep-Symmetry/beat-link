@@ -54,7 +54,7 @@ public class BeatGrid {
      * @param message the response that contained the beat grid data
      */
     public BeatGrid(Message message) {
-        this(((BinaryField)message.arguments.get(3)).getValue());
+        this(((BinaryField) message.arguments.get(3)).getValue());
     }
 
     /**
@@ -72,7 +72,7 @@ public class BeatGrid {
         for (int beatNumber = 0; beatNumber < beatCount; beatNumber++) {
             final int base = 20 + beatNumber * 16;  // Data for the current beat starts here
             beatWithinBarValues[beatNumber] = Util.unsign(gridBytes[base]);
-            // For some reason, unlike every other number in the protocol, beat timings are little-endian
+            // For some reason, unlike nearly every other number in the protocol, beat timings are little-endian
             timeWithinTrackValues[beatNumber] = Util.bytesToNumberLittleEndian(gridBytes, base + 4, 4);
         }
     }

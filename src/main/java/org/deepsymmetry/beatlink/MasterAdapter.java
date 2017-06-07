@@ -13,7 +13,8 @@ package org.deepsymmetry.beatlink;
  * Whenever a relevant change occurs, the appropriate method
  * in the listener object is invoked, and the {@link DeviceUpdate} which reported the change is passed to it.</p>
  *
- * @author  James Elliott */
+ * @author  James Elliott
+ */
 public abstract class MasterAdapter implements MasterListener{
     @Override
     public void masterChanged(DeviceUpdate update) {

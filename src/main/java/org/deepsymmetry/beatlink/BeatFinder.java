@@ -7,6 +7,8 @@ import java.net.SocketException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,9 +30,9 @@ import org.slf4j.LoggerFactory;
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public class BeatFinder {
+public class BeatFinder extends LifecycleParticipant {
 
-    private static final Logger logger = LoggerFactory.getLogger(BeatFinder.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(BeatFinder.class);
 
     /**
      * The port to which devices broadcast beat messages.
@@ -41,7 +43,7 @@ public class BeatFinder {
     /**
      * The socket used to listen for beat packets while we are active.
      */
-    private static DatagramSocket socket;
+    private DatagramSocket socket;
 
     /**
      * Check whether we are presently listening for beat packets.
@@ -49,7 +51,7 @@ public class BeatFinder {
      * @return {@code true} if our socket is open and monitoring for DJ Link beat packets on the network
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized boolean isActive() {
+    public synchronized boolean isRunning() {
         return socket != null;
     }
 
@@ -58,23 +60,23 @@ public class BeatFinder {
      *
      * @throws SocketException if the socket to listen on port 50001 cannot be created
      */
-    public static synchronized void start() throws SocketException {
-        if (!isActive()) {
+    public synchronized void start() throws SocketException {
+        if (!isRunning()) {
             socket = new DatagramSocket(BEAT_PORT);
-
+            deliverLifecycleAnnouncement(logger, true);
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             Thread receiver = new Thread(null, new Runnable() {
                 @Override
                 public void run() {
                     boolean received;
-                    while (isActive()) {
+                    while (isRunning()) {
                         try {
                             socket.receive(packet);
                             received = true;
                         } catch (IOException e) {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
-                            if (isActive()) {
+                            if (isRunning()) {
                                 // We did not expect to have a problem; log a warning and shut down.
                                 logger.warn("Problem reading from DeviceAnnouncement socket, stopping", e);
                                 stop();
@@ -102,17 +104,19 @@ public class BeatFinder {
      * Stop listening for beats.
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized void stop() {
-        if (isActive()) {
+    public synchronized void stop() {
+        if (isRunning()) {
             socket.close();
             socket = null;
+            deliverLifecycleAnnouncement(logger, false);
         }
     }
 
     /**
      * Keeps track of the registered beat listeners.
      */
-    private static final Set<BeatListener> listeners = new HashSet<BeatListener>();
+    private final Set<BeatListener> listeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<BeatListener, Boolean>());
 
     /**
      * <p>Adds the specified beat listener to receive beat announcements when DJ Link devices broadcast
@@ -130,7 +134,7 @@ public class BeatFinder {
      *
      * @param listener the beat listener to add
      */
-    public static synchronized void addBeatListener(BeatListener listener) {
+    public void addBeatListener(BeatListener listener) {
         if (listener != null) {
             listeners.add(listener);
         }
@@ -143,7 +147,7 @@ public class BeatFinder {
      *
      * @param listener the beat listener to remove
      */
-    public static synchronized void removeBeatListener(BeatListener listener) {
+    public void removeBeatListener(BeatListener listener) {
         if (listener != null) {
             listeners.remove(listener);
         }
@@ -155,7 +159,8 @@ public class BeatFinder {
      * @return the currently registered beat listeners
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized Set<BeatListener> getBeatListeners() {
+    public Set<BeatListener> getBeatListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableSet(new HashSet<BeatListener>(listeners));
     }
 
@@ -165,8 +170,8 @@ public class BeatFinder {
      *
      * @param beat the message announcing the new beat.
      */
-    private static void deliverBeat(final Beat beat) {
-        VirtualCdj.processBeat(beat);
+    private void deliverBeat(final Beat beat) {
+        VirtualCdj.getInstance().processBeat(beat);
         for (final BeatListener listener : getBeatListeners()) {
             try {
                 listener.newBeat(beat);
@@ -174,5 +179,33 @@ public class BeatFinder {
                 logger.warn("Problem delivering beat announcement to listener", e);
             }
         }
+    }
+
+    // TODO: Do we want to keep a set of the latest beats we got from each device?
+
+    /**
+     * Holds the singleton instance of this class.
+     */
+    private static final BeatFinder ourInstance = new BeatFinder();
+
+    /**
+     * Get the singleton instance of this class.
+     *
+     * @return the only instance of this class which exists.
+     */
+    public static BeatFinder getInstance() {
+        return ourInstance;
+    }
+
+    /**
+     * Prevent direct instantiation.
+     */
+    private BeatFinder() {
+        // Nothing to do.
+    }
+
+    @Override
+    public String toString() {
+        return "BeatFinder[active:" + isRunning() + "]";
     }
 }

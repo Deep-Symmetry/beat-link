@@ -24,4 +24,9 @@ public class AlbumArtUpdate {
         this.player = player;
         this.art = art;
     }
+
+    @Override
+    public String toString() {
+        return "AlbumArtUpdate[player:" + player + ", art:" + art + "]";
+    }
 }

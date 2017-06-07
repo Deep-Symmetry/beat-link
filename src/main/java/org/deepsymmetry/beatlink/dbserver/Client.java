@@ -23,7 +23,7 @@ import java.util.List;
  */
 public class Client {
 
-    private static final Logger logger = LoggerFactory.getLogger(Client.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(Client.class);
 
     /**
      * The socket on which we are communicating with the player's dbserver.

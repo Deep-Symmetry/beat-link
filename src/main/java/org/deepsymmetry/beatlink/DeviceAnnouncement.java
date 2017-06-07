@@ -114,6 +114,6 @@ public class DeviceAnnouncement {
 
     @Override
     public String toString() {
-        return "DJ Link Device Announcement: Device " + number + ", name: " + name + ", address: " + address;
+        return "DeviceAnnouncement[device:" + number + ", name:" + name + ", address:" + address.getHostAddress() + "]";
     }
 }

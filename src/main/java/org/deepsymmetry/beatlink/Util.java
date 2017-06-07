@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Util {
 
-    private static final Logger logger = LoggerFactory.getLogger(Util.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(Util.class);
 
     /**
      * The bytes that should always be present at the start of a DJ Link packet.
@@ -30,6 +30,7 @@ public class Util {
      * @param packet a packet that has just been received
      * @param kind the expected value of the eleventh byte, which seems to identify the packet type
      * @param name the name of the kind of packet expected, for use in logging warnings if a mismatch is found
+     *
      * @return {@code true} if the packet has the right header
      */
     public static boolean validateHeader(DatagramPacket packet, int kind, String name) {

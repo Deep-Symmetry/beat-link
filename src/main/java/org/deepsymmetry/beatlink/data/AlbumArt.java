@@ -69,4 +69,9 @@ public class AlbumArt {
         this.artReference = artReference;
         this.rawBytes = rawBytes;
     }
+
+    @Override
+    public String toString() {
+        return "AlbumArt[artReference=" + artReference + ", size=" + getRawBytes().remaining() + " bytes]";
+    }
 }

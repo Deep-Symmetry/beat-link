@@ -137,4 +137,13 @@ public abstract class DeviceUpdate {
      */
     @SuppressWarnings("WeakerAccess")
     public abstract boolean isBeatWithinBarMeaningful();
+
+    @Override
+    public String toString() {
+        return "DeviceUpdate[deviceNumber:" + deviceNumber +
+                ", deviceName:" + deviceName + ", address:" + address.getHostAddress() +
+                ", timestamp:" + timestamp + ", beatWithinBar:" + getBeatWithinBar() +
+                ", isBeatWithinBarMeaningful: " + isBeatWithinBarMeaningful() + ", effectiveTempo:" +
+                getEffectiveTempo() + ", isTempoMaster:" + isTempoMaster();
+    }
 }

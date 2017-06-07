@@ -13,12 +13,24 @@ for examples of what you can do with this.
 > :construction: beat-link is being worked on very heavily at the
 > moment to incorporate some
 > [amazing new discoveries](https://github.com/brunchboy/dysentery#robust-metadata-understanding).
-> Expect a major release in the next week or so, which breaks API
-> compatibility for the metadata features, but which makes it very
+> Expect a major release in the next week or so, which makes it very
 > easy to build graphical interfaces showing detailed information
 > about player states—including track waveforms, cue and memory
 > points, and the current playback position and state. It will also
-> soon offer support for generating timecode as a track plays.
+> soon offer support for generating time code as a track plays.
+>
+> :warning: Because beat-link is growing so much in this new release, it
+> was time to split some classes apart, and even split it into multiple
+> packages, so I also took the opportunity to make some basic changes to
+> the API to position it for future growth and better reliability. This
+> means the next release, 0.3.0, will not be API compatible with prior
+> releases, and any code which compiled against the old release will
+> require some rewriting. As soon as things settle down enough, I will
+> start posting snapshot pre-releases so people can start compiling
+> against the new API.
+>
+> :octocat: Since, as far as I know, I am still the only consumer of
+>  this API, this seems like a good time to make these breaking changes.
 
 ## Installing
 
@@ -60,21 +72,21 @@ import org.deepsymmetry.beatlink.DeviceFinder;
 
 // ...
 
-  DeviceFinder.start();
+  DeviceFinder.getInstance().start();
 ```
 
 After a second, it should have heard from all the devices, and you can
 obtain the list of them by calling:
 
 ```java
-  DeviceFinder.currentDevices();
+  DeviceFinder.getInstance.getCurrentDevices();
 ```
 
 This returns a list of [`DeviceAnnouncement`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceAnnouncement.html)
 objects describing the devices that were heard from. To find out
 immediately when a new device is noticed, or when an existing device
 disappears, you can use
-[`DeviceFinder.addDeviceAnnouncementListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#addDeviceAnnouncementListener-org.deepsymmetry.beatlink.DeviceAnnouncementListener-).
+[`DeviceFinder.getInstance().addDeviceAnnouncementListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#addDeviceAnnouncementListener-org.deepsymmetry.beatlink.DeviceAnnouncementListener-).
 
 ### Responding to Beats
 
@@ -87,14 +99,14 @@ import org.deepsymmetry.beatlink.BeatFinder;
 
 // ...
 
-  BeatFinder.addBeatListener(new BeatListener() {
+  BeatFinder.getInstance().addBeatListener(new BeatListener() {
       @Override
       public void newBeat(Beat beat) {
          // Your code here...
       }
   });
 
-  BeatFinder.start();
+  BeatFinder.getInstance().start();
 ```
 
 The [`Beat`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html)
@@ -142,7 +154,7 @@ import org.deepsymmetry.beatlink.VirtualCdj;
 
 // ...
 
-    VirtualCdj.start();
+    VirtualCdj.getInstance().start();
 ```
 
 > The Virtual player is normally created using device number `5` and the
@@ -153,7 +165,7 @@ import org.deepsymmetry.beatlink.VirtualCdj;
 [`setAnnounceInterval()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setAnnounceInterval-int-).
 
 As soon as it is running, you can pass any of the device announcements returned by
-[`DeviceFinder.currentDevices()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#currentDevices--)
+[`DeviceFinder.getCurrentDevices()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#getCurrentDevices--)
 to [`VirtualCdj.getLatestStatusFor(device)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getLatestStatusFor-org.deepsymmetry.beatlink.DeviceAnnouncement-)
 and get back the most recent status update received from that device.
 The return value will either be a
@@ -191,12 +203,12 @@ import org.deepsymmetry.beatlink.data.MetadataFinder;
 
 // ...
 
-    MetadataFinder.start();
+    MetadataFinder.getInstance().start();
 ```
 
 > The safest way to successfully retrieve metadata is to configure the
 > `VirtualCdj` to use a device number in the range 1 to 4, like an
-> actual CDJ, using `VirtualCdj.setDeviceNumber()` as described above.
+> actual CDJ, using `VirtualCdj.getInstance().setDeviceNumber()` as described above.
 > You can only do that if you are using fewer than 4 CDJs,
 > because you need to use a number that is not being used by any actual
 > CDJ. If you are using 4 actual CDJs, you will need to leave the
@@ -220,7 +232,7 @@ import org.deepsymmetry.beatlink.data.MetadataFinder;
 
 Once the `MetadataFinder` is running, you can access all the metadata
 for currently-loaded tracks by calling
-[`MetadataFinder.getLoadedTracks()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLoadedTracks--),
+[`MetadataFinder.getInstance().getLoadedTracks()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLoadedTracks--),
 which returns a `Map` from deck references (player numbers and
 hot cue numbers) to
 [`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
@@ -253,12 +265,12 @@ public class Example {
 
     public static void main(String[] args) {
         try {
-            VirtualCdj.start();
+            VirtualCdj.getInstance().start();
         } catch (java.net.SocketException e) {
             System.err.println("Unable to start VirtualCdj: " + e);
         }
 
-        VirtualCdj.addMasterListener(new MasterListener() {
+        VirtualCdj.getInstance().addMasterListener(new MasterListener() {
                         @Override
                         public void masterChanged(DeviceUpdate update) {
                             System.out.println("Master changed at " + new Date() + ": " + update);

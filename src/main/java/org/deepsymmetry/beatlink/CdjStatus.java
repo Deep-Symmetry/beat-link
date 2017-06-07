@@ -940,16 +940,17 @@ public class CdjStatus extends DeviceUpdate {
 
     @Override
     public String toString() {
-        return "CDJ status: Device " + deviceNumber + ", name: " + deviceName + ", busy? " + isBusy() +
-                ", pitch: " + String.format("%+.2f%%", Util.pitchToPercentage(pitch)) +
-                ", rekordbox ID:" + getRekordboxId() + ", from player: " + getTrackSourcePlayer() +
-                ", in slot: " + getTrackSourceSlot() + ", track type: " + getTrackType() +
-                ", track: " + getTrackNumber() + ", track BPM: " + String.format("%.1f", bpm / 100.0) +
-                ", effective BPM: " + String.format("%.1f", getEffectiveTempo()) +
-                ", beat: " + getBeatNumber() + ", beat within bar: " + getBeatWithinBar() +
-                ", cue: " + formatCueCountdown() +
+        return "CdjStatus[device:" + deviceNumber + ", name:" + deviceName +
+                ", address:" + address.getHostAddress() + ", timestamp:" + timestamp + ", busy? " + isBusy() +
+                ", pitch:" + String.format("%+.2f%%", Util.pitchToPercentage(pitch)) +
+                ", rekordboxId:" + getRekordboxId() + ", from player:" + getTrackSourcePlayer() +
+                ", in slot:" + getTrackSourceSlot() + ", track type:" + getTrackType() +
+                ", track:" + getTrackNumber() + ", track BPM:" + String.format("%.1f", bpm / 100.0) +
+                ", effective BPM:" + String.format("%.1f", getEffectiveTempo()) +
+                ", beat:" + getBeatNumber() + ", beatWithinBar:" + getBeatWithinBar() +
+                ", isBeatWithinBarMeaningful? " + isBeatWithinBarMeaningful() + ", cue: " + formatCueCountdown() +
                 ", Playing? " + isPlaying() + ", Master? " + isTempoMaster() +
-                ", Synced? " + isSynced() + ", On-Air? " + isOnAir();
+                ", Synced? " + isSynced() + ", On-Air? " + isOnAir() + "]";
     }
 
 }

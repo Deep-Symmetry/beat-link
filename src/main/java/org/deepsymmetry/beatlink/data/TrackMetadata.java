@@ -177,15 +177,6 @@ public class TrackMetadata {
         }
     }
 
-    @Override
-    public String toString() {
-        return "Track Metadata[trackReference: " + trackReference +
-                ", Title: " + title + ", Artist: " + artist + ", Album: " + album +
-                ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
-                ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre + ", Label: " + label +
-                ", Artwork ID: " + artworkId +"]";
-    }
-
     /**
      * Get the artist of the track.
      *
@@ -302,5 +293,14 @@ public class TrackMetadata {
      */
     public String getTitle() {
         return title;
+    }
+
+    @Override
+    public String toString() {
+        return "Track Metadata[trackReference: " + trackReference +
+                ", Title: " + title + ", Artist: " + artist + ", Album: " + album +
+                ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
+                ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre + ", Label: " + label +
+                ", Artwork ID: " + artworkId +"]";
     }
 }

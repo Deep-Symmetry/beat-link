@@ -259,6 +259,8 @@ public class WaveformPreview {
         }
     }
 
+    // TODO: Have the view able to automatically update itself in response to messages from the VirtualCDJ!
+
     /**
      * Create a standard Swing component which can be added to a user interface that will draw this waveform preview,
      * optionally including annotations like the current playback position and minute markers (if you supply
@@ -283,5 +285,4 @@ public class WaveformPreview {
     public WaveformPreview(Message message) {
         rawMessage = message;
     }
-
 }

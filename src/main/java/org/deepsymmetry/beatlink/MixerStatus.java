@@ -80,8 +80,9 @@ public class MixerStatus extends DeviceUpdate {
 
     @Override
     public String toString() {
-        return "Mixer status: Device " + deviceNumber + ", name: " + deviceName +
-                ", BPM: " + String.format("%.1f", bpm / 100.0) +
-                ", beat within bar: " + getBeatWithinBar();
+        return "MixerStatus[device:" + deviceNumber + ", name:" + deviceName + ", address:" + address.getHostAddress() +
+                ", timestamp:" + timestamp + ", BPM:" + String.format("%.1f", bpm / 100.0) +
+                ", beat within bar:" + getBeatWithinBar() + ", isBeatWithBarMeaningful? " +
+                isBeatWithinBarMeaningful() + "]";
     }
 }

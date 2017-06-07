@@ -3,6 +3,7 @@ package org.deepsymmetry.beatlink;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.slf4j.Logger;
@@ -19,9 +20,9 @@ import org.slf4j.LoggerFactory;
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public class VirtualCdj {
+public class VirtualCdj extends LifecycleParticipant {
 
-    private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class);
 
     /**
      * The port to which other devices will send status update messages.
@@ -32,14 +33,14 @@ public class VirtualCdj {
     /**
      * The socket used to receive device status packets while we are active.
      */
-    private static DatagramSocket socket;
+    private DatagramSocket socket;
 
     /**
      * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
      *
      * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
-    public static synchronized boolean isActive() {
+    public synchronized boolean isRunning() {
         return socket != null;
     }
 
@@ -49,9 +50,9 @@ public class VirtualCdj {
      * @return the local address we present to the DJ Link network
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
-    public static synchronized InetAddress getLocalAddress() {
-        ensureActive();
-        return  socket.getLocalAddress();
+    public synchronized InetAddress getLocalAddress() {
+        ensureRunning();
+        return socket.getLocalAddress();
     }
 
     /**
@@ -59,7 +60,7 @@ public class VirtualCdj {
      * up by finding the network interface address on which we are receiving the other devices'
      * announcement broadcasts.
      */
-    private static InetAddress broadcastAddress;
+    private InetAddress broadcastAddress;
 
     /**
      * Return the broadcast address used to reach the DJ Link network.
@@ -67,20 +68,20 @@ public class VirtualCdj {
      * @return the address on which packets can be broadcast to the other DJ Link devices
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
-    public static synchronized InetAddress getBroadcastAddress() {
-        ensureActive();
+    public synchronized InetAddress getBroadcastAddress() {
+        ensureRunning();
         return broadcastAddress;
     }
 
     /**
      * Keep track of the most recent updates we have seen, indexed by the address they came from.
      */
-    private static final Map<InetAddress, DeviceUpdate> updates = new HashMap<InetAddress, DeviceUpdate>();
+    private final Map<InetAddress, DeviceUpdate> updates = new ConcurrentHashMap<InetAddress, DeviceUpdate>();
 
     /**
      * Should we try to use a device number in the range 1 to 4 if we find one is available?
      */
-    private static boolean useStandardPlayerNumber = false;
+    private boolean useStandardPlayerNumber = false;
 
     /**
      * When self-assigning a player number, should we try to use a value that is legal for a standard CDJ, in
@@ -91,7 +92,7 @@ public class VirtualCdj {
      *
      * @param attempt true if self-assignment should try to use device numbers below 5 when available
      */
-    public static synchronized void setUseStandardPlayerNumber(boolean attempt) {
+    public synchronized void setUseStandardPlayerNumber(boolean attempt) {
         useStandardPlayerNumber = attempt;
     }
 
@@ -104,7 +105,7 @@ public class VirtualCdj {
      *
      * @return true if self-assignment should try to use device numbers below 5 when available
      */
-    public static synchronized boolean getUseStandardPlayerNumber() {
+    public synchronized boolean getUseStandardPlayerNumber() {
         return useStandardPlayerNumber;
     }
 
@@ -118,24 +119,27 @@ public class VirtualCdj {
      *
      * @return the virtual player number
      */
-    public static synchronized byte getDeviceNumber() {
+    public synchronized byte getDeviceNumber() {
         return announcementBytes[36];
     }
 
     /**
-     * Set the device number to be used when sending presence announcements on the network to pose as a virtual CDJ.
-     * If this is set to zero before {@link #start()} is called, the <code>VirtualCdj</code> will watch the network to
+     * <p>Set the device number to be used when sending presence announcements on the network to pose as a virtual CDJ.
+     * If this is set to zero before {@link #start()} is called, the {@code VirtualCdj} will watch the network to
      * look for an unused device number, and assign itself that number during startup. If you
      * explicitly assign a non-zero value, it will use that device number instead. Setting the value to zero while
      * already up and running reassigns it to an unused value immediately. If {@link #getUseStandardPlayerNumber()}
      * returns {@code true}, self-assignment will try to find a value in the range 1 to 4. Otherwise (or if those
-     * values are all used by other players), it will try to find a value in the range 5 to 15.
+     * values are all used by other players), it will try to find a value in the range 5 to 15.</p>
+     *
+     * <p>The device number defaults to 0, enabling self-assignment, and will be reset to that each time the
+     * {@code VirtualCdj} is stopped.</p>
      *
      * @param number the virtual player number
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized void setDeviceNumber(byte number) {
-        if (number == 0 && isActive()) {
+    public synchronized void setDeviceNumber(byte number) {
+        if (number == 0 && isRunning()) {
             selfAssignDeviceNumber();
         } else {
             announcementBytes[36] = number;
@@ -145,7 +149,7 @@ public class VirtualCdj {
     /**
      * The interval, in milliseconds, at which we post presence announcements on the network.
      */
-    private static int announceInterval = 1500;
+    private int announceInterval = 1500;
 
     /**
      * Get the interval, in milliseconds, at which we broadcast presence announcements on the network to pose as
@@ -153,7 +157,7 @@ public class VirtualCdj {
      *
      * @return the announcement interval
      */
-    public static synchronized int getAnnounceInterval() {
+    public synchronized int getAnnounceInterval() {
         return announceInterval;
     }
 
@@ -164,7 +168,7 @@ public class VirtualCdj {
      * @param interval the announcement interval
      * @throws IllegalArgumentException if interval is not between 200 and 2000
      */
-    public static synchronized void setAnnounceInterval(int interval) {
+    public synchronized void setAnnounceInterval(int interval) {
         if (interval < 200 || interval > 2000) {
             throw new IllegalArgumentException("Interval must be between 200 and 2000");
         }
@@ -189,7 +193,7 @@ public class VirtualCdj {
      *
      * @return the device name reported in our presence announcement packets
      */
-    public static synchronized String getDeviceName() {
+    public static String getDeviceName() {
         return new String(announcementBytes, 12, 20).trim();
     }
 
@@ -199,7 +203,7 @@ public class VirtualCdj {
      *
      * @param name the device name to report in our presence announcement packets.
      */
-    public static synchronized void setDeviceName(String name) {
+    public synchronized void setDeviceName(String name) {
         if (name.getBytes().length > 20) {
             throw new IllegalArgumentException("name cannot be more than 20 bytes long");
         }
@@ -208,20 +212,9 @@ public class VirtualCdj {
     }
 
     /**
-     * Helper method to throw an {@link IllegalStateException} if we are not currently active.
-     *
-     * @throws IllegalStateException if the {@link VirtualCdj} is not active
-     */
-    private static void ensureActive() {
-        if (!isActive()) {
-            throw new IllegalStateException("VirtualCdj is not active");
-        }
-    }
-
-    /**
      * Keep track of which device has reported itself as the current tempo master.
      */
-    private static DeviceUpdate tempoMaster;
+    private DeviceUpdate tempoMaster;
 
     /**
      * Check which device is the current tempo master, returning the {@link DeviceUpdate} packet in which it
@@ -230,8 +223,8 @@ public class VirtualCdj {
      * @return the most recent update from a device which reported itself as the master
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
-    public static synchronized DeviceUpdate getTempoMaster() {
-        ensureActive();
+    public synchronized DeviceUpdate getTempoMaster() {
+        ensureRunning();
         return tempoMaster;
     }
 
@@ -240,7 +233,7 @@ public class VirtualCdj {
      *
      * @param newMaster the packet which caused the change of masters, or {@code null} if there is now no master.
      */
-    private static synchronized void setTempoMaster(DeviceUpdate newMaster) {
+    private synchronized void setTempoMaster(DeviceUpdate newMaster) {
         if ((newMaster == null && tempoMaster != null) ||
                 (newMaster != null && ((tempoMaster == null) || !newMaster.getAddress().equals(tempoMaster.getAddress())))) {
             // This is a change in master, so report it to any registered listeners
@@ -252,14 +245,14 @@ public class VirtualCdj {
     /**
      * How large a tempo change is required before we consider it to be a real difference.
      */
-    private static double tempoEpsilon = 0.0001;
+    private double tempoEpsilon = 0.0001;
 
     /**
      * Find out how large a tempo change is required before we consider it to be a real difference.
      *
      * @return the BPM fraction that will trigger a tempo change update
      */
-    public static synchronized double getTempoEpsilon() {
+    public synchronized double getTempoEpsilon() {
         return tempoEpsilon;
     }
 
@@ -268,14 +261,14 @@ public class VirtualCdj {
      *
      * @param epsilon the BPM fraction that will trigger a tempo change update
      */
-    public static synchronized void setTempoEpsilon(double epsilon) {
+    public synchronized void setTempoEpsilon(double epsilon) {
         tempoEpsilon = epsilon;
     }
 
     /**
      * Track the most recently reported master tempo.
      */
-    private static double masterTempo;
+    private double masterTempo;
 
     /**
      * Get the current master tempo.
@@ -283,8 +276,8 @@ public class VirtualCdj {
      * @return the most recently reported master tempo
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
-    public static synchronized double getMasterTempo() {
-        ensureActive();
+    public synchronized double getMasterTempo() {
+        ensureRunning();
         return masterTempo;
     }
 
@@ -293,7 +286,7 @@ public class VirtualCdj {
      *
      * @param newTempo the newly reported master tempo.
      */
-    private static synchronized void setMasterTempo(double newTempo) {
+    private synchronized void setMasterTempo(double newTempo) {
         if ((tempoMaster != null) && (Math.abs(newTempo - masterTempo) > tempoEpsilon)) {
             // This is a change in tempo, so report it to any registered listeners
             deliverTempoChangedAnnouncement(newTempo);
@@ -307,7 +300,7 @@ public class VirtualCdj {
      * @param packet the packet received on our update port
      * @return the corresponding {@link DeviceUpdate} subclass, or {@code nil} if the packet was not recognizable
      */
-    private static DeviceUpdate buildUpdate(DatagramPacket packet) {
+    private DeviceUpdate buildUpdate(DatagramPacket packet) {
         int length = packet.getLength();
         int kind = packet.getData()[10];
         if (length == 56 && kind == 0x29 && Util.validateHeader(packet, 0x29, "Mixer Status")) {
@@ -325,7 +318,7 @@ public class VirtualCdj {
      * and notify any registered listeners, including master listeners if it results in changes to tracked state,
      * such as the current master player and tempo.
      */
-    private static synchronized void processUpdate(DeviceUpdate update) {
+    private synchronized void processUpdate(DeviceUpdate update) {
         updates.put(update.getAddress(), update);
         if (update.isTempoMaster()) {
             setTempoMaster(update);
@@ -343,8 +336,8 @@ public class VirtualCdj {
      * Process a beat packet, potentially updating the master tempo and sending our listeners a master
      * beat notification. Does nothing if we are not active.
      */
-    static synchronized void processBeat(Beat beat) {
-        if (isActive() && beat.isTempoMaster()) {
+    synchronized void processBeat(Beat beat) {
+        if (isRunning() && beat.isTempoMaster()) {
             setMasterTempo(beat.getEffectiveTempo());
             deliverBeatAnnouncement(beat);
         }
@@ -358,7 +351,7 @@ public class VirtualCdj {
      * @param networkInterface the network interface we are testing
      * @return the address which can be used to communicate with the device on the interface, or null
      */
-    private static InterfaceAddress findMatchingAddress(DeviceAnnouncement aDevice, NetworkInterface networkInterface) {
+    private InterfaceAddress findMatchingAddress(DeviceAnnouncement aDevice, NetworkInterface networkInterface) {
         for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
             if ((address.getBroadcast() != null) &&
                     Util.sameNetwork(address.getNetworkPrefixLength(), aDevice.getAddress(), address.getAddress())) {
@@ -380,9 +373,9 @@ public class VirtualCdj {
      * {@code true}, try to use a standard player number in the range 1-4 if possible. Otherwise (or if all those
      * numbers are already in use), pick a number from 5 to 15.
      */
-    private static boolean selfAssignDeviceNumber() {
+    private boolean selfAssignDeviceNumber() {
         final long now = System.currentTimeMillis();
-        final long started = DeviceFinder.getFirstDeviceTime();
+        final long started = DeviceFinder.getInstance().getFirstDeviceTime();
         if (now - started < SELF_ASSIGNMENT_WATCH_PERIOD) {
             try {
                 Thread.sleep(SELF_ASSIGNMENT_WATCH_PERIOD - (now - started));  // Sleep until we hit the right time
@@ -392,7 +385,7 @@ public class VirtualCdj {
             }
         }
         Set<Integer> numbersUsed = new HashSet<Integer>();
-        for (DeviceAnnouncement device : DeviceFinder.currentDevices()) {
+        for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
             numbersUsed.add(device.getNumber());
         }
 
@@ -419,11 +412,11 @@ public class VirtualCdj {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}.
      * @throws SocketException if there is a problem opening a socket on the right network
      */
-    private static boolean createVirtualCdj() throws SocketException {
+    private boolean createVirtualCdj() throws SocketException {
         // Find the network interface and address to use to communicate with the first device we found.
         NetworkInterface matchedInterface = null;
         InterfaceAddress matchedAddress = null;
-        DeviceAnnouncement aDevice = DeviceFinder.currentDevices().iterator().next();
+        DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
             matchedAddress = findMatchingAddress(aDevice, networkInterface);
             if (matchedAddress != null) {
@@ -453,7 +446,7 @@ public class VirtualCdj {
         socket = new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress());
 
         // Inform the DeviceFinder to ignore our own device announcement packets.
-        DeviceFinder.addIgnoredAddress(socket.getLocalAddress());
+        DeviceFinder.getInstance().addIgnoredAddress(socket.getLocalAddress());
 
         final byte[] buffer = new byte[512];
         final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -463,13 +456,13 @@ public class VirtualCdj {
             @Override
             public void run() {
                 boolean received;
-                while (isActive()) {
+                while (isRunning()) {
                     try {
                         socket.receive(packet);
                         received = true;
                     } catch (IOException e) {
                         // Don't log a warning if the exception was due to the socket closing at shutdown.
-                        if (isActive()) {
+                        if (isRunning()) {
                             // We did not expect to have a problem; log a warning and shut down.
                             logger.warn("Problem reading from DeviceStatus socket, stopping", e);
                             stop();
@@ -497,15 +490,31 @@ public class VirtualCdj {
         Thread announcer = new Thread(null, new Runnable() {
             @Override
             public void run() {
-                while (isActive()) {
+                while (isRunning()) {
                     sendAnnouncement(broadcastAddress);
                 }
             }
         }, "beat-link VirtualCdj announcement sender");
         announcer.setDaemon(true);
         announcer.start();
+        deliverLifecycleAnnouncement(logger, true);
         return true;
     }
+
+    private final LifecycleListener deviceFinderLifecycleListener = new LifecycleListener() {
+        @Override
+        public void started(LifecycleParticipant sender) {
+            logger.debug("VirtualCDJ doesn't have anything to do when the DeviceFinder starts");
+        }
+
+        @Override
+        public void stopped(LifecycleParticipant sender) {
+            if (isRunning()) {
+                logger.info("VirtualCDJ stopping because DeviceFinder has stopped.");
+                stop();
+            }
+        }
+    };
 
     /**
      * Start announcing ourselves and listening for status packets. If already active, has no effect. Requires the
@@ -516,12 +525,14 @@ public class VirtualCdj {
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
     @SuppressWarnings("UnusedReturnValue")
-    public static synchronized boolean start() throws SocketException {
-        if (!isActive()) {
+    public synchronized boolean start() throws SocketException {
+        if (!isRunning()) {
+            // Set up so we know we have to shut down if the DeviceFinder shuts down.
+            DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);
 
             // Find some DJ Link devices so we can figure out the interface and address to use to talk to them
-            DeviceFinder.start();
-            for (int i = 0; DeviceFinder.currentDevices().isEmpty() && i < 20; i++) {
+            DeviceFinder.getInstance().start();
+            for (int i = 0; DeviceFinder.getInstance().getCurrentDevices().isEmpty() && i < 20; i++) {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
@@ -530,7 +541,7 @@ public class VirtualCdj {
                 }
             }
 
-            if (DeviceFinder.currentDevices().isEmpty()) {
+            if (DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
                 logger.warn("No DJ Link devices found, giving up");
                 return false;
             }
@@ -544,9 +555,9 @@ public class VirtualCdj {
      * Stop announcing ourselves and listening for status updates.
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized void stop() {
-        if (isActive()) {
-            DeviceFinder.removeIgnoredAddress(socket.getLocalAddress());
+    public synchronized void stop() {
+        if (isRunning()) {
+            DeviceFinder.getInstance().removeIgnoredAddress(socket.getLocalAddress());
             socket.close();
             socket = null;
             broadcastAddress = null;
@@ -554,6 +565,7 @@ public class VirtualCdj {
             setMasterTempo(0.0);
             setTempoMaster(null);
             setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
+            deliverLifecycleAnnouncement(logger, false);
         }
     }
 
@@ -561,7 +573,7 @@ public class VirtualCdj {
      * Send an announcement packet so the other devices see us as being part of the DJ Link network and send us
      * updates.
      */
-    private static void sendAnnouncement(InetAddress broadcastAddress) {
+    private void sendAnnouncement(InetAddress broadcastAddress) {
         try {
             DatagramPacket announcement = new DatagramPacket(announcementBytes, announcementBytes.length,
                     broadcastAddress, DeviceFinder.ANNOUNCEMENT_PORT);
@@ -580,8 +592,8 @@ public class VirtualCdj {
      * @return the most recent detailed status update received for all active devices
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
-    public static synchronized Set<DeviceUpdate> getLatestStatus() {
-        ensureActive();
+    public Set<DeviceUpdate> getLatestStatus() {
+        ensureRunning();
         Set<DeviceUpdate> result = new HashSet<DeviceUpdate>();
         long now = System.currentTimeMillis();
         for (DeviceUpdate update : updates.values()) {
@@ -601,22 +613,22 @@ public class VirtualCdj {
      * @return the most recent detailed status update received for that device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
-    public static DeviceUpdate getLatestStatusFor(DeviceUpdate device) {
-        ensureActive();
+    public DeviceUpdate getLatestStatusFor(DeviceUpdate device) {
+        ensureRunning();
         return updates.get(device.getAddress());
     }
 
     /**
      * Look up the most recent status we have seen for a device, given its device announcement packet as returned
-     * by {@link DeviceFinder#currentDevices()}.
+     * by {@link DeviceFinder#getCurrentDevices()}.
      *
      * @param device the announcement identifying the device for which current status information is desired
      *
      * @return the most recent detailed status update received for that device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
-    public static DeviceUpdate getLatestStatusFor(DeviceAnnouncement device) {
-        ensureActive();
+    public DeviceUpdate getLatestStatusFor(DeviceAnnouncement device) {
+        ensureRunning();
         return updates.get(device.getAddress());
     }
 
@@ -629,8 +641,8 @@ public class VirtualCdj {
      * @return the matching detailed status update or null if none have been received
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
-    public static synchronized DeviceUpdate getLatestStatusFor(int deviceNumber) {
-        ensureActive();
+    public DeviceUpdate getLatestStatusFor(int deviceNumber) {
+        ensureRunning();
         for (DeviceUpdate update : updates.values()) {
             if (update.getDeviceNumber() == deviceNumber) {
                 return update;
@@ -639,11 +651,11 @@ public class VirtualCdj {
         return null;
     }
 
-
     /**
      * Keeps track of the registered master listeners.
      */
-    private static final Set<MasterListener> masterListeners = new HashSet<MasterListener>();
+    private final Set<MasterListener> masterListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<MasterListener, Boolean>());
 
     /**
      * <p>Adds the specified master listener to receive device updates when there are changes related
@@ -661,7 +673,7 @@ public class VirtualCdj {
      *
      * @param listener the master listener to add
      */
-    public static synchronized void addMasterListener(MasterListener listener) {
+    public void addMasterListener(MasterListener listener) {
         if (listener != null) {
             masterListeners.add(listener);
         }
@@ -674,7 +686,7 @@ public class VirtualCdj {
      *
      * @param listener the master listener to remove
      */
-    public static synchronized void removeMasterListener(MasterListener listener) {
+    public void removeMasterListener(MasterListener listener) {
         if (listener != null) {
             masterListeners.remove(listener);
         }
@@ -686,7 +698,8 @@ public class VirtualCdj {
      * @return the currently registered tempo master listeners
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized Set<MasterListener> getMasterListeners() {
+    public Set<MasterListener> getMasterListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableSet(new HashSet<MasterListener>(masterListeners));
     }
 
@@ -695,7 +708,7 @@ public class VirtualCdj {
      *
      * @param update the message announcing the new tempo master
      */
-    private static void deliverMasterChangedAnnouncement(final DeviceUpdate update) {
+    private void deliverMasterChangedAnnouncement(final DeviceUpdate update) {
         for (final MasterListener listener : getMasterListeners()) {
             try {
                 listener.masterChanged(update);
@@ -710,7 +723,7 @@ public class VirtualCdj {
      *
      * @param tempo the new master tempo
      */
-    private static void deliverTempoChangedAnnouncement(final double tempo) {
+    private void deliverTempoChangedAnnouncement(final double tempo) {
         for (final MasterListener listener : getMasterListeners()) {
             try {
                 listener.tempoChanged(tempo);
@@ -725,7 +738,7 @@ public class VirtualCdj {
      *
      * @param beat the beat sent by the tempo master
      */
-    private static void deliverBeatAnnouncement(final Beat beat) {
+    private void deliverBeatAnnouncement(final Beat beat) {
         for (final MasterListener listener : getMasterListeners()) {
             try {
                 listener.newBeat(beat);
@@ -738,7 +751,8 @@ public class VirtualCdj {
     /**
      * Keeps track of the registered device update listeners.
      */
-    private static final Set<DeviceUpdateListener> updateListeners = new HashSet<DeviceUpdateListener>();
+    private final Set<DeviceUpdateListener> updateListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<DeviceUpdateListener, Boolean>());
 
     /**
      * <p>Adds the specified device update listener to receive device updates whenever they come in.
@@ -757,7 +771,7 @@ public class VirtualCdj {
      * @param listener the device update listener to add
      */
     @SuppressWarnings("SameParameterValue")
-    public static synchronized void addUpdateListener(DeviceUpdateListener listener) {
+    public void addUpdateListener(DeviceUpdateListener listener) {
         if (listener != null) {
             updateListeners.add(listener);
         }
@@ -771,7 +785,7 @@ public class VirtualCdj {
      * @param listener the device update listener to remove
      */
     @SuppressWarnings("SameParameterValue")
-    public static synchronized void removeUpdateListener(DeviceUpdateListener listener) {
+    public void removeUpdateListener(DeviceUpdateListener listener) {
         if (listener != null) {
             updateListeners.remove(listener);
         }
@@ -783,7 +797,8 @@ public class VirtualCdj {
      * @return the currently registered update listeners
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized Set<DeviceUpdateListener> getUpdateListeners() {
+    public Set<DeviceUpdateListener> getUpdateListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableSet(new HashSet<DeviceUpdateListener>(updateListeners));
     }
 
@@ -792,7 +807,7 @@ public class VirtualCdj {
      *
      * @param update the device update that has just arrived
      */
-    private static void deliverDeviceUpdate(final DeviceUpdate update) {
+    private void deliverDeviceUpdate(final DeviceUpdate update) {
         for (final DeviceUpdateListener listener : getUpdateListeners()) {
             try {
                 listener.received(update);
@@ -803,9 +818,39 @@ public class VirtualCdj {
     }
 
     /**
+     * Holds the singleton instance of this class.
+     */
+    private static final VirtualCdj ourInstance = new VirtualCdj();
+
+    /**
+     * Get the singleton instance of this class.
+     *
+     * @return the only instance of this class which exists.
+     */
+    public static VirtualCdj getInstance() {
+        return ourInstance;
+    }
+
+    /**
      * Prevent instantiation.
      */
     private VirtualCdj() {
         // Nothing to do.
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("VirtualCdj[number:").append(getDeviceNumber()).append(", name:").append(getDeviceName());
+        sb.append(", announceInterval:").append(getAnnounceInterval());
+        sb.append(", useStandardPlayerNumber:").append(getUseStandardPlayerNumber());
+        sb.append(", tempoEpsilon:").append(getTempoEpsilon()).append(", active:").append(isRunning());
+        if (isRunning()) {
+            sb.append(", localAddress:").append(getLocalAddress().getHostAddress());
+            sb.append(", broadcastAddress:").append(getBroadcastAddress().getHostAddress());
+            sb.append(", latestStatus:").append(getLatestStatus()).append(", masterTempo:").append(getMasterTempo());
+            sb.append(", tempoMaster:").append(getTempoMaster());
+        }
+        return sb.append("]").toString();
     }
 }

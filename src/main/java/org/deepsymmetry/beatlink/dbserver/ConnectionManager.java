@@ -11,8 +11,8 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manges connections to dbserver ports on the players, offering sessions that can be used to perform transactions,
@@ -20,9 +20,9 @@ import java.util.Map;
  *
  * @author James Elliott
  */
-public class ConnectionManager {
+public class ConnectionManager extends LifecycleParticipant {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConnectionManager.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(ConnectionManager.class);
 
     /**
      * An interface for all the kinds of activities that need a connection to the dbserver for, so we can keep track
@@ -37,12 +37,12 @@ public class ConnectionManager {
     /**
      * Keeps track of the clients that are currently active, indexed by player number
      */
-    private static final Map<Integer,Client> openClients = new HashMap<Integer, Client>();
+    private final Map<Integer,Client> openClients = new ConcurrentHashMap<Integer, Client>();
 
     /**
      * Keeps track of how many tasks are currently using each client.
      */
-    private static final Map<Client,Integer> useCounts = new HashMap<Client, Integer>();
+    private final Map<Client,Integer> useCounts = new ConcurrentHashMap<Client, Integer>();
 
     /**
      * Finds or opens a client to talk to the dbserver on the specified player, incrementing its use count.
@@ -57,11 +57,11 @@ public class ConnectionManager {
      *                               to pretend to be
      * @throws IOException if there is a problem communicating
      */
-    private static synchronized Client allocateClient(int targetPlayer, String description) throws IOException {
+    private synchronized Client allocateClient(int targetPlayer, String description) throws IOException {
         Client result = openClients.get(targetPlayer);
         if (result == null) {
             // We need to open a new connection.
-            final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getLatestAnnouncementFrom(targetPlayer);
+            final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getInstance().getLatestAnnouncementFrom(targetPlayer);
             final int dbServerPort = getPlayerDBServerPort(targetPlayer);
             if (deviceAnnouncement == null || dbServerPort < 0) {
                 throw new IllegalStateException("Player " + targetPlayer + " could not be found " + description);
@@ -96,7 +96,7 @@ public class ConnectionManager {
      *
      * @param client the dbserver connection client which is no longer being used for a task
      */
-    private static synchronized void freeClient(Client client) {
+    private synchronized void freeClient(Client client) {
         int current = useCounts.get(client);
         if (current > 0) {
             useCounts.put(client, current - 1);
@@ -126,7 +126,7 @@ public class ConnectionManager {
      * @throws IOException if there is a problem communicating
      * @throws Exception from the underlying {@code task}, if any
      */
-    public static <T> T invokeWithClientSession(int targetPlayer, ClientTask<T> task, String description)
+    public <T> T invokeWithClientSession(int targetPlayer, ClientTask<T> task, String description)
             throws Exception {
         if (!isRunning()) {
             throw new IllegalStateException("ConnectionManager is not running, aborting " + description);
@@ -143,7 +143,7 @@ public class ConnectionManager {
     /**
      * Keeps track of the database server ports of all the players we have seen on the network.
      */
-    private static final Map<Integer, Integer> dbServerPorts = new HashMap<Integer, Integer>();
+    private final Map<Integer, Integer> dbServerPorts = new ConcurrentHashMap<Integer, Integer>();
 
     /**
      * Look up the database server port reported by a given player. You should not use this port directly; instead
@@ -152,9 +152,12 @@ public class ConnectionManager {
      * @param player the player number of interest
      *
      * @return the port number on which its database server is running, or -1 if unknown
+     *
+     * @throws IllegalStateException if not running
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized int getPlayerDBServerPort(int player) {
+    public int getPlayerDBServerPort(int player) {
+        ensureRunning();
         Integer result = dbServerPorts.get(player);
         if (result == null) {
             return -1;
@@ -166,7 +169,7 @@ public class ConnectionManager {
      * Our announcement listener watches for devices to appear on the network so we can ask them for their database
      * server port, and when they disappear discards all information about them.
      */
-    private static final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
+    private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
             new Thread(new Runnable() {
@@ -190,7 +193,7 @@ public class ConnectionManager {
      * @param player the player number whose server port has been determined.
      * @param port the port number on which the player's database server is running.
      */
-    private static synchronized void setPlayerDBServerPort(int player, int port) {
+    private void setPlayerDBServerPort(int player, int port) {
         dbServerPorts.put(player, port);
     }
 
@@ -211,7 +214,7 @@ public class ConnectionManager {
      *
      * @param announcement the device announcement with which we detected a new player on the network.
      */
-    private static void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
+    private void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
         Socket socket = null;
         try {
             InetSocketAddress address = new InetSocketAddress(announcement.getAddress(), DB_SERVER_QUERY_PORT);
@@ -250,7 +253,7 @@ public class ConnectionManager {
     /**
      * The number of milliseconds after which an attempt to open or read from a socket will fail.
      */
-    private static int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
+    private int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
 
     /**
      * Set how long we will wait for a socket to connect or for a read operation to complete.
@@ -258,7 +261,7 @@ public class ConnectionManager {
      *
      * @param timeout after how many milliseconds will an attempt to open or read from a socket fail
      */
-    public static void setSocketTimeout(int timeout) {
+    public synchronized void setSocketTimeout(int timeout) {
         socketTimeout = timeout;
     }
 
@@ -268,7 +271,7 @@ public class ConnectionManager {
      *
      * @return the number of milliseconds after which an attempt to open or read from a socket will fail
      */
-    public static int getSocketTimeout() {
+    public synchronized int getSocketTimeout() {
         return socketTimeout;
     }
 
@@ -280,7 +283,7 @@ public class ConnectionManager {
      *
      * @throws IOException if there is a problem reading the response
      */
-    private static byte[] receiveBytes(InputStream is) throws IOException {
+    private byte[] receiveBytes(InputStream is) throws IOException {
         byte[] buffer = new byte[8192];
         int len = (is.read(buffer));
         if (len < 1) {
@@ -300,7 +303,7 @@ public class ConnectionManager {
      * @throws IOException if there is a problem reading the response.
      */
     @SuppressWarnings("SameParameterValue")
-    private static byte[] readResponseWithExpectedSize(InputStream is, int size, String description) throws IOException {
+    private byte[] readResponseWithExpectedSize(InputStream is, int size, String description) throws IOException {
         byte[] result = receiveBytes(is);
         if (result.length != size) {
             logger.warn("Expected " + size + " bytes while reading " + description + " response, received " + result.length);
@@ -322,16 +325,16 @@ public class ConnectionManager {
      *
      * @throws IllegalStateException if there is no other player number available to use
      */
-    private static int chooseAskingPlayerNumber(int targetPlayer) {
-        final int fakeDevice = VirtualCdj.getDeviceNumber();
+    private int chooseAskingPlayerNumber(int targetPlayer) {
+        final int fakeDevice = VirtualCdj.getInstance().getDeviceNumber();
         if ((targetPlayer > 15) || (fakeDevice >= 1 && fakeDevice <= 4)) {
             return fakeDevice;
         }
 
-        for (DeviceAnnouncement candidate : DeviceFinder.currentDevices()) {
+        for (DeviceAnnouncement candidate : DeviceFinder.getInstance().getCurrentDevices()) {
             final int realDevice = candidate.getNumber();
             if (realDevice != targetPlayer && realDevice >= 1 && realDevice <= 4) {
-                final DeviceUpdate lastUpdate =  VirtualCdj.getLatestStatusFor(realDevice);
+                final DeviceUpdate lastUpdate =  VirtualCdj.getInstance().getLatestStatusFor(realDevice);
                 if (lastUpdate != null && lastUpdate instanceof CdjStatus &&
                         ((CdjStatus)lastUpdate).getTrackSourcePlayer() != targetPlayer) {
                     return candidate.getNumber();
@@ -346,7 +349,7 @@ public class ConnectionManager {
     /**
      * Keep track of whether we are running
      */
-    private static boolean running = false;
+    private boolean running = false;
 
     /**
      * Check whether we are currently running.
@@ -354,34 +357,51 @@ public class ConnectionManager {
      * @return true if we are offering shared dbserver sessions
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized boolean isRunning() {
+    public synchronized boolean isRunning() {
         return running;
     }
+
+    private final LifecycleListener lifecycleListener = new LifecycleListener() {
+        @Override
+        public void started(LifecycleParticipant sender) {
+            logger.debug("ConnectionManager does not auto-start when {} starts.", sender);
+        }
+
+        @Override
+        public void stopped(LifecycleParticipant sender) {
+            if (isRunning()) {
+                logger.info("ConnectionManager stopping because DeviceFinder did.");
+                stop();
+            }
+        }
+    };
 
     /**
      * Start offering shared dbserver sessions.
      *
      * @throws SocketException if there is a problem opening connections
      */
-    public static synchronized void start() throws SocketException {
+    public synchronized void start() throws SocketException {
         if (!running) {
-            DeviceFinder.start();
-            DeviceFinder.addDeviceAnnouncementListener(announcementListener);
-            for (DeviceAnnouncement device: DeviceFinder.currentDevices()) {
+            DeviceFinder.getInstance().addLifecycleListener(lifecycleListener);
+            DeviceFinder.getInstance().addDeviceAnnouncementListener(announcementListener);
+            DeviceFinder.getInstance().start();
+            for (DeviceAnnouncement device: DeviceFinder.getInstance().getCurrentDevices()) {
                 requestPlayerDBServerPort(device);
             }
 
             running = true;
+            deliverLifecycleAnnouncement(logger, true);
         }
     }
 
     /**
      * Stop offering shared dbserver sessions.
      */
-    public static synchronized void stop() {
+    public synchronized void stop() {
         if (running) {
             running = false;
-            DeviceFinder.removeDeviceAnnouncementListener(announcementListener);
+            DeviceFinder.getInstance().removeDeviceAnnouncementListener(announcementListener);
             dbServerPorts.clear();
             for (Client client : openClients.values()) {
                 try {
@@ -392,6 +412,35 @@ public class ConnectionManager {
             }
             openClients.clear();
             useCounts.clear();
+            deliverLifecycleAnnouncement(logger, false);
         }
+    }
+
+    /**
+     * Holds the singleton instance of this class.
+     */
+    private static final ConnectionManager ourInstance = new ConnectionManager();
+
+    /**
+     * Get the singleton instance of this class.
+     *
+     * @return the only instance of this class which exists.
+     */
+    public static ConnectionManager getInstance() {
+        return ourInstance;
+    }
+
+    /**
+     * Prevent direct instantiation.
+     */
+    private ConnectionManager() {
+        // Nothing to do.
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("ConnectionManager[running:").append(isRunning());
+        sb.append(", dbServerPorts:").append(dbServerPorts).append(", openClients:").append(openClients);
+        return sb.append(", useCounts:").append(useCounts).append("]").toString();
     }
 }

@@ -29,7 +29,7 @@ import java.util.zip.ZipFile;
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public class ArtFinder {
+public class ArtFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(ArtFinder.class);
 
@@ -37,20 +37,20 @@ public class ArtFinder {
      * Keeps track of the current metadata cached for each player. We cache metadata for any track which is currently
      * on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
-    private static final Map<DeckReference, AlbumArt> hotCache = new ConcurrentHashMap<DeckReference, AlbumArt>();
+    private final Map<DeckReference, AlbumArt> hotCache = new ConcurrentHashMap<DeckReference, AlbumArt>();
 
     /**
      * A queue used to hold metadata updates we receive from the {@link MetadataFinder} so we can process them on a
      * lower priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private static final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates =
+    private final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates =
             new LinkedBlockingDeque<TrackMetadataUpdate>(100);
 
     /**
      * Our metadata listener just puts metadata updates on our queue, so we can process them on a lower
      * priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private static final TrackMetadataListener metadataListener = new TrackMetadataListener() {
+    private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
         @Override
         public void metadataChanged(TrackMetadataUpdate update) {
             logger.debug("Received metadata update {}", update);
@@ -64,7 +64,7 @@ public class ArtFinder {
      * Our mount listener evicts any cached artwork that belong to media databases which have been unmounted, since
      * they are no longer valid.
      */
-    private static final MountListener mountListener = new MountListener() {
+    private final MountListener mountListener = new MountListener() {
         @Override
         public void mediaMounted(SlotReference slot) {
             logger.debug("ArtFinder doesn't yet need to do anything in response to a media mount.");
@@ -85,7 +85,7 @@ public class ArtFinder {
      * Our announcement listener watches for devices to disappear from the network so we can discard all information
      * about them.
      */
-    private static final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
+    private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
             logger.debug("Currently nothing for MetaDataListener to do when devices appear.");
@@ -93,7 +93,7 @@ public class ArtFinder {
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
-            logger.debug("Clearing artwork in response to the loss of a device, {}", announcement);
+            logger.info("Clearing artwork in response to the loss of a device, {}", announcement);
             clearArt(announcement);
         }
     };
@@ -101,7 +101,7 @@ public class ArtFinder {
     /**
      * Keep track of whether we are running
      */
-    private static boolean running = false;
+    private boolean running = false;
 
     /**
      * Check whether we are currently running. Unless we are in passive mode, we will also automatically request
@@ -113,14 +113,14 @@ public class ArtFinder {
      * @see #isPassive()
      */
     @SuppressWarnings("WeakerAccess")
-    public static synchronized boolean isRunning() {
+    public synchronized boolean isRunning() {
         return running;
     }
 
     /**
      * Indicates whether we should use metadata only from caches, never actively requesting it from a player.
      */
-    private static boolean passive = false;
+    private boolean passive = false;
 
     /**
      * Check whether we are configured to use art only from caches, never actively requesting it from a player.
@@ -128,7 +128,7 @@ public class ArtFinder {
      * @return {@code true} if only cached art will be used, or {@code false} if art will be requested from the
      *         appropriate player when a track is loaded from a media slot to which no cache has been assigned
      */
-    public static synchronized boolean isPassive() {
+    public synchronized boolean isPassive() {
         return passive;
     }
 
@@ -139,15 +139,15 @@ public class ArtFinder {
      *                from the appropriate player if a track is loaded from a media slot to which no cache has
      *                been assigned
      */
-    public static synchronized void setPassive(boolean passive) {
-        ArtFinder.passive = passive;
+    public synchronized void setPassive(boolean passive) {
+        this.passive = passive;
     }
 
     /**
      * We process our player status updates on a separate thread so as not to slow down the high-priority update
      * delivery thread; we perform potentially slow I/O.
      */
-    private static Thread queueHandler;
+    private Thread queueHandler;
 
     /**
      * We have received an update that invalidates any previous metadata for a player, so clear it out, and alert
@@ -156,7 +156,7 @@ public class ArtFinder {
      *
      * @param update the update which means we have no metadata for the associated player
      */
-    private static synchronized void clearDeck(TrackMetadataUpdate update) {
+    private void clearDeck(TrackMetadataUpdate update) {
         if (hotCache.remove(DeckReference.getDeckReference(update.player, 0)) != null) {
             deliverAlbumArtUpdate(update.player, null);
         }
@@ -167,7 +167,7 @@ public class ArtFinder {
      *
      * @param announcement the packet which reported the device’s disappearance
      */
-    private static synchronized void clearArt(DeviceAnnouncement announcement) {
+    private synchronized void clearArt(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
         for (DeckReference deck : hotCache.keySet()) {
             if (deck.player == player) {
@@ -187,7 +187,7 @@ public class ArtFinder {
      * @param update the update which caused us to retrieve this art
      * @param art the album art which we retrieved
      */
-    private static synchronized void updateArt(TrackMetadataUpdate update, AlbumArt art) {
+    private void updateArt(TrackMetadataUpdate update, AlbumArt art) {
         hotCache.put(DeckReference.getDeckReference(update.player, 0), art);  // Main deck
         if (update.metadata.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : update.metadata.getCueList().entries) {
@@ -204,7 +204,9 @@ public class ArtFinder {
      *
      * @return the album art associated with all current players, including for any tracks loaded in their hot cue slots
      */
-    public static synchronized Map<DeckReference, AlbumArt> getLoadedArt() {
+    public Map<DeckReference, AlbumArt> getLoadedArt() {
+        ensureRunning();
+        // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableMap(new HashMap<DeckReference, AlbumArt>(hotCache));
     }
 
@@ -212,10 +214,14 @@ public class ArtFinder {
      * Look up the album art we have for the track loaded in the main deck of a given player number.
      *
      * @param player the device number whose album art for the playing track is desired
+     *
      * @return the album art for the track loaded on that player, if available
+     *
+     * @throws IllegalStateException if the ArtFinder is not running
      */
     @SuppressWarnings("WeakerAccess")
-    public static AlbumArt getLatestArtFor(int player) {
+    public AlbumArt getLatestArtFor(int player) {
+        ensureRunning();
         return hotCache.get(DeckReference.getDeckReference(player, 0));
     }
 
@@ -225,7 +231,8 @@ public class ArtFinder {
      * @param update a status update from the player for which album art is desired
      * @return the album art for the track loaded on that player, if available
      */
-    public static AlbumArt getLatestArtworkFor(DeviceUpdate update) {
+    public AlbumArt getLatestArtworkFor(DeviceUpdate update) {
+        ensureRunning();
         return getLatestArtFor(update.getDeviceNumber());
     }
 
@@ -307,12 +314,12 @@ public class ArtFinder {
      * @throws IllegalArgumentException if {@code} size is less than 1
      * @throws IllegalStateException if you try to resize the cache while {@link #isRunning()} is true
      */
-    public void setArtCacheSize(int size) {
+    public synchronized void setArtCacheSize(int size) {
         if (size < 1) {
             throw new IllegalArgumentException("size must be at least 1");
         }
         if (isRunning()) {
-            throw new IllegalStateException("cannot resize cache while running");
+            throw new IllegalStateException(this.getClass().getName() + " can't resize cache while running.");
         }
         if (size != getArtCacheSize()) {
             Map<DataReference, AlbumArt> newCache =
@@ -337,10 +344,10 @@ public class ArtFinder {
      *
      * @return the album art found, if any
      */
-    private static AlbumArt requestArtworkInternal(final DataReference artReference, final boolean failIfPassive) {
+    private AlbumArt requestArtworkInternal(final DataReference artReference, final boolean failIfPassive) {
 
         // First check if we are using cached data for this slot
-        ZipFile cache = MetadataFinder.getMetadataCache(SlotReference.getSlotReference(artReference));
+        ZipFile cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(artReference));
         if (cache != null) {
             return getCachedArtwork(cache, artReference);
         }
@@ -358,7 +365,7 @@ public class ArtFinder {
         };
 
         try {
-            AlbumArt artwork = ConnectionManager.invokeWithClientSession(artReference.player, task, "requesting artwork");
+            AlbumArt artwork = ConnectionManager.getInstance().invokeWithClientSession(artReference.player, task, "requesting artwork");
             if (artwork != null) {  // Our cache file load or network request succeeded, so add to the in-memory cache.
                 artCache.put(artReference, artwork);
             }
@@ -376,11 +383,12 @@ public class ArtFinder {
      * @param artReference uniquely identifies the desired artwork
      *
      * @return the artwork, if it was found, or {@code null}
+     *
+     * @throws IllegalStateException if the ArtFinder is not running
      */
-    public static AlbumArt requestArtworkFrom(final DataReference artReference) {
-
-        // First check the in-memory artwork caches
-        AlbumArt artwork = findArtInMemoryCaches(artReference);
+    public AlbumArt requestArtworkFrom(final DataReference artReference) {
+        ensureRunning();
+        AlbumArt artwork = findArtInMemoryCaches(artReference);  // First check the in-memory artwork caches.
         if (artwork == null) {
             artwork = requestArtworkInternal(artReference, false);
         }
@@ -394,9 +402,12 @@ public class ArtFinder {
      * @param artReference the unique database specification of the desired artwork
      *
      * @return the cached album art (if available), or {@code null}
+     *
+     * @throws IllegalStateException if the ArtFinder is not running
      */
-    private static AlbumArt getCachedArtwork(ZipFile cache, DataReference artReference) {
-        ZipEntry entry = cache.getEntry(MetadataFinder.getArtworkEntryName(artReference.rekordboxId));
+    private AlbumArt getCachedArtwork(ZipFile cache, DataReference artReference) {
+        ensureRunning();
+        ZipEntry entry = cache.getEntry(MetadataFinder.getInstance().getArtworkEntryName(artReference.rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
             try {
@@ -432,7 +443,7 @@ public class ArtFinder {
      *
      * @throws IOException if there is a problem communicating with the player
      */
-    static AlbumArt getArtwork(int artworkId, SlotReference slot, Client client)
+    AlbumArt getArtwork(int artworkId, SlotReference slot, Client client)
             throws IOException {
 
         // Send the artwork request
@@ -446,7 +457,7 @@ public class ArtFinder {
     /**
      * Keep track of the devices we are currently trying to get artwork from in response to metadata updates.
      */
-    private static final Set<Integer> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private final Set<Integer> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
 
     /**
      * Look for the specified album art in both the hot cache of loaded tracks and the longer-lived LRU cache.
@@ -455,7 +466,7 @@ public class ArtFinder {
      *
      * @return the art, if it was found in one of our caches, or {@code null}
      */
-    private static AlbumArt findArtInMemoryCaches(DataReference artReference) {
+    private AlbumArt findArtInMemoryCaches(DataReference artReference) {
         // First see if we can find the new track in the hot cache as a hot cue
         for (AlbumArt cached : hotCache.values()) {
             if (cached.artReference.equals(artReference)) {  // Found a hot cue hit, use it.
@@ -470,7 +481,8 @@ public class ArtFinder {
     /**
      * Keeps track of the registered track metadata update listeners.
      */
-    private static final Set<AlbumArtListener> artListeners = new HashSet<AlbumArtListener>();
+    private final Set<AlbumArtListener> artListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<AlbumArtListener, Boolean>());
 
     /**
      * <p>Adds the specified album art listener to receive updates when the album art for a player changes.
@@ -488,20 +500,10 @@ public class ArtFinder {
      *
      * @param listener the album art update listener to add
      */
-    public static synchronized void addAlbumArtListener(AlbumArtListener listener) {
+    public void addAlbumArtListener(AlbumArtListener listener) {
         if (listener != null) {
             artListeners.add(listener);
         }
-    }
-
-    /**
-     * Get the set of currently-registered album art update listeners.
-     *
-     * @return the listeners that are currently registered for album art updates
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static synchronized Set<AlbumArtListener> getAlbumArtListeners() {
-        return Collections.unmodifiableSet(new HashSet<AlbumArtListener>(artListeners));
     }
 
     /**
@@ -511,16 +513,27 @@ public class ArtFinder {
      *
      * @param listener the album art update listener to remove
      */
-    public static synchronized void removeAlbumArtListener(AlbumArtListener listener) {
+    public void removeAlbumArtListener(AlbumArtListener listener) {
         if (listener != null) {
             artListeners.remove(listener);
         }
     }
 
     /**
+     * Get the set of currently-registered album art update listeners.
+     *
+     * @return the listeners that are currently registered for album art updates
+     */
+    @SuppressWarnings("WeakerAccess")
+    public Set<AlbumArtListener> getAlbumArtListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Collections.unmodifiableSet(new HashSet<AlbumArtListener>(artListeners));
+    }
+
+    /**
      * Send an album art update announcement to all registered listeners.
      */
-    private static void deliverAlbumArtUpdate(int player, AlbumArt art) {
+    private void deliverAlbumArtUpdate(int player, AlbumArt art) {
         if (!getAlbumArtListeners().isEmpty()) {
             final AlbumArtUpdate update = new AlbumArtUpdate(player, art);
             for (final AlbumArtListener listener : getAlbumArtListeners()) {
@@ -540,7 +553,7 @@ public class ArtFinder {
      *
      * @param update describes the new metadata we have for a player, if any
      */
-    private static void handleUpdate(final TrackMetadataUpdate update) {
+    private void handleUpdate(final TrackMetadataUpdate update) {
         if ((update.metadata == null) || (update.metadata.getArtworkId() == 0)) {
             // Either we have no metadata, or the track has no album art
             clearDeck(update);
@@ -583,22 +596,39 @@ public class ArtFinder {
     }
 
     /**
-     * Start finding album art for all active players. Starts the {@link MetadataFinder} if it is not already
-     * running, because we need it to send us metadata updates to notice when new tracks are loaded. Also
-     * starts the {@link DeviceFinder} (which is also needed by the {@code MetadataFinder}) so we can keep track of
-     * the comings and goings of players themselves, and the {@link ConnectionManager} in order to make queries
-     * to obtain art.
+     * Set up to automatically stop if anything we depend on stops.
+     */
+    private final LifecycleListener lifecycleListener = new LifecycleListener() {
+        @Override
+        public void started(LifecycleParticipant sender) {
+            logger.debug("The ArtFinder does not auto-start when {} does.", sender);
+        }
+
+        @Override
+        public void stopped(LifecycleParticipant sender) {
+            if (isRunning()) {
+                logger.info("ArtFinder stopping because {} has.", sender);
+            }
+        }
+    };
+
+    /**
+     * <p>Start finding album art for all active players. Starts the {@link MetadataFinder} if it is not already
+     * running, because we need it to send us metadata updates to notice when new tracks are loaded. This in turn
+     * starts the {@link DeviceFinder}, so we can keep track of the comings and goings of players themselves.
+     * We also start the {@link ConnectionManager} in order to make queries to obtain art.</p>
      *
      * @throws Exception if there is a problem starting the required components
      */
-    public static synchronized void start() throws Exception {
+    public synchronized void start() throws Exception {
         if (!running) {
-            ConnectionManager.start();
-            DeviceFinder.start();
-            DeviceFinder.addDeviceAnnouncementListener(announcementListener);
-            MetadataFinder.start();
-            MetadataFinder.addTrackMetadataListener(metadataListener);
-            MetadataFinder.addMountListener(mountListener);
+            ConnectionManager.getInstance().addLifecycleListener(lifecycleListener);
+            ConnectionManager.getInstance().start();
+            DeviceFinder.getInstance().addDeviceAnnouncementListener(announcementListener);
+            MetadataFinder.getInstance().addLifecycleListener(lifecycleListener);
+            MetadataFinder.getInstance().start();
+            MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
+            MetadataFinder.getInstance().addMountListener(mountListener);
             queueHandler = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -613,20 +643,54 @@ public class ArtFinder {
             });
             running = true;
             queueHandler.start();
+            deliverLifecycleAnnouncement(logger, true);
         }
     }
 
     /**
      * Stop finding album art for all active players.
      */
-    public static synchronized void stop() {
+    public synchronized void stop() {
         if (running) {
-            MetadataFinder.removeTrackMetadataListener(metadataListener);
+            MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             running = false;
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
             hotCache.clear();
+            artCache.clear();
+            deliverLifecycleAnnouncement(logger, false);
         }
+    }
+
+    /**
+     * Holds the singleton instance of this class.
+     */
+    private static final ArtFinder ourInstance = new ArtFinder();
+
+    /**
+     * Get the singleton instance of this class.
+     *
+     * @return the only instance of this class which exists.
+     */
+    public static ArtFinder getInstance() {
+        return ourInstance;
+    }
+
+    /**
+     * Prevent instantiation.
+     */
+    private ArtFinder() {
+        // Nothing to do
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("ArtFinder[running:").append(isRunning());
+        sb.append(", passive:").append(isPassive()).append(", artCacheSize:").append(getArtCacheSize());
+        if (isRunning()) {
+            sb.append(", loadedArt:").append(getLoadedArt()).append(", cached art:").append(artCache.size());
+        }
+        return sb.append("]").toString();
     }
 }
