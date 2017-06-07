@@ -291,8 +291,12 @@ public class ArtFinder extends LifecycleParticipant {
      * Establish the artwork cache. Even though we are not caching tracks, the {@link DataReference} tuple has
      * exactly the information we need to identify cached artwork.
      */
-    private static volatile Map<DataReference, AlbumArt> artCache =
-            Collections.synchronizedMap(new LruCache<DataReference, AlbumArt>(DEFAULT_ART_CACHE_SIZE));
+    private LruCache<DataReference, AlbumArt> lruCache = new LruCache<DataReference, AlbumArt>(DEFAULT_ART_CACHE_SIZE);
+
+    /**
+     * Provide synchronized access to the art cache except when we want to report the size.
+     */
+    private Map<DataReference, AlbumArt> artCache = Collections.synchronizedMap(lruCache);
 
     /**
      * Check how many album art images can be kept in the in-memory cache.
@@ -301,7 +305,7 @@ public class ArtFinder extends LifecycleParticipant {
      *         in-memory art cache.
      */
     public int getArtCacheSize() {
-        return ((LruCache<DataReference,AlbumArt>) artCache).maxEntries;
+        return lruCache.maxEntries;
     }
 
     /**
@@ -322,15 +326,15 @@ public class ArtFinder extends LifecycleParticipant {
             throw new IllegalStateException(this.getClass().getName() + " can't resize cache while running.");
         }
         if (size != getArtCacheSize()) {
-            Map<DataReference, AlbumArt> newCache =
-                    Collections.synchronizedMap(new LruCache<DataReference, AlbumArt>(size));
+            LruCache<DataReference, AlbumArt> newCache = new LruCache<DataReference, AlbumArt>(size);
             Iterator<Map.Entry<DataReference, AlbumArt>> iterator = artCache.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<DataReference, AlbumArt> entry = iterator.next();
                 iterator.remove();
                 newCache.put(entry.getKey(), entry.getValue());
             }
-            artCache = newCache;
+            lruCache = newCache;
+            artCache = Collections.synchronizedMap(lruCache);
         }
     }
 
