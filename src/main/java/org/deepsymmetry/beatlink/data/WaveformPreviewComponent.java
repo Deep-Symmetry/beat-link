@@ -227,13 +227,23 @@ public class WaveformPreviewComponent extends JComponent {
     };
 
     /**
+     * Create a view which updates itself to reflect the track loaded on a particular player, and that player's
+     * playback progress.
+     *
+     * @param player the player number to monitor, or zero if it should start out monitoring no player
+     */
+    public WaveformPreviewComponent(int player) {
+        setMonitoredPlayer(player);
+    }
+
+    /**
      * Create a view which draws a specific waveform, even if it is not currently loaded in a player.
      *
      * @param preview the waveform preview to display
      * @param metadata Information about the track whose waveform we are drawing, so we can translate times into
      *                 positions
      */
-    WaveformPreviewComponent(WaveformPreview preview, final TrackMetadata metadata) {
+    public WaveformPreviewComponent(WaveformPreview preview, final TrackMetadata metadata) {
         this.preview = preview;
         this.metadata = metadata;
     }
