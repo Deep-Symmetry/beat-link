@@ -289,7 +289,8 @@ public class WaveformPreviewComponent extends JComponent {
             if ((update instanceof CdjStatus) && (update.getDeviceNumber() == monitoredPlayer) &&
                     (metadata != null) && (beatGrid != null)) {
                 CdjStatus status = (CdjStatus) update;
-                setPlaybackPosition(beatGrid.getTimeWithinTrack(status.getBeatNumber()));
+                final int beat = status.getBeatNumber();;
+                setPlaybackPosition((beat < 1)? 0 : beatGrid.getTimeWithinTrack(beat));
                 setPlaying(status.isPlaying());
             }
         }
