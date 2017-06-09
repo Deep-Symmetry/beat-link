@@ -749,11 +749,11 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     private void clearMetadata(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
-        final Iterator<DeckReference> iterator = hotCache.keySet().iterator();
-        while (iterator.hasNext()) {
-            DeckReference deck = iterator.next();
+        final Iterator<DeckReference> hotCacheIterator = hotCache.keySet().iterator();
+        while (hotCacheIterator.hasNext()) {
+            DeckReference deck = hotCacheIterator.next();
             if (deck.player == player) {
-                iterator.remove();
+                hotCacheIterator.remove();
             }
         }
     }

@@ -72,10 +72,12 @@ public class BeatGridFinder extends LifecycleParticipant {
 
         @Override
         public void mediaUnmounted(SlotReference slot) {
-            for (Map.Entry<DeckReference, BeatGrid> entry : hotCache.entrySet()) {
+            Iterator<Map.Entry<DeckReference,BeatGrid>> hotCacheIterator = hotCache.entrySet().iterator();
+            while (hotCacheIterator.hasNext()) {
+                Map.Entry<DeckReference, BeatGrid> entry = hotCacheIterator.next();
                 if (slot == SlotReference.getSlotReference(entry.getValue().dataReference)) {
                     logger.debug("Evicting cached beat grid in response to unmount report {}", entry.getValue());
-                    hotCache.remove(entry.getKey());
+                    hotCacheIterator.remove();
                 }
             }
         }
@@ -143,9 +145,11 @@ public class BeatGridFinder extends LifecycleParticipant {
      */
     private synchronized void clearBeatGrids(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
-        for (DeckReference deck : hotCache.keySet()) {
+        Iterator<DeckReference> hotCacheIterator = hotCache.keySet().iterator();
+        while (hotCacheIterator.hasNext()) {
+            DeckReference deck = hotCacheIterator.next();
             if (deck.player == player) {
-                hotCache.remove(deck);
+                hotCacheIterator.remove();
             }
         }
     }

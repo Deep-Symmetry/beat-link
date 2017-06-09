@@ -72,16 +72,20 @@ public class ArtFinder extends LifecycleParticipant {
 
         @Override
         public void mediaUnmounted(SlotReference slot) {
-            for (DataReference artReference : artCache.keySet()) {
+            Iterator<DataReference> cacheIterator = artCache.keySet().iterator();
+            while (cacheIterator.hasNext()) {
+                DataReference artReference = cacheIterator.next();
                 if (SlotReference.getSlotReference(artReference) == slot) {
                     logger.debug("Evicting cached artwork in response to unmount report {}", artReference);
-                    artCache.remove(artReference);
+                    cacheIterator.remove();
                 }
             }
-            for (Map.Entry<DeckReference, AlbumArt> entry : hotCache.entrySet()) {
+            Iterator<Map.Entry<DeckReference,AlbumArt>> hotCacheIterator = hotCache.entrySet().iterator();
+            while (hotCacheIterator.hasNext()) {
+                Map.Entry<DeckReference,AlbumArt> entry = hotCacheIterator.next();
                 if (slot == SlotReference.getSlotReference(entry.getValue().artReference)) {
                     logger.debug("Evicting hot cached artwork in response to unmount report {}", entry.getValue());
-                    hotCache.remove(entry.getKey());
+                    hotCacheIterator.remove();
                 }
             }
         }
@@ -150,7 +154,7 @@ public class ArtFinder extends LifecycleParticipant {
     private synchronized void clearArt(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
         final Iterator<DeckReference> deckIterator = hotCache.keySet().iterator();
-        while (deckIterator.hasNext()) { // TODO: Replicate this correct approach in the other finders
+        while (deckIterator.hasNext()) {
             DeckReference deck = deckIterator.next();
             if (deck.player == player) {
                 deckIterator.remove();

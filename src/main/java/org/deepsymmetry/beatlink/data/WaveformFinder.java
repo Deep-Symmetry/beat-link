@@ -205,14 +205,18 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     private synchronized void clearWaveforms(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
-        for (DeckReference deck : previewHotCache.keySet()) {
+        Iterator<DeckReference> deckIterator = previewHotCache.keySet().iterator();
+        while (deckIterator.hasNext()) {
+            DeckReference deck = deckIterator.next();
             if (deck.player == player) {
-                previewHotCache.remove(deck);
+                deckIterator.remove();
             }
         }
-        for (DeckReference deck : detailHotCache.keySet()) {
+        deckIterator = detailHotCache.keySet().iterator();
+        while (deckIterator.hasNext()) {
+            DeckReference deck = deckIterator.next();
             if (deck.player == player) {
-                detailHotCache.remove(deck);
+                deckIterator.remove();
             }
         }
     }
