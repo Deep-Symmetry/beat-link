@@ -1,18 +1,22 @@
 package org.deepsymmetry.beatlink.data;
 
-import org.deepsymmetry.beatlink.CdjStatus;
-import org.deepsymmetry.beatlink.DeviceUpdate;
-import org.deepsymmetry.beatlink.DeviceUpdateListener;
-import org.deepsymmetry.beatlink.VirtualCdj;
+import org.deepsymmetry.beatlink.*;
 
 import javax.swing.*;
 import java.awt.*;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Provides a convenient way to draw a waveform preview in a user interface, including annotations like the
  * current time and minute markers (if you supply {@link TrackMetadata} so the total length can be determined),
- * and cue markers (if you also supply a {@link CueList}).
+ * and cue markers (if you also supply a {@link CueList}). Can also be configured to automatically update
+ * itself to reflect the state of a specified player, showing the current track, playback state, and position,
+ * as long as it is able to load appropriate metadata, which includes beat grids for translating beat numbers
+ * into track time.
  */
 @SuppressWarnings("WeakerAccess")
 public class WaveformPreviewComponent extends JComponent {
@@ -111,57 +115,57 @@ public class WaveformPreviewComponent extends JComponent {
      * If not zero, automatically update the waveform, position, and metadata in response to the activity of the
      * specified player number.
      */
-    private int monitoredPlayer = 0;
+    private final AtomicInteger monitoredPlayer = new AtomicInteger(0);
 
     /**
      * The waveform preview that we are drawing.
      */
-    private WaveformPreview preview;
+    private final AtomicReference<WaveformPreview> preview = new AtomicReference<WaveformPreview>();
 
     /**
      * Track the current playback position in milliseconds.
      */
-    private long playbackPosition = 0;
+    private final AtomicLong playbackPosition = new AtomicLong(0);
 
     /**
      * Track whether the player holding the waveform is currently playing.
      */
-    private boolean playing = false;
+    private final AtomicBoolean playing = new AtomicBoolean(false);
 
     /**
      * Information about the track whose waveform we are drawing, so we can translate times into positions.
      */
-    private TrackMetadata metadata;
+    private final AtomicReference<TrackMetadata> metadata = new AtomicReference<TrackMetadata>();
 
     /**
      * Information about where all the beats in the track fall, so we can figure out our current position from
      * player updates.
      */
-    private BeatGrid beatGrid;
+    private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
 
     /**
-     * Set the current playback position. Will cause  part the component to be redrawn if the position has
+     * Set the current playback position. Will cause part of the component to be redrawn if the position has
      * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
      * component). This will be quickly overruled if a player is being monitored, but
      * can be used in other contexts.
      *
      * @param milliseconds how far into the track has been played
      */
-    public synchronized void setPlaybackPosition(long milliseconds) {
-        if ((metadata !=  null) && (playbackPosition != milliseconds)) {
+    public void setPlaybackPosition(long milliseconds) {
+        if ((metadata.get() !=  null) && (playbackPosition.get() != milliseconds)) {
             int left;
             int right;
-            if (milliseconds > playbackPosition) {
-                left = Math.max(0, Math.min(408, millisecondsToX(playbackPosition) - 6));
+            if (milliseconds > playbackPosition.get()) {
+                left = Math.max(0, Math.min(408, millisecondsToX(playbackPosition.get()) - 6));
                 right = Math.max(0, Math.min(408, millisecondsToX(milliseconds) + 6));
             } else {
                 left = Math.max(0, Math.min(408, millisecondsToX(milliseconds) - 6));
-                right = Math.max(0, Math.min(408, millisecondsToX(playbackPosition) + 6));
+                right = Math.max(0, Math.min(408, millisecondsToX(playbackPosition.get()) + 6));
             }
-            playbackPosition = milliseconds;  // Just set, don't attempt to draw anything
+            playbackPosition.set(milliseconds);
             repaint(left, 0, right - left, VIEW_HEIGHT);
         } else {
-            playbackPosition = milliseconds;  // Just set, don't attempt to draw anything
+            playbackPosition.set(milliseconds);  // Just set, don't attempt to draw anything
         }
     }
 
@@ -171,11 +175,10 @@ public class WaveformPreviewComponent extends JComponent {
      * @param playing if {@code true}, draw the position marker in white, otherwise red
      */
     @SuppressWarnings("WeakerAccess")
-    public synchronized void setPlaying(boolean playing) {
-        final boolean changed = (this.playing != playing);
-        this.playing = playing;
-        if ((metadata != null) && changed) {
-            int left = Math.max(0, Math.min(408, millisecondsToX(playbackPosition) - 2));
+    public void setPlaying(boolean playing) {
+        final boolean oldValue = this.playing.getAndSet(playing);
+        if ((metadata != null) && oldValue != playing) {
+            int left = Math.max(0, Math.min(408, millisecondsToX(playbackPosition.get()) - 2));
             repaint(left, 0, 4, VIEW_HEIGHT);
         }
     }
@@ -185,12 +188,13 @@ public class WaveformPreviewComponent extends JComponent {
      * can be used in other contexts.
      *
      * @param preview the waveform preview to display
-     * @param metadata Information about the track whose waveform we are drawing, so we can translate times into
+     * @param metadata information about the track whose waveform we are drawing, so we can translate times into
      *                 positions
      */
-    public synchronized void setWaveformPreview(WaveformPreview preview, TrackMetadata metadata) {
-        this.preview = preview;
-        this.metadata = metadata;
+    public void setWaveformPreview(WaveformPreview preview, TrackMetadata metadata) {
+        this.preview.set(preview);
+        this.metadata.set(metadata);
+        playbackPosition.set(0);
         repaint();
     }
 
@@ -201,37 +205,38 @@ public class WaveformPreviewComponent extends JComponent {
      *
      * @param player the player number to monitor, or zero if monitoring should stop
      */
-    public synchronized void setMonitoredPlayer(int player) {
+    public synchronized void setMonitoredPlayer(final int player) {
         if (player < 0) {
             throw new IllegalArgumentException("player cannot be negative");
         }
-        this.monitoredPlayer = player;
+        monitoredPlayer.set(player);
         if (player > 0) {  // Start monitoring the specified player
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             if (MetadataFinder.getInstance().isRunning()) {
-                metadata = MetadataFinder.getInstance().getLatestMetadataFor(monitoredPlayer);
+                metadata.set(MetadataFinder.getInstance().getLatestMetadataFor(player));
             } else {
-                metadata = null;
+                metadata.set(null);
             }
             WaveformFinder.getInstance().addWaveformListener(waveformListener);
             if (WaveformFinder.getInstance().isRunning()) {
-                preview = WaveformFinder.getInstance().getLatestPreviewFor(monitoredPlayer);
+                preview.set(WaveformFinder.getInstance().getLatestPreviewFor(player));
             } else {
-                preview = null;
+                preview.set(null);
             }
             BeatGridFinder.getInstance().addBeatGridListener(beatGridListener);
             if (BeatGridFinder.getInstance().isRunning()) {
-                beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(monitoredPlayer);
+                beatGrid.set(BeatGridFinder.getInstance().getLatestBeatGridFor(player));
             } else {
-                beatGrid = null;
+                beatGrid.set(null);
             }
             VirtualCdj.getInstance().addUpdateListener(updateListener);
         } else {  // Stop monitoring any player
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
-            metadata = null;
-            preview = null;
+            metadata.set(null);
+            preview.set(null);
+            beatGrid.set(null);
         }
         repaint();
     }
@@ -242,8 +247,8 @@ public class WaveformPreviewComponent extends JComponent {
     private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
         @Override
         public void metadataChanged(TrackMetadataUpdate update) {
-            if (update.player == monitoredPlayer) {
-                metadata = update.metadata;
+            if (update.player == monitoredPlayer.get()) {
+                metadata.set(update.metadata);
                 repaint();
             }
         }
@@ -255,8 +260,8 @@ public class WaveformPreviewComponent extends JComponent {
     private final WaveformListener waveformListener = new WaveformListener() {
         @Override
         public void previewChanged(WaveformPreviewUpdate update) {
-            if (update.player == monitoredPlayer) {
-                preview = update.preview;
+            if (update.player == monitoredPlayer.get()) {
+                preview.set(update.preview);
                 repaint();
             }
         }
@@ -273,12 +278,14 @@ public class WaveformPreviewComponent extends JComponent {
     private final BeatGridListener beatGridListener = new BeatGridListener() {
         @Override
         public void beatGridChanged(BeatGridUpdate update) {
-            if (update.player == monitoredPlayer) {
-                beatGrid = update.beatGrid;
+            if (update.player == monitoredPlayer.get()) {
+                beatGrid.set(update.beatGrid);
                 repaint();
             }
         }
     };
+
+    // TODO: Add beat listener too? Better, switch to using TransportListener once I implement that.
 
     /**
      * Reacts to player status updates to reflect the current playback position and state.
@@ -286,11 +293,11 @@ public class WaveformPreviewComponent extends JComponent {
     private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
         @Override
         public void received(DeviceUpdate update) {
-            if ((update instanceof CdjStatus) && (update.getDeviceNumber() == monitoredPlayer) &&
-                    (metadata != null) && (beatGrid != null)) {
+            if ((update instanceof CdjStatus) && (update.getDeviceNumber() == monitoredPlayer.get()) &&
+                    (metadata.get() != null) && (beatGrid.get() != null)) {
                 CdjStatus status = (CdjStatus) update;
                 final int beat = status.getBeatNumber();;
-                setPlaybackPosition((beat < 1)? 0 : beatGrid.getTimeWithinTrack(beat));
+                setPlaybackPosition((beat < 1)? 0 : beatGrid.get().getTimeWithinTrack(beat));
                 setPlaying(status.isPlaying());
             }
         }
@@ -311,12 +318,12 @@ public class WaveformPreviewComponent extends JComponent {
      * Create a view which draws a specific waveform, even if it is not currently loaded in a player.
      *
      * @param preview the waveform preview to display
-     * @param metadata Information about the track whose waveform we are drawing, so we can translate times into
+     * @param metadata information about the track whose waveform we are drawing, so we can translate times into
      *                 positions
      */
-    public WaveformPreviewComponent(WaveformPreview preview, final TrackMetadata metadata) {
-        this.preview = preview;
-        this.metadata = metadata;
+    public WaveformPreviewComponent(WaveformPreview preview, TrackMetadata metadata) {
+        this.preview.set(preview);
+        this.metadata.set(metadata);
     }
 
     @Override
@@ -343,7 +350,7 @@ public class WaveformPreviewComponent extends JComponent {
      * @return the component x coordinate at which it should be drawn
      */
     private int millisecondsToX(long milliseconds) {
-        long result = milliseconds * 4 / (metadata.getDuration() * 10);
+        long result = milliseconds * 4 / (metadata.get().getDuration() * 10);
         return WAVEFORM_MARGIN + Math.max(0, Math.min(400, (int) result));
     }
 
@@ -353,19 +360,19 @@ public class WaveformPreviewComponent extends JComponent {
         g.setColor(Color.BLACK);  // Black out the background
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
-        final ByteBuffer waveBytes = (preview == null)? null : preview.getData();
+        final ByteBuffer waveBytes = (preview.get() == null)? null : preview.get().getData();
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = x - WAVEFORM_MARGIN;
             if ((segment >= 0) && (segment < 400)) {
                 if (waveBytes != null) {  // Draw the waveform
                     final int height = waveBytes.get(segment * 2) & 0x1f;
-                    final int intensity = waveBytes.get(segment * 2 + 1) & 0x5;
-                    g.setColor((intensity == 5) ? INTENSE_COLOR : NORMAL_COLOR);
+                    final int intensity = waveBytes.get(segment * 2 + 1) & 0x07;
+                    g.setColor((intensity >= 5) ? INTENSE_COLOR : NORMAL_COLOR);
                     g.drawLine(x, WAVEFORM_TOP + WAVEFORM_HEIGHT, x, WAVEFORM_TOP + WAVEFORM_HEIGHT - height);
                 }
 
-                if (metadata != null) { // Draw the playback progress bar
-                    if (x < millisecondsToX(playbackPosition) - 1) {  // The played section
+                if (metadata.get() != null) { // Draw the playback progress bar
+                    if (x < millisecondsToX(playbackPosition.get()) - 1) {  // The played section
                         g.setColor((x % 2 == 0)? BRIGHT_PLAYED : DIM_PLAYED);
                         if (x == WAVEFORM_MARGIN) {
                             g.drawLine(x, PLAYBACK_BAR_TOP, x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT);
@@ -373,7 +380,7 @@ public class WaveformPreviewComponent extends JComponent {
                             g.drawLine(x, PLAYBACK_BAR_TOP, x, PLAYBACK_BAR_TOP);
                             g.drawLine(x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT, x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT);
                         }
-                    } else if (x > millisecondsToX(playbackPosition) + 1) {  // The unplayed section
+                    } else if (x > millisecondsToX(playbackPosition.get()) + 1) {  // The unplayed section
                         g.setColor((x % 2 == 0)? Color.WHITE : DIM_UNPLAYED);
                         g.drawLine(x, PLAYBACK_BAR_TOP, x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT);
                     }
@@ -381,22 +388,22 @@ public class WaveformPreviewComponent extends JComponent {
             }
         }
 
-        if (metadata != null) {  // Draw the minute marks and playback position
+        if (metadata.get() != null) {  // Draw the minute marks and playback position
             g.setColor(Color.WHITE);
-            for (int time = 60; time < metadata.getDuration(); time += 60) {
+            for (int time = 60; time < metadata.get().getDuration(); time += 60) {
                 final int x = millisecondsToX(time * 1000);
                 g.drawLine(x, MINUTE_MARKER_TOP, x, MINUTE_MARKER_TOP + MINUTE_MARKER_HEIGHT);
             }
-            final int x = millisecondsToX(playbackPosition);
-            if (!playing) {
+            final int x = millisecondsToX(playbackPosition.get());
+            if (!playing.get()) {
                 g.setColor(Color.RED);
             }
             g.fillRect(x - 1, POSITION_MARKER_TOP, 2, POSITION_MARKER_HEIGHT);
         }
 
         // Finally, draw the cue points
-        if (metadata != null && metadata.getCueList() != null) {
-            for (CueList.Entry entry : metadata.getCueList().entries) {
+        if (metadata.get() != null && metadata.get().getCueList() != null) {
+            for (CueList.Entry entry : metadata.get().getCueList().entries) {
                 final int x = millisecondsToX(entry.cueTime);
                 if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
                     g.setColor((entry.hotCueNumber > 0)? Color.GREEN : Color.RED);
@@ -410,8 +417,8 @@ public class WaveformPreviewComponent extends JComponent {
 
     @Override
     public String toString() {
-        return"WaveFormPreviewComponent[metadata=" + metadata + ", waveformPreview=" + preview + ", beatGrid=" +
-                beatGrid + ", playbackPosition=" + playbackPosition + ", playing=" + playing + ", monitoredPlayer=" +
-                monitoredPlayer + "]";
+        return"WaveFormPreviewComponent[metadata=" + metadata.get() + ", waveformPreview=" + preview.get() + ", beatGrid=" +
+                beatGrid.get() + ", playbackPosition=" + playbackPosition.get() + ", playing=" + playing.get() + ", monitoredPlayer=" +
+                monitoredPlayer.get() + "]";
     }
 }
