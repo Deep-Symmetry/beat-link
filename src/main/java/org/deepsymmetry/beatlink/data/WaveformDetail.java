@@ -51,9 +51,8 @@ public class WaveformDetail {
      * @return the component which will draw the annotated waveform preview
      */
     public JComponent createViewComponent(TrackMetadata metadata, BeatGrid beatGrid) {
-        return null;
+        return new WaveformDetailComponent(this, metadata, beatGrid);
     }
-    // TODO: Actually implement drawing, in a resizeable window, with a user-selectable scale
 
     /**
      * Constructor when reading from the network or a cache file.

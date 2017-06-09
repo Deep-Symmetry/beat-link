@@ -1,11 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
-import org.deepsymmetry.beatlink.CdjStatus;
-import org.deepsymmetry.beatlink.DeviceUpdate;
-import org.deepsymmetry.beatlink.DeviceUpdateListener;
-import org.deepsymmetry.beatlink.VirtualCdj;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.deepsymmetry.beatlink.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -22,9 +17,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * be configured to automatically update itself to reflect the state of a specified player, showing the current
  * track, playback state, and position, as long as it is able to load appropriate metadata.
  */
+@SuppressWarnings("WeakerAccess")
 public class WaveformDetailComponent extends JComponent {
 
-    private static final Logger logger = LoggerFactory.getLogger(WaveformDetailComponent.class);
+    // private static final Logger logger = LoggerFactory.getLogger(WaveformDetailComponent.class);
 
     /**
      * How many pixels high are the beat markers.
@@ -250,7 +246,7 @@ public class WaveformDetailComponent extends JComponent {
             if ((update instanceof CdjStatus) && (update.getDeviceNumber() == monitoredPlayer.get()) &&
                     (metadata.get() != null) && (beatGrid.get() != null)) {
                 CdjStatus status = (CdjStatus) update;
-                final int beat = status.getBeatNumber();;
+                final int beat = status.getBeatNumber();
                 setPlaybackPosition((beat < 1)? 0 : beatGrid.get().getTimeWithinTrack(beat));
                 setPlaying(status.isPlaying());
             }
@@ -294,9 +290,23 @@ public class WaveformDetailComponent extends JComponent {
      * @return the offset into the waveform at the current scale and playback time that should be drawn there
      */
     private int getSegmentForX(int x) {
-        int unshifted = (x - (getWidth() / 2));
-        int offset = (int) (playbackPosition.get() * 15) / (scale.get() * 100);
-        return  (unshifted + offset) * scale.get();
+        int playHead = (x - (getWidth() / 2));
+        int offset = Util.timeToHalfFrame(playbackPosition.get()) / scale.get();
+        return  (playHead + offset) * scale.get();
+    }
+
+    /**
+     * The number of bytes at the start of the waveform data which do not seem to be valid or used.
+     */
+    public static final int LEADING_JUNK_BYTES = 19;
+
+    /**
+     * Determine the total number of valid segments in a waveform.
+     *
+     * @param waveBytes the bytes encoding the waveform heights and colors
+     */
+    private int totalSegments(ByteBuffer waveBytes) {
+        return waveBytes.remaining() - LEADING_JUNK_BYTES;
     }
 
     /**
@@ -312,15 +322,15 @@ public class WaveformDetailComponent extends JComponent {
     private int segmentHeight(int segment, ByteBuffer waveBytes) {
         final int scale = this.scale.get();
         int sum = 0;
-        for (int i = segment; (i < segment + scale) && (i < waveBytes.remaining()); i++) {
-            sum += waveBytes.get(i) & 0x1f;
+        for (int i = segment; (i < segment + scale) && (i < totalSegments(waveBytes)); i++) {
+            sum += waveBytes.get(i + LEADING_JUNK_BYTES) & 0x1f;
         }
         return sum / scale;
     }
 
     /**
      * Determine the color of the waveform given an index into it. If we are not at full scale, we determine an
-     * average starting with that segment.
+     * average starting with that segment. Skips over the junk bytes at the start of the waveform.
      *
      * @param segment the index of the first waveform byte to examine
      * @param waveBytes the bytes encoding the waveform heights and colors
@@ -331,8 +341,8 @@ public class WaveformDetailComponent extends JComponent {
     private Color segmentColor(int segment, ByteBuffer waveBytes) {
         final int scale = this.scale.get();
         int sum = 0;
-        for (int i = segment; (i < segment + scale) && (i < waveBytes.remaining()); i++) {
-            sum += (waveBytes.get(i) & 0xe0) >> 5;
+        for (int i = segment; (i < segment + scale) && (i < totalSegments(waveBytes)); i++) {
+            sum += (waveBytes.get(i + LEADING_JUNK_BYTES) & 0xe0) >> 5;
         }
         return COLOR_MAP[sum / scale];
     }
@@ -344,15 +354,28 @@ public class WaveformDetailComponent extends JComponent {
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
         final ByteBuffer waveBytes = (waveform.get() == null) ? null : waveform.get().getData();
-        if (waveBytes != null) {
-            for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
-                final int segment = getSegmentForX(x);
-                if ((segment >= 0) && (segment < waveBytes.remaining())) {
+        int lastBeat = 0;
+        if (beatGrid.get() != null) {  // Find what beat was represented by the column just before the first we draw.
+            lastBeat = beatGrid.get().findBeatAtTime(Util.halfFrameToTime(getSegmentForX(clipRect.x - 1)));
+        }
+        for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
+            final int axis = getHeight() / 2;
+            final int maxHeight = axis - VERTICAL_MARGIN;
+            final int segment = getSegmentForX(x);
+            if (waveBytes != null) { // Drawing the waveform itself
+                if ((segment >= 0) && (segment < totalSegments(waveBytes))) {
                     g.setColor(segmentColor(segment, waveBytes));
-                    final int axis = getHeight() / 2;
-                    final int maxHeight = axis - VERTICAL_MARGIN;
                     final int height = (segmentHeight(segment, waveBytes) * maxHeight) / 31;
                     g.drawLine(x, axis - height, x, axis + height);
+                }
+            }
+            if (beatGrid.get() != null) {  // Draw the beat markers
+                int inBeat = beatGrid.get().findBeatAtTime(Util.halfFrameToTime(segment));
+                if ((inBeat > 0) && (inBeat != lastBeat)) {  // Start of a new beat, so draw it
+                    g.setColor((beatGrid.get().getBeatWithinBar(inBeat) == 1)? Color.RED : Color.WHITE);
+                    g.drawLine(x, axis - maxHeight - 2 - BEAT_MARKER_HEIGHT, x, axis - maxHeight - 2);
+                    g.drawLine(x, axis + maxHeight + 2, x, axis + maxHeight + BEAT_MARKER_HEIGHT + 2);
+                    lastBeat = inBeat;
                 }
             }
         }

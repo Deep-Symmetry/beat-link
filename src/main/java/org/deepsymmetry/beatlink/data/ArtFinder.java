@@ -149,14 +149,18 @@ public class ArtFinder extends LifecycleParticipant {
      */
     private synchronized void clearArt(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
-        for (DeckReference deck : hotCache.keySet()) {
+        final Iterator<DeckReference> deckIterator = hotCache.keySet().iterator();
+        while (deckIterator.hasNext()) { // TODO: Replicate this correct approach in the other finders
+            DeckReference deck = deckIterator.next();
             if (deck.player == player) {
-                hotCache.remove(deck);
+                deckIterator.remove();
             }
         }
-        for (DataReference artReference : artCache.keySet()) {
+        Iterator<DataReference> cacheIterator = artCache.keySet().iterator();
+        while (cacheIterator.hasNext()) {
+            DataReference artReference = cacheIterator.next();
             if (artReference.player == player) {
-                artCache.remove(artReference);
+                cacheIterator.remove();
             }
         }
     }

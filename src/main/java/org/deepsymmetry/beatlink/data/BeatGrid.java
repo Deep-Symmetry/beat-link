@@ -5,6 +5,7 @@ import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 /**
  * Provides information about each beat in a track: the number of milliseconds after the start of the track that
@@ -132,6 +133,24 @@ public class BeatGrid {
      */
     public int getBeatWithinBar(int beatNumber) {
         return beatWithinBarValues[beatOffset(beatNumber)];
+    }
+
+    /**
+     * Finds the beat in which the specified track position falls.
+     *
+     * @param milliseconds how long the track has been playing
+     *
+     * @return the beat number represented by that time, or -1 if the time is before the first beat
+     */
+    public int findBeatAtTime(long milliseconds) {
+        int found = Arrays.binarySearch(timeWithinTrackValues, milliseconds);
+        if (found >= 0) {  // An exact match, just change 0-based array index to 1-based beat number
+            return found + 1;
+        } else if (found == -1) {  // We are before the first beat
+            return found;
+        } else {  // We are after some beat, report its beat number
+            return -(found + 1);
+        }
     }
 
 

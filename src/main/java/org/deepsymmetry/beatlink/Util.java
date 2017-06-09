@@ -167,6 +167,28 @@ public class Util {
     }
 
     /**
+     * Figure out the track time that corresponds to a half-frame number (75 frames per second, so 150 half-frames).
+     *
+     * @param halfFrame the half-frame that we are interested in knowing the time for
+     *
+     * @return the number of milliseconds into a track that the specified half-frame begins
+     */
+    public static long halfFrameToTime(int halfFrame) {
+        return halfFrame * 100 / 15;
+    }
+
+    /**
+     * Convert a track position (time) into the corresponding half-frame value (75 frames per second, so 150 half-frames).
+     *
+     * @param milliseconds how long a track has been playing for
+     *
+     * @return the half-frame that contains that part of the track
+     */
+    public static int timeToHalfFrame(long milliseconds) {
+        return  (int) (milliseconds * 15 / 100);
+    }
+
+    /**
      * Prevent instantiation.
      */
     private Util() {
