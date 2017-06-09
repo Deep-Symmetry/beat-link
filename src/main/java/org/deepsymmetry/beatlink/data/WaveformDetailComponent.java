@@ -1,6 +1,8 @@
 package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -20,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @SuppressWarnings("WeakerAccess")
 public class WaveformDetailComponent extends JComponent {
 
-    // private static final Logger logger = LoggerFactory.getLogger(WaveformDetailComponent.class);
+    private static final Logger logger = LoggerFactory.getLogger(WaveformDetailComponent.class);
 
     /**
      * How many pixels high are the beat markers.
@@ -159,6 +161,11 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
+     * Used to signal our animation thread to stop when we are no longer monitoring a player.
+     */
+    private final AtomicBoolean animating = new AtomicBoolean(false);
+
+    /**
      * Configures the player whose current track waveforms and status will automatically be reflected. Whenever a new
      * track is loaded on that player, the waveform and metadata will be updated, and the current playback position and
      * state of the player will be reflected by the component.
@@ -189,9 +196,37 @@ public class WaveformDetailComponent extends JComponent {
             } else {
                 beatGrid.set(null);
             }
-            VirtualCdj.getInstance().addUpdateListener(updateListener);
+            try {
+                TimeFinder.getInstance().start();
+                if (!animating.getAndSet(true)) {
+                    // Create the thread to update our position smoothly as the track plays
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            int lastPosition = getSegmentForX(0);
+                            while (animating.get()) {
+                                try {
+                                    Thread.sleep(33);  // Animate at 30 fps
+                                } catch (InterruptedException e) {
+                                    logger.warn("Waveform animation thread interrupted; ending");
+                                    animating.set(false);
+                                }
+                                setPlaybackPosition(TimeFinder.getInstance().getTimeFor(monitoredPlayer.get()));
+                                int newPosition = getSegmentForX(0);
+                                if (lastPosition != newPosition) {
+                                    lastPosition = newPosition;
+                                    repaint();
+                                }
+                            }
+                        }
+                    }).start();
+                }
+            } catch (Exception e) {
+                logger.error("Unable to start the TimeFinder to animate the waveform detail view");
+                animating.set(false);
+            }
         } else {  // Stop monitoring any player
-            VirtualCdj.getInstance().removeUpdateListener(updateListener);
+            animating.set(false);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
             metadata.set(null);
@@ -241,24 +276,6 @@ public class WaveformDetailComponent extends JComponent {
             if (update.player == monitoredPlayer.get()) {
                 beatGrid.set(update.beatGrid);
                 repaint();
-            }
-        }
-    };
-
-    // TODO: Add beat listener too? Better, switch to using TransportListener once I implement that.
-
-    /**
-     * Reacts to player status updates to reflect the current playback position and state.
-     */
-    private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
-        @Override
-        public void received(DeviceUpdate update) {
-            if ((update instanceof CdjStatus) && (update.getDeviceNumber() == monitoredPlayer.get()) &&
-                    (metadata.get() != null) && (beatGrid.get() != null)) {
-                CdjStatus status = (CdjStatus) update;
-                final int beat = status.getBeatNumber();
-                setPlaybackPosition((beat < 1)? 0 : beatGrid.get().getTimeWithinTrack(beat));
-                setPlaying(status.isPlaying());
             }
         }
     };

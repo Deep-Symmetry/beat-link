@@ -108,15 +108,19 @@ public class BeatGrid {
     }
 
     /**
-     * Returns the time at which the specified beat falls within the track.
+     * Returns the time at which the specified beat falls within the track. Beat 0 means we are before the
+     * first beat (e.g. ready to play the track), so we return 0.
      *
      * @param beatNumber the beat number desired, must fall within the range 1..beatCount
      *
      * @return the number of milliseconds into the track at which the specified beat occurs
      *
-     * @throws IllegalArgumentException if {@code number} is less than 1 or greater than {@code beatCount}
+     * @throws IllegalArgumentException if {@code number} is less than 0 or greater than {@code beatCount}
      */
     public long getTimeWithinTrack(int beatNumber) {
+        if (beatNumber == 0) {
+            return 0;
+        }
         return timeWithinTrackValues[beatOffset(beatNumber)];
     }
 

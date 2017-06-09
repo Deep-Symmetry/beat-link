@@ -28,7 +28,7 @@ import java.util.zip.ZipFile;
  */
 public class WaveformFinder extends LifecycleParticipant {
 
-    private final Logger logger = LoggerFactory.getLogger(WaveformFinder.class);
+    private static final Logger logger = LoggerFactory.getLogger(WaveformFinder.class);
 
     /**
      * Keeps track of the current waveform previews cached for each player. We hot cache art for any track which is
