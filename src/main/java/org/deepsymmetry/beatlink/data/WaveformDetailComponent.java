@@ -38,6 +38,16 @@ public class WaveformDetailComponent extends JComponent {
     private static final int PLAYBACK_MARKER_WIDTH = 2;
 
     /**
+     * The color to draw the playback position when playing; a slightly transparent white.
+     */
+    private static final Color PLAYBACK_MARKER_PLAYING = new Color(255, 255, 255, 235);
+
+    /**
+     * The color to draw the playback position when playing; a slightly transparent red.
+     */
+    private static final Color PLAYBACK_MARKER_STOPPED = new Color(255, 0, 0, 235);
+
+    /**
      * The different colors the waveform can be based on its intensity.
      */
     private static final Color[] COLOR_MAP = {
@@ -379,5 +389,7 @@ public class WaveformDetailComponent extends JComponent {
                 }
             }
         }
+        g.setColor(playing.get()? PLAYBACK_MARKER_PLAYING : PLAYBACK_MARKER_STOPPED);  // Draw the playback position
+        g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
     }
 }
