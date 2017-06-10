@@ -27,6 +27,7 @@ public class TimeFinder extends LifecycleParticipant {
      * Keeps track of the most recent information we have received from a player from which we have been able to compute
      * a track position.
      */
+    @SuppressWarnings("WeakerAccess")
     public static class TrackPositionUpdate {
 
         /**
@@ -159,18 +160,17 @@ public class TimeFinder extends LifecycleParticipant {
 
     /**
      * Figure out, based on how much time has elapsed since we received an update, and the playback position,
-     * speed, and direction at the time of that update, where the player will be at the specified time.
+     * speed, and direction at the time of that update, where the player will be now.
      *
      * @param update the most recent update received from a player
-     * @param timestamp the time at which we'd like to predict the player location (a nano-time)
      *
-     * @return the playback position we believe that player has reached at that point in time
+     * @return the playback position we believe that player has reached now
      */
-    private long interpolateTimeFromUpdate(TrackPositionUpdate update, long timestamp) {
+    private long interpolateTimeSinceUpdate(TrackPositionUpdate update) {
         if (!update.playing) {
             return update.milliseconds;
         }
-        long elapsedMillis = (timestamp - update.timestamp) / 1000000;
+        long elapsedMillis = (System.nanoTime() - update.timestamp) / 1000000;
         long moved = Math.round(update.pitch * elapsedMillis);
         if (update.reverse) {
             return update.milliseconds - moved;
@@ -178,17 +178,43 @@ public class TimeFinder extends LifecycleParticipant {
         return update.milliseconds + moved;
     }
 
-
     /**
-     * Figure out, based on how much time has elapsed since we received an update, and the playback position,
-     * speed, and direction at the time of that update, where the player will be now.
+     * Sanity-check a new non-beat update, make sure we are still interpolating a sensible position, and correct
+     * as needed.
      *
-     * @param update the most recent update received from a player
+     * @param lastTrackUpdate the most recent digested update received from a player
+     * @param newDeviceUpdate a new status update from the player
+     * @param beatGrid the beat grid for the track that is playing, in case we have jumped
      *
-     * @return the playback position we believe that player has reached now
+     * @return the playback position we believe that player has reached at that point in time
      */
-    private long interpolateTimeFromUpdate(TrackPositionUpdate update) {
-        return interpolateTimeFromUpdate(update, System.nanoTime());
+    private long interpolateTimeFromUpdate(TrackPositionUpdate lastTrackUpdate, CdjStatus newDeviceUpdate,
+                                           BeatGrid beatGrid) {
+        final int beatNumber = newDeviceUpdate.getBeatNumber();
+        if (!lastTrackUpdate.playing ) {  // Haven't moved
+            if (lastTrackUpdate.beatNumber == beatNumber) {
+                return lastTrackUpdate.milliseconds;
+            } else {  // Have jumped without playing.
+                if (beatNumber < 0) {
+                    return -1; // We don't know the position any more; weird to get into this state and still have a grid?
+                }
+                // As a heuristic, assume we are right before the beat? Interfering with correction logic right now.
+                // This all needs some serious pondering on more sleep.
+                return beatGrid.getTimeWithinTrack(beatNumber);
+            }
+        }
+        long elapsedMillis = (newDeviceUpdate.getTimestamp() - lastTrackUpdate.timestamp) / 1000000;
+        long moved = Math.round(lastTrackUpdate.pitch * elapsedMillis);
+        long interpolated = (lastTrackUpdate.reverse)?
+                (lastTrackUpdate.milliseconds - moved) : lastTrackUpdate.milliseconds + moved;
+        if (Math.abs(beatGrid.findBeatAtTime(interpolated) - beatNumber) < 2) {
+            return interpolated;  // Our calculations still look plausible
+        }
+        // The player has jumped or drifted somewhere unexpected, correct.
+        if (newDeviceUpdate.isPlayingForwards()) {
+            return beatGrid.getTimeWithinTrack(beatNumber);
+        }
+        return interpolated;  // TODO This isn't right but maybe we should give up on supporting reverse; no beats!
     }
 
     /**
@@ -204,7 +230,7 @@ public class TimeFinder extends LifecycleParticipant {
     public long getTimeFor(int player) {
         TrackPositionUpdate update = positions.get(player);
         if (update != null) {
-            return interpolateTimeFromUpdate(update);
+            return interpolateTimeSinceUpdate(update);
         }
         return  -1;  // We don't know.
     }
@@ -232,22 +258,21 @@ public class TimeFinder extends LifecycleParticipant {
                 final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(update);
                 final int beatNumber = ((CdjStatus) update).getBeatNumber();
                 // logger.debug("Update: beat " + update.getBeatWithinBar() + " -- " + beatNumber);
-                if (beatGrid != null && (beatNumber > 0)) {
+                if (beatGrid != null && (beatNumber >= 0)) {
                     boolean done = false;
                     TrackPositionUpdate lastPosition = positions.get(update.getDeviceNumber());
                     while (!done && ((lastPosition == null) || lastPosition.timestamp < update.getTimestamp())) {
                         TrackPositionUpdate newPosition;
                         if (lastPosition == null || lastPosition.beatGrid != beatGrid) {
-                            // This is a new track, and we have not yet received a beat packet for it
+                            // This is a new track, and we have not yet received a beat packet for it, or a big jump
                             newPosition = new TrackPositionUpdate(update.getTimestamp(),
                                     beatGrid.getTimeWithinTrack(beatNumber), beatNumber, false,
                                     ((CdjStatus) update).isPlaying(),
                                     Util.pitchToMultiplier(((CdjStatus) update).getPitch()),
                                     ((CdjStatus) update).isPlayingBackwards(), beatGrid);
                         } else {
-                            // We have moved on in a track we already have a position for
                             newPosition = new TrackPositionUpdate(update.getTimestamp(),
-                                    interpolateTimeFromUpdate(lastPosition, update.getTimestamp()),
+                                    interpolateTimeFromUpdate(lastPosition, (CdjStatus) update, beatGrid),
                                     beatNumber, false, ((CdjStatus) update).isPlaying(),
                                     Util.pitchToMultiplier(((CdjStatus) update).getPitch()),
                                     ((CdjStatus) update).isPlayingBackwards(), beatGrid);

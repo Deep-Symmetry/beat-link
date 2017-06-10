@@ -53,14 +53,14 @@ public class WaveformDetailComponent extends JComponent {
      * The different colors the waveform can be based on its intensity.
      */
     private static final Color[] COLOR_MAP = {
-            new Color(0, 0, 163),
+            new Color(0, 0, 175),
             new Color(0, 52, 208),
             new Color(0, 119, 233),
             new Color(46, 215, 255),
-            new Color(76, 225, 250),
-            new Color(164, 231, 227),
-            new Color(185, 224, 217),
-            new Color(223, 245, 255)
+            new Color(76, 225, 255),
+            new Color(164, 231, 255),
+            new Color(185, 232, 255),
+            new Color(205, 233, 255)
     };
 
     /**
@@ -306,7 +306,7 @@ public class WaveformDetailComponent extends JComponent {
 
     @Override
     public Dimension getMinimumSize() {
-        return new Dimension(300, 150);
+        return new Dimension(300, 92);
     }
 
     /**
@@ -408,5 +408,12 @@ public class WaveformDetailComponent extends JComponent {
         }
         g.setColor(playing.get()? PLAYBACK_MARKER_PLAYING : PLAYBACK_MARKER_STOPPED);  // Draw the playback position
         g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
+    }
+
+    @Override
+    public String toString() {
+        return"WaveformDetailComponent[metadata=" + metadata.get() + ", waveform=" + waveform.get() + ", beatGrid=" +
+                beatGrid.get() + ", playbackPosition=" + playbackPosition.get() + ", playing=" + playing.get() + ", monitoredPlayer=" +
+                monitoredPlayer.get() + "]";
     }
 }

@@ -417,7 +417,7 @@ public class WaveformPreviewComponent extends JComponent {
 
     @Override
     public String toString() {
-        return"WaveFormPreviewComponent[metadata=" + metadata.get() + ", waveformPreview=" + preview.get() + ", beatGrid=" +
+        return"WaveformPreviewComponent[metadata=" + metadata.get() + ", waveformPreview=" + preview.get() + ", beatGrid=" +
                 beatGrid.get() + ", playbackPosition=" + playbackPosition.get() + ", playing=" + playing.get() + ", monitoredPlayer=" +
                 monitoredPlayer.get() + "]";
     }
