@@ -1318,7 +1318,7 @@ public class MetadataFinder extends LifecycleParticipant {
             queueHandler.interrupt();
             queueHandler = null;
             for (DeckReference deck : hotCache.keySet()) {  // Report the loss of our hot cached metadata
-                if (deck.player == 0) {
+                if (deck.hotCue == 0) {
                     deliverTrackMetadataUpdate(deck.player, null);
                 }
             }
