@@ -1,6 +1,8 @@
 package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -20,6 +22,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @SuppressWarnings("WeakerAccess")
 public class WaveformPreviewComponent extends JComponent {
+
+    private static final Logger logger = LoggerFactory.getLogger(WaveformPreviewComponent.class);
 
     /**
      * The Y coordinate at which the top of cue markers is drawn.
@@ -199,6 +203,11 @@ public class WaveformPreviewComponent extends JComponent {
     }
 
     /**
+     * Used to signal our animation thread to stop when we are no longer monitoring a player.
+     */
+    private final AtomicBoolean animating = new AtomicBoolean(false);
+
+    /**
      * Configures the player whose current track waveforms and status will automatically be reflected. Whenever a new
      * track is loaded on that player, the waveform and metadata will be updated, and the current playback position and
      * state of the player will be reflected by the component.
@@ -230,7 +239,31 @@ public class WaveformPreviewComponent extends JComponent {
                 beatGrid.set(null);
             }
             VirtualCdj.getInstance().addUpdateListener(updateListener);
+            try {
+                TimeFinder.getInstance().start();
+                if (!animating.getAndSet(true)) {
+                    // Create the thread to update our position smoothly as the track plays
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            while (animating.get()) {
+                                try {
+                                    Thread.sleep(33);  // Animate at 30 fps
+                                } catch (InterruptedException e) {
+                                    logger.warn("Waveform animation thread interrupted; ending");
+                                    animating.set(false);
+                                }
+                                setPlaybackPosition(TimeFinder.getInstance().getTimeFor(monitoredPlayer.get()));
+                            }
+                        }
+                    }).start();
+                }
+            } catch (Exception e) {
+                logger.error("Unable to start the TimeFinder to animate the waveform preview");
+                animating.set(false);
+            }
         } else {  // Stop monitoring any player
+            animating.set(false);
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
@@ -285,8 +318,6 @@ public class WaveformPreviewComponent extends JComponent {
         }
     };
 
-    // TODO: Add beat listener too? Better, switch to using TransportListener once I implement that.
-
     /**
      * Reacts to player status updates to reflect the current playback position and state.
      */
@@ -296,8 +327,6 @@ public class WaveformPreviewComponent extends JComponent {
             if ((update instanceof CdjStatus) && (update.getDeviceNumber() == monitoredPlayer.get()) &&
                     (metadata.get() != null) && (beatGrid.get() != null)) {
                 CdjStatus status = (CdjStatus) update;
-                final int beat = status.getBeatNumber();
-                setPlaybackPosition((beat < 1)? 0 : beatGrid.get().getTimeWithinTrack(beat));
                 setPlaying(status.isPlaying());
             }
         }

@@ -165,6 +165,10 @@ public class WaveformDetailComponent extends JComponent {
      */
     private final AtomicBoolean animating = new AtomicBoolean(false);
 
+    // TODO: Change color of playback position marker when play state changes, like WaveformPreviewComponent.
+
+    // TODO: Draw cues and memory positions.
+
     /**
      * Configures the player whose current track waveforms and status will automatically be reflected. Whenever a new
      * track is loaded on that player, the waveform and metadata will be updated, and the current playback position and
