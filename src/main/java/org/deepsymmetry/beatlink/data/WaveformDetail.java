@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 
@@ -14,6 +15,12 @@ import java.nio.ByteBuffer;
  * @author James Elliott
  */
 public class WaveformDetail {
+    /**
+     * The number of bytes at the start of the waveform data which do not seem to be valid or used.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int LEADING_JUNK_BYTES = 19;
+
     /**
      * The unique identifier that was used to request this waveform detail.
      */
@@ -36,6 +43,27 @@ public class WaveformDetail {
     @SuppressWarnings("WeakerAccess")
     public ByteBuffer getData() {
         return ((BinaryField) rawMessage.arguments.get(3)).getValue();
+    }
+
+    /**
+     * Count the half-frames of waveform available.
+     *
+     * @return the number of half-frames that make up the track, ignoring the leading junk bytes
+     */
+    @SuppressWarnings("WeakerAccess")
+    public int getFrameCount() {
+        return getData().remaining() - LEADING_JUNK_BYTES;
+    }
+
+    /**
+     * Determine how long the track plays, in milliseconds. This provides a more accurate value than the track
+     * metadata, which is accurate only to the second, because we know how many half-frames (1/150 of a second)
+     * the track is composed of.
+     *
+     * @return the number of milliseconds it will take to play all half-frames that make up the track
+     */
+    public long getTotalTime() {
+        return Util.halfFrameToTime(getFrameCount());
     }
 
     /**

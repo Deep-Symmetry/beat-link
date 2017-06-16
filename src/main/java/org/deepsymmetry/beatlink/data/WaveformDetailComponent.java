@@ -323,17 +323,12 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
-     * The number of bytes at the start of the waveform data which do not seem to be valid or used.
-     */
-    public static final int LEADING_JUNK_BYTES = 19;
-
-    /**
      * Determine the total number of valid segments in a waveform.
      *
      * @param waveBytes the bytes encoding the waveform heights and colors
      */
     private int totalSegments(ByteBuffer waveBytes) {
-        return waveBytes.remaining() - LEADING_JUNK_BYTES;
+        return waveBytes.remaining() - WaveformDetail.LEADING_JUNK_BYTES;
     }
 
     /**
@@ -350,7 +345,7 @@ public class WaveformDetailComponent extends JComponent {
         final int scale = this.scale.get();
         int sum = 0;
         for (int i = segment; (i < segment + scale) && (i < totalSegments(waveBytes)); i++) {
-            sum += waveBytes.get(i + LEADING_JUNK_BYTES) & 0x1f;
+            sum += waveBytes.get(i + WaveformDetail.LEADING_JUNK_BYTES) & 0x1f;
         }
         return sum / scale;
     }
@@ -369,10 +364,15 @@ public class WaveformDetailComponent extends JComponent {
         final int scale = this.scale.get();
         int sum = 0;
         for (int i = segment; (i < segment + scale) && (i < totalSegments(waveBytes)); i++) {
-            sum += (waveBytes.get(i + LEADING_JUNK_BYTES) & 0xe0) >> 5;
+            sum += (waveBytes.get(i + WaveformDetail.LEADING_JUNK_BYTES) & 0xe0) >> 5;
         }
         return COLOR_MAP[sum / scale];
     }
+
+    /**
+     * The largest scale at which we will draw individual beat markers; above this we show only bars.
+     */
+    private static final int MAX_BEAT_SCALE = 9;
 
     @Override
     protected void paintComponent(Graphics g) {
