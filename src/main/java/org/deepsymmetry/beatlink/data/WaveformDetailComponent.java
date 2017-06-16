@@ -398,10 +398,14 @@ public class WaveformDetailComponent extends JComponent {
             }
             if (beatGrid.get() != null) {  // Draw the beat markers
                 int inBeat = beatGrid.get().findBeatAtTime(Util.halfFrameToTime(segment));
-                if ((inBeat > 0) && (inBeat != lastBeat)) {  // Start of a new beat, so draw it
-                    g.setColor((beatGrid.get().getBeatWithinBar(inBeat) == 1)? Color.RED : Color.WHITE);
-                    g.drawLine(x, axis - maxHeight - 2 - BEAT_MARKER_HEIGHT, x, axis - maxHeight - 2);
-                    g.drawLine(x, axis + maxHeight + 2, x, axis + maxHeight + BEAT_MARKER_HEIGHT + 2);
+                if ((inBeat > 0) && (inBeat != lastBeat)) {  // Start of a new beat, so prepare to draw it
+                    final int beatWithinBar = beatGrid.get().getBeatWithinBar(inBeat);
+                    if (scale.get() <= MAX_BEAT_SCALE || beatWithinBar == 1) {
+                        // Once scale gets large enough, we only draw the down beats, like CDJs.
+                        g.setColor((beatWithinBar == 1) ? Color.RED : Color.WHITE);
+                        g.drawLine(x, axis - maxHeight - 2 - BEAT_MARKER_HEIGHT, x, axis - maxHeight - 2);
+                        g.drawLine(x, axis + maxHeight + 2, x, axis + maxHeight + BEAT_MARKER_HEIGHT + 2);
+                    }
                     lastBeat = inBeat;
                 }
             }
