@@ -159,6 +159,37 @@ public class TimeFinder extends LifecycleParticipant {
     }
 
     /**
+     * Get the latest information we have for the specified player. This incorporates both status updates and
+     * beat packets we have received from the player, and so is the most definitive source of time and tempo
+     * information from the player.
+     *
+     * @param player the player number whose position information is desired
+     *
+     * @return the consolidated track position information we have for the specified player, or {@code null}
+     *
+     * @throws IllegalStateException if the TimeFinder is not running
+     */
+    public TrackPositionUpdate getLatestUpdateFor(int player) {
+        ensureRunning();
+        return positions.get(player);
+    }
+
+    /**
+     * Get the latest information we have for the player that sent the supplied status update.
+     * The result incorporates both status updates and beat packets we have received from the player,
+     * and so is the most definitive source of time and tempo information from the player.
+     *
+     * @param update the device update from a player whose position information is desired
+     *
+     * @return the consolidated track position information we have for the specified player, or {@code null}
+     *
+     * @throws IllegalStateException if the TimeFinder is not running
+     */
+    public TrackPositionUpdate getLatestUpdateFor(DeviceUpdate update) {
+        return getLatestUpdateFor(update.getDeviceNumber());
+    }
+
+    /**
      * Figure out, based on how much time has elapsed since we received an update, and the playback position,
      * speed, and direction at the time of that update, where the player will be now.
      *
