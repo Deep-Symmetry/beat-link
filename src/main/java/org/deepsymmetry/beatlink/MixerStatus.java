@@ -17,6 +17,11 @@ public class MixerStatus extends DeviceUpdate {
     public static final int STATUS_FLAGS = 39;
 
     /**
+     * The device playback pitch found in the packet.
+     */
+    private final int pitch;
+
+    /**
      * The BPM found in the packet.
      */
     private final int bpm;
@@ -26,8 +31,10 @@ public class MixerStatus extends DeviceUpdate {
      *
      * @param packet the beat announcement packet that was received
      */
+    @SuppressWarnings("WeakerAccess")
     public MixerStatus(DatagramPacket packet) {
         super(packet, "Mixer update", 56);
+        pitch = (int)Util.bytesToNumber(packetBytes, 40, 4);
         bpm = (int)Util.bytesToNumber(packetBytes, 46, 2);
     }
 
@@ -63,6 +70,11 @@ public class MixerStatus extends DeviceUpdate {
         return false;
     }
 
+    @Override
+    public int getPitch() {
+        return pitch;
+    }
+
     /**
      * Is this mixer reporting itself to be the current tempo master?
      *
@@ -75,7 +87,7 @@ public class MixerStatus extends DeviceUpdate {
 
     @Override
     public double getEffectiveTempo() {
-        return bpm / 100.0;
+        return bpm * Util.pitchToMultiplier(pitch) / 100.0;
     }
 
     @Override

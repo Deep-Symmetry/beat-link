@@ -104,6 +104,17 @@ public abstract class DeviceUpdate {
     }
 
     /**
+     * Get the device pitch at the time of the update. This is an integer ranging from 0 to 2097152, which corresponds
+     * to a range between completely stopping playback to playing at twice normal tempo. The equivalent percentage
+     * value can be obtained by passing the pitch to {@link Util#pitchToPercentage(long)}, and the corresponding
+     * fractional scaling value by passing it to {@link Util#pitchToMultiplier(long)}.
+     *
+     * @return the raw effective device pitch at the time of the update
+     */
+    public abstract int getPitch();
+
+
+    /**
      * Is this device reporting itself to be the current tempo master?
      *
      * @return {@code true} if the device that sent this update is the master

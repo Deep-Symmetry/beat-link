@@ -250,13 +250,13 @@ public class TimeFinder extends LifecycleParticipant {
                             newPosition = new TrackPositionUpdate(update.getTimestamp(),
                                     beatGrid.getTimeWithinTrack(beatNumber), beatNumber, false,
                                     ((CdjStatus) update).isPlaying(),
-                                    Util.pitchToMultiplier(((CdjStatus) update).getPitch()),
+                                    Util.pitchToMultiplier(update.getPitch()),
                                     ((CdjStatus) update).isPlayingBackwards(), beatGrid);
                         } else {
                             newPosition = new TrackPositionUpdate(update.getTimestamp(),
                                     interpolateTimeFromUpdate(lastPosition, (CdjStatus) update, beatGrid),
                                     beatNumber, false, ((CdjStatus) update).isPlaying(),
-                                    Util.pitchToMultiplier(((CdjStatus) update).getPitch()),
+                                    Util.pitchToMultiplier(update.getPitch()),
                                     ((CdjStatus) update).isPlayingBackwards(), beatGrid);
                         }
                         if (lastPosition == null) {

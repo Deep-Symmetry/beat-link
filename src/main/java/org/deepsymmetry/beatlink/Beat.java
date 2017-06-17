@@ -41,6 +41,7 @@ public class Beat extends DeviceUpdate {
      *
      * @return the raw device pitch
      */
+    @Override
     public int getPitch() {
         return pitch;
     }

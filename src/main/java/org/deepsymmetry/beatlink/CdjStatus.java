@@ -553,6 +553,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the raw effective device pitch at the time of the update
      */
+    @Override
     public int getPitch() {
         return pitch;
     }
