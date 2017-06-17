@@ -608,9 +608,10 @@ public class VirtualCdj extends LifecycleParticipant {
      * Look up the most recent status we have seen for a device, given another update from it, which might be a
      * beat packet containing far less information.
      *
-     * <em>Note:</em> If you are trying to determine the current tempo or beat being played by the device, you should
-     * use {@link org.deepsymmetry.beatlink.data.TimeFinder#getLatestUpdateFor(DeviceUpdate)} instead, because that
-     * combines both status updates and beat messages, and so is more likely to be current and definitive.
+     * <p><em>Note:</em> If you are trying to determine the current tempo or beat being played by the device, you should
+     * either use the status you just received, or
+     * {@link org.deepsymmetry.beatlink.data.TimeFinder#getLatestUpdateFor(int)} instead, because that
+     * combines both status updates and beat messages, and so is more likely to be current and definitive.</p>
      *
      * @param device the update identifying the device for which current status information is desired
      *
@@ -626,9 +627,9 @@ public class VirtualCdj extends LifecycleParticipant {
      * Look up the most recent status we have seen for a device, given its device announcement packet as returned
      * by {@link DeviceFinder#getCurrentDevices()}.
      *
-     * <em>Note:</em> If you are trying to determine the current tempo or beat being played by the device, you should
+     * <p><em>Note:</em> If you are trying to determine the current tempo or beat being played by the device, you should
      * use {@link org.deepsymmetry.beatlink.data.TimeFinder#getLatestUpdateFor(int)} instead, because that
-     * combines both status updates and beat messages, and so is more likely to be current and definitive.
+     * combines both status updates and beat messages, and so is more likely to be current and definitive.</p>
      *
      * @param device the announcement identifying the device for which current status information is desired
      *
@@ -644,9 +645,9 @@ public class VirtualCdj extends LifecycleParticipant {
      * Look up the most recent status we have seen for a device from a device identifying itself
      * with the specified device number, if any.
      *
-     * <em>Note:</em> If you are trying to determine the current tempo or beat being played by the device, you should
+     * <p><em>Note:</em> If you are trying to determine the current tempo or beat being played by the device, you should
      * use {@link org.deepsymmetry.beatlink.data.TimeFinder#getLatestUpdateFor(int)} instead, because that
-     * combines both status updates and beat messages, and so is more likely to be current and definitive.
+     * combines both status updates and beat messages, and so is more likely to be current and definitive.</p>
      *
      * @param deviceNumber the device number of interest
      *

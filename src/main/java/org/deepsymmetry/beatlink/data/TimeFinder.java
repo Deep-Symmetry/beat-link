@@ -24,94 +24,15 @@ public class TimeFinder extends LifecycleParticipant {
     private static final Logger logger = LoggerFactory.getLogger(TimeFinder.class);
 
     /**
-     * Keeps track of the most recent information we have received from a player from which we have been able to compute
-     * a track position.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static class TrackPositionUpdate {
-
-        /**
-         * When this update was received.
-         */
-        public final long timestamp;
-
-        /**
-         * How far into the track has the player reached.
-         */
-        public final long milliseconds;
-
-        /**
-         * The beat number that was reported (or incremented) by this update
-         * The beat number that was reported (or incremented) by this update
-         */
-        public final int beatNumber;
-
-        /**
-         * If {@code true}, this was created in response to a beat packet, so we know exactly where the player was at that
-         * point. Otherwise, we infer position based on how long has elapsed since the previous beat packet, and the
-         * intervening playback pitch and direction.
-         */
-        public final boolean definitive;
-
-        /**
-         * If {@code true}, the player reported that it was playing when the update was received.
-         */
-        public final boolean playing;
-
-        /**
-         * The playback pitch when this update was created.
-         */
-        public final double pitch;
-
-        /**
-         * If {@code true}, the player was playing backwards when this update was created.
-         */
-        public final boolean reverse;
-
-        /**
-         * The track metadata against which this update was calculated, so that if it has changed, we know to discard
-         * the update.
-         */
-        public final BeatGrid beatGrid;
-
-        /**
-         * Constructor simply sets the fields of this immutable value class.
-         *
-         * @param timestamp when this update was received
-         * @param milliseconds how far into the track has the player reached
-         * @param beatNumber the beat number that was reported (or incremented) by this update
-         * @param definitive indicates if this was based on a direct report of track position from the player (i.e. a beat)
-         * @param playing indicates whether the player was actively playing a track when this update was received
-         * @param pitch the playback pitch (where 1.0 is normal speed) when this update was received
-         * @param reverse indicates if the player was playing backwards when this update was received
-         * @param beatGrid the track beat grid that was used to calculate the update
-         */
-        public TrackPositionUpdate(long timestamp, long milliseconds, int beatNumber, boolean definitive,
-                                   boolean playing, double pitch, boolean reverse, BeatGrid beatGrid) {
-            this.timestamp = timestamp;
-            this.milliseconds = milliseconds;
-            this.beatNumber = beatNumber;
-            this.definitive = definitive;
-            this.playing = playing;
-            this.pitch = pitch;
-            this.reverse = reverse;
-            this.beatGrid = beatGrid;
-        }
-
-        @Override
-        public String toString() {
-            return "TrackPositionUpdate[timestamp:" + timestamp + ", milliseconds:" + milliseconds +
-                    ", beatNumber:" + beatNumber + ", definitive:" + definitive + ", playing:" + playing +
-                    ", pitch:" + String.format("%.2f", pitch) + ", reverse:" + reverse +
-                    ", beatGrid:" + beatGrid + "]";
-        }
-    }
-
-    /**
      * Keeps track of the latest position information we have from each player, indexed by player number.
      */
     private final ConcurrentHashMap<Integer, TrackPositionUpdate> positions =
             new ConcurrentHashMap<Integer, TrackPositionUpdate>();
+
+    /**
+     * Keeps track of the latest device update reported by each player, indexed by player number.
+     */
+    private final ConcurrentHashMap<Integer, DeviceUpdate> updates = new ConcurrentHashMap<Integer, DeviceUpdate>();
 
     /**
      * Our announcement listener watches for devices to disappear from the network so we can discard all information
@@ -127,6 +48,7 @@ public class TimeFinder extends LifecycleParticipant {
         public void deviceLost(DeviceAnnouncement announcement) {
             logger.info("Clearing position information in response to the loss of a device, {}", announcement);
             positions.remove(announcement.getNumber());
+            updates.remove(announcement.getNumber());
         }
     };
 
@@ -148,14 +70,24 @@ public class TimeFinder extends LifecycleParticipant {
     /**
      * Get the latest track position reports available for all visible players.
      *
-     * @return the details associated with all current players, including for any tracks loaded in their hot cue slots
+     * @return the the track position information we have been able to calculate for all current players
      *
      * @throws IllegalStateException if the TimeFinder is not running
      */
     @SuppressWarnings("WeakerAccess")
-    public Map<Integer, TrackPositionUpdate> getLatestUpdates() {
+    public Map<Integer, TrackPositionUpdate> getLatestPositions() {
         ensureRunning();
         return Collections.unmodifiableMap(new HashMap<Integer, TrackPositionUpdate>(positions));
+    }
+
+    /**
+     * Get the latest device updates (either beats or status updates) available for all visible players.
+     *
+     * @return the latest beat or status update, whichever was more recent, for each current player
+     */
+    public Map<Integer, DeviceUpdate> getLatestUpdates() {
+        ensureRunning();
+        return Collections.unmodifiableMap(new HashMap<Integer, DeviceUpdate>(updates));
     }
 
     /**
@@ -165,11 +97,13 @@ public class TimeFinder extends LifecycleParticipant {
      *
      * @param player the player number whose position information is desired
      *
-     * @return the consolidated track position information we have for the specified player, or {@code null}
+     * @return the consolidated track position information we have for the specified player, or {@code null} if we
+     *         do not have enough information to calculate it
      *
      * @throws IllegalStateException if the TimeFinder is not running
      */
-    public TrackPositionUpdate getLatestUpdateFor(int player) {
+    @SuppressWarnings("WeakerAccess")
+    public TrackPositionUpdate getLatestPositionFor(int player) {
         ensureRunning();
         return positions.get(player);
     }
@@ -181,12 +115,28 @@ public class TimeFinder extends LifecycleParticipant {
      *
      * @param update the device update from a player whose position information is desired
      *
-     * @return the consolidated track position information we have for the specified player, or {@code null}
+     * @return the consolidated track position information we have for the specified player, or {@code null} if we
+     *         do not have enough information to calculate it
      *
      * @throws IllegalStateException if the TimeFinder is not running
      */
-    public TrackPositionUpdate getLatestUpdateFor(DeviceUpdate update) {
-        return getLatestUpdateFor(update.getDeviceNumber());
+    public TrackPositionUpdate getLatestPositionFor(DeviceUpdate update) {
+        return getLatestPositionFor(update.getDeviceNumber());
+    }
+
+    /**
+     * Get the beat or status update reported by the specified player, whichever is most recent. This is available
+     * even when we do not have a beat grid available in order to calculate detailed track position information.
+     *
+     * @param player the player number whose most recent status is desired
+     *
+     * @return the latest beat or status reported by the specified player, or {@code null} if we have not heard any
+     *
+     * @throws IllegalStateException if the TimeFinder is not running
+     */
+    public DeviceUpdate getLatestUpdateFor(int player) {
+        ensureRunning();
+        return updates.get(player);
     }
 
     /**
@@ -286,6 +236,7 @@ public class TimeFinder extends LifecycleParticipant {
         @Override
         public void received(DeviceUpdate update) {
             if (update instanceof CdjStatus) {
+                updates.put(update.getDeviceNumber(), update);
                 final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(update);
                 final int beatNumber = ((CdjStatus) update).getBeatNumber();
                 // logger.debug("Update: beat " + update.getBeatWithinBar() + " -- " + beatNumber);
@@ -328,6 +279,7 @@ public class TimeFinder extends LifecycleParticipant {
         @Override
         public void newBeat(Beat beat) {
             if (beat.getDeviceNumber() < 16) {  // We only care about CDJs.
+                updates.put(beat.getDeviceNumber(), beat);
                 // logger.info("Beat: " + beat.getBeatWithinBar());
                 final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(beat);
                 if (beatGrid != null) {
@@ -405,6 +357,7 @@ public class TimeFinder extends LifecycleParticipant {
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
             running = false;
             positions.clear();
+            updates.clear();
             deliverLifecycleAnnouncement(logger, false);
         }
     }
@@ -433,6 +386,7 @@ public class TimeFinder extends LifecycleParticipant {
     public String toString() {
         StringBuilder sb = new StringBuilder("TimeFinder[running:").append(isRunning());
         if (isRunning()) {
+            sb.append(", latestPositions:").append(getLatestPositions());
             sb.append(", latestUpdates:").append(getLatestUpdates());
         }
         return sb.append("]").toString();
