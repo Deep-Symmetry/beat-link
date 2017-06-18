@@ -5,6 +5,7 @@ import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.*;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.*;
@@ -664,17 +665,22 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param player the player whose waveform detail has changed
      * @param detail the new waveform detail, if any
      */
-    private void deliverWaveformDetailUpdate(int player, WaveformDetail detail) {
+    private void deliverWaveformDetailUpdate(final int player, final WaveformDetail detail) {
         if (!getWaveformListeners().isEmpty()) {
-            final WaveformDetailUpdate update = new WaveformDetailUpdate(player, detail);
-            for (final WaveformListener listener : getWaveformListeners()) {
-                try {
-                    listener.detailChanged(update);
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    final WaveformDetailUpdate update = new WaveformDetailUpdate(player, detail);
+                    for (final WaveformListener listener : getWaveformListeners()) {
+                        try {
+                            listener.detailChanged(update);
 
-                } catch (Exception e) {
-                    logger.warn("Problem delivering waveform detail update to listener", e);
+                        } catch (Exception e) {
+                            logger.warn("Problem delivering waveform detail update to listener", e);
+                        }
+                    }
                 }
-            }
+            });
         }
     }
 
