@@ -165,8 +165,6 @@ public class WaveformDetailComponent extends JComponent {
      */
     private final AtomicBoolean animating = new AtomicBoolean(false);
 
-    // TODO: Change color of playback position marker when play state changes, like WaveformPreviewComponent.
-
     // TODO: Draw cues and memory positions.
 
     /**
@@ -182,6 +180,7 @@ public class WaveformDetailComponent extends JComponent {
         }
         monitoredPlayer.set(player);
         if (player > 0) {  // Start monitoring the specified player
+            VirtualCdj.getInstance().addUpdateListener(updateListener);
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             if (MetadataFinder.getInstance().isRunning()) {
                 metadata.set(MetadataFinder.getInstance().getLatestMetadataFor(player));
@@ -231,6 +230,7 @@ public class WaveformDetailComponent extends JComponent {
             }
         } else {  // Stop monitoring any player
             animating.set(false);
+            VirtualCdj.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
             metadata.set(null);
@@ -281,6 +281,20 @@ public class WaveformDetailComponent extends JComponent {
             if (update.player == monitoredPlayer.get()) {
                 beatGrid.set(update.beatGrid);
                 repaint();
+            }
+        }
+    };
+
+    /**
+     * Reacts to player status updates to reflect the current playback state.
+     */
+    private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
+        @Override
+        public void received(DeviceUpdate update) {
+            if ((update instanceof CdjStatus) && (update.getDeviceNumber() == monitoredPlayer.get()) &&
+                    (metadata.get() != null) && (beatGrid.get() != null)) {
+                CdjStatus status = (CdjStatus) update;
+                setPlaying(status.isPlaying());
             }
         }
     };

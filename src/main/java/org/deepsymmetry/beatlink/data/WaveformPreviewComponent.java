@@ -319,7 +319,7 @@ public class WaveformPreviewComponent extends JComponent {
     };
 
     /**
-     * Reacts to player status updates to reflect the current playback position and state.
+     * Reacts to player status updates to reflect the current playback state.
      */
     private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
         @Override
