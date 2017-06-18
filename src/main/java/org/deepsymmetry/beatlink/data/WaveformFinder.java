@@ -56,10 +56,17 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param findDetails if {@code true}, both types of waveform will be retrieved, if {@code false} only previews
      *                    will be retrieved
      */
-    public final void setFindDetails(boolean findDetails) {
+    public final synchronized void setFindDetails(boolean findDetails) {
         this.findDetails = findDetails;
         if (findDetails) {
             primeCache();  // Get details for any tracks that were already loaded on players.
+        } else {
+            Iterator<Map.Entry<DeckReference, WaveformDetail>> detailIterator = detailHotCache.entrySet().iterator();
+            while (detailIterator.hasNext()) {
+                Map.Entry<DeckReference, WaveformDetail> entry = detailIterator.next();
+                deliverWaveformDetailUpdate(entry.getKey().player, null);
+                detailIterator.remove();
+            }
         }
     }
 
@@ -645,17 +652,22 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param player the player whose waveform preview has changed
      * @param preview the new waveform preview, if any
      */
-    private void deliverWaveformPreviewUpdate(int player, WaveformPreview preview) {
+    private void deliverWaveformPreviewUpdate(final int player, final WaveformPreview preview) {
         if (!getWaveformListeners().isEmpty()) {
-            final WaveformPreviewUpdate update = new WaveformPreviewUpdate(player, preview);
-            for (final WaveformListener listener : getWaveformListeners()) {
-                try {
-                    listener.previewChanged(update);
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    final WaveformPreviewUpdate update = new WaveformPreviewUpdate(player, preview);
+                    for (final WaveformListener listener : getWaveformListeners()) {
+                        try {
+                            listener.previewChanged(update);
 
-                } catch (Exception e) {
-                    logger.warn("Problem delivering waveform preview update to listener", e);
+                        } catch (Exception e) {
+                            logger.warn("Problem delivering waveform preview update to listener", e);
+                        }
+                    }
                 }
-            }
+            });
         }
     }
 

@@ -264,6 +264,7 @@ public class WaveformDetailComponent extends JComponent {
 
         @Override
         public void detailChanged(WaveformDetailUpdate update) {
+            logger.debug("Got waveform detail update: {}", update);
             if (update.player == monitoredPlayer.get()) {
                 waveform.set(update.detail);
                 repaint();
