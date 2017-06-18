@@ -300,26 +300,36 @@ public class Message {
          */
         DATE_ADDED (0x002e),
         /**
-         * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by album.
+         * Reports the title and album of a track, returned when listing playlists or all tracks sorted by album,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
         TRACK_LIST_ENTRY_BY_ALBUM (0x0204),
         /**
-         * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by genre.
+         * Reports the title and genre of a track, returned when listing playlists or all tracks sorted by genre,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
         TRACK_LIST_ENTRY_BY_GENRE (0x0604),
         /**
-         * Reports the title and artist of a track, returned when listing playlists or all tracks in their default
-         * sort order.
+         * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by artist,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY (0x0704),
+        TRACK_LIST_ENTRY_BY_ARTIST(0x0704),
         /**
-         * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by BPM.
+         * Reports the title and BPM of a track, returned when listing playlists or all tracks sorted by BPM,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
         TRACK_LIST_ENTRY_BY_BPM (0x0d04),
         /**
-         * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by comment.
+         * Reports the title and comment of a track, returned when listing playlists or all tracks sorted by comment,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
         TRACK_LIST_ENTRY_BY_COMMENT (0x2304),
+        /**
+         * Reports the title and play count of a track, returned when listing playlists or all tracks sorted by how many
+         * times the DJ has played the track, or in their default sort order when the DJ has set this as the default
+         * second column for track lists.
+         */
+        TRACK_LIST_ENTRY_BY_DJ_PLAY_COUNT (0x2a04),
         /**
          * Reports the title and artist of a track, returned when listing playlists sorted by track title.
          */
@@ -328,6 +338,10 @@ public class Message {
          * We received a value that we don't recognize, so we don't know what it contains.
          */
         UNKNOWN (-1);
+        // TODO: To get more of these values, can set the SD card to use a different default second column in rekordbox:
+        //       In the device settings, Column, "Select item which is shown next to track name on CDJ", and then trying
+        //       to cache metadata for All Tracks. You will see a warning in the log about the unrecognized type, and
+        //       the entire message containing the unrecognized value.
 
         /**
          * The value which identifies this type of menu item by appearing in the seventh argument of a

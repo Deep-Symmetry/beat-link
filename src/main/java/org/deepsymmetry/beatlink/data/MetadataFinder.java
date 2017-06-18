@@ -414,8 +414,8 @@ public class MetadataFinder extends LifecycleParticipant {
             int tracksCopied = 0;
 
             for (Message entry : trackListEntries) {
-                if (entry.getMenuItemType() != Message.MenuItemType.TRACK_LIST_ENTRY) {
-                    throw new IOException("Received unexpected item type. Needed TRACK_LIST_ENTRY, got: " + entry);
+                if (entry.getMenuItemType() == Message.MenuItemType.UNKNOWN) {
+                    logger.warn("Encountered unrecognized track list entry item type: {}", entry);
                 }
                 int rekordboxId = (int)((NumberField)entry.arguments.get(1)).getValue();
                 TrackMetadata track = queryMetadata(new DataReference(slot, rekordboxId), client);
