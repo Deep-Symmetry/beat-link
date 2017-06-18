@@ -224,7 +224,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the ArtFinder is not running
      */
-    public AlbumArt getLatestArtworkFor(DeviceUpdate update) {
+    public AlbumArt getLatestArtFor(DeviceUpdate update) {
         return getLatestArtFor(update.getDeviceNumber());
     }
 
