@@ -57,6 +57,9 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     public final void setFindDetails(boolean findDetails) {
         this.findDetails = findDetails;
+        if (findDetails) {
+            primeCache();  // Get details for any tracks that were already loaded on players.
+        }
     }
 
     /**
@@ -773,6 +776,18 @@ public class WaveformFinder extends LifecycleParticipant {
     };
 
     /**
+     * Send ourselves "updates" about any tracks that were loaded before we started, or before we were requesting
+     * details, since we missed them.
+     */
+    private void primeCache() {
+        for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+            if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+            }
+        }
+    }
+
+    /**
      * <p>Start finding waveforms for all active players. Starts the {@link MetadataFinder} if it is not already
      * running, because we need it to send us metadata updates to notice when new tracks are loaded. This in turn
      * starts the {@link DeviceFinder}, so we can keep track of the comings and goings of players themselves.
@@ -804,13 +819,7 @@ public class WaveformFinder extends LifecycleParticipant {
             running = true;
             queueHandler.start();
             deliverLifecycleAnnouncement(logger, true);
-
-            // Send ourselves "updates" about any tracks that were loaded before we started, since we missed those.
-            for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-                if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
-                    handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
-                }
-            }
+            primeCache();
         }
     }
 
