@@ -107,12 +107,23 @@ public abstract class DeviceUpdate {
      * Get the device pitch at the time of the update. This is an integer ranging from 0 to 2097152, which corresponds
      * to a range between completely stopping playback to playing at twice normal tempo. The equivalent percentage
      * value can be obtained by passing the pitch to {@link Util#pitchToPercentage(long)}, and the corresponding
-     * fractional scaling value by passing it to {@link Util#pitchToMultiplier(long)}.
+     * fractional scaling value by passing it to {@link Util#pitchToMultiplier(long)}. Mixers always report a pitch
+     * of +0%, so tempo changes are purely reflected in the BPM value.
      *
      * @return the raw effective device pitch at the time of the update
      */
     public abstract int getPitch();
 
+    /**
+     * Get the playback BPM at the time of the update. This is an integer representing the BPM times 100, so a track
+     * running at 120.5 BPM would be represented by the value 12050. Mixers always report a pitch of +0%, so tempo
+     * changes are purely reflected in the BPM value.
+     *
+     * <p>When the CDJ has just started up and no track has been loaded, it will report a BPM of 65535.</p>
+     *
+     * @return the track BPM to two decimal places multiplied by 100
+     */
+    public abstract int getBpm();
 
     /**
      * Is this device reporting itself to be the current tempo master?
