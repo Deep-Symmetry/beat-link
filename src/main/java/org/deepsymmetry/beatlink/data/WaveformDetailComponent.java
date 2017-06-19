@@ -61,10 +61,10 @@ public class WaveformDetailComponent extends JComponent {
             new Color(0, 0, 175),
             new Color(0, 52, 208),
             new Color(0, 119, 233),
-            new Color(46, 215, 255),
-            new Color(76, 225, 255),
-            new Color(164, 231, 255),
-            new Color(185, 232, 255),
+            new Color(46, 205, 255),
+            new Color(76, 210, 255),
+            new Color(124, 218, 255),
+            new Color(185, 222, 255),
             new Color(205, 233, 255)
     };
 
