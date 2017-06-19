@@ -741,7 +741,7 @@ public class WaveformFinder extends LifecycleParticipant {
             }
             // Secondly, the detail.
             final WaveformDetail lastDetail = detailHotCache.get(DeckReference.getDeckReference(update.player, 0));
-            if (isFindingDetails() && lastDetail == null || !lastDetail.dataReference.equals(update.metadata.trackReference)) {  // We have something new!
+            if (isFindingDetails() && (lastDetail == null || !lastDetail.dataReference.equals(update.metadata.trackReference))) {  // We have something new!
 
                 // First see if we can find the new preview in the hot cache
                 for (WaveformDetail cached : detailHotCache.values()) {
