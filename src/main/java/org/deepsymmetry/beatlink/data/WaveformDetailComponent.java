@@ -30,6 +30,11 @@ public class WaveformDetailComponent extends JComponent {
     private static final int BEAT_MARKER_HEIGHT = 4;
 
     /**
+     * How many pixels high are the cue markers.
+     */
+    private static final int CUE_MARKER_HEIGHT = 4;
+
+    /**
      * How many pixels beyond the waveform the playback indicator extends.
      */
     private static final int VERTICAL_MARGIN = 15;
@@ -164,8 +169,6 @@ public class WaveformDetailComponent extends JComponent {
      * Used to signal our animation thread to stop when we are no longer monitoring a player.
      */
     private final AtomicBoolean animating = new AtomicBoolean(false);
-
-    // TODO: Draw cues and memory positions.
 
     /**
      * Configures the player whose current track waveforms and status will automatically be reflected. Whenever a new
@@ -342,6 +345,19 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
+     * Converts a time in milliseconds to the appropriate x coordinate for drawing something at that time.
+     *
+     * @param milliseconds the time at which something should be drawn
+     *
+     * @return the component x coordinate at which it should be drawn
+     */
+    private int millisecondsToX(long milliseconds) {
+        int playHead = (getWidth() / 2) + 2;
+        long offset = milliseconds - playbackPosition.get();
+        return playHead + (Util.timeToHalfFrame(offset) / scale.get());
+    }
+
+    /**
      * Determine the total number of valid segments in a waveform.
      *
      * @param waveBytes the bytes encoding the waveform heights and colors
@@ -404,9 +420,9 @@ public class WaveformDetailComponent extends JComponent {
         if (beatGrid.get() != null) {  // Find what beat was represented by the column just before the first we draw.
             lastBeat = beatGrid.get().findBeatAtTime(Util.halfFrameToTime(getSegmentForX(clipRect.x - 1)));
         }
+        final int axis = getHeight() / 2;
+        final int maxHeight = axis - VERTICAL_MARGIN;
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
-            final int axis = getHeight() / 2;
-            final int maxHeight = axis - VERTICAL_MARGIN;
             final int segment = getSegmentForX(x);
             if (waveBytes != null) { // Drawing the waveform itself
                 if ((segment >= 0) && (segment < totalSegments(waveBytes))) {
@@ -429,6 +445,21 @@ public class WaveformDetailComponent extends JComponent {
                 }
             }
         }
+
+        // Draw the cue points
+        if (metadata.get() != null && metadata.get().getCueList() != null) {
+            for (CueList.Entry entry : metadata.get().getCueList().entries) {
+                final int x = millisecondsToX(entry.cueTime);
+                if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
+                    g.setColor((entry.hotCueNumber > 0)? Color.GREEN : Color.RED);
+                    for (int i = 0; i < 4; i++) {
+                        g.drawLine(x - 3 + i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i,
+                                x + 3 - i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i);
+                    }
+                }
+            }
+        }
+
         g.setColor(playing.get()? PLAYBACK_MARKER_PLAYING : PLAYBACK_MARKER_STOPPED);  // Draw the playback position
         g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
     }
