@@ -259,6 +259,21 @@ or [`getLatestArtFor()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmet
 methods to get the artwork images associated with the tracks, if there
 are any.
 
+### Getting Other Track Information
+
+As of version 0.3.0, much more of the database protocol has been
+understood and implemented, so you can use objects in the
+`org.deepsymmetry.beatlink.data` namespace to get beat grids and
+track waveform data, and even to create Swing UI components to display
+the preview and detailed waveform, reflecting the current playback
+position.
+
+To illustrate the kind of interface that you can now put
+together from the elements offered by Beat Link, here is the Player
+Status window from Beat Link Trigger:
+
+<image src="assets/PlayerStatus.png" alt="Player Status window" width="538">
+
 ## An Example
 
 Here is the source for `Example.java`, a small class that demonstrates
