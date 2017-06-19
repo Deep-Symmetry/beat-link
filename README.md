@@ -19,6 +19,16 @@ for examples of what you can do with this.
 > points, and the current playback position and state. It will also
 > soon offer support for generating time code as a track plays.
 >
+> :ballot_box_with_check: All the features planned for the next
+> release have now been implemented, and are being tested in an
+> impending release of beat-link-trigger. As soon as the testing is
+> finished and the documentation can be updated, version 0.3.0 of both
+> beat-link and beat-link-trigger will be released. In the mean time,
+> you can build from source, or play with
+> the
+> [preview jar](https://github.com/brunchboy/beat-link-trigger/releases/tag/v0.2.1) of
+> beat-link-trigger 0.3.0.
+>
 > :warning: Because beat-link is growing so much in this new release, it
 > was time to split some classes apart, and even split it into multiple
 > packages, so I also took the opportunity to make some basic changes to
