@@ -69,22 +69,25 @@ public class CueList {
         public final boolean isLoop;
 
         /**
-         * Indicates the location of the cue in half-frame units, which are 1/150 of a second.
+         * Indicates the location of the cue in half-frame units, which are 1/150 of a second. If the cue is a loop,
+         * this is the start of the loop.
          */
         public final long cuePosition;
 
         /**
-         * Indicates the location of the cue in milliseconds.
+         * Indicates the location of the cue in milliseconds. If the cue is a loop, this is the start of the loop.
          */
         public final long cueTime;
 
         /**
          * If the entry represents a loop, indicates the loop point in half-frame units, which are 1/150 of a second.
+         * The loop point is the end of the loop, at which point playback jumps back to {@link #cuePosition}.
          */
         public final long loopPosition;
 
         /**
-         * If the entry represents a loop, indicates the loop point in milliseconds.
+         * If the entry represents a loop, indicates the loop point in milliseconds. The loop point is the end of the
+         * loop, at which point playback jumps back to {@link #cueTime}.
          */
         public final long loopTime;
 

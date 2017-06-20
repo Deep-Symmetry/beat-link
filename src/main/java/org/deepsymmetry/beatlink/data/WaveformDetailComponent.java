@@ -55,6 +55,11 @@ public class WaveformDetailComponent extends JComponent {
     private static final Color PLAYBACK_MARKER_STOPPED = new Color(255, 0, 0, 235);
 
     /**
+     * The color drawn behind sections of the waveform which represent loops.
+     */
+    private static final Color LOOP_BACKGROUND = new Color(204, 121, 29);
+
+    /**
      * The different colors the waveform can be based on its intensity.
      */
     private static final Color[] COLOR_MAP = {
@@ -409,19 +414,55 @@ public class WaveformDetailComponent extends JComponent {
      */
     private static final int MAX_BEAT_SCALE = 9;
 
+    /**
+     * Determine the color to use to draw a cue list entry. Hot cues are green, ordinary memory points are red,
+     * and loops are orange.
+     *
+     * @param entry the entry being drawn
+     *
+     * @return the color with which it should be represented.
+     */
+    public static Color cueColor(CueList.Entry entry) {
+        if (entry.hotCueNumber > 0) {
+            return Color.GREEN;
+        }
+        if (entry.isLoop) {
+            return Color.ORANGE;
+        }
+        return Color.RED;
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         Rectangle clipRect = g.getClipBounds();  // We only need to draw the part that is visible or dirty
         g.setColor(Color.BLACK);  // Black out the background
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
+        // See if we have a cue list
+        CueList cueList = null;
+        if (metadata.get() != null) {
+            cueList = metadata.get().getCueList();
+        }
+
+        // Draw the loop regions of any visible loops
+        final int axis = getHeight() / 2;
+        final int maxHeight = axis - VERTICAL_MARGIN;
+        if (cueList != null) {
+            g.setColor(LOOP_BACKGROUND);
+            for (CueList.Entry entry : cueList.entries) {
+                if (entry.isLoop) {
+                    final int start = millisecondsToX(entry.cueTime);
+                    final int end = millisecondsToX(entry.loopTime);
+                    g.fillRect(start, axis - maxHeight, end - start, maxHeight * 2);
+                }
+            }
+        }
+
         final ByteBuffer waveBytes = (waveform.get() == null) ? null : waveform.get().getData();
         int lastBeat = 0;
         if (beatGrid.get() != null) {  // Find what beat was represented by the column just before the first we draw.
             lastBeat = beatGrid.get().findBeatAtTime(Util.halfFrameToTime(getSegmentForX(clipRect.x - 1)));
         }
-        final int axis = getHeight() / 2;
-        final int maxHeight = axis - VERTICAL_MARGIN;
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = getSegmentForX(x);
             if (waveBytes != null) { // Drawing the waveform itself
@@ -446,12 +487,12 @@ public class WaveformDetailComponent extends JComponent {
             }
         }
 
-        // Draw the cue points
-        if (metadata.get() != null && metadata.get().getCueList() != null) {
-            for (CueList.Entry entry : metadata.get().getCueList().entries) {
+        // Draw the cue and memory point markers
+        if (cueList != null) {
+            for (CueList.Entry entry : cueList.entries) {
                 final int x = millisecondsToX(entry.cueTime);
                 if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
-                    g.setColor((entry.hotCueNumber > 0)? Color.GREEN : Color.RED);
+                    g.setColor(cueColor(entry));
                     for (int i = 0; i < 4; i++) {
                         g.drawLine(x - 3 + i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i,
                                 x + 3 - i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i);
