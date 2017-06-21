@@ -145,11 +145,10 @@ public class TrackMetadata {
                     comment = ((StringField)item.arguments.get(3)).getValue();
                     break;
 
-                case MY_TAG_1:
-                case MY_TAG_3:
-                    comment = ((StringField)item.arguments.get(3)).getValue();  // TODO: This may need to be a separate text field!
-                    color = (int)((NumberField)item.arguments.get(1)).getValue();  // And this may need to be a separate color field.
-                    break;
+//                case MY_TAG_1:
+//                    comment = ((StringField)item.arguments.get(3)).getValue();  // TODO: This may need to be a separate text field!
+//                    color = (int)((NumberField)item.arguments.get(1)).getValue();  // And this may need to be a separate color field.
+//                    break;
 
                 case KEY:
                     key = ((StringField)item.arguments.get(3)).getValue();

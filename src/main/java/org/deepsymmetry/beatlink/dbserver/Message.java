@@ -271,7 +271,7 @@ public class Message {
          */
         MY_TAG_3 (0x0016),
         /**
-         * The comment assigned a track by the DJ, marked with an orange dot, part of the track metadata response.
+         * A label assigned a track by the DJ, marked with an orange dot, part of the track metadata response.
          */
         MY_TAG_4 (0x0017),
         /**
