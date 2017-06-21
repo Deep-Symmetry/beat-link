@@ -573,7 +573,6 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     WaveformDetail getWaveformDetail(int rekordboxId, SlotReference slot, Client client)
             throws IOException {
-        // TODO: Check the details and test this!
         Message response = client.simpleRequest(Message.KnownType.WAVE_DETAIL_REQ, null,
                 client.buildRMS1(Message.MenuIdentifier.MAIN_MENU, slot.slot),
                 new NumberField(rekordboxId), new NumberField(0));
