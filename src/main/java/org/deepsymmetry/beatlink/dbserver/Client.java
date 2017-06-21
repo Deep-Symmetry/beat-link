@@ -383,7 +383,7 @@ public class Client {
             final Message request = new Message(transaction,
                     new NumberField(Message.KnownType.RENDER_MENU_REQ.protocolValue, 2),
                     buildRMS1(targetMenu, slot), new NumberField(offset), limit, zeroField, limit, zeroField);
-            // TODO: Based on LinkInfo.tracklist.txt it looks like the last limit should be count instead?
+            // Based on LinkInfo.tracklist.txt it looks like the last limit should be count instead? But this works!
 
             sendMessage(request);
             Message response = Message.read(is);

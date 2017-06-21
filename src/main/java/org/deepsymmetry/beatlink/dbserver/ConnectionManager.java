@@ -11,8 +11,11 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Manges connections to dbserver ports on the players, offering sessions that can be used to perform transactions,
@@ -43,6 +46,45 @@ public class ConnectionManager extends LifecycleParticipant {
      * Keeps track of how many tasks are currently using each client.
      */
     private final Map<Client,Integer> useCounts = new ConcurrentHashMap<Client, Integer>();
+
+    /**
+     * Keeps track of the last time each client was used, so we can time out our connection.
+     */
+    private final Map<Client,Long> timestamps = new ConcurrentHashMap<Client, Long>();
+
+    /**
+     * How many seconds do we allow an idle connection to stay open?
+     */
+    private final AtomicInteger idleLimit = new AtomicInteger(1);
+
+    /**
+     * Determine how long an idle connection will be kept open for reuse. Once this time has elapsed, the connection
+     * will be closed. Setting this to zero will close connections immediately after use, which might be somewhat
+     * inefficient when multiple queries need to happen in a row, since each will require the establishment of a
+     * new connection. The default value is 1.
+     *
+     * @param seconds how many seconds a connection will be kept open while not being used
+     *
+     * @throws IllegalArgumentException if a negative value is supplied
+     */
+    public void setIdleLimit(int seconds) {
+        if (seconds < 0) {
+            throw new IllegalArgumentException("seconds cannot be negative");
+        }
+        idleLimit.set(seconds);
+    }
+
+    /**
+     * Check how long an idle connection will be kept open for reuse. Once this time has elapsed, the connection
+     * will be closed. Setting this to zero will close connections immediately after use, which might be somewhat
+     * inefficient when multiple queries need to happen in a row, since each will require the establishment of a
+     * new connection. The default value is 1.
+     *
+     * @return how many seconds a connection will be kept open while not being used
+     */
+    public int getIdleLimit() {
+        return idleLimit.get();
+    }
 
     /**
      * Finds or opens a client to talk to the dbserver on the specified player, incrementing its use count.
@@ -92,6 +134,19 @@ public class ConnectionManager extends LifecycleParticipant {
     }
 
     /**
+     * When it is time to actually close a client, do so, and clean up the related data structures.
+     *
+     * @param client the client which has been idle for long enough to be closed
+     */
+    private void closeClient(Client client) {
+        logger.debug("Closing client {}", client);
+        client.close();
+        openClients.remove(client.targetPlayer);
+        useCounts.remove(client);
+        timestamps.remove(client);
+    }
+
+    /**
      * Decrements the client's use count, and makes it eligible for closing if it is no longer in use.
      *
      * @param client the dbserver connection client which is no longer being used for a task
@@ -99,12 +154,10 @@ public class ConnectionManager extends LifecycleParticipant {
     private synchronized void freeClient(Client client) {
         int current = useCounts.get(client);
         if (current > 0) {
+            timestamps.put(client, System.currentTimeMillis());  // Mark that it was used until now.
             useCounts.put(client, current - 1);
-            if (current == 1) {
-                // This was the last use, so close it.
-                // TODO: To be fancier, we could keep it around for a while and close it after an idle period.
-                client.close();
-                openClients.remove(client.targetPlayer);
+            if ((current == 1) && (idleLimit.get() == 0)) {
+                closeClient(client);  // This was the last use, and we are supposed to immediately close idle clients.
             }
         } else {
             logger.error("Ignoring attempt to free a client that is not allocated: {}", client);
@@ -377,6 +430,22 @@ public class ConnectionManager extends LifecycleParticipant {
     };
 
     /**
+     * Finds any clients which are not currently in use, and which have been idle for longer than the
+     * idle timeout, and closes them.
+     */
+    private synchronized void closeIdleClients() {
+        List<Client> candidates = new LinkedList<Client>(openClients.values());
+        logger.debug("Scanning for idle clients; " + candidates.size() + " candidates.");
+        for (Client client : candidates) {
+            if ((useCounts.get(client) < 1) &&
+                    ((timestamps.get(client) + idleLimit.get() * 1000) <= System.currentTimeMillis())) {
+                logger.debug("Idle time reached for unused client {}", client);
+                closeClient(client);
+            }
+        }
+    }
+
+    /**
      * Start offering shared dbserver sessions.
      *
      * @throws SocketException if there is a problem opening connections
@@ -389,6 +458,21 @@ public class ConnectionManager extends LifecycleParticipant {
             for (DeviceAnnouncement device: DeviceFinder.getInstance().getCurrentDevices()) {
                 requestPlayerDBServerPort(device);
             }
+
+            new Thread(null, new Runnable() {
+                @Override
+                public void run() {
+                    while (running) {
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            logger.warn("Interrupted sleeping to close idle dbserver clients");
+                        }
+                        closeIdleClients();
+                    }
+                    logger.info("Idle dbserver client closer shutting down.");
+                }
+            }, "Idle dbserver client closer").start();
 
             running = true;
             deliverLifecycleAnnouncement(logger, true);
@@ -441,6 +525,7 @@ public class ConnectionManager extends LifecycleParticipant {
     public String toString() {
         StringBuilder sb = new StringBuilder("ConnectionManager[running:").append(isRunning());
         sb.append(", dbServerPorts:").append(dbServerPorts).append(", openClients:").append(openClients);
-        return sb.append(", useCounts:").append(useCounts).append("]").toString();
+        sb.append(", useCounts:").append(useCounts).append(", timestamps:").append(timestamps);
+        return sb.append(", idleLimit:").append(idleLimit.get()).append("]").toString();
     }
 }
