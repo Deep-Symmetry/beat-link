@@ -102,7 +102,7 @@ public class BeatGrid {
             throw new IllegalStateException("There are no beats in this beat grid.");
         }
         if (beatNumber < 1 || beatNumber > beatCount) {
-            throw new IndexOutOfBoundsException("beatNumber must be between 1 and " + beatCount);
+            throw new IndexOutOfBoundsException("beatNumber (" + beatNumber + ") must be between 1 and " + beatCount);
         }
         return beatNumber - 1;
     }
