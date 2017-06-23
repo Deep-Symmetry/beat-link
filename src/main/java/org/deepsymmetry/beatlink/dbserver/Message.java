@@ -266,7 +266,7 @@ public class Message {
         /**
          * A label assigned a track by the DJ, marked with a pink dot, part of the track metadata response.
          */
-        COLOR_PINK (0x0014),  // TODO: Verify tags 2, 6-8, and see if they set a separate color than the color entry.
+        COLOR_PINK (0x0014),
         /**
          * A label assigned a track by the DJ, marked with a red dot, part of the track metadata response.
          */
@@ -318,37 +318,42 @@ public class Message {
          * Reports the title and album of a track, returned when listing playlists or all tracks sorted by album,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_ALBUM (0x0204),
+        TRACK_TITLE_AND_ALBUM (0x0204),
         /**
          * Reports the title and genre of a track, returned when listing playlists or all tracks sorted by genre,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_GENRE (0x0604),
+        TRACK_TITLE_AND_GENRE (0x0604),
         /**
          * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by artist,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_ARTIST(0x0704),
+        TRACK_TITLE_AND_ARTIST(0x0704),
+        /**
+         * Reports the title and duration of a track, returned when listing playlists or all tracks sorted by time,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
+         */
+        TRACK_TITLE_AND_TIME(0x0b04),
         /**
          * Reports the title and rating of a track, returned when listing playlists or all tracks sorted by rating,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_RATING (0x0a04),
+        TRACK_TITLE_AND_RATING (0x0a04),
         /**
          * Reports the title and BPM of a track, returned when listing playlists or all tracks sorted by BPM,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_BPM (0x0d04),
+        TRACK_TITLE_AND_BPM (0x0d04),
         /**
          * Reports the title and label of a track, returned when listing playlists or all tracks sorted by label,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_LABEL (0x0e04),
+        TRACK_TITLE_AND_LABEL (0x0e04),
         /**
          * Reports the title and bit rate of a track, return when listing playlists or all tracks sorted by bit rate,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_BIT_RATE (0x1004),
+        TRACK_TITLE_AND_RATE (0x1004),
         /**
          * Reports the title and color of a track, return when listing playlists or all tracks sorted by color,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
@@ -358,38 +363,33 @@ public class Message {
          * Reports the title and comment of a track, returned when listing playlists or all tracks sorted by comment,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_COMMENT (0x2304),
+        TRACK_TITLE_AND_COMMENT (0x2304),
         /**
-         * Reports the title and original artist of a track, returned when listing playlists sorted by track title, or
-         * in their default sort order when listing all tracks and the DJ has set the original artist as the second
+         * Reports the title and original artist of a track, returned when listing playlists sorted by original artist,
+         * or in their default sort order when listing all tracks and the DJ has set the original artist as the second
          * column for track lists.
          */
-        PLAYLIST_ENTRY_BY_ORIGINAL_ARTIST (0x02804),
+        TRACK_TITLE_AND_ORIGINAL_ARTIST (0x02804),
         /**
-         * Reports the title and artist of a track, returned when listing playlists sorted by track title, or in their
-         * default sort order when listing all tracks and the DJ has set the artist as the second column for track
-         * lists.
+         * Reports the title and remixer of a track, returned when listing playlists sorted by remixer, or in their
+         * default sort order when listing all tracks and the DJ has set this as the second column for track lists.
          */
-        PLAYLIST_ENTRY_BY_TITLE (0x02904),
+        TRACK_TITLE_AND_REMIXER (0x02904),
         /**
          * Reports the title and play count of a track, returned when listing playlists or all tracks sorted by how many
          * times the DJ has played the track, or in their default sort order when the DJ has set this as the default
          * second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_DJ_PLAY_COUNT (0x2a04),
+        TRACK_TITLE_AND_DJ_PLAY_COUNT (0x2a04),
         /**
          * Reports the title and date added of a track, returned when listing playlists or all tracks sorted by date
          * added, or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_LIST_ENTRY_BY_DATE_ADDED (0x2e04),
+        TRACK_TITLE_AND_DATE_ADDED (0x2e04),
         /**
          * We received a value that we don't recognize, so we don't know what it contains.
          */
         UNKNOWN (-1);
-        // TODO: To get more of these values, can set the SD card to use a different default second column in rekordbox:
-        //       In the device settings, Column, "Select item which is shown next to track name on CDJ", and then trying
-        //       to cache metadata for All Tracks. You will see a warning in the log about the unrecognized type, and
-        //       the entire message containing the unrecognized value.
 
         /**
          * The value which identifies this type of menu item by appearing in the seventh argument of a
