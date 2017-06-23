@@ -27,7 +27,7 @@ public class ColorItem extends SearchableItem {
      * Constructor simply sets the immutable value fields
      *
      * @param id the database ID associated with this item, for searches
-     * @param label, the text label used to show this item to the user
+     * @param label the text label used to show this item to the user
      * @param color the color represented by this item
      * @param colorName the name of the color represented by this item, for textual display
      */
