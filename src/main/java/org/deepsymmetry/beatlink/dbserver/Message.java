@@ -250,6 +250,11 @@ public class Message {
          */
         TEMPO (0x000d),
         /**
+         * A string containing the label that issued a track, part of the track metadata response. Also contains the
+         * label ID for listing by label.
+         */
+        LABEL (0x000e),
+        /**
          * A string containing the musical key of a track, part of the track metadata response. Also contains the
          * key ID for listing by key.
          */
@@ -291,12 +296,22 @@ public class Message {
          */
         COLOR_PURPLE (0x001b),
         /**
-         * A label assigned a track by the DJ, marked with a purple dot, part of the track metadata response.
+         * An arbitrary text string assigned to a track by the DJ. Also contains a comment ID, for listing by comment.
          */
         COMMENT (0x0023),
         /**
+         * The artist who originally recorded a track. Also contains an original artist ID, for listing by original
+         * artist.
+         */
+        ORIGINAL_ARTIST (0x0028),
+        /**
+         * The producer who remixed a track. Also contains a remixer ID, for listing by remixer.
+         */
+        REMIXER (0x0029),
+        /**
          * A string reporting when the track was added to the collection, in the form "YYYY-MM-DD", part of the track
-         * metadata response. This seems to propagate from iTunes.
+         * metadata response. This seems to propagate from iTunes. Also contains a date added ID, for listing by
+         * date added.
          */
         DATE_ADDED (0x002e),
         /**
@@ -315,10 +330,20 @@ public class Message {
          */
         TRACK_LIST_ENTRY_BY_ARTIST(0x0704),
         /**
+         * Reports the title and rating of a track, returned when listing playlists or all tracks sorted by rating,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
+         */
+        TRACK_LIST_ENTRY_BY_RATING (0x0a04),
+        /**
          * Reports the title and BPM of a track, returned when listing playlists or all tracks sorted by BPM,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
         TRACK_LIST_ENTRY_BY_BPM (0x0d04),
+        /**
+         * Reports the title and label of a track, returned when listing playlists or all tracks sorted by label,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
+         */
+        TRACK_LIST_ENTRY_BY_LABEL (0x0e04),
         /**
          * Reports the title and bit rate of a track, return when listing playlists or all tracks sorted by bit rate,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
@@ -335,15 +360,28 @@ public class Message {
          */
         TRACK_LIST_ENTRY_BY_COMMENT (0x2304),
         /**
+         * Reports the title and original artist of a track, returned when listing playlists sorted by track title, or
+         * in their default sort order when listing all tracks and the DJ has set the original artist as the second
+         * column for track lists.
+         */
+        PLAYLIST_ENTRY_BY_ORIGINAL_ARTIST (0x02804),
+        /**
+         * Reports the title and artist of a track, returned when listing playlists sorted by track title, or in their
+         * default sort order when listing all tracks and the DJ has set the artist as the second column for track
+         * lists.
+         */
+        PLAYLIST_ENTRY_BY_TITLE (0x02904),
+        /**
          * Reports the title and play count of a track, returned when listing playlists or all tracks sorted by how many
          * times the DJ has played the track, or in their default sort order when the DJ has set this as the default
          * second column for track lists.
          */
         TRACK_LIST_ENTRY_BY_DJ_PLAY_COUNT (0x2a04),
         /**
-         * Reports the title and artist of a track, returned when listing playlists sorted by track title.
+         * Reports the title and date added of a track, returned when listing playlists or all tracks sorted by date
+         * added, or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        PLAYLIST_ENTRY_BY_TITLE (0x02904),
+        TRACK_LIST_ENTRY_BY_DATE_ADDED (0x2e04),
         /**
          * We received a value that we don't recognize, so we don't know what it contains.
          */

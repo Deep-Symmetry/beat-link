@@ -75,9 +75,24 @@ public class TrackMetadata {
     private SearchableItem key;
 
     /**
+     * The recording label that issued the track.
+     */
+    private SearchableItem label;
+
+    /**
+     * The artist that originally recorded the track.
+     */
+    private SearchableItem originalArtist;
+
+    /**
      * The rating assigned to the track.
      */
     private int rating;
+
+    /**
+     * The producer who remixed the track.
+     */
+    private SearchableItem remixer;
 
     /**
      * The initial tempo of the track, BPM times 100.
@@ -95,7 +110,8 @@ public class TrackMetadata {
     private int artworkId;
 
     /**
-     * The cue list, if any, associated with the track.
+     * The cue list, if any, associated with the track. Will be {@code null} if no hot cues, loops, or memory points are
+     * found in the track.
      */
     private final CueList cueList;
 
@@ -187,8 +203,19 @@ public class TrackMetadata {
                     artist = buildSearchableItem(item);
                     break;
 
+                case ORIGINAL_ARTIST:
+                    originalArtist = buildSearchableItem(item);
+                    break;
+
+                case REMIXER:
+                    remixer = buildSearchableItem(item);
+
                 case ALBUM_TITLE:
                     album = buildSearchableItem(item);
+                    break;
+
+                case LABEL:
+                    label = buildSearchableItem(item);
                     break;
 
                 case DURATION:
@@ -202,11 +229,6 @@ public class TrackMetadata {
                 case COMMENT:
                     comment = buildSearchableItem(item);
                     break;
-
-//                case MY_TAG_1:
-//                    comment = ((StringField)item.arguments.get(3)).getValue();  // TODO: This may need to be a separate text field!
-//                    color = (int)((NumberField)item.arguments.get(1)).getValue();  // And this may need to be a separate color field.
-//                    break;
 
                 case KEY:
                     key = buildSearchableItem(item);
@@ -328,12 +350,39 @@ public class TrackMetadata {
     }
 
     /**
+     * Get the label that released the track.
+     *
+     * @return the track recording label
+     */
+    public SearchableItem getLabel() {
+        return label;
+    }
+
+    /**
+     * Get the track's original artist.
+     *
+     * @return the artist that originally released the track
+     */
+    public SearchableItem getOriginalArtist() {
+        return originalArtist;
+    }
+
+    /**
      * Get the rating assigned the track.
      *
      * @return the track rating
      */
     public int getRating() {
         return rating;
+    }
+
+    /**
+     * Get the producer who remixed the track.
+     *
+     * @return the track remixer
+     */
+    public SearchableItem getRemixer() {
+        return remixer;
     }
 
     /**
@@ -357,7 +406,8 @@ public class TrackMetadata {
     @Override
     public String toString() {
         return "Track Metadata[trackReference: " + trackReference +
-                ", Title: " + title + ", Artist: " + artist + ", Album: " + album + ", Date Added: " + dateAdded +
+                ", Title: " + title + ", Artist: " + artist + ", Album: " + album + ", Remixer: " + remixer +
+                ", Label: " + label + ", Original Artist: " + originalArtist + ", Date Added: " + dateAdded +
                 ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
                 ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre +
                 ", Artwork ID: " + artworkId +"]";
