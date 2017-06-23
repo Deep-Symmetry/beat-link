@@ -6,6 +6,7 @@ import org.deepsymmetry.beatlink.dbserver.StringField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.*;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -36,27 +37,27 @@ public class TrackMetadata {
     /**
      * The album on which the track was released.
      */
-    private String album;
+    private SearchableItem album;
 
     /**
      * The artist that created the track.
      */
-    private String artist;
+    private SearchableItem artist;
 
     /**
      * The color assigned to the track.
      */
-    private int color;
+    private ColorItem color;
 
     /**
      * The comment assigned to the track.
      */
-    private String comment;
+    private SearchableItem comment;
 
     /**
      * The date the track was added to the collection.
      */
-    private String dateAdded;
+    private SearchableItem dateAdded;
 
     /**
      * The length, in seconds, of the track, when played at 100% pitch.
@@ -66,18 +67,12 @@ public class TrackMetadata {
     /**
      * The musical genre of the track.
      */
-    private String genre;
+    private SearchableItem genre;
 
     /**
      * The dominant key of the track.
      */
-    private String key;
-
-    // TODO: Add Label information to my SD card so I can see how this is transmitted and add it. Same with color.
-    /**
-     * The label of the track.
-     */
-    private String label;
+    private SearchableItem key;
 
     /**
      * The rating assigned to the track.
@@ -104,7 +99,70 @@ public class TrackMetadata {
      */
     private final CueList cueList;
 
-    // TODO: Add fields like artist ID, genre ID, key ID, etc.
+    /**
+     * Creates a searchable item that represents a metadata field found for a track.
+     *
+     * @param menuItem the rendered menu item containing the searchable metadata field
+     * @return the searchable metadata field
+     */
+    private SearchableItem buildSearchableItem(Message menuItem) {
+        return new SearchableItem((int) ((NumberField) menuItem.arguments.get(1)).getValue(),
+                ((StringField) menuItem.arguments.get(3)).getValue());
+    }
+
+    /**
+     * Creates a color item that represents a color field found for a track.
+     *
+     * @param menuItem the rendered menu item containing the color metadata field
+     * @return the color metadata field
+     */
+    private ColorItem buildColorItem(Message menuItem) {
+        int colorId = (int) ((NumberField) menuItem.arguments.get(1)).getValue();
+        Color color;
+        String colorName;
+        switch (colorId) {
+            case 0:
+                color = new Color(0, 0, 0, 0);
+                colorName = "No Color";
+                break;
+            case 1:
+                color = Color.PINK;
+                colorName = "Pink";
+                break;
+            case 2:
+                color = Color.RED;
+                colorName = "Red";
+                break;
+            case 3:
+                color = Color.ORANGE;
+                colorName = "Orange";
+                break;
+            case 4:
+                color = Color.YELLOW;
+                colorName = "Yellow";
+                break;
+            case 5:
+                color = Color.GREEN;
+                colorName = "Green";
+                break;
+            case 6:
+                color = Color.CYAN;
+                colorName = "Aqua";
+                break;
+            case 7:
+                color = Color.BLUE;
+                colorName = "Blue";
+                break;
+            case 8:
+                color = new Color(128, 0, 128);
+                colorName = "Purple";
+                break;
+            default:
+                color = new Color(0, 0, 0, 0);
+                colorName = "Unknown Color";
+        }
+        return new ColorItem(colorId, ((StringField) menuItem.arguments.get(3)).getValue(), color, colorName);
+    }
 
     /**
      * Constructor for when reading from the network or from a cache file.
@@ -121,28 +179,28 @@ public class TrackMetadata {
         for (Message item : items) {
             switch (item.getMenuItemType()) {
                 case TRACK_TITLE:
-                    title = ((StringField)item.arguments.get(3)).getValue();
-                    artworkId = (int)((NumberField)item.arguments.get(8)).getValue();
+                    title = ((StringField) item.arguments.get(3)).getValue();
+                    artworkId = (int) ((NumberField) item.arguments.get(8)).getValue();
                     break;
 
                 case ARTIST:
-                    artist = ((StringField)item.arguments.get(3)).getValue();
+                    artist = buildSearchableItem(item);
                     break;
 
                 case ALBUM_TITLE:
-                    album = ((StringField)item.arguments.get(3)).getValue();
+                    album = buildSearchableItem(item);
                     break;
 
                 case DURATION:
-                    duration = (int)((NumberField)item.arguments.get(1)).getValue();
+                    duration = (int) ((NumberField) item.arguments.get(1)).getValue();
                     break;
 
                 case TEMPO:
-                    tempo = (int)((NumberField)item.arguments.get(1)).getValue();
+                    tempo = (int) ((NumberField) item.arguments.get(1)).getValue();
                     break;
 
                 case COMMENT:
-                    comment = ((StringField)item.arguments.get(3)).getValue();
+                    comment = buildSearchableItem(item);
                     break;
 
 //                case MY_TAG_1:
@@ -151,23 +209,31 @@ public class TrackMetadata {
 //                    break;
 
                 case KEY:
-                    key = ((StringField)item.arguments.get(3)).getValue();
+                    key = buildSearchableItem(item);
                     break;
 
                 case RATING:
-                    rating = (int)((NumberField)item.arguments.get(1)).getValue();
+                    rating = (int) ((NumberField)item.arguments.get(1)).getValue();
                     break;
 
-                case COLOR:
-                    color = (int)((NumberField)item.arguments.get(1)).getValue();
+                case COLOR_NONE:
+                case COLOR_AQUA:
+                case COLOR_BLUE:
+                case COLOR_GREEN:
+                case COLOR_ORANGE:
+                case COLOR_PINK:
+                case COLOR_PURPLE:
+                case COLOR_RED:
+                case COLOR_YELLOW:
+                    color = buildColorItem(item);
                     break;
 
                 case GENRE:
-                    genre = ((StringField)item.arguments.get(3)).getValue();
+                    genre = buildSearchableItem(item);
                     break;
 
                 case DATE_ADDED:
-                    dateAdded = ((StringField)item.arguments.get(3)).getValue();
+                    dateAdded = buildSearchableItem(item);
                     break;
 
                 default:
@@ -181,7 +247,7 @@ public class TrackMetadata {
      *
      * @return the track artist
      */
-    public String getArtist() {
+    public SearchableItem getArtist() {
         return artist;
     }
 
@@ -190,6 +256,7 @@ public class TrackMetadata {
      *
      * @return the value that can be used to request the artwork image, if any, associated with the track
      */
+    @SuppressWarnings("WeakerAccess")
     public int getArtworkId() {
         return artworkId;
     }
@@ -199,7 +266,7 @@ public class TrackMetadata {
      *
      * @return the track color
      */
-    public int getColor() {
+    public ColorItem getColor() {
         return color;
     }
 
@@ -208,7 +275,7 @@ public class TrackMetadata {
      *
      * @return the track comment
      */
-    public String getComment() {
+    public SearchableItem getComment() {
         return comment;
     }
 
@@ -218,6 +285,7 @@ public class TrackMetadata {
      *
      * @return the hot cues, loops and memory points stored for the track, if any
      */
+    @SuppressWarnings("WeakerAccess")
     public CueList getCueList() {
         return cueList;
     }
@@ -227,7 +295,7 @@ public class TrackMetadata {
      *
      * @return the date the track was added to the collection, in the form "YYYY-MM-DD"
      */
-    public String getDateAdded() {
+    public SearchableItem getDateAdded() {
         return dateAdded;
     }
 
@@ -236,6 +304,7 @@ public class TrackMetadata {
      *
      * @return the track length in seconds, when played at 100% pitch
      */
+    @SuppressWarnings("WeakerAccess")
     public int getDuration() {
         return duration;
     }
@@ -245,7 +314,7 @@ public class TrackMetadata {
      *
      * @return the track genre
      */
-    public String getGenre() {
+    public SearchableItem getGenre() {
         return genre;
     }
 
@@ -254,17 +323,8 @@ public class TrackMetadata {
      *
      * @return the track key
      */
-    public String getKey() {
+    public SearchableItem getKey() {
         return key;
-    }
-
-    /**
-     * Get the label assigned the track.
-     *
-     * @return the track label
-     */
-    public String getLabel() {
-        return label;
     }
 
     /**
@@ -297,9 +357,9 @@ public class TrackMetadata {
     @Override
     public String toString() {
         return "Track Metadata[trackReference: " + trackReference +
-                ", Title: " + title + ", Artist: " + artist + ", Album: " + album +
+                ", Title: " + title + ", Artist: " + artist + ", Album: " + album + ", Date Added: " + dateAdded +
                 ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
-                ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre + ", Label: " + label +
+                ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre +
                 ", Artwork ID: " + artworkId +"]";
     }
 }
