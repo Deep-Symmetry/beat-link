@@ -46,9 +46,36 @@ public class CueList {
      * Breaks out information about each entry in the cue list.
      */
     public static class Entry {
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            Entry entry = (Entry) o;
+
+            if (hotCueNumber != entry.hotCueNumber) return false;
+            if (isLoop != entry.isLoop) return false;
+            if (cuePosition != entry.cuePosition) return false;
+            if (cueTime != entry.cueTime) return false;
+            if (loopPosition != entry.loopPosition) return false;
+            return loopTime == entry.loopTime;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = hotCueNumber;
+            result = 31 * result + (isLoop ? 1 : 0);
+            result = 31 * result + (int) (cuePosition ^ (cuePosition >>> 32));
+            result = 31 * result + (int) (cueTime ^ (cueTime >>> 32));
+            result = 31 * result + (int) (loopPosition ^ (loopPosition >>> 32));
+            result = 31 * result + (int) (loopTime ^ (loopTime >>> 32));
+            return result;
+        }
+
         /**
          * If this has a non-zero value, this entry is a hot cue with that identifier.
          */
+
         public final int hotCueNumber;
 
         /**

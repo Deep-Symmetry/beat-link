@@ -301,6 +301,53 @@ public class TrackMetadata {
         return comment;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        TrackMetadata metadata = (TrackMetadata) o;
+
+        if (duration != metadata.duration) return false;
+        if (rating != metadata.rating) return false;
+        if (tempo != metadata.tempo) return false;
+        if (artworkId != metadata.artworkId) return false;
+        if (album != null ? !album.equals(metadata.album) : metadata.album != null) return false;
+        if (artist != null ? !artist.equals(metadata.artist) : metadata.artist != null) return false;
+        if (color != null ? !color.equals(metadata.color) : metadata.color != null) return false;
+        if (comment != null ? !comment.equals(metadata.comment) : metadata.comment != null) return false;
+        if (dateAdded != null ? !dateAdded.equals(metadata.dateAdded) : metadata.dateAdded != null) return false;
+        if (genre != null ? !genre.equals(metadata.genre) : metadata.genre != null) return false;
+        if (key != null ? !key.equals(metadata.key) : metadata.key != null) return false;
+        if (label != null ? !label.equals(metadata.label) : metadata.label != null) return false;
+        if (originalArtist != null ? !originalArtist.equals(metadata.originalArtist) : metadata.originalArtist != null)
+            return false;
+        if (remixer != null ? !remixer.equals(metadata.remixer) : metadata.remixer != null) return false;
+        if (title != null ? !title.equals(metadata.title) : metadata.title != null) return false;
+        return cueList != null ? cueList.equals(metadata.cueList) : metadata.cueList == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = album != null ? album.hashCode() : 0;
+        result = 31 * result + (artist != null ? artist.hashCode() : 0);
+        result = 31 * result + (color != null ? color.hashCode() : 0);
+        result = 31 * result + (comment != null ? comment.hashCode() : 0);
+        result = 31 * result + (dateAdded != null ? dateAdded.hashCode() : 0);
+        result = 31 * result + duration;
+        result = 31 * result + (genre != null ? genre.hashCode() : 0);
+        result = 31 * result + (key != null ? key.hashCode() : 0);
+        result = 31 * result + (label != null ? label.hashCode() : 0);
+        result = 31 * result + (originalArtist != null ? originalArtist.hashCode() : 0);
+        result = 31 * result + rating;
+        result = 31 * result + (remixer != null ? remixer.hashCode() : 0);
+        result = 31 * result + tempo;
+        result = 31 * result + (title != null ? title.hashCode() : 0);
+        result = 31 * result + artworkId;
+        result = 31 * result + (cueList != null ? cueList.hashCode() : 0);
+        return result;
+    }
+
     /**
      * Get the cue list associated with the track. Will be {@code null} if no hot cues, loops, or memory points are
      * found in the track.
