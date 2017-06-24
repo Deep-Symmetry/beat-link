@@ -457,6 +457,6 @@ public class TrackMetadata {
                 ", Label: " + label + ", Original Artist: " + originalArtist + ", Date Added: " + dateAdded +
                 ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
                 ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre +
-                ", Artwork ID: " + artworkId +"]";
+                ", Artwork ID: " + artworkId + ", Cue List: " + cueList +"]";
     }
 }

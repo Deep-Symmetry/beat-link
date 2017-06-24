@@ -59,6 +59,7 @@ public class ColorItem extends SearchableItem {
             return false;
         }
         final ColorItem other = (ColorItem) obj;
-        return other.id == id && other.label.equals(label) && other.colorName.equals(colorName) && other.color == color;
+        return other.id == id && other.label.equals(label) && other.colorName.equals(colorName) &&
+                other.color.equals(color);
     }
 }

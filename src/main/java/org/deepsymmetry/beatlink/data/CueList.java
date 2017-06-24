@@ -206,6 +206,21 @@ public class CueList {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        CueList cueList = (CueList) o;
+
+        return entries != null ? entries.equals(cueList.entries) : cueList.entries == null;
+    }
+
+    @Override
+    public int hashCode() {
+        return entries != null ? entries.hashCode() : 0;
+    }
+
+    @Override
     public String toString() {
         return "Cue List[entries: " + entries + "]";
     }
