@@ -11,6 +11,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -186,7 +187,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param cache the appropriate metadata cache file
      * @param track identifies the track whose metadata is desired
      *
-     * @return the cached metadata, including album art (if available), or {@code null}
+     * @return the cached metadata, including cue list (if available), or {@code null}
      */
     private TrackMetadata getCachedMetadata(ZipFile cache, DataReference track) {
         ZipEntry entry = cache.getEntry(getMetadataEntryName(track.rekordboxId));
@@ -848,9 +849,40 @@ public class MetadataFinder extends LifecycleParticipant {
         if (slot.player < 1 || slot.player > 4 || DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player) == null) {
             throw new IllegalArgumentException("unable to attach metadata cache for player " + slot.player);
         }
-        ZipFile oldCache;
 
-        // Open and validate the cache
+        ZipFile newCache = openMetadataCache(cache);
+        attachMetadataCacheInternal(slot, newCache);
+    }
+
+    /**
+     * Finishes the process of attaching a metadata cache file once it has been opened and validated.
+     *
+     * @param slot the slot to which the cache should be attached
+     * @param cache the opened, validated metadata cache file
+     */
+    private void attachMetadataCacheInternal(SlotReference slot, ZipFile cache) {
+        ZipFile oldCache = metadataCacheFiles.put(slot, cache);
+        if (oldCache != null) {
+            try {
+                oldCache.close();
+            } catch (IOException e) {
+                logger.error("Problem closing previous metadata cache", e);
+            }
+        }
+
+        deliverCacheUpdate(slot, cache);
+    }
+
+    /**
+     * Open and validate a metadata cache file.
+     *
+     * @param cache the file the user wants to work with
+     *
+     * @return the opened zip file, if it contains a valid cache
+     *
+     * @throws IOException if there is a problem reading the file, or it does not contain a valid metadata cache
+     */
+    private ZipFile openMetadataCache(File cache) throws IOException {
         ZipFile newCache = new ZipFile(cache, ZipFile.OPEN_READ);
         ZipEntry zipEntry = newCache.getEntry(CACHE_FORMAT_ENTRY);
         InputStream is = newCache.getInputStream(zipEntry);
@@ -866,17 +898,7 @@ public class MetadataFinder extends LifecycleParticipant {
             throw new IOException("File does not contain a Beat Link metadata cache: " + cache +
             " (looking for format identifier \"" + CACHE_FORMAT_IDENTIFIER + "\", found: " + tag);
         }
-
-        oldCache = metadataCacheFiles.put(slot, newCache);
-        if (oldCache != null) {
-            try {
-                oldCache.close();
-            } catch (IOException e) {
-                logger.error("Problem closing previous metadata cache", e);
-            }
-        }
-
-        deliverCacheUpdate(slot, newCache);
+        return newCache;
     }
 
     /**
@@ -885,7 +907,6 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param slot the media slot to which a meta data cache is to be attached
      */
-    @SuppressWarnings("WeakerAccess")
     public void detachMetadataCache(SlotReference slot) {
         ZipFile oldCache = metadataCacheFiles.remove(slot);
         if (oldCache != null) {
@@ -896,6 +917,237 @@ public class MetadataFinder extends LifecycleParticipant {
             }
             deliverCacheUpdate(slot, null);
         }
+    }
+
+    /**
+     * Keep track of the cache files that we are supposed to automatically attach when we find media in a slot that
+     * seems to match them.
+     */
+    private final Set<File> autoAttachCacheFiles = Collections.newSetFromMap(new ConcurrentHashMap<File, Boolean>());
+
+    /**
+     * Add a metadata cache file to the set being automatically attached when matching media is inserted. Will try
+     * to auto-attach the new file to any already-mounted media.
+     *
+     * @param metadataCacheFile the file to be auto-attached when matching media is seen on the network
+     *
+     * @throws IOException if the specified file cannot be read or is not a valid metadata cache
+     */
+    public void addAutoAttachCacheFile(File metadataCacheFile) throws IOException {
+        ZipFile opened = openMetadataCache(metadataCacheFile);  // Make sure it is readable and valid
+        opened.close();
+        if (autoAttachCacheFiles.add(metadataCacheFile)) {
+            for (SlotReference slot : getMountedMediaSlots()) {
+                tryAutoAttaching(slot);
+            }
+        }
+    }
+
+    /**
+     * Remove a metadata cache file from the set being automatically attached when matching media is inserted.
+     * This will not detach it from a slot if it has already been attached; for that you need to use
+     * {@link #detachMetadataCache(SlotReference)}.
+     *
+     * @param metadataCacheFile the file that should no longer be auto-attached when matching media is seen
+     */
+    public void removeAutoAttacheCacheFile(File metadataCacheFile) {
+        autoAttachCacheFiles.remove(metadataCacheFile);
+    }
+
+    /**
+     * The number of tracks that will be examined when considering a metadata cache file for auto-attachment.
+     */
+    private final AtomicInteger autoAttachProbeCount = new AtomicInteger(5);
+
+    /**
+     * Set the number of tracks examined when considering auto-attaching a metadata cache file to a newly-mounted
+     * media database. The more examined, the more confident we can be in the cache matching the media, but the longer
+     * it will take and the more metadata queries will be required. The smallest legal value is 1, since we always
+     * check at least the last track in the list.
+     *
+     * @param numTracks the number of tracks that will be compared between the cache files and the media in the player
+     */
+    public void setAutoAttachProbeCount(int numTracks) {
+        if (numTracks < 1) {
+            throw new IllegalArgumentException("numTracks must be positive, we always check at least the last track");
+        }
+        autoAttachProbeCount.set(numTracks);
+    }
+
+    /**
+     * Get the number of tracks examined when considering auto-attaching a metadata cache file to a newly-mounted
+     * media database. The more examined, the more confident we can be in the cache matching the media, but the longer
+     * it will take and the more metadata queries will be required.
+     *
+     * @return  the number of tracks that will be compared between the cache files and the media in the player
+     */
+    public int getAutoAttachProbeCount() {
+        return autoAttachProbeCount.get();
+    }
+
+    /**
+     * See if there is an auto-attach cache file that seems to match the media in the specified slot, and if so,
+     * attach it.
+     *
+     * @param slot the player slot that is under consideration for automatic cache attachment
+     */
+    private void tryAutoAttaching(final SlotReference slot) {
+        if (!getMountedMediaSlots().contains(slot)) {
+            logger.error("Unable to auto-attach cache to empty slot {}", slot);
+            return;
+        }
+        if (getMetadataCache(slot) != null) {
+            logger.info("Not auto-attaching to slot {}; already has a cache attached.", slot);
+            return;
+        }
+        if (autoAttachCacheFiles.isEmpty()) {
+            logger.debug("No auto-attach files configured.");
+            return;
+        }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ConnectionManager.ClientTask<Object> task = new ConnectionManager.ClientTask<Object>() {
+                    @Override
+                    public Object useClient(Client client) throws Exception {
+                        tryAutoAttachingWithConnection(slot, client);
+                        return null;
+                    }
+                };
+                try {
+                    ConnectionManager.getInstance().invokeWithClientSession(slot.player, task, "trying to auto-attach metadata cache");
+                } catch (Exception e) {
+                    logger.error("Problem trying to auto-attach metadata cache for slot " + slot, e);
+                }
+
+            }
+        }, "Metadata cache file auto-attachment attempt").start();
+    }
+
+    /**
+     * Second stage of the auto-attach process, once we have obtained a connection to the database server for the
+     * media slot we are checking our automatic metadata cache files against. Probes the metadata offered by that
+     * sever to see if it matches any of the available caches, and if so, attaches that cache file.
+     *
+     * @param slot identifies the media slot we are checking for automatic cache matches
+     * @param client the dbserver client that is communicating with the appropriate player
+     *
+     * @throws IOException if there is a communication problem
+     */
+    private void tryAutoAttachingWithConnection(SlotReference slot, Client client) throws IOException {
+        Message response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU,
+                slot.slot, new NumberField(0));
+        final long count = response.getMenuResultsCount();
+        if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
+            logger.warn("Aborting attempt to auto-attach metadata since player reports no tracks in slot {}", slot);
+            return;
+        }
+
+        ArrayList<ZipFile> candidates = new ArrayList<ZipFile>(autoAttachCacheFiles.size());
+        Iterator<File> iterator = autoAttachCacheFiles.iterator();
+        while (iterator.hasNext()) {
+            File file = iterator.next();
+            try {
+                ZipFile candidate = openMetadataCache(file);
+                if (countTracks(candidate) == count) {
+                    candidates.add(candidate);
+                }
+            } catch (Exception e) {
+                logger.error("Unable to open metadata cache file " + file + ", discarding", e);
+                iterator.remove();
+            }
+        }
+
+        // Winnow out any candidates whose last track does not match.
+        discardCandidatesNotMatchingAtOffset(slot, client, (int) count - 1, candidates);
+
+        // Then probe as many other tracks as we are configured to, up to the number available
+        int tracksLeft = (int) count - 1;
+        int samplesNeeded = Math.min(tracksLeft, autoAttachProbeCount.get() - 1);
+        int offset = 0;
+        Random random = new Random();
+        while (samplesNeeded > 0 && !candidates.isEmpty()) {
+            int rand = random.nextInt(tracksLeft);
+            if (rand < samplesNeeded) {
+                --samplesNeeded;
+                discardCandidatesNotMatchingAtOffset(slot, client, offset, candidates);
+            }
+            --tracksLeft;
+            ++offset;
+        }
+
+        if (candidates.isEmpty()) {
+            logger.info("No auto-mount caches matched for slot {}", slot);
+            return;
+        }
+
+        if (candidates.size() > 1) {
+            logger.warn("Found " + candidates.size() + " matching metadata cache files for slot " + slot +
+                    "; using the first.");
+        }
+
+        ZipFile match = candidates.get(0);
+        logger.info("Auto-attaching metadata cache " + match + " to slot " + slot);
+        attachMetadataCacheInternal(slot, match);
+    }
+
+    /**
+     * As part of checking whether a metadata cache can be auto-mounted for a particular media slot, this method
+     * looks up the track at the specified offset within the player's track list, and checks whether it matches
+     * the metadata caches. Files that do not match are removed from consideration.
+     *
+     * @param slot the slot being considered for auto-attaching a metadata cache
+     * @param client the connection to the database server on the player holding that slot
+     * @param offset an index into the list of all tracks present in the slot
+     * @param candidates the metadata cache files which so far have seemed possible matches for auto-attaching
+     *
+     * @throws IOException if there is a problem reading a cache or communicating with the player
+     */
+    private void discardCandidatesNotMatchingAtOffset(SlotReference slot, Client client, int offset,
+                                                      ArrayList<ZipFile> candidates) throws IOException {
+        if (candidates.isEmpty()) {
+            return;  // Nobody left to discard
+        }
+
+        logger.info("Comparing track at offset " + offset + " with " + candidates.size() + " metadata cache file(s).");
+        Message entry = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot.slot, offset, 1).get(0);
+        if (entry.getMenuItemType() == Message.MenuItemType.UNKNOWN) {
+            logger.warn("Encountered unrecognized track list entry item type: {}", entry);
+        }
+        int rekordboxId = (int)((NumberField)entry.arguments.get(1)).getValue();
+        DataReference reference = new DataReference(slot, rekordboxId);
+        TrackMetadata track = queryMetadata(reference, client);
+        if (track == null) {
+            logger.warn("Unable to retrieve metadata when attempting cache auto-attach for slot {}, giving up", slot);
+            candidates.clear();
+            return;
+        }
+
+        for (int i = candidates.size() - 1; i >= 0; --i) {
+            if (track != getCachedMetadata(candidates.get(i), reference)) {
+                candidates.remove(i);
+            }
+        }
+    }
+
+    /**
+     * Counts the number of tracks present in a metadata cache file.
+     *
+     * @param cacheFile the file whose tracks are to be counted
+     *
+     * @return the number of track metadata entries in the cache
+     */
+    private int countTracks(ZipFile cacheFile) {
+        int result = 0;
+        Enumeration<? extends ZipEntry> enumeration = cacheFile.entries();
+        while (enumeration.hasMoreElements()) {
+            ZipEntry entry = enumeration.nextElement();
+            if (entry.getName().startsWith(CACHE_METADATA_ENTRY_PREFIX)) {
+                ++result;
+            }
+        }
+        return result;
     }
 
     /**
@@ -1016,7 +1268,7 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Send a mount update announcement to all registered listeners.
+     * Send a mount update announcement to all registered listeners, and see if we can auto-attach a media cache file.
      *
      * @param slot the slot in which media has been mounted or unmounted
      * @param mounted will be {@code true} if there is now media mounted in the specified slot
@@ -1033,6 +1285,9 @@ public class MetadataFinder extends LifecycleParticipant {
             } catch (Exception e) {
                 logger.warn("Problem delivering mount update to listener", e);
             }
+        }
+        if (mounted) {
+            tryAutoAttaching(slot);
         }
     }
 

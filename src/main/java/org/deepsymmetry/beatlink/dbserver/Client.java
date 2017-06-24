@@ -373,9 +373,37 @@ public class Client {
         if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
             return Collections.emptyList();
         }
-        final ArrayList<Message> results = new ArrayList<Message>((int)count);
+        return renderMenuItems(targetMenu, slot, 0, (int) count);
+    }
+
+    /**
+     * Gather up the specified range of responses for a menu request. Will involve multiple requests if
+     * the number of responses requested is larger than our maximum batch size (see {@link #getMenuBatchSize()}.
+     * It is the caller's responsibility to make sure that {@code offset} and {@code count} remain within the
+     * legal, available menu items based on the initial menu setup request. Most use cases will be best served
+     * by the simpler {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}.
+     *
+     * @param targetMenu the destination for the response to this query
+     * @param slot the media library of interest for this query
+     * @param offset the first response desired (the first one available has offset 0)
+     * @param count the number of responses desired
+     *
+     * @return the response items, using as many queries as necessary to gather them safely, and omitting all
+     *         the header and footer items
+     *
+     * @throws IOException if there is a problem reading the menu items
+     */
+    public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu,
+                                                      CdjStatus.TrackSourceSlot slot, int offset, int count)
+            throws IOException {
+        if (offset < 0) {
+            throw new IllegalArgumentException("offset must be nonnegative");
+        }
+        if (count < 1) {
+            throw new IllegalArgumentException("count must be positive");
+        }
+        final ArrayList<Message> results = new ArrayList<Message>(count);
         final Field zeroField = new NumberField(0);
-        long offset = 0;
         while (offset < count) {
             final long batchSize = (Math.min(count - offset, menuBatchSize));
             final NumberField transaction = assignTransactionNumber();
