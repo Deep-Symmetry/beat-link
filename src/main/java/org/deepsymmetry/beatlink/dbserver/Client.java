@@ -370,7 +370,7 @@ public class Client {
                                                       CdjStatus.TrackSourceSlot slot, Message availableResponse)
             throws IOException {
         final long count = availableResponse.getMenuResultsCount();
-        if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
+        if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
             return Collections.emptyList();
         }
         return renderMenuItems(targetMenu, slot, 0, (int) count);
@@ -404,8 +404,9 @@ public class Client {
         }
         final ArrayList<Message> results = new ArrayList<Message>(count);
         final Field zeroField = new NumberField(0);
-        while (offset < count) {
-            final long batchSize = (Math.min(count - offset, menuBatchSize));
+        int gathered = 0;
+        while (gathered < count) {
+            final long batchSize = (Math.min(count - gathered, menuBatchSize));
             final NumberField transaction = assignTransactionNumber();
             final NumberField limit = new NumberField(batchSize);
             final Message request = new Message(transaction,
@@ -435,6 +436,7 @@ public class Client {
             }
 
             offset += batchSize;
+            gathered += batchSize;
         }
         return Collections.unmodifiableList(results);
     }

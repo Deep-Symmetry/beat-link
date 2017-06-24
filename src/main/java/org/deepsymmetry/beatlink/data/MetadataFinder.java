@@ -1039,7 +1039,7 @@ public class MetadataFinder extends LifecycleParticipant {
         Message response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU,
                 slot.slot, new NumberField(0));
         final long count = response.getMenuResultsCount();
-        if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
+        if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
             logger.warn("Aborting attempt to auto-attach metadata since player reports no tracks in slot {}", slot);
             return;
         }
@@ -1059,27 +1059,49 @@ public class MetadataFinder extends LifecycleParticipant {
             }
         }
 
-        // Winnow out any candidates whose last track does not match.
-        discardCandidatesNotMatchingAtOffset(slot, client, (int) count - 1, candidates);
+        // Bail before querying any metadata if we can already rule out all the candidates.
+        if (candidates.isEmpty()) {
+            logger.info("No auto-mount caches matched for slot {}", slot);
+            return;
+        }
 
-        // Then probe as many other tracks as we are configured to, up to the number available
-        int tracksLeft = (int) count - 1;
+        // Gather as many track IDs as we are configured to sample, up to the number available
+        int tracksLeft = (int) count;
         int samplesNeeded = Math.min(tracksLeft, autoAttachProbeCount.get() - 1);
+        ArrayList<Integer> tracksToSample = new ArrayList<Integer>(samplesNeeded);
         int offset = 0;
         Random random = new Random();
-        while (samplesNeeded > 0 && !candidates.isEmpty()) {
+        while (samplesNeeded > 0) {
             int rand = random.nextInt(tracksLeft);
             if (rand < samplesNeeded) {
                 --samplesNeeded;
-                discardCandidatesNotMatchingAtOffset(slot, client, offset, candidates);
+                tracksToSample.add(findTrackIdAtOffset(slot, client, offset));
             }
             --tracksLeft;
             ++offset;
         }
 
-        if (candidates.isEmpty()) {
-            logger.info("No auto-mount caches matched for slot {}", slot);
-            return;
+        // Winnow out any candidates that don't match each track to be sampled
+        for (int trackId : tracksToSample) {
+            logger.info("Comparing track " + trackId + " with " + candidates.size() + " metadata cache file(s).");
+
+            DataReference reference = new DataReference(slot, trackId);
+            TrackMetadata track = queryMetadata(reference, client);
+            if (track == null) {
+                logger.warn("Unable to retrieve metadata when attempting cache auto-attach for slot {}, giving up", slot);
+                return;
+            }
+
+            for (int i = candidates.size() - 1; i >= 0; --i) {
+                if (!track.equals(getCachedMetadata(candidates.get(i), reference))) {
+                    candidates.remove(i);
+                }
+            }
+
+            if (candidates.isEmpty()) {
+                logger.info("No auto-mount caches matched for slot {}", slot);
+                return;
+            }
         }
 
         if (candidates.size() > 1) {
@@ -1094,41 +1116,20 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * As part of checking whether a metadata cache can be auto-mounted for a particular media slot, this method
-     * looks up the track at the specified offset within the player's track list, and checks whether it matches
-     * the metadata caches. Files that do not match are removed from consideration.
+     * looks up the track at the specified offset within the player's track list, and returns its rekordbox ID.
      *
      * @param slot the slot being considered for auto-attaching a metadata cache
      * @param client the connection to the database server on the player holding that slot
      * @param offset an index into the list of all tracks present in the slot
-     * @param candidates the metadata cache files which so far have seemed possible matches for auto-attaching
      *
-     * @throws IOException if there is a problem reading a cache or communicating with the player
+     * @throws IOException if there is a problem communicating with the player
      */
-    private void discardCandidatesNotMatchingAtOffset(SlotReference slot, Client client, int offset,
-                                                      ArrayList<ZipFile> candidates) throws IOException {
-        if (candidates.isEmpty()) {
-            return;  // Nobody left to discard
-        }
-
-        logger.info("Comparing track at offset " + offset + " with " + candidates.size() + " metadata cache file(s).");
+    private int findTrackIdAtOffset(SlotReference slot, Client client, int offset) throws IOException {
         Message entry = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot.slot, offset, 1).get(0);
         if (entry.getMenuItemType() == Message.MenuItemType.UNKNOWN) {
             logger.warn("Encountered unrecognized track list entry item type: {}", entry);
         }
-        int rekordboxId = (int)((NumberField)entry.arguments.get(1)).getValue();
-        DataReference reference = new DataReference(slot, rekordboxId);
-        TrackMetadata track = queryMetadata(reference, client);
-        if (track == null) {
-            logger.warn("Unable to retrieve metadata when attempting cache auto-attach for slot {}, giving up", slot);
-            candidates.clear();
-            return;
-        }
-
-        for (int i = candidates.size() - 1; i >= 0; --i) {
-            if (track != getCachedMetadata(candidates.get(i), reference)) {
-                candidates.remove(i);
-            }
-        }
+        return (int)((NumberField)entry.arguments.get(1)).getValue();
     }
 
     /**
