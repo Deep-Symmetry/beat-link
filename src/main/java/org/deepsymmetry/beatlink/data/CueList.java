@@ -15,12 +15,12 @@ import java.util.List;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public class CueList {
     /**
      * The message holding the cue list information as it was read over the network. This can be used to analyze fields
      * that have not yet been reliably understood, and is also used for storing the cue list in a cache file.
      */
-    @SuppressWarnings("WeakerAccess")
     public final Message rawMessage;
 
     /**
@@ -40,18 +40,6 @@ public class CueList {
      */
     public int getMemoryPointCount() {
         return (int) ((NumberField) rawMessage.arguments.get(6)).getValue();
-    }
-
-    /**
-     * Calculates the time represented by a half-frame position.
-     *
-     * @param position the number of half-frame units, each of which takes 1/150 of a second
-     *
-     * @return the corresponding millisecond time
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static long timeFromHalfFramePosition(long position) {
-        return (position * 100) / 15;
     }
 
     /**
@@ -100,7 +88,7 @@ public class CueList {
         public Entry(int number, long position) {
             hotCueNumber = number;
             cuePosition = position;
-            cueTime = timeFromHalfFramePosition(position);
+            cueTime = Util.halfFrameToTime(position);
             isLoop = false;
             loopPosition = 0;
             loopTime = 0;
@@ -116,10 +104,10 @@ public class CueList {
         public Entry(int number, long startPosition, long endPosition) {
             hotCueNumber = number;
             cuePosition = startPosition;
-            cueTime = timeFromHalfFramePosition(startPosition);
+            cueTime = Util.halfFrameToTime(startPosition);
             isLoop = true;
             loopPosition = endPosition;
-            loopTime = timeFromHalfFramePosition(endPosition);
+            loopTime = Util.halfFrameToTime(endPosition);
         }
 
         @Override

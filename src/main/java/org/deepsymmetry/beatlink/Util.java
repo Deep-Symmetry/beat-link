@@ -173,7 +173,7 @@ public class Util {
      *
      * @return the number of milliseconds into a track that the specified half-frame begins
      */
-    public static long halfFrameToTime(int halfFrame) {
+    public static long halfFrameToTime(long halfFrame) {
         return halfFrame * 100 / 15;
     }
 
