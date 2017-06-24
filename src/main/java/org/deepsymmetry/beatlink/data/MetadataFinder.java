@@ -962,14 +962,13 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Set the number of tracks examined when considering auto-attaching a metadata cache file to a newly-mounted
      * media database. The more examined, the more confident we can be in the cache matching the media, but the longer
-     * it will take and the more metadata queries will be required. The smallest legal value is 1, since we always
-     * check at least the last track in the list.
+     * it will take and the more metadata queries will be required. The smallest legal value is 1.
      *
      * @param numTracks the number of tracks that will be compared between the cache files and the media in the player
      */
     public void setAutoAttachProbeCount(int numTracks) {
         if (numTracks < 1) {
-            throw new IllegalArgumentException("numTracks must be positive, we always check at least the last track");
+            throw new IllegalArgumentException("numTracks must be positive");
         }
         autoAttachProbeCount.set(numTracks);
     }
@@ -1067,7 +1066,7 @@ public class MetadataFinder extends LifecycleParticipant {
 
         // Gather as many track IDs as we are configured to sample, up to the number available
         int tracksLeft = (int) count;
-        int samplesNeeded = Math.min(tracksLeft, autoAttachProbeCount.get() - 1);
+        int samplesNeeded = Math.min(tracksLeft, autoAttachProbeCount.get());
         ArrayList<Integer> tracksToSample = new ArrayList<Integer>(samplesNeeded);
         int offset = 0;
         Random random = new Random();
