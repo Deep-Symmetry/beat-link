@@ -40,15 +40,20 @@ public class SearchableItem {
 
     @Override
     public int hashCode() {
-        int result = 17;
-        result = 31 * result + id;
+        int result = id;
         result = 31 * result + label.hashCode();
         return result;
     }
 
     @Override
     public boolean equals(Object obj) {
-        return obj == this ||
-                obj instanceof SearchableItem && (id == ((SearchableItem) obj).id) && (label.equals(((SearchableItem) obj).label));
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        final SearchableItem other = (SearchableItem) obj;
+        return id == other.id && label.equals(other.label);
     }
 }

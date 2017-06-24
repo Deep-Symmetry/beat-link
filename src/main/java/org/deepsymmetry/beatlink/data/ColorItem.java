@@ -44,8 +44,7 @@ public class ColorItem extends SearchableItem {
 
     @Override
     public int hashCode() {
-        int result = 17;
-        result = 31 * result + super.hashCode();
+        int result = super.hashCode();
         result = 31 * result + color.hashCode();
         result = 31 * result + colorName.hashCode();
         return result;
@@ -56,7 +55,7 @@ public class ColorItem extends SearchableItem {
         if (obj == this) {
             return true;
         }
-        if (!(obj instanceof ColorItem)) {
+        if (obj == null || obj.getClass() != getClass()) {
             return false;
         }
         final ColorItem other = (ColorItem) obj;
