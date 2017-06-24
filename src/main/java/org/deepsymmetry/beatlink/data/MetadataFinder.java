@@ -1109,7 +1109,7 @@ public class MetadataFinder extends LifecycleParticipant {
         }
 
         ZipFile match = candidates.get(0);
-        logger.info("Auto-attaching metadata cache " + match + " to slot " + slot);
+        logger.info("Auto-attaching metadata cache " + match.getName() + " to slot " + slot);
         attachMetadataCacheInternal(slot, match);
     }
 
