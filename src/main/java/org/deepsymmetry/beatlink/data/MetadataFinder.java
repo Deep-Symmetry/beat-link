@@ -381,6 +381,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param trackListEntries the list of menu items identifying which tracks need to be copied to the metadata
      *                         cache
+     * @param playlistId the id of playlist being cached, or 0 of all tracks are being cached
      * @param client the connection to the dbserver on the player whose metadata is being cached
      * @param slot the slot in which the media to be cached can be found
      * @param cache the file into which the metadata cache should be written
@@ -389,7 +390,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @throws IOException if there is a problem communicating with the player or writing the cache file.
      */
-    private void copyTracksToCache(List<Message> trackListEntries, Client client, SlotReference slot,
+    private void copyTracksToCache(List<Message> trackListEntries, int playlistId, Client client, SlotReference slot,
                                    File cache, MetadataCacheCreationListener listener)
         throws IOException {
         FileOutputStream fos = null;
@@ -405,9 +406,12 @@ public class MetadataFinder extends LifecycleParticipant {
 
             // Add a marker so we can recognize this as a metadata archive. I would use the ZipFile comment, but
             // that is not available until Java 7, and Beat Link is supposed to be backwards compatible with Java 6.
+            // Since we are doing this anyway, we can also provide information about the nature of the cache, and
+            // how many metadata entries it contains, which is useful for auto-attachment.
             ZipEntry zipEntry = new ZipEntry(CACHE_FORMAT_ENTRY);
             zos.putNextEntry(zipEntry);
-            zos.write(CACHE_FORMAT_IDENTIFIER.getBytes("UTF-8"));
+            String formatEntry = CACHE_FORMAT_IDENTIFIER + ":" + playlistId + ":" + trackListEntries.size();
+            zos.write(formatEntry.getBytes("UTF-8"));
 
             // Write the actual metadata entries
             channel = Channels.newChannel(zos);
@@ -616,7 +620,7 @@ public class MetadataFinder extends LifecycleParticipant {
                 } else {
                     trackList = getPlaylistItems(slot.slot, 0, playlistId, false, client);
                 }
-                copyTracksToCache(trackList, client, slot, cache, listener);
+                copyTracksToCache(trackList, playlistId, client, slot, cache, listener);
                 return null;
             }
         };
@@ -884,12 +888,8 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     private ZipFile openMetadataCache(File cache) throws IOException {
         ZipFile newCache = new ZipFile(cache, ZipFile.OPEN_READ);
-        ZipEntry zipEntry = newCache.getEntry(CACHE_FORMAT_ENTRY);
-        InputStream is = newCache.getInputStream(zipEntry);
-        Scanner s = new Scanner(is, "UTF-8").useDelimiter("\\A");
-        String tag = null;
-        if (s.hasNext()) tag = s.next();
-        if (!CACHE_FORMAT_IDENTIFIER.equals(tag)) {
+        String tag = getCacheFormatEntry(newCache);
+        if (tag == null || !tag.startsWith(CACHE_FORMAT_IDENTIFIER)) {
             try {
                 newCache.close();
             } catch (Exception e) {
@@ -899,6 +899,52 @@ public class MetadataFinder extends LifecycleParticipant {
             " (looking for format identifier \"" + CACHE_FORMAT_IDENTIFIER + "\", found: " + tag);
         }
         return newCache;
+    }
+
+    /**
+     * Find and read the cache format entry in a metadata cache file.
+     *
+     * @param cache the cache file whose format entry is desired
+     *
+     * @return the content of the format entry, or {@code null} if none was found
+     *
+     * @throws IOException if there is a problem reading the file
+     */
+    private String getCacheFormatEntry(ZipFile cache) throws IOException {
+        ZipEntry zipEntry = cache.getEntry(CACHE_FORMAT_ENTRY);
+        InputStream is = cache.getInputStream(zipEntry);
+        Scanner s = new Scanner(is, "UTF-8").useDelimiter("\\A");
+        String tag = null;
+        if (s.hasNext()) tag = s.next();
+        return tag;
+    }
+
+    /**
+     * Reports the ID of the playlist that was used to create the cache, or 0 of it is an all-tracks cache.
+     *
+     * @param cache the metadata cache whose contents are of interest
+     *
+     * @return 0 if the cache was created using all tracks, or the id of the playlist that it contains otherwise
+     *
+     * @throws IOException if there is a problem reading the file
+     */
+    public int getCacheSourcePlaylist(ZipFile cache) throws IOException {
+        String tag = getCacheFormatEntry(cache);
+        return Integer.parseInt(tag.split(":")[1]);
+    }
+
+    /**
+     * Reports the number of tracks contained in a metadata cache.
+     *
+     * @param cache the metadata cache whose contents are of interest
+     *
+     * @return the number of cached track metadata entries
+     *
+     * @throws IOException if there is a problem reading the file
+     */
+    public int getCacheTrackCount(ZipFile cache) throws IOException {
+        String tag = getCacheFormatEntry(cache);
+        return Integer.parseInt(tag.split(":")[2]);
     }
 
     /**
