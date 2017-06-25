@@ -434,8 +434,7 @@ public class MetadataFinder extends LifecycleParticipant {
             // that is not available until Java 7, and Beat Link is supposed to be backwards compatible with Java 6.
             // Since we are doing this anyway, we can also provide information about the nature of the cache, and
             // how many metadata entries it contains, which is useful for auto-attachment.
-            ZipEntry zipEntry = new ZipEntry(CACHE_FORMAT_ENTRY);
-            zos.putNextEntry(zipEntry);
+            zos.putNextEntry(new ZipEntry(CACHE_FORMAT_ENTRY));
             String formatEntry = CACHE_FORMAT_IDENTIFIER + ":" + playlistId + ":" + trackListEntries.size();
             zos.write(formatEntry.getBytes("UTF-8"));
 
@@ -448,64 +447,9 @@ public class MetadataFinder extends LifecycleParticipant {
                 if (entry.getMenuItemType() == Message.MenuItemType.UNKNOWN) {
                     logger.warn("Encountered unrecognized track list entry item type: {}", entry);
                 }
+
                 int rekordboxId = (int)((NumberField)entry.arguments.get(1)).getValue();
-                TrackMetadata track = queryMetadata(new DataReference(slot, rekordboxId), client);
-
-                if (track != null) {
-                    logger.debug("Adding metadata with ID {}", rekordboxId);
-                    zipEntry = new ZipEntry(getMetadataEntryName(rekordboxId));
-                    zos.putNextEntry(zipEntry);
-                    for (Message metadataItem : track.rawItems) {
-                        metadataItem.write(channel);
-                    }
-                    MENU_FOOTER_MESSAGE.write(channel);  // So we know to stop reading
-                } else {
-                    logger.warn("Unable to retrieve metadata with ID {}", rekordboxId);
-                }
-
-                // Now the album art, if any
-                if (track != null && track.getArtworkId() != 0 && !artworkAdded.contains(track.getArtworkId())) {
-                    logger.debug("Adding artwork with ID {}", track.getArtworkId());
-                    zipEntry = new ZipEntry(getArtworkEntryName(track.getArtworkId()));
-                    zos.putNextEntry(zipEntry);
-                    AlbumArt art = ArtFinder.getInstance().getArtwork(track.getArtworkId(), slot, client);
-                    if (art != null) {
-                        Util.writeFully(art.getRawBytes(), channel);
-                        artworkAdded.add(track.getArtworkId());
-                    }
-                }
-
-                BeatGrid beatGrid = BeatGridFinder.getInstance().getBeatGrid(rekordboxId, slot, client);
-                if (beatGrid != null) {
-                    logger.debug("Adding beat grid with ID {}", rekordboxId);
-                    zipEntry = new ZipEntry(getBeatGridEntryName(rekordboxId));
-                    zos.putNextEntry(zipEntry);
-                    Util.writeFully(beatGrid.getRawData(), channel);
-                }
-
-                CueList cueList = getCueList(rekordboxId, slot.slot, client);
-                if (cueList != null) {
-                    logger.debug("Adding cue list entry with ID {}", rekordboxId);
-                    zipEntry = new ZipEntry((getCueListEntryName(rekordboxId)));
-                    zos.putNextEntry(zipEntry);
-                    cueList.rawMessage.write(channel);
-                }
-
-                WaveformPreview preview = WaveformFinder.getInstance().getWaveformPreview(rekordboxId, slot, client);
-                if (preview != null) {
-                    logger.debug("Adding waveform preview entry with ID {}", rekordboxId);
-                    zipEntry = new ZipEntry((getWaveformPreviewEntryName(rekordboxId)));
-                    zos.putNextEntry(zipEntry);
-                    preview.rawMessage.write(channel);
-                }
-
-                WaveformDetail detail = WaveformFinder.getInstance().getWaveformDetail(rekordboxId, slot, client);
-                if (detail != null) {
-                    logger.debug("Adding waveform detail entry with ID {}", rekordboxId);
-                    zipEntry = new ZipEntry((getWaveformDetailEntryName(rekordboxId)));
-                    zos.putNextEntry(zipEntry);
-                    detail.rawMessage.write(channel);
-                }
+                TrackMetadata track = copyTrackToCache(client, slot, zos, channel, artworkAdded, rekordboxId);
 
                 if (listener != null) {
                     if (!listener.cacheCreationContinuing(track, ++tracksCopied, totalToCopy)) {
@@ -554,6 +498,78 @@ public class MetadataFinder extends LifecycleParticipant {
                 logger.error("Problem closing File Output Stream of metadata cache", e);
             }
         }
+    }
+
+    /**
+     * Copy a single track's metadata and related objects to a cache file being created.
+     *
+     * @param client the connection to the database server from which the art can be obtained
+     * @param slot the player slot from which the art is being copied
+     * @param zos the stream to which the cache is being written
+     * @param channel the low-level channel to which the cache is being written
+     * @param artworkAdded collects the artwork that has already been added to the cache, to avoid duplicates
+     * @param rekordboxId the database ID of the track to be cached
+     *
+     * @return the track metadata object that was written to the cache, or {@code null} if it could not be found
+     *
+     * @throws IOException if there is a problem communicating with the player or writing to the cache file
+     */
+    private TrackMetadata copyTrackToCache(Client client, SlotReference slot, ZipOutputStream zos,
+                                           WritableByteChannel channel, Set<Integer> artworkAdded, int rekordboxId)
+            throws IOException {
+
+        final TrackMetadata track = queryMetadata(new DataReference(slot, rekordboxId), client);
+        if (track != null) {
+            logger.debug("Adding metadata with ID {}", track.trackReference.rekordboxId);
+            zos.putNextEntry(new ZipEntry(getMetadataEntryName(track.trackReference.rekordboxId)));
+            for (Message metadataItem : track.rawItems) {
+                metadataItem.write(channel);
+            }
+            MENU_FOOTER_MESSAGE.write(channel);  // So we know to stop reading
+        } else {
+            logger.warn("Unable to retrieve metadata with ID {}", rekordboxId);
+            return null;
+        }
+
+        if (track.getArtworkId() != 0 && !artworkAdded.contains(track.getArtworkId())) {
+            logger.debug("Adding artwork with ID {}", track.getArtworkId());
+            zos.putNextEntry(new ZipEntry(getArtworkEntryName(track.getArtworkId())));
+            final AlbumArt art = ArtFinder.getInstance().getArtwork(track.getArtworkId(), slot, client);
+            if (art != null) {
+                Util.writeFully(art.getRawBytes(), channel);
+                artworkAdded.add(track.getArtworkId());
+            }
+        }
+
+        final BeatGrid beatGrid = BeatGridFinder.getInstance().getBeatGrid(rekordboxId, slot, client);
+        if (beatGrid != null) {
+            logger.debug("Adding beat grid with ID {}", rekordboxId);
+            zos.putNextEntry(new ZipEntry(getBeatGridEntryName(rekordboxId)));
+            Util.writeFully(beatGrid.getRawData(), channel);
+        }
+
+        final CueList cueList = getCueList(rekordboxId, slot.slot, client);
+        if (cueList != null) {
+            logger.debug("Adding cue list entry with ID {}", rekordboxId);
+            zos.putNextEntry(new ZipEntry((getCueListEntryName(rekordboxId))));
+            cueList.rawMessage.write(channel);
+        }
+
+        final WaveformPreview preview = WaveformFinder.getInstance().getWaveformPreview(rekordboxId, slot, client);
+        if (preview != null) {
+            logger.debug("Adding waveform preview entry with ID {}", rekordboxId);
+            zos.putNextEntry(new ZipEntry((getWaveformPreviewEntryName(rekordboxId))));
+            preview.rawMessage.write(channel);
+        }
+
+        final WaveformDetail detail = WaveformFinder.getInstance().getWaveformDetail(rekordboxId, slot, client);
+        if (detail != null) {
+            logger.debug("Adding waveform detail entry with ID {}", rekordboxId);
+            zos.putNextEntry(new ZipEntry((getWaveformDetailEntryName(rekordboxId))));
+            detail.rawMessage.write(channel);
+        }
+
+        return track;
     }
 
     /**
