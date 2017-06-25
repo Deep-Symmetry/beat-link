@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
@@ -226,52 +227,6 @@ public class ArtFinder extends LifecycleParticipant {
     }
 
     /**
-     * Provide a least-recently used cache mechanism so we can keep artwork around for reuse, since it is often shared
-     * between tracks, and does not take up much space.
-     *
-     * @param <A> the type of the keys that will be used in the cache
-     * @param <B> the type of the values that will be used in the cache
-     */
-    private static class LruCache<A, B> extends LinkedHashMap<A, B> {
-
-        /**
-         * How many entries are we to retain.
-         */
-        final int maxEntries;
-
-        /**
-         * Set the cache size cap and then delegate to the superclass constructor.
-         *
-         * @param maxEntries the largest number of entries we will retain
-         */
-        @SuppressWarnings("SameParameterValue")
-        LruCache(final int maxEntries) {
-            super(maxEntries + 1, 1.0f, true);
-            this.maxEntries = maxEntries;
-        }
-
-        /**
-         * <p>Returns <tt>true</tt> if this <code>LruCache</code> has more entries than the maximum specified when it was
-         * created.</p>
-         *
-         * <p>This method <em>does not</em> modify the underlying <code>Map</code>; it relies on the implementation of
-         * {@link LinkedHashMap} to do that, but that behavior is documented in the JavaDoc for
-         * <code>LinkedHashMap</code>.</p>
-         *
-         * @param eldest the {@link java.util.Map.Entry} in question; this implementation doesn't care what it is,
-         *               since the implementation is only dependent on the size of the cache
-         *
-         * @return <tt>true</tt> if the map has overflowed, so the oldest entry should be removed
-         *
-         * @see LinkedHashMap#removeEldestEntry(Map.Entry)
-         */
-        @Override
-        protected boolean removeEldestEntry(final Map.Entry<A, B> eldest) {
-            return (size() > maxEntries);
-        }
-    }
-
-    /**
      * The maximum number of artwork images we will retain in our cache.
      */
     public static final int DEFAULT_ART_CACHE_SIZE = 100;
@@ -281,12 +236,8 @@ public class ArtFinder extends LifecycleParticipant {
      * art around even for tracks that are not currently loaded, to save on having to request it again when another
      * track from the same album is loaded.
      */
-    private LruCache<DataReference, AlbumArt> lruCache = new LruCache<DataReference, AlbumArt>(DEFAULT_ART_CACHE_SIZE);
-
-    /**
-     * Provide synchronized access to the art cache except when we want to report the size.
-     */
-    private Map<DataReference, AlbumArt> artCache = Collections.synchronizedMap(lruCache);
+    private final ConcurrentLinkedHashMap<DataReference, AlbumArt> artCache = new ConcurrentLinkedHashMap.Builder<DataReference, AlbumArt>()
+            .maximumWeightedCapacity(DEFAULT_ART_CACHE_SIZE).build();
 
     /**
      * Check how many album art images can be kept in the in-memory second-level cache.
@@ -294,8 +245,8 @@ public class ArtFinder extends LifecycleParticipant {
      * @return the maximum number of distinct album art images that will automatically be kept for reuse in the
      *         in-memory art cache.
      */
-    public int getArtCacheSize() {
-        return lruCache.maxEntries;
+    public long getArtCacheSize() {
+        return artCache.capacity();
     }
 
     /**
@@ -306,26 +257,13 @@ public class ArtFinder extends LifecycleParticipant {
      *         of the older images will be immediately discarded so that only the number you specified remain
      *
      * @throws IllegalArgumentException if {@code} size is less than 1
-     * @throws IllegalStateException if you try to resize the cache while {@link #isRunning()} is true
      */
-    public synchronized void setArtCacheSize(int size) {
+    public void setArtCacheSize(int size) {
         if (size < 1) {
             throw new IllegalArgumentException("size must be at least 1");
+
         }
-        if (isRunning()) {
-            throw new IllegalStateException(this.getClass().getName() + " can't resize cache while running.");
-        }
-        if (size != getArtCacheSize()) {
-            LruCache<DataReference, AlbumArt> newCache = new LruCache<DataReference, AlbumArt>(size);
-            Iterator<Map.Entry<DataReference, AlbumArt>> iterator = artCache.entrySet().iterator();
-            while (iterator.hasNext()) {
-                Map.Entry<DataReference, AlbumArt> entry = iterator.next();
-                iterator.remove();
-                newCache.put(entry.getKey(), entry.getValue());
-            }
-            lruCache = newCache;
-            artCache = Collections.synchronizedMap(lruCache);
-        }
+        artCache.setCapacity(size);
     }
 
     /**
