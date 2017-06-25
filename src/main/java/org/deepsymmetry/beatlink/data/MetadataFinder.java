@@ -1149,22 +1149,7 @@ public class MetadataFinder extends LifecycleParticipant {
     private void tryAutoAttachingWithConnection(SlotReference slot, Client client) throws IOException {
         // Keeps track of the files we might be able to auto-attach, grouped and sorted by the playlist they
         // were created from, where playlist 0 means all tracks.
-        Map<Integer,LinkedList<ZipFile>> candidateGroups = new TreeMap<Integer, LinkedList<ZipFile>>();
-        final Iterator<File> iterator = autoAttachCacheFiles.iterator();
-        while (iterator.hasNext()) {
-            final File file = iterator.next();
-            try {
-                final ZipFile candidate = openMetadataCache(file);
-                final int playlistId = getCacheSourcePlaylist(candidate);
-                if (candidateGroups.get(playlistId) == null) {
-                    candidateGroups.put(playlistId, new LinkedList<ZipFile>());
-                }
-                candidateGroups.get(playlistId).add(candidate);
-            } catch (Exception e) {
-                logger.error("Unable to open metadata cache file " + file + ", discarding", e);
-                iterator.remove();
-            }
-        }
+        Map<Integer, LinkedList<ZipFile>> candidateGroups = gatherCandidateAttachmentGroups();
 
         // Set up a menu request to process each group.
         for (Map.Entry<Integer,LinkedList<ZipFile>> entry : candidateGroups.entrySet()) {
@@ -1190,22 +1175,9 @@ public class MetadataFinder extends LifecycleParticipant {
             }
 
             // Gather as many track IDs as we are configured to sample, up to the number available
-            int tracksLeft = (int) count;
-            int samplesNeeded = Math.min(tracksLeft, autoAttachProbeCount.get());
-            ArrayList<Integer> tracksToSample = new ArrayList<Integer>(samplesNeeded);
-            int offset = 0;
-            Random random = new Random();
-            while (samplesNeeded > 0) {
-                int rand = random.nextInt(tracksLeft);
-                if (rand < samplesNeeded) {
-                    --samplesNeeded;
-                    tracksToSample.add(findTrackIdAtOffset(slot, client, offset));
-                }
-                --tracksLeft;
-                ++offset;
-            }
+            ArrayList<Integer> tracksToSample = chooseTrackSample(slot, client, (int) count);
 
-            // Winnow out any candidates that don't match each track to be sampled
+            // Winnow out any auto-attachment candidates that don't match any sampled track
             for (int trackId : tracksToSample) {
                 logger.info("Comparing track " + trackId + " with " + candidates.size() + " metadata cache file(s).");
 
@@ -1228,22 +1200,72 @@ public class MetadataFinder extends LifecycleParticipant {
             }
 
             if (candidates.isEmpty()) {
-                continue;  // Move on to the next candidate group, if any.
+                continue;  // This group has failed; move on to the next candidate group, if any.
             }
 
-            if (candidates.size() > 1) {
-                logger.warn("Found " + candidates.size() + " matching metadata cache files for slot " + slot +
-                        "; using the first.");
-            }
-
-            ZipFile match = candidates.get(0);
+            ZipFile match = candidates.get(0);  // We have found at least one matching cache, use the first.
             logger.info("Auto-attaching metadata cache " + match.getName() + " to slot " + slot);
             attachMetadataCacheInternal(slot, match);
             return;
         }
+    }
 
+    /**
+     * Groups all of the metadata cache files that are candidates for auto-attachment to player slots into lists
+     * that are keyed by the playlist ID used to create the cache file. Files that cache all tracks have a playlist
+     * ID of 0.
+     *
+     * @return a map from playlist ID to the files caching tracks from that playlist
+     */
+    private Map<Integer, LinkedList<ZipFile>> gatherCandidateAttachmentGroups() {
+        Map<Integer,LinkedList<ZipFile>> candidateGroups = new TreeMap<Integer, LinkedList<ZipFile>>();
+        final Iterator<File> iterator = autoAttachCacheFiles.iterator();
+        while (iterator.hasNext()) {
+            final File file = iterator.next();
+            try {
+                final ZipFile candidate = openMetadataCache(file);
+                final int playlistId = getCacheSourcePlaylist(candidate);
+                if (candidateGroups.get(playlistId) == null) {
+                    candidateGroups.put(playlistId, new LinkedList<ZipFile>());
+                }
+                candidateGroups.get(playlistId).add(candidate);
+            } catch (Exception e) {
+                logger.error("Unable to open metadata cache file " + file + ", discarding", e);
+                iterator.remove();
+            }
+        }
+        return candidateGroups;
+    }
 
-
+    /**
+     * Pick a random sample of tracks to compare against the cache, to see if it matches the attached database. We
+     * will choose whichever is the smaller of the number configured in {@link #getAutoAttachProbeCount()} or the
+     * total number available in the database or playlist being compared with the cache file.
+     *
+     * @param slot the player slot in which the database we are comparing to our cache is found
+     * @param client the connection to the player for performing database queries to find track IDs
+     * @param count the number of tracks available to sample
+     *
+     * @return the IDs of the tracks we have chosen to compare
+     *
+     * @throws IOException if there is a problem communicating with the player
+     */
+    private ArrayList<Integer> chooseTrackSample(SlotReference slot, Client client, int count) throws IOException {
+        int tracksLeft = count;
+        int samplesNeeded = Math.min(tracksLeft, autoAttachProbeCount.get());
+        ArrayList<Integer> tracksToSample = new ArrayList<Integer>(samplesNeeded);
+        int offset = 0;
+        Random random = new Random();
+        while (samplesNeeded > 0) {
+            int rand = random.nextInt(tracksLeft);
+            if (rand < samplesNeeded) {
+                --samplesNeeded;
+                tracksToSample.add(findTrackIdAtOffset(slot, client, offset));
+            }
+            --tracksLeft;
+            ++offset;
+        }
+        return tracksToSample;
     }
 
     /**
