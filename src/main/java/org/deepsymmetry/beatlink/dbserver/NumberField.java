@@ -36,6 +36,18 @@ public class NumberField extends Field {
     private final ByteBuffer buffer;
 
     /**
+     * A four-byte field representing the number zero, used in many requests, so they can save the time and garbage
+     * of constructing throwaway versions.
+     */
+    public final static NumberField WORD_0 = new NumberField(0);
+
+    /**
+     * A four-byte field representing the number one, used in some requests, so they can save the time and garbage
+     * of constructing throwaway versions.
+     */
+    public final static NumberField WORD_1 = new NumberField(1);
+
+    /**
      * Constructor for reading from the network.
      *
      * @param typeTag the tag which identified this field as a NumberField, and which allows us to determine the

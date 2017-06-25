@@ -171,7 +171,7 @@ public class MetadataFinder extends LifecycleParticipant {
         throws IOException {
         // Send the metadata menu request
         Message response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
-                new NumberField(0));
+                NumberField.WORD_0);
         final long count = response.getMenuResultsCount();
         if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
             return Collections.emptyList();
@@ -180,7 +180,6 @@ public class MetadataFinder extends LifecycleParticipant {
         // Gather all the metadata menu items
         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
     }
-
 
     /**
      * Look up track metadata from a cache.
@@ -1155,12 +1154,7 @@ public class MetadataFinder extends LifecycleParticipant {
         for (Map.Entry<Integer,LinkedList<ZipFile>> entry : candidateGroups.entrySet()) {
             final int playlistId = entry.getKey();
             final LinkedList<ZipFile> candidates = entry.getValue();
-            Message response = (playlistId == 0)?  // Form the proper request to render either all tracks or a playlist
-                    client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU,
-                            slot.slot, new NumberField(0)) :
-                    client.menuRequest(Message.KnownType.PLAYLIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot.slot,
-                            new NumberField(0), new NumberField(playlistId), new NumberField(0));
-            final long count = response.getMenuResultsCount();
+            final long count = getTrackCount(slot.slot, client, playlistId);
             if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
                 candidates.clear();  // No tracks available to match this set of candidates.
             }
@@ -1236,6 +1230,33 @@ public class MetadataFinder extends LifecycleParticipant {
 
     }
 
+    /**
+     * Find out how many tracks are present in a playlist (or in all tracks, if {@code playlistId} is 0) without
+     * actually retrieving all the entries. This is used in checking whether a metadata cache matches what is found
+     * in a player slot, and to set up the context for sampling a random set of individual tracks for deeper
+     * comparison.
+     *
+     * @param slot the player slot in which the media is located that we would like to compare
+     * @param client the player database connection we can use to perform queries
+     * @param playlistId identifies the playlist we want to know about, or 0 of we are interested in all tracks
+     * @return the number of tracks found in the player database, which is now ready to enumerate them if a positive
+     *         value is returned
+     *
+     * @throws IOException if there is a problem communicating with the database server
+     */
+    private long getTrackCount(CdjStatus.TrackSourceSlot slot, Client client, int playlistId) throws IOException {
+        Message response;
+        if (playlistId == 0) {  // Form the proper request to render either all tracks or a playlist
+            response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU,
+                    slot, NumberField.WORD_0);
+        }
+        else {
+            response = client.menuRequest(Message.KnownType.PLAYLIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
+                    NumberField.WORD_0, new NumberField(playlistId), NumberField.WORD_0);
+            }
+
+        return response.getMenuResultsCount();
+    }
 
 
     /**

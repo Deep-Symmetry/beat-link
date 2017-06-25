@@ -461,8 +461,8 @@ public class WaveformFinder extends LifecycleParticipant {
     WaveformPreview getWaveformPreview(int rekordboxId, SlotReference slot, Client client)
             throws IOException {
         Message response = client.simpleRequest(Message.KnownType.WAVE_PREVIEW_REQ, null,
-                client.buildRMS1(Message.MenuIdentifier.DATA, slot.slot), new NumberField(1),
-                new NumberField(rekordboxId), new NumberField(0));
+                client.buildRMS1(Message.MenuIdentifier.DATA, slot.slot), NumberField.WORD_1,
+                new NumberField(rekordboxId), NumberField.WORD_0);
         if (response.knownType == Message.KnownType.WAVE_PREVIEW) {
             return new WaveformPreview(new DataReference(slot, rekordboxId), response);
         }
@@ -575,7 +575,7 @@ public class WaveformFinder extends LifecycleParticipant {
             throws IOException {
         Message response = client.simpleRequest(Message.KnownType.WAVE_DETAIL_REQ, null,
                 client.buildRMS1(Message.MenuIdentifier.MAIN_MENU, slot.slot),
-                new NumberField(rekordboxId), new NumberField(0));
+                new NumberField(rekordboxId), NumberField.WORD_0);
         if (response.knownType == Message.KnownType.WAVE_DETAIL) {
             return new WaveformDetail(new DataReference(slot, rekordboxId), response);
         }

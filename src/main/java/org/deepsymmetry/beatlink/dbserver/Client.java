@@ -403,7 +403,6 @@ public class Client {
             throw new IllegalArgumentException("count must be positive");
         }
         final ArrayList<Message> results = new ArrayList<Message>(count);
-        final Field zeroField = new NumberField(0);
         int gathered = 0;
         while (gathered < count) {
             final long batchSize = (Math.min(count - gathered, menuBatchSize));
@@ -411,7 +410,7 @@ public class Client {
             final NumberField limit = new NumberField(batchSize);
             final Message request = new Message(transaction,
                     new NumberField(Message.KnownType.RENDER_MENU_REQ.protocolValue, 2),
-                    buildRMS1(targetMenu, slot), new NumberField(offset), limit, zeroField, limit, zeroField);
+                    buildRMS1(targetMenu, slot), new NumberField(offset), limit, NumberField.WORD_0, limit, NumberField.WORD_0);
             // Based on LinkInfo.tracklist.txt it looks like the last limit should be count instead? But this works!
 
             sendMessage(request);
