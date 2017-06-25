@@ -12,6 +12,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -376,6 +377,32 @@ public class MetadataFinder extends LifecycleParticipant {
     private static final Message MENU_FOOTER_MESSAGE = new Message(0, Message.KnownType.MENU_FOOTER);
 
     /**
+     * How long should we pause between requesting metadata entries while building a cache to give the player
+     * a chance to perform its other tasks.
+     */
+    private final AtomicLong cachePauseInterval = new AtomicLong(50);
+
+    /**
+     * Set how long to pause between requesting metadata entries while building a cache to give the player
+     * a chance to perform its other tasks.
+     *
+     * @param milliseconds the delay to add between each track that gets added to the metadata cache
+     */
+    public void setCachePauseInterval(long milliseconds) {
+        cachePauseInterval.set(milliseconds);
+    }
+
+    /**
+     * Check how long we pause between requesting metadata entries while building a cache to give the player
+     * a chance to perform its other tasks.
+     *
+     * @return the delay to add between each track that gets added to the metadata cache
+     */
+    public long getCachePauseInterval() {
+        return cachePauseInterval.get();
+    }
+
+    /**
      * Finish the process of copying a list of tracks to a metadata cache, once they have been listed. This code
      * is shared between the implementations that work with the full track list and with playlists.
      *
@@ -485,11 +512,18 @@ public class MetadataFinder extends LifecycleParticipant {
                     if (!listener.cacheCreationContinuing(track, ++tracksCopied, totalToCopy)) {
                         logger.info("Track metadata cache creation canceled by listener");
                         if (!cache.delete()) {
-                            logger.warn("Unable to delete cache metadata file, {}", cache);
+                            logger.warn("Unable to delete metadata cache file, {}", cache);
                         }
                         return;
                     }
                 }
+
+                Thread.sleep(cachePauseInterval.get());
+            }
+        } catch (InterruptedException e) {
+            logger.warn("Interrupted while building metadata cache file, aborting", e);
+            if (!cache.delete()) {
+                logger.warn("Unable to delete metadata cache file, {}", cache);
             }
         } finally {
             try {
