@@ -173,7 +173,7 @@ public class MetadataFinder extends LifecycleParticipant {
         Message response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
                 new NumberField(0));
         final long count = response.getMenuResultsCount();
-        if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
+        if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
             return Collections.emptyList();
         }
 
@@ -272,7 +272,7 @@ public class MetadataFinder extends LifecycleParticipant {
         Message response = client.menuRequest(Message.KnownType.PLAYLIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
                 new NumberField(sortOrder), new NumberField(playlistOrFolderId), new NumberField(folder? 1 : 0));
         final long count = response.getMenuResultsCount();
-        if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
+        if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
             return Collections.emptyList();
         }
 
@@ -1132,86 +1132,111 @@ public class MetadataFinder extends LifecycleParticipant {
      * @throws IOException if there is a communication problem
      */
     private void tryAutoAttachingWithConnection(SlotReference slot, Client client) throws IOException {
-        Message response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU,
-                slot.slot, new NumberField(0));
-        final long count = response.getMenuResultsCount();
-        if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
-            logger.warn("Aborting attempt to auto-attach metadata since player reports no tracks in slot {}", slot);
-            return;
-        }
-
-        ArrayList<ZipFile> candidates = new ArrayList<ZipFile>(autoAttachCacheFiles.size());
-        Iterator<File> iterator = autoAttachCacheFiles.iterator();
+        // Keeps track of the files we might be able to auto-attach, grouped and sorted by the playlist they
+        // were created from, where playlist 0 means all tracks.
+        Map<Integer,LinkedList<ZipFile>> candidateGroups = new TreeMap<Integer, LinkedList<ZipFile>>();
+        final Iterator<File> iterator = autoAttachCacheFiles.iterator();
         while (iterator.hasNext()) {
-            File file = iterator.next();
+            final File file = iterator.next();
             try {
-                ZipFile candidate = openMetadataCache(file);
-                if (logger.isDebugEnabled()) {
-                    logger.debug("player reported " + count + " tracks; candidate has " + getCacheTrackCount(candidate));
+                final ZipFile candidate = openMetadataCache(file);
+                final int playlistId = getCacheSourcePlaylist(candidate);
+                if (candidateGroups.get(playlistId) == null) {
+                    candidateGroups.put(playlistId, new LinkedList<ZipFile>());
                 }
-                if (getCacheTrackCount(candidate) == count) {
-                    candidates.add(candidate);
-                }
+                candidateGroups.get(playlistId).add(candidate);
             } catch (Exception e) {
                 logger.error("Unable to open metadata cache file " + file + ", discarding", e);
                 iterator.remove();
             }
         }
 
-        // Bail before querying any metadata if we can already rule out all the candidates.
-        if (candidates.isEmpty()) {
-            logger.info("No auto-mount caches had the right number of tracks for slot {}", slot);
-            return;
-        }
-
-        // Gather as many track IDs as we are configured to sample, up to the number available
-        int tracksLeft = (int) count;
-        int samplesNeeded = Math.min(tracksLeft, autoAttachProbeCount.get());
-        ArrayList<Integer> tracksToSample = new ArrayList<Integer>(samplesNeeded);
-        int offset = 0;
-        Random random = new Random();
-        while (samplesNeeded > 0) {
-            int rand = random.nextInt(tracksLeft);
-            if (rand < samplesNeeded) {
-                --samplesNeeded;
-                tracksToSample.add(findTrackIdAtOffset(slot, client, offset));
-            }
-            --tracksLeft;
-            ++offset;
-        }
-
-        // Winnow out any candidates that don't match each track to be sampled
-        for (int trackId : tracksToSample) {
-            logger.info("Comparing track " + trackId + " with " + candidates.size() + " metadata cache file(s).");
-
-            DataReference reference = new DataReference(slot, trackId);
-            TrackMetadata track = queryMetadata(reference, client);
-            if (track == null) {
-                logger.warn("Unable to retrieve metadata when attempting cache auto-attach for slot {}, giving up", slot);
-                return;
+        // Set up a menu request to process each group.
+        for (Map.Entry<Integer,LinkedList<ZipFile>> entry : candidateGroups.entrySet()) {
+            final int playlistId = entry.getKey();
+            final LinkedList<ZipFile> candidates = entry.getValue();
+            Message response = (playlistId == 0)?  // Form the proper request to render either all tracks or a playlist
+                    client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU,
+                            slot.slot, new NumberField(0)) :
+                    client.menuRequest(Message.KnownType.PLAYLIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot.slot,
+                            new NumberField(0), new NumberField(playlistId), new NumberField(0));
+            final long count = response.getMenuResultsCount();
+            if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
+                candidates.clear();  // No tracks available to match this set of candidates.
             }
 
-            for (int i = candidates.size() - 1; i >= 0; --i) {
-                if (!track.equals(getCachedMetadata(candidates.get(i), reference))) {
-                    candidates.remove(i);
+            // Filter out any candidates with the wrong number of tracks.
+            Iterator<ZipFile> candidateIterator = candidates.iterator();
+            while (candidateIterator.hasNext()) {
+                final ZipFile candidate = candidateIterator.next();
+                if (getCacheTrackCount(candidate) != count) {
+                    candidateIterator.remove();
+                }
+            }
+
+            // Bail before querying any metadata if we can already rule out all the candidates.
+            if (candidates.isEmpty()) {
+                continue;
+            }
+
+            // Gather as many track IDs as we are configured to sample, up to the number available
+            int tracksLeft = (int) count;
+            int samplesNeeded = Math.min(tracksLeft, autoAttachProbeCount.get());
+            ArrayList<Integer> tracksToSample = new ArrayList<Integer>(samplesNeeded);
+            int offset = 0;
+            Random random = new Random();
+            while (samplesNeeded > 0) {
+                int rand = random.nextInt(tracksLeft);
+                if (rand < samplesNeeded) {
+                    --samplesNeeded;
+                    tracksToSample.add(findTrackIdAtOffset(slot, client, offset));
+                }
+                --tracksLeft;
+                ++offset;
+            }
+
+            // Winnow out any candidates that don't match each track to be sampled
+            for (int trackId : tracksToSample) {
+                logger.info("Comparing track " + trackId + " with " + candidates.size() + " metadata cache file(s).");
+
+                DataReference reference = new DataReference(slot, trackId);
+                TrackMetadata track = queryMetadata(reference, client);
+                if (track == null) {
+                    logger.warn("Unable to retrieve metadata when attempting cache auto-attach for slot {}, giving up", slot);
+                    return;
+                }
+
+                for (int i = candidates.size() - 1; i >= 0; --i) {
+                    if (!track.equals(getCachedMetadata(candidates.get(i), reference))) {
+                        candidates.remove(i);
+                    }
+                }
+
+                if (candidates.isEmpty()) {
+                    break;  // No point sampling more tracks, we have ruled out all candidates in this group.
                 }
             }
 
             if (candidates.isEmpty()) {
-                logger.info("No auto-mount caches matched for slot {}", slot);
-                return;
+                continue;  // Move on to the next candidate group, if any.
             }
+
+            if (candidates.size() > 1) {
+                logger.warn("Found " + candidates.size() + " matching metadata cache files for slot " + slot +
+                        "; using the first.");
+            }
+
+            ZipFile match = candidates.get(0);
+            logger.info("Auto-attaching metadata cache " + match.getName() + " to slot " + slot);
+            attachMetadataCacheInternal(slot, match);
+            return;
         }
 
-        if (candidates.size() > 1) {
-            logger.warn("Found " + candidates.size() + " matching metadata cache files for slot " + slot +
-                    "; using the first.");
-        }
 
-        ZipFile match = candidates.get(0);
-        logger.info("Auto-attaching metadata cache " + match.getName() + " to slot " + slot);
-        attachMetadataCacheInternal(slot, match);
+
     }
+
+
 
     /**
      * As part of checking whether a metadata cache can be auto-mounted for a particular media slot, this method
