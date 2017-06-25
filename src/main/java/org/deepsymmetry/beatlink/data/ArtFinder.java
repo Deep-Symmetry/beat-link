@@ -6,6 +6,7 @@ import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.*;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -236,8 +237,8 @@ public class ArtFinder extends LifecycleParticipant {
      * art around even for tracks that are not currently loaded, to save on having to request it again when another
      * track from the same album is loaded.
      */
-    private final ConcurrentLinkedHashMap<DataReference, AlbumArt> artCache = new ConcurrentLinkedHashMap.Builder<DataReference, AlbumArt>()
-            .maximumWeightedCapacity(DEFAULT_ART_CACHE_SIZE).build();
+    private final ConcurrentLinkedHashMap<DataReference, AlbumArt> artCache =
+            new ConcurrentLinkedHashMap.Builder<DataReference, AlbumArt>().maximumWeightedCapacity(DEFAULT_ART_CACHE_SIZE).build();
 
     /**
      * Check how many album art images can be kept in the in-memory second-level cache.
@@ -598,11 +599,17 @@ public class ArtFinder extends LifecycleParticipant {
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
-            for (DeckReference deck : hotCache.keySet()) {  // Report the loss of our hot cached art
-                if (deck.hotCue == 0) {
-                    deliverAlbumArtUpdate(deck.player, null);
+            // Report the loss of our hot cached art and our shutdown, on the proper thread, and outside our lock
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    for (DeckReference deck : hotCache.keySet()) {
+                        if (deck.hotCue == 0) {
+                            deliverAlbumArtUpdate(deck.player, null);
+                        }
+                    }
                 }
-            }
+            });
             hotCache.clear();
             artCache.clear();
             deliverLifecycleAnnouncement(logger, false);

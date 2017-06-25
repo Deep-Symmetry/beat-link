@@ -82,7 +82,7 @@ public abstract class LifecycleParticipant {
                     }
                 }
             }
-        }).start();
+        }, "Lifecycle announcement delivery").start();
     }
 
     /**
