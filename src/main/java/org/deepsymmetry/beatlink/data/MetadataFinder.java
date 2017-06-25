@@ -1001,6 +1001,23 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
+     * Get the metadata cache files that are currently configured to be automatically attached when matching media is
+     * mounted in a player on the network.
+     *
+     * @return the current auto-attache cache files, sorted by name
+     */
+    public List<File> getAutoAttachCacheFiles() {
+        ArrayList<File> currentFiles = new ArrayList<File>(autoAttachCacheFiles);
+        Collections.sort(currentFiles, new Comparator<File>() {
+            @Override
+            public int compare(File o1, File o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        });
+        return Collections.unmodifiableList(currentFiles);
+    }
+
+    /**
      * The number of tracks that will be examined when considering a metadata cache file for auto-attachment.
      */
     private final AtomicInteger autoAttachProbeCount = new AtomicInteger(5);
@@ -1095,7 +1112,10 @@ public class MetadataFinder extends LifecycleParticipant {
             File file = iterator.next();
             try {
                 ZipFile candidate = openMetadataCache(file);
-                if (countTracks(candidate) == count) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("player reported " + count + " tracks; candidate has " + getCacheTrackCount(candidate));
+                }
+                if (getCacheTrackCount(candidate) == count) {
                     candidates.add(candidate);
                 }
             } catch (Exception e) {
@@ -1106,7 +1126,7 @@ public class MetadataFinder extends LifecycleParticipant {
 
         // Bail before querying any metadata if we can already rule out all the candidates.
         if (candidates.isEmpty()) {
-            logger.info("No auto-mount caches matched for slot {}", slot);
+            logger.info("No auto-mount caches had the right number of tracks for slot {}", slot);
             return;
         }
 
@@ -1175,25 +1195,6 @@ public class MetadataFinder extends LifecycleParticipant {
             logger.warn("Encountered unrecognized track list entry item type: {}", entry);
         }
         return (int)((NumberField)entry.arguments.get(1)).getValue();
-    }
-
-    /**
-     * Counts the number of tracks present in a metadata cache file.
-     *
-     * @param cacheFile the file whose tracks are to be counted
-     *
-     * @return the number of track metadata entries in the cache
-     */
-    private int countTracks(ZipFile cacheFile) {
-        int result = 0;
-        Enumeration<? extends ZipEntry> enumeration = cacheFile.entries();
-        while (enumeration.hasMoreElements()) {
-            ZipEntry entry = enumeration.nextElement();
-            if (entry.getName().startsWith(CACHE_METADATA_ENTRY_PREFIX)) {
-                ++result;
-            }
-        }
-        return result;
     }
 
     /**
