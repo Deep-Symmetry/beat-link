@@ -13,6 +13,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Manages a connection to the dbserver port on a particular player, allowing queries to be sent, and their
@@ -327,8 +328,8 @@ public class Client {
      * @return the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}
      *         will request at once
      */
-    public static synchronized long getMenuBatchSize() {
-        return menuBatchSize;
+    public static long getMenuBatchSize() {
+        return menuBatchSize.get();
     }
 
     /**
@@ -339,8 +340,8 @@ public class Client {
      * @param batchSize the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}
      *                      will request at once
      */
-    public static synchronized void setMenuBatchSize(long batchSize) {
-        menuBatchSize = batchSize;
+    public static void setMenuBatchSize(long batchSize) {
+        menuBatchSize.set(batchSize);
     }
 
     /**
@@ -348,7 +349,7 @@ public class Client {
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players. Changing this will affect future calls
      * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}.
      */
-    private static long menuBatchSize = DEFAULT_MENU_BATCH_SIZE;
+    private static final AtomicLong menuBatchSize = new AtomicLong(DEFAULT_MENU_BATCH_SIZE);
 
 
     /**
@@ -405,7 +406,7 @@ public class Client {
         final ArrayList<Message> results = new ArrayList<Message>(count);
         int gathered = 0;
         while (gathered < count) {
-            final long batchSize = (Math.min(count - gathered, menuBatchSize));
+            final long batchSize = (Math.min(count - gathered, menuBatchSize.get()));
             final NumberField transaction = assignTransactionNumber();
             final NumberField limit = new NumberField(batchSize);
             final Message request = new Message(transaction,
@@ -443,6 +444,6 @@ public class Client {
     @Override
     public String toString() {
         return "DBServer Client[targetPlayer: " + targetPlayer + ", posingAsPlayer: " + posingAsPlayer +
-                ", transactionCounter: " + transactionCounter + "]";
+                ", transactionCounter: " + transactionCounter + ", menuBatchSize: " + getMenuBatchSize() + "]";
     }
 }

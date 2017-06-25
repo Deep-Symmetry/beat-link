@@ -15,6 +15,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -115,8 +116,8 @@ public class ConnectionManager extends LifecycleParticipant {
             try {
                 InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
                 socket = new Socket();
-                socket.connect(address, socketTimeout);
-                socket.setSoTimeout(socketTimeout);
+                socket.connect(address, socketTimeout.get());
+                socket.setSoTimeout(socketTimeout.get());
                 result = new Client(socket, targetPlayer, posingAsPlayerNumber);
             } catch (IOException e) {
                 try {
@@ -272,10 +273,10 @@ public class ConnectionManager extends LifecycleParticipant {
         try {
             InetSocketAddress address = new InetSocketAddress(announcement.getAddress(), DB_SERVER_QUERY_PORT);
             socket = new Socket();
-            socket.connect(address, socketTimeout);
+            socket.connect(address, socketTimeout.get());
             InputStream is = socket.getInputStream();
             OutputStream os = socket.getOutputStream();
-            socket.setSoTimeout(socketTimeout);
+            socket.setSoTimeout(socketTimeout.get());
             os.write(DB_SERVER_QUERY_PACKET);
             byte[] response = readResponseWithExpectedSize(is, 2, "database server port query packet");
             if (response.length == 2) {
@@ -306,7 +307,7 @@ public class ConnectionManager extends LifecycleParticipant {
     /**
      * The number of milliseconds after which an attempt to open or read from a socket will fail.
      */
-    private int socketTimeout = DEFAULT_SOCKET_TIMEOUT;
+    private final AtomicInteger socketTimeout = new AtomicInteger(DEFAULT_SOCKET_TIMEOUT);
 
     /**
      * Set how long we will wait for a socket to connect or for a read operation to complete.
@@ -314,8 +315,8 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @param timeout after how many milliseconds will an attempt to open or read from a socket fail
      */
-    public synchronized void setSocketTimeout(int timeout) {
-        socketTimeout = timeout;
+    public void setSocketTimeout(int timeout) {
+        socketTimeout.set(timeout);
     }
 
     /**
@@ -324,8 +325,8 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @return the number of milliseconds after which an attempt to open or read from a socket will fail
      */
-    public synchronized int getSocketTimeout() {
-        return socketTimeout;
+    public int getSocketTimeout() {
+        return socketTimeout.get();
     }
 
     /**
@@ -402,7 +403,7 @@ public class ConnectionManager extends LifecycleParticipant {
     /**
      * Keep track of whether we are running
      */
-    private boolean running = false;
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
      * Check whether we are currently running.
@@ -410,8 +411,8 @@ public class ConnectionManager extends LifecycleParticipant {
      * @return true if we are offering shared dbserver sessions
      */
     @SuppressWarnings("WeakerAccess")
-    public synchronized boolean isRunning() {
-        return running;
+    public boolean isRunning() {
+        return running.get();
     }
 
     private final LifecycleListener lifecycleListener = new LifecycleListener() {
@@ -451,7 +452,7 @@ public class ConnectionManager extends LifecycleParticipant {
      * @throws SocketException if there is a problem opening connections
      */
     public synchronized void start() throws SocketException {
-        if (!running) {
+        if (!isRunning()) {
             DeviceFinder.getInstance().addLifecycleListener(lifecycleListener);
             DeviceFinder.getInstance().addDeviceAnnouncementListener(announcementListener);
             DeviceFinder.getInstance().start();
@@ -462,7 +463,7 @@ public class ConnectionManager extends LifecycleParticipant {
             new Thread(null, new Runnable() {
                 @Override
                 public void run() {
-                    while (running) {
+                    while (isRunning()) {
                         try {
                             Thread.sleep(500);
                         } catch (InterruptedException e) {
@@ -474,7 +475,7 @@ public class ConnectionManager extends LifecycleParticipant {
                 }
             }, "Idle dbserver client closer").start();
 
-            running = true;
+            running.set(true);
             deliverLifecycleAnnouncement(logger, true);
         }
     }
@@ -483,8 +484,8 @@ public class ConnectionManager extends LifecycleParticipant {
      * Stop offering shared dbserver sessions.
      */
     public synchronized void stop() {
-        if (running) {
-            running = false;
+        if (isRunning()) {
+            running.set(false);
             DeviceFinder.getInstance().removeDeviceAnnouncementListener(announcementListener);
             dbServerPorts.clear();
             for (Client client : openClients.values()) {

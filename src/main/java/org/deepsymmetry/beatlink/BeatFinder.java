@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,16 +44,15 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * The socket used to listen for beat packets while we are active.
      */
-    private DatagramSocket socket;
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>(null);
 
     /**
      * Check whether we are presently listening for beat packets.
      *
      * @return {@code true} if our socket is open and monitoring for DJ Link beat packets on the network
      */
-    @SuppressWarnings("WeakerAccess")
-    public synchronized boolean isRunning() {
-        return socket != null;
+    public boolean isRunning() {
+        return socket.get() != null;
     }
 
     /**
@@ -62,7 +62,7 @@ public class BeatFinder extends LifecycleParticipant {
      */
     public synchronized void start() throws SocketException {
         if (!isRunning()) {
-            socket = new DatagramSocket(BEAT_PORT);
+            socket.set(new DatagramSocket(BEAT_PORT));
             deliverLifecycleAnnouncement(logger, true);
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -72,7 +72,7 @@ public class BeatFinder extends LifecycleParticipant {
                     boolean received;
                     while (isRunning()) {
                         try {
-                            socket.receive(packet);
+                            socket.get().receive(packet);
                             received = true;
                         } catch (IOException e) {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
@@ -106,8 +106,8 @@ public class BeatFinder extends LifecycleParticipant {
     @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
-            socket.close();
-            socket = null;
+            socket.get().close();
+            socket.set(null);
             deliverLifecycleAnnouncement(logger, false);
         }
     }
@@ -180,8 +180,6 @@ public class BeatFinder extends LifecycleParticipant {
             }
         }
     }
-
-    // TODO: Do we want to keep a set of the latest beats we got from each device?
 
     /**
      * Holds the singleton instance of this class.

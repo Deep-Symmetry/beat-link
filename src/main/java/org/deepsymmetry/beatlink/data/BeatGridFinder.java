@@ -14,6 +14,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -103,7 +104,7 @@ public class BeatGridFinder extends LifecycleParticipant {
     /**
      * Keep track of whether we are running
      */
-    private boolean running = false;
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
      * Check whether we are currently running. Unless the {@link MetadataFinder} is in passive mode, we will
@@ -114,9 +115,8 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @see MetadataFinder#isPassive()
      */
-    @SuppressWarnings("WeakerAccess")
-    public synchronized boolean isRunning() {
-        return running;
+    public boolean isRunning() {
+        return running.get();
     }
 
     /**
@@ -143,7 +143,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @param announcement the packet which reported the device’s disappearance
      */
-    private synchronized void clearBeatGrids(DeviceAnnouncement announcement) {
+    private void clearBeatGrids(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
         Iterator<DeckReference> hotCacheIterator = hotCache.keySet().iterator();
         while (hotCacheIterator.hasNext()) {
@@ -475,7 +475,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @throws Exception if there is a problem starting the required components
      */
     public synchronized void start() throws Exception {
-        if (!running) {
+        if (!isRunning()) {
             ConnectionManager.getInstance().addLifecycleListener(lifecycleListener);
             ConnectionManager.getInstance().start();
             DeviceFinder.getInstance().addDeviceAnnouncementListener(announcementListener);
@@ -495,7 +495,7 @@ public class BeatGridFinder extends LifecycleParticipant {
                     }
                 }
             });
-            running = true;
+            running.set(true);
             queueHandler.start();
             deliverLifecycleAnnouncement(logger, true);
 
@@ -513,9 +513,9 @@ public class BeatGridFinder extends LifecycleParticipant {
      */
     @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
-        if (running) {
+        if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
-            running = false;
+            running.set(false);
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;

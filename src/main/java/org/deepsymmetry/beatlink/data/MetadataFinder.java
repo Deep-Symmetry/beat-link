@@ -11,6 +11,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.ZipEntry;
@@ -87,7 +88,7 @@ public class MetadataFinder extends LifecycleParticipant {
             return getCachedMetadata(cache, track);
         }
 
-        if (passive && failIfPassive) {
+        if (passive.get() && failIfPassive) {
             return null;
         }
 
@@ -730,7 +731,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Keep track of whether we are running
      */
-    private boolean running = false;
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
      * Check whether we are currently running. Unless we are in passive mode, we will also automatically request
@@ -742,14 +743,14 @@ public class MetadataFinder extends LifecycleParticipant {
      * @see #isPassive()
      */
     @SuppressWarnings("WeakerAccess")
-    public synchronized boolean isRunning() {
-        return running;
+    public boolean isRunning() {
+        return running.get();
     }
 
     /**
      * Indicates whether we should use metadata only from caches, never actively requesting it from a player.
      */
-    private boolean passive = false;
+    private final AtomicBoolean passive = new AtomicBoolean(false);
 
     /**
      * Check whether we are configured to use metadata only from caches, never actively requesting it from a player.
@@ -760,8 +761,8 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return {@code true} if only cached metadata will be used, or {@code false} if metadata will be requested from
      *         a player if a track is loaded from a media slot to which no cache has been assigned
      */
-    public synchronized boolean isPassive() {
-        return passive;
+    public boolean isPassive() {
+        return passive.get();
     }
 
     /**
@@ -773,8 +774,8 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param passive {@code true} if only cached metadata will be used, or {@code false} if metadata will be requested
      *                from a player if a track is loaded from a media slot to which no cache has been assigned
      */
-    public synchronized void setPassive(boolean passive) {
-        this.passive = passive;
+    public void setPassive(boolean passive) {
+        this.passive.set(passive);
     }
 
     /**
@@ -1336,7 +1337,6 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return the zip file being used as a metadata cache for that player and slot, or {@code null} if no cache
      *         has been attached
      */
-    @SuppressWarnings("WeakerAccess")
     public ZipFile getMetadataCache(SlotReference slot) {
         return metadataCacheFiles.get(slot);
     }
@@ -1701,7 +1701,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @throws Exception if there is a problem starting the required components
      */
     public synchronized void start() throws Exception {
-        if (!running) {
+        if (!isRunning()) {
             ConnectionManager.getInstance().addLifecycleListener(lifecycleListener);
             ConnectionManager.getInstance().start();
             DeviceFinder.getInstance().start();
@@ -1721,7 +1721,7 @@ public class MetadataFinder extends LifecycleParticipant {
                     }
                 }
             });
-            running = true;
+            running.set(true);
             queueHandler.start();
             deliverLifecycleAnnouncement(logger, true);
         }
@@ -1731,9 +1731,9 @@ public class MetadataFinder extends LifecycleParticipant {
      * Stop finding track metadata for all active players.
      */
     public synchronized void stop() {
-        if (running) {
+        if (isRunning()) {
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
-            running = false;
+            running.set(false);
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;

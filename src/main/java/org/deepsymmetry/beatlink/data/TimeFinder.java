@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * <p>Watches the beat packets and transport information contained in player status update to infer the current
@@ -26,8 +27,7 @@ public class TimeFinder extends LifecycleParticipant {
     /**
      * Keeps track of the latest position information we have from each player, indexed by player number.
      */
-    private final ConcurrentHashMap<Integer, TrackPositionUpdate> positions =
-            new ConcurrentHashMap<Integer, TrackPositionUpdate>();
+    private final ConcurrentHashMap<Integer, TrackPositionUpdate> positions = new ConcurrentHashMap<Integer, TrackPositionUpdate>();
 
     /**
      * Keeps track of the latest device update reported by each player, indexed by player number.
@@ -55,16 +55,15 @@ public class TimeFinder extends LifecycleParticipant {
     /**
      * Keep track of whether we are running
      */
-    private boolean running = false;
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
      * Check whether we are currently running.
      *
      * @return true if track playback positions are being kept track of for all active players
      */
-    @SuppressWarnings("WeakerAccess")
-    public synchronized boolean isRunning() {
-        return running;
+    public boolean isRunning() {
+        return running.get();
     }
 
     /**
@@ -102,7 +101,6 @@ public class TimeFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the TimeFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
     public TrackPositionUpdate getLatestPositionFor(int player) {
         ensureRunning();
         return positions.get(player);
@@ -207,7 +205,6 @@ public class TimeFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the TimeFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
     public long getTimeFor(int player) {
         TrackPositionUpdate update = positions.get(player);
         if (update != null) {
@@ -332,7 +329,7 @@ public class TimeFinder extends LifecycleParticipant {
      * @throws Exception if there is a problem starting the required components
      */
     public synchronized void start() throws Exception {
-        if (!running) {
+        if (!isRunning()) {
             DeviceFinder.getInstance().addDeviceAnnouncementListener(announcementListener);
             BeatGridFinder.getInstance().addLifecycleListener(lifecycleListener);
             BeatGridFinder.getInstance().start();
@@ -342,7 +339,7 @@ public class TimeFinder extends LifecycleParticipant {
             BeatFinder.getInstance().addLifecycleListener(lifecycleListener);
             BeatFinder.getInstance().addBeatListener(beatListener);
             BeatFinder.getInstance().start();
-            running = true;
+            running.set(true);
             deliverLifecycleAnnouncement(logger, true);
         }
     }
@@ -352,10 +349,10 @@ public class TimeFinder extends LifecycleParticipant {
      */
     @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
-        if (running) {
+        if (isRunning()) {
             BeatFinder.getInstance().removeBeatListener(beatListener);
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
-            running = false;
+            running.set(false);
             positions.clear();
             updates.clear();
             deliverLifecycleAnnouncement(logger, false);

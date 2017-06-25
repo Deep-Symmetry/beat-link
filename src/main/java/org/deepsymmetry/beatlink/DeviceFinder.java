@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,27 +36,27 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * The socket used to listen for announcement packets while we are active.
      */
-    private DatagramSocket socket;
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>(null);
 
     /**
      * Track when we started listening for announcement packets.
      */
-    private static long startTime;
+    private static final AtomicLong startTime = new AtomicLong();
 
     /**
      * Track when we saw the first announcement packet, to help the {@link VirtualCdj} determine how long it needs
      * to watch for devices in order to avoid conflicts when self-assigning a device number. Will be zero when none
      * have yet been seen.
      */
-    private long firstDeviceTime = 0;
+    private static final AtomicLong firstDeviceTime = new AtomicLong(0);
 
     /**
      * Check whether we are presently listening for device announcements.
      *
      * @return {@code true} if our socket is open and monitoring for DJ Link device announcements on the network
      */
-    public synchronized boolean isRunning() {
-        return socket != null;
+    public boolean isRunning() {
+        return socket.get() != null;
     }
 
     /**
@@ -63,9 +65,9 @@ public class DeviceFinder extends LifecycleParticipant {
      * @return the system millisecond timestamp when {@link #start()} was called.
      * @throws IllegalStateException if we are not listening for announcements.
      */
-    public synchronized long getStartTime() {
+    public long getStartTime() {
         ensureRunning();
-        return startTime;
+        return startTime.get();
     }
 
     /**
@@ -75,12 +77,13 @@ public class DeviceFinder extends LifecycleParticipant {
      * @return the system millisecond timestamp when the first device announcement was received.
      * @throws IllegalStateException if we are not listening for announcements, or if none have been seen.
      */
-    public synchronized long getFirstDeviceTime() {
+    public long getFirstDeviceTime() {
         ensureRunning();
-        if (firstDeviceTime == 0) {
+        final long result = firstDeviceTime.get();
+        if (result == 0) {
             throw new IllegalStateException("No device announcements have yet been seen");
         }
-        return firstDeviceTime;
+        return result;
     }
 
     /**
@@ -91,18 +94,18 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * Remove any device announcements that are so old that the device seems to have gone away.
      */
-    private synchronized void expireDevices() {
+    private void expireDevices() {
         long now = System.currentTimeMillis();
-        Iterator<Map.Entry<InetAddress, DeviceAnnouncement>> it = devices.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<InetAddress, DeviceAnnouncement> entry = it.next();
+        // Make a copy so we don't have to worry about concurrent modification.
+        Map<InetAddress, DeviceAnnouncement> copy = new HashMap<InetAddress, DeviceAnnouncement>(devices);
+        for (Map.Entry<InetAddress, DeviceAnnouncement> entry : copy.entrySet()) {
             if (now - entry.getValue().getTimestamp() > MAXIMUM_AGE) {
-                it.remove();
+                devices.remove(entry.getKey());
                 deliverLostAnnouncement(entry.getValue());
             }
         }
         if (devices.isEmpty()) {
-            firstDeviceTime = 0;  // We have lost contact with the Pro DJ Link network, so start over with next device.
+            firstDeviceTime.set(0);  // We have lost contact with the Pro DJ Link network, so start over with next device.
         }
     }
 
@@ -111,10 +114,8 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @param announcement the announcement to be recorded
      */
-    private synchronized void updateDevices(DeviceAnnouncement announcement) {
-        if (firstDeviceTime == 0) {
-            firstDeviceTime = System.currentTimeMillis();
-        }
+    private void updateDevices(DeviceAnnouncement announcement) {
+        firstDeviceTime.compareAndSet(0, System.currentTimeMillis());
         devices.put(announcement.getAddress(), announcement);
     }
 
@@ -165,8 +166,8 @@ public class DeviceFinder extends LifecycleParticipant {
     public synchronized void start() throws SocketException {
 
         if (!isRunning()) {
-            socket = new DatagramSocket(ANNOUNCEMENT_PORT);
-            startTime = System.currentTimeMillis();
+            socket.set(new DatagramSocket(ANNOUNCEMENT_PORT));
+            startTime.set(System.currentTimeMillis());
             deliverLifecycleAnnouncement(logger, true);
 
             final byte[] buffer = new byte[512];
@@ -178,12 +179,12 @@ public class DeviceFinder extends LifecycleParticipant {
                     while (isRunning()) {
                         try {
                             if (getCurrentDevices().isEmpty()) {
-                                socket.setSoTimeout(0);  // We have no devices to check for timeout; block indefinitely
+                                socket.get().setSoTimeout(60000);  // We have no devices to check for timeout; block for a whole minute to check for shutdown
                             } else {
-                                socket.setSoTimeout(1000);  // Check every second to see if a device has vanished
+                                socket.get().setSoTimeout(1000);  // Check every second to see if a device has vanished
                             }
                             received = true;
-                            socket.receive(packet);
+                            socket.get().receive(packet);
                         } catch (SocketTimeoutException ste) {
                             received = false;
                         } catch (IOException e) {
@@ -226,10 +227,10 @@ public class DeviceFinder extends LifecycleParticipant {
     public synchronized void stop() {
         if (isRunning()) {
             final Set<DeviceAnnouncement> lastDevices = getCurrentDevices();
-            socket.close();
-            socket = null;
+            socket.get().close();
+            socket.set(null);
             devices.clear();
-            firstDeviceTime = 0;
+            firstDeviceTime.set(0);
             for (DeviceAnnouncement announcement : lastDevices) {
                 deliverLostAnnouncement(announcement);
             }

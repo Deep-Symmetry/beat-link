@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -72,20 +73,20 @@ public class ArtFinder extends LifecycleParticipant {
 
         @Override
         public void mediaUnmounted(SlotReference slot) {
-            Iterator<DataReference> cacheIterator = artCache.keySet().iterator();
-            while (cacheIterator.hasNext()) {
-                DataReference artReference = cacheIterator.next();
+            // Iterate over a copy to avoid concurrent modification issues.
+            final Set<DataReference> keys = new HashSet<DataReference>(artCache.keySet());
+            for (DataReference artReference : keys) {
                 if (SlotReference.getSlotReference(artReference) == slot) {
                     logger.debug("Evicting cached artwork in response to unmount report {}", artReference);
-                    cacheIterator.remove();
+                    artCache.remove(artReference);
                 }
             }
-            Iterator<Map.Entry<DeckReference,AlbumArt>> hotCacheIterator = hotCache.entrySet().iterator();
-            while (hotCacheIterator.hasNext()) {
-                Map.Entry<DeckReference,AlbumArt> entry = hotCacheIterator.next();
+            // Again iterate over a copy to avoid concurrent modification issues.
+            final Set<Map.Entry<DeckReference,AlbumArt>> copy = new HashSet<Map.Entry<DeckReference, AlbumArt>>(hotCache.entrySet());
+            for (Map.Entry<DeckReference, AlbumArt> entry : copy) {
                 if (slot == SlotReference.getSlotReference(entry.getValue().artReference)) {
                     logger.debug("Evicting hot cached artwork in response to unmount report {}", entry.getValue());
-                    hotCacheIterator.remove();
+                    hotCache.remove(entry.getKey());
                 }
             }
         }
@@ -111,7 +112,7 @@ public class ArtFinder extends LifecycleParticipant {
     /**
      * Keep track of whether we are running
      */
-    private boolean running = false;
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
      * Check whether we are currently running. Unless the {@link MetadataFinder} is in passive mode, we will
@@ -122,9 +123,8 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @see MetadataFinder#isPassive()
      */
-    @SuppressWarnings("WeakerAccess")
-    public synchronized boolean isRunning() {
-        return running;
+    public boolean isRunning() {
+        return running.get();
     }
 
     /**
@@ -151,20 +151,18 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @param announcement the packet which reported the device’s disappearance
      */
-    private synchronized void clearArt(DeviceAnnouncement announcement) {
+    private void clearArt(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
-        final Iterator<DeckReference> deckIterator = hotCache.keySet().iterator();
-        while (deckIterator.hasNext()) {
-            DeckReference deck = deckIterator.next();
+        // Iterate over a copy to avoid concurrent modification issues
+        for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
             if (deck.player == player) {
-                deckIterator.remove();
+                hotCache.remove(deck);
             }
         }
-        Iterator<DataReference> cacheIterator = artCache.keySet().iterator();
-        while (cacheIterator.hasNext()) {
-            DataReference artReference = cacheIterator.next();
-            if (artReference.player == player) {
-                cacheIterator.remove();
+        // Again iterate over a copy to avoid concurrent modification issues
+        for (DataReference art : new HashSet<DataReference>(artCache.keySet())) {
+            if (art.player == player) {
+                artCache.remove(art);
             }
         }
     }
@@ -209,7 +207,6 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the ArtFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
     public AlbumArt getLatestArtFor(int player) {
         ensureRunning();
         return hotCache.get(DeckReference.getDeckReference(player, 0));
@@ -620,7 +617,7 @@ public class ArtFinder extends LifecycleParticipant {
      * @throws Exception if there is a problem starting the required components
      */
     public synchronized void start() throws Exception {
-        if (!running) {
+        if (!isRunning()) {
             ConnectionManager.getInstance().addLifecycleListener(lifecycleListener);
             ConnectionManager.getInstance().start();
             DeviceFinder.getInstance().addDeviceAnnouncementListener(announcementListener);
@@ -640,7 +637,7 @@ public class ArtFinder extends LifecycleParticipant {
                     }
                 }
             });
-            running = true;
+            running.set(true);
             queueHandler.start();
             deliverLifecycleAnnouncement(logger, true);
 
@@ -657,9 +654,9 @@ public class ArtFinder extends LifecycleParticipant {
      * Stop finding album art for all active players.
      */
     public synchronized void stop() {
-        if (running) {
+        if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
-            running = false;
+            running.set(false);
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
