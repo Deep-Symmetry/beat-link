@@ -62,12 +62,17 @@ public class WaveformFinder extends LifecycleParticipant {
         if (findDetails) {
             primeCache();  // Get details for any tracks that were already loaded on players.
         } else {
-            Iterator<Map.Entry<DeckReference, WaveformDetail>> detailIterator = detailHotCache.entrySet().iterator();
-            while (detailIterator.hasNext()) {
-                Map.Entry<DeckReference, WaveformDetail> entry = detailIterator.next();
-                deliverWaveformDetailUpdate(entry.getKey().player, null);
-                detailIterator.remove();
-            }
+            // Inform our listeners, on the proper thread, that the detailed waveforms are no longer available
+            final Set<DeckReference> dyingCache = new HashSet<DeckReference>(detailHotCache.keySet());
+            detailHotCache.clear();
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    for (DeckReference deck : dyingCache) {
+                        deliverWaveformDetailUpdate(deck.player, null);
+                    }
+                }
+            });
         }
     }
 
@@ -115,13 +120,15 @@ public class WaveformFinder extends LifecycleParticipant {
 
         @Override
         public void mediaUnmounted(SlotReference slot) {
-            for (Map.Entry<DeckReference, WaveformPreview> entry : previewHotCache.entrySet()) {
+            // Iterate over a copy to avoid concurrent modification issues
+            for (Map.Entry<DeckReference, WaveformPreview> entry : new HashMap<DeckReference, WaveformPreview>(previewHotCache).entrySet()) {
                 if (slot == SlotReference.getSlotReference(entry.getValue().dataReference)) {
                     logger.debug("Evicting cached waveform preview in response to unmount report {}", entry.getValue());
                     previewHotCache.remove(entry.getKey());
                 }
             }
-            for (Map.Entry<DeckReference, WaveformDetail> entry : detailHotCache.entrySet()) {
+            // Again iterate over a copy to avoid concurrent modification issues
+            for (Map.Entry<DeckReference, WaveformDetail> entry : new HashMap<DeckReference, WaveformDetail>(detailHotCache).entrySet()) {
                 if (slot == SlotReference.getSlotReference(entry.getValue().dataReference)) {
                     logger.debug("Evicting cached waveform detail in response to unmount report {}", entry.getValue());
                     detailHotCache.remove(entry.getKey());
@@ -216,18 +223,16 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     private void clearWaveforms(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
-        Iterator<DeckReference> deckIterator = previewHotCache.keySet().iterator();
-        while (deckIterator.hasNext()) {
-            DeckReference deck = deckIterator.next();
+        // Iterate over a copy to avoid concurrent modification issues
+        for (DeckReference deck : new HashSet<DeckReference>(previewHotCache.keySet())) {
             if (deck.player == player) {
-                deckIterator.remove();
+                previewHotCache.remove(deck);
             }
         }
-        deckIterator = detailHotCache.keySet().iterator();
-        while (deckIterator.hasNext()) {
-            DeckReference deck = deckIterator.next();
+        // Again iterate over a copy to avoid concurrent modification issues
+        for (DeckReference deck : new HashSet<DeckReference>(detailHotCache.keySet())) {
             if (deck.player == player) {
-                deckIterator.remove();
+                detailHotCache.remove(deck);
             }
         }
     }
@@ -797,11 +802,16 @@ public class WaveformFinder extends LifecycleParticipant {
      * details, since we missed them.
      */
     private void primeCache() {
-        for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-            if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
-                handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+                    if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                        handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+                    }
+                }
             }
-        }
+        });
     }
 
     /**
@@ -851,18 +861,27 @@ public class WaveformFinder extends LifecycleParticipant {
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
-            for (DeckReference deck : previewHotCache.keySet()) {  // Report the loss of our previews.
-                if (deck.hotCue == 0) {
-                    deliverWaveformPreviewUpdate(deck.player, null);
-                }
-            }
+
+            // Report the loss of our waveforms, on the proper thread, outside our lock
+            final Set<DeckReference> dyingPreviewCache = new HashSet<DeckReference>(previewHotCache.keySet());
             previewHotCache.clear();
-            for (DeckReference deck : detailHotCache.keySet()) {  // Report the loss of our details.
-                if (deck.hotCue == 0) {
-                    deliverWaveformDetailUpdate(deck.player, null);
-                }
-            }
+            final Set<DeckReference> dyingDetailCache = new HashSet<DeckReference>(detailHotCache.keySet());
             detailHotCache.clear();
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    for (DeckReference deck : dyingPreviewCache) {  // Report the loss of our previews.
+                        if (deck.hotCue == 0) {
+                            deliverWaveformPreviewUpdate(deck.player, null);
+                        }
+                    }
+                    for (DeckReference deck : dyingDetailCache) {  // Report the loss of our details.
+                        if (deck.hotCue == 0) {
+                            deliverWaveformDetailUpdate(deck.player, null);
+                        }
+                    }
+                }
+            });
             deliverLifecycleAnnouncement(logger, false);
         }
     }

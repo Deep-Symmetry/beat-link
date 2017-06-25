@@ -1,6 +1,5 @@
 package org.deepsymmetry.beatlink;
 
-import java.awt.EventQueue;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
@@ -10,6 +9,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.swing.*;
 
 /**
  * Watches for devices to report their presence by broadcasting announcement packets on port 50000,
@@ -231,9 +232,15 @@ public class DeviceFinder extends LifecycleParticipant {
             socket.set(null);
             devices.clear();
             firstDeviceTime.set(0);
-            for (DeviceAnnouncement announcement : lastDevices) {
-                deliverLostAnnouncement(announcement);
-            }
+            // Report the loss of all our devices, on the proper thread, outside our lock
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    for (DeviceAnnouncement announcement : lastDevices) {
+                        deliverLostAnnouncement(announcement);
+                    }
+                }
+            });
             deliverLifecycleAnnouncement(logger, false);
         }
     }
@@ -330,7 +337,7 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     private void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
         for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
-            EventQueue.invokeLater(new Runnable() {
+            SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -350,7 +357,7 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     private void deliverLostAnnouncement(final DeviceAnnouncement announcement) {
         for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
-            EventQueue.invokeLater(new Runnable() {
+            SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {
                     try {

@@ -8,6 +8,7 @@ import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.*;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -73,12 +74,11 @@ public class BeatGridFinder extends LifecycleParticipant {
 
         @Override
         public void mediaUnmounted(SlotReference slot) {
-            Iterator<Map.Entry<DeckReference,BeatGrid>> hotCacheIterator = hotCache.entrySet().iterator();
-            while (hotCacheIterator.hasNext()) {
-                Map.Entry<DeckReference, BeatGrid> entry = hotCacheIterator.next();
+            // Iterate over a copy to avoid concurrent modification issues
+            for (Map.Entry<DeckReference, BeatGrid> entry : new HashMap<DeckReference, BeatGrid>(hotCache).entrySet()) {
                 if (slot == SlotReference.getSlotReference(entry.getValue().dataReference)) {
                     logger.debug("Evicting cached beat grid in response to unmount report {}", entry.getValue());
-                    hotCacheIterator.remove();
+                    hotCache.remove(entry.getKey());
                 }
             }
         }
@@ -145,11 +145,10 @@ public class BeatGridFinder extends LifecycleParticipant {
      */
     private void clearBeatGrids(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
-        Iterator<DeckReference> hotCacheIterator = hotCache.keySet().iterator();
-        while (hotCacheIterator.hasNext()) {
-            DeckReference deck = hotCacheIterator.next();
+        // Iterate over a copy to avoid concurrent modification issues
+        for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
             if (deck.player == player) {
-                hotCacheIterator.remove();
+                hotCache.remove(deck);
             }
         }
     }
@@ -425,9 +424,9 @@ public class BeatGridFinder extends LifecycleParticipant {
                 }
 
                 // Not in the cache so try actually retrieving it.
-                if (activeRequests.add(update.player)) {
+                if (activeRequests.add(update.player)) {  // We had to make sure we were not already asking for this track.
                     clearDeck(update);  // We won't know what it is until our request completes.
-                    // We had to make sure we were not already asking for this track.
+
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
@@ -442,7 +441,7 @@ public class BeatGridFinder extends LifecycleParticipant {
                                 activeRequests.remove(update.player);
                             }
                         }
-                    }).start();
+                    }, "Beat Grid request").start();
                 }
             }
         }
@@ -500,11 +499,16 @@ public class BeatGridFinder extends LifecycleParticipant {
             deliverLifecycleAnnouncement(logger, true);
 
             // Send ourselves "updates" about any tracks that were loaded before we started, since we missed those.
-            for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-                if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
-                    handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+                        if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                            handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+                        }
+                    }
                 }
-            }
+            });
         }
     }
 
@@ -519,11 +523,19 @@ public class BeatGridFinder extends LifecycleParticipant {
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
-            for (DeckReference deck : hotCache.keySet()) {  // Report the loss of our previews.
-                if (deck.hotCue == 0) {
-                    deliverBeatGridUpdate(deck.player, null);
+
+            // Report the loss of our previews, on the proper thread, and outside our lock.
+            final Set<DeckReference> dyingCache = new HashSet<DeckReference>(hotCache.keySet());
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    for (DeckReference deck : dyingCache) {
+                        if (deck.hotCue == 0) {
+                            deliverBeatGridUpdate(deck.player, null);
+                        }
+                    }
                 }
-            }
+            });
             hotCache.clear();
             deliverLifecycleAnnouncement(logger, false);
         }

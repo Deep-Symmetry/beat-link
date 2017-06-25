@@ -341,7 +341,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * Process a beat packet, potentially updating the master tempo and sending our listeners a master
      * beat notification. Does nothing if we are not active.
      */
-    synchronized void processBeat(Beat beat) {
+    void processBeat(Beat beat) {
         if (isRunning() && beat.isTempoMaster()) {
             setMasterTempo(beat.getEffectiveTempo());
             deliverBeatAnnouncement(beat);

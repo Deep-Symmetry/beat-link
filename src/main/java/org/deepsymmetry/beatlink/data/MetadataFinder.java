@@ -5,6 +5,7 @@ import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.*;
 import java.io.*;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -804,11 +805,10 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     private void clearMetadata(DeviceAnnouncement announcement) {
         final int player = announcement.getNumber();
-        final Iterator<DeckReference> hotCacheIterator = hotCache.keySet().iterator();
-        while (hotCacheIterator.hasNext()) {
-            DeckReference deck = hotCacheIterator.next();
+        // Iterate over a copy to avoid concurrent modification issues
+        for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
             if (deck.player == player) {
-                hotCacheIterator.remove();
+                hotCache.remove(deck);
             }
         }
     }
@@ -1321,7 +1321,8 @@ public class MetadataFinder extends LifecycleParticipant {
      * longer valid.
      */
     private void flushHotCacheSlot(SlotReference slot) {
-        for (Map.Entry<DeckReference, TrackMetadata> entry : hotCache.entrySet()) {
+        // Iterate over a copy to avoid concurrent modification issues
+        for (Map.Entry<DeckReference, TrackMetadata> entry : new HashMap<DeckReference,TrackMetadata>(hotCache).entrySet()) {
             if (slot == SlotReference.getSlotReference(entry.getValue().trackReference)) {
                 logger.debug("Evicting cached metadata in response to unmount report {}", entry.getValue());
                 hotCache.remove(entry.getKey());
@@ -1667,7 +1668,7 @@ public class MetadataFinder extends LifecycleParticipant {
                                 activeRequests.remove(update.getTrackSourcePlayer());
                             }
                         }
-                    }).start();
+                    }, "MetadataFinder metadata request").start();
                 }
             }
         }
@@ -1737,11 +1738,20 @@ public class MetadataFinder extends LifecycleParticipant {
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
-            for (DeckReference deck : hotCache.keySet()) {  // Report the loss of our hot cached metadata
-                if (deck.hotCue == 0) {
-                    deliverTrackMetadataUpdate(deck.player, null);
+
+            // Report the loss of our hot cached metadata on the proper thread, outside our lock
+            final Set<DeckReference> dyingCache = new HashSet<DeckReference>(hotCache.keySet());
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    for (DeckReference deck : dyingCache) {
+                        if (deck.hotCue == 0) {
+                            deliverTrackMetadataUpdate(deck.player, null);
+                        }
+                    }
+
                 }
-            }
+            });
             hotCache.clear();
             deliverLifecycleAnnouncement(logger, false);
         }

@@ -599,11 +599,13 @@ public class ArtFinder extends LifecycleParticipant {
             pendingUpdates.clear();
             queueHandler.interrupt();
             queueHandler = null;
+
             // Report the loss of our hot cached art and our shutdown, on the proper thread, and outside our lock
+            final Set<DeckReference> dyingCache = new HashSet<DeckReference>(hotCache.keySet());
             SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {
-                    for (DeckReference deck : hotCache.keySet()) {
+                    for (DeckReference deck : dyingCache) {
                         if (deck.hotCue == 0) {
                             deliverAlbumArtUpdate(deck.player, null);
                         }
