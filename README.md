@@ -21,7 +21,7 @@ for examples of what you can do with this.
 > packages, so I also took the opportunity to make some basic changes to
 > the API to position it for future growth and better reliability. This
 > means version 0.3.0 is not API compatible with prior
-> releases, and any code which compiled against old release will
+> releases, and any code which compiled against an old release will
 > require some rewriting.
 >
 > :octocat: Since, as far as I know, I am still the only consumer of
