@@ -12,6 +12,8 @@ import java.nio.channels.WritableByteChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -109,6 +111,11 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
+     * How many seconds are we willing to wait to lock the database client for menu operations.
+     */
+    private final int MENU_TIMEOUT = 20;
+
+    /**
      * Request metadata for a specific track ID, given a connection to a player that has already been set up.
      * Separated into its own method so it could be used multiple times with the same connection when gathering
      * all track metadata.
@@ -119,22 +126,32 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return the retrieved metadata, or {@code null} if there is no such track
      *
      * @throws IOException if there is a communication problem
+     * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
+     * @throws TimeoutException if we are unable to lock the client for menu operations
      */
     private TrackMetadata queryMetadata(DataReference track, Client client)
-            throws IOException {
+            throws IOException, InterruptedException, TimeoutException {
 
         // Send the metadata menu request
-        Message response = client.menuRequest(Message.KnownType.METADATA_REQ, Message.MenuIdentifier.MAIN_MENU,
-                track.slot, new NumberField(track.rekordboxId));
-        final long count = response.getMenuResultsCount();
-        if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
-            return null;
-        }
+        if (client.tryLockingForMenuOperations(20, TimeUnit.SECONDS)) {
+            try {
+                Message response = client.menuRequest(Message.KnownType.METADATA_REQ, Message.MenuIdentifier.MAIN_MENU,
+                        track.slot, new NumberField(track.rekordboxId));
+                final long count = response.getMenuResultsCount();
+                if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
+                    return null;
+                }
 
-        // Gather the cue list and all the metadata menu items
-        final CueList cueList = getCueList(track.rekordboxId, track.slot, client);
-        final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, response);
-        return new TrackMetadata(track, items, cueList);
+                // Gather the cue list and all the metadata menu items
+                final CueList cueList = getCueList(track.rekordboxId, track.slot, client);
+                final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, response);
+                return new TrackMetadata(track, items, cueList);
+            } finally {
+                client.unlockForMenuOperations();
+            }
+        } else {
+            throw new TimeoutException("Unable to lock the player for menu operations");
+        }
     }
 
     /**
@@ -168,19 +185,30 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return the retrieved track list entry items
      *
      * @throws IOException if there is a communication problem
+     * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
+     * @throws TimeoutException if we are unable to lock the client for menu operations
      */
     private List<Message> getFullTrackList(CdjStatus.TrackSourceSlot slot, Client client)
-        throws IOException {
+            throws IOException, InterruptedException, TimeoutException {
         // Send the metadata menu request
-        Message response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
-                NumberField.WORD_0);
-        final long count = response.getMenuResultsCount();
-        if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
-            return Collections.emptyList();
-        }
+        if (client.tryLockingForMenuOperations(MENU_TIMEOUT, TimeUnit.SECONDS)) {
+            try {
+                Message response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
+                        NumberField.WORD_0);
+                final long count = response.getMenuResultsCount();
+                if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
+                    return Collections.emptyList();
+                }
 
-        // Gather all the metadata menu items
-        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
+                // Gather all the metadata menu items
+                return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
+            }
+            finally {
+                client.unlockForMenuOperations();
+            }
+        } else {
+            throw new TimeoutException("Unable to lock the player for menu operations");
+        }
     }
 
     /**
@@ -267,18 +295,29 @@ public class MetadataFinder extends LifecycleParticipant {
      *         for a playlist, or playlists and folders if we are asking for a folder
 
      * @throws IOException if there is a problem communicating
+     * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
+     * @throws TimeoutException if we are unable to lock the client for menu operations
      */
     private List<Message> getPlaylistItems(CdjStatus.TrackSourceSlot slot, int sortOrder, int playlistOrFolderId,
-                                           boolean folder, Client client) throws IOException {
-        Message response = client.menuRequest(Message.KnownType.PLAYLIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
-                new NumberField(sortOrder), new NumberField(playlistOrFolderId), new NumberField(folder? 1 : 0));
-        final long count = response.getMenuResultsCount();
-        if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
-            return Collections.emptyList();
-        }
+                                           boolean folder, Client client)
+            throws IOException, InterruptedException, TimeoutException {
+        if (client.tryLockingForMenuOperations(MENU_TIMEOUT, TimeUnit.SECONDS)) {
+            try {
+                Message response = client.menuRequest(Message.KnownType.PLAYLIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
+                        new NumberField(sortOrder), new NumberField(playlistOrFolderId), new NumberField(folder? 1 : 0));
+                final long count = response.getMenuResultsCount();
+                if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
+                    return Collections.emptyList();
+                }
 
-        // Gather all the metadata menu items
-        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
+                // Gather all the metadata menu items
+                return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
+            } finally {
+                client.unlockForMenuOperations();
+            }
+        } else {
+            throw new TimeoutException("Unable to lock player for menu operations.");
+        }
     }
 
     /**
@@ -417,10 +456,11 @@ public class MetadataFinder extends LifecycleParticipant {
      *                 the opportunity to cancel the process
      *
      * @throws IOException if there is a problem communicating with the player or writing the cache file.
+     * @throws TimeoutException if we are unable to lock the client for menu operations
      */
     private void copyTracksToCache(List<Message> trackListEntries, int playlistId, Client client, SlotReference slot,
                                    File cache, MetadataCacheCreationListener listener)
-        throws IOException {
+            throws IOException, TimeoutException {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
         ZipOutputStream zos = null;
@@ -515,10 +555,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return the track metadata object that was written to the cache, or {@code null} if it could not be found
      *
      * @throws IOException if there is a problem communicating with the player or writing to the cache file
+     * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
+     * @throws TimeoutException if we are unable to lock the client for menu operations
      */
     private TrackMetadata copyTrackToCache(Client client, SlotReference slot, ZipOutputStream zos,
                                            WritableByteChannel channel, Set<Integer> artworkAdded, int rekordboxId)
-            throws IOException {
+            throws IOException, TimeoutException, InterruptedException {
 
         final TrackMetadata track = queryMetadata(new DataReference(slot, rekordboxId), client);
         if (track != null) {
@@ -1146,37 +1188,49 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param client the dbserver client that is communicating with the appropriate player
      *
      * @throws IOException if there is a communication problem
+     * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
+     * @throws TimeoutException if we are unable to lock the client for menu operations
      */
-    private void tryAutoAttachingWithConnection(SlotReference slot, Client client) throws IOException {
+    private void tryAutoAttachingWithConnection(SlotReference slot, Client client) throws IOException, InterruptedException, TimeoutException {
         // Keeps track of the files we might be able to auto-attach, grouped and sorted by the playlist they
         // were created from, where playlist 0 means all tracks.
         Map<Integer, LinkedList<ZipFile>> candidateGroups = gatherCandidateAttachmentGroups();
 
         // Set up a menu request to process each group.
         for (Map.Entry<Integer,LinkedList<ZipFile>> entry : candidateGroups.entrySet()) {
-            final int playlistId = entry.getKey();
-            final LinkedList<ZipFile> candidates = entry.getValue();
-            final long count = getTrackCount(slot.slot, client, playlistId);
-            if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
-                candidates.clear();  // No tracks available to match this set of candidates.
-            }
+            final LinkedList<ZipFile> candidates;
+            ArrayList<Integer> tracksToSample;
+            if (client.tryLockingForMenuOperations(MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    final int playlistId = entry.getKey();
+                    candidates = entry.getValue();
+                    final long count = getTrackCount(slot.slot, client, playlistId);
+                    if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
+                        candidates.clear();  // No tracks available to match this set of candidates.
+                    }
 
-            // Filter out any candidates with the wrong number of tracks.
-            Iterator<ZipFile> candidateIterator = candidates.iterator();
-            while (candidateIterator.hasNext()) {
-                final ZipFile candidate = candidateIterator.next();
-                if (getCacheTrackCount(candidate) != count) {
-                    candidateIterator.remove();
+                    // Filter out any candidates with the wrong number of tracks.
+                    Iterator<ZipFile> candidateIterator = candidates.iterator();
+                    while (candidateIterator.hasNext()) {
+                        final ZipFile candidate = candidateIterator.next();
+                        if (getCacheTrackCount(candidate) != count) {
+                            candidateIterator.remove();
+                        }
+                    }
+
+                    // Bail before querying any metadata if we can already rule out all the candidates.
+                    if (candidates.isEmpty()) {
+                        continue;
+                    }
+
+                    // Gather as many track IDs as we are configured to sample, up to the number available
+                    tracksToSample = chooseTrackSample(slot, client, (int) count);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
-
-            // Bail before querying any metadata if we can already rule out all the candidates.
-            if (candidates.isEmpty()) {
-                continue;
-            }
-
-            // Gather as many track IDs as we are configured to sample, up to the number available
-            ArrayList<Integer> tracksToSample = chooseTrackSample(slot, client, (int) count);
 
             // Winnow out any auto-attachment candidates that don't match any sampled track
             for (int trackId : tracksToSample) {

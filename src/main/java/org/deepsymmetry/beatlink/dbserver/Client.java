@@ -13,7 +13,9 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Manages a connection to the dbserver port on a particular player, allowing queries to be sent, and their
@@ -295,11 +297,18 @@ public class Client {
      * @return the {@link Message.KnownType#MENU_AVAILABLE} response reporting how many items are available in the menu
      *
      * @throws IOException if there is a problem communicating, or if the requested menu is not available
+     * @throws IllegalStateException if {@link #tryLockingForMenuOperations(long, TimeUnit)} was not called successfully
+     *         before attempting this call
      */
     @SuppressWarnings("SameParameterValue")
     public synchronized Message menuRequest(Message.KnownType requestType, Message.MenuIdentifier targetMenu,
                                             CdjStatus.TrackSourceSlot slot, Field... arguments)
         throws IOException {
+
+        if (!menuLock.isHeldByCurrentThread()) {
+            throw new IllegalStateException("renderMenuItems() cannot be called without first successfully calling tryLockingForMenuOperation()");
+        }
+
         Field[] combinedArguments = new Field[arguments.length + 1];
         combinedArguments[0] = buildRMS1(targetMenu, slot);
         System.arraycopy(arguments, 0, combinedArguments, 1, arguments.length);
@@ -351,6 +360,36 @@ public class Client {
      */
     private static final AtomicLong menuBatchSize = new AtomicLong(DEFAULT_MENU_BATCH_SIZE);
 
+    /**
+     * Used to ensure that only one thread at a time is attempting to perform menu operations, which require more than
+     * one request/response cycle.
+     */
+    private ReentrantLock menuLock = new ReentrantLock();
+
+    /**
+     * Attempt to secure exclusive access to this player for performing a menu operation, which requires multiple
+     * request/response cycles. The caller <em>must</em> call {@link #unlockForMenuOperations()} as soon as it is
+     * done (even if it is failing because of an exception), or no future menu operations will be possible by any
+     * other thread, unless {@code false} was returned, meaning the attempt failed.
+     *
+     * @param timeout the time to wait for the lock
+     * @param unit the time unit of the timeout argument
+     *
+     * @return {@code true} if the lock was acquired within the specified time
+     *
+     * @throws InterruptedException if the thread is interrupted while waiting for the lock
+     */
+    public boolean tryLockingForMenuOperations(long timeout, TimeUnit unit) throws InterruptedException {
+        return menuLock.tryLock(timeout, unit);
+    }
+
+    /**
+     * Allow other threads to perform menu operations. This <em>must</em> be called promptly, once for each time that
+     * {@link #tryLockingForMenuOperations(long, TimeUnit)} was called with a {@code true} return value.
+     */
+    public void unlockForMenuOperations() {
+        menuLock.unlock();
+    }
 
     /**
      * Gather up all the responses that are available for a menu request. Will involve multiple requests if
@@ -365,6 +404,8 @@ public class Client {
      *         the header and footer items
      *
      * @throws IOException if there is a problem reading the menu items
+     * @throws IllegalStateException if {@link #tryLockingForMenuOperations(long, TimeUnit)} was not called successfully
+     *         before attempting this call
      */
     @SuppressWarnings("SameParameterValue")
     public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu,
@@ -393,16 +434,23 @@ public class Client {
      *         the header and footer items
      *
      * @throws IOException if there is a problem reading the menu items
+     * @throws IllegalStateException if {@link #tryLockingForMenuOperations(long, TimeUnit)} was not called successfully
+     *         before attempting this call
      */
     public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu,
                                                       CdjStatus.TrackSourceSlot slot, int offset, int count)
             throws IOException {
+
+        if (!menuLock.isHeldByCurrentThread()) {
+            throw new IllegalStateException("renderMenuItems() cannot be called without first successfully calling tryLockingForMenuOperation()");
+        }
         if (offset < 0) {
             throw new IllegalArgumentException("offset must be nonnegative");
         }
         if (count < 1) {
             throw new IllegalArgumentException("count must be positive");
         }
+
         final ArrayList<Message> results = new ArrayList<Message>(count);
         int gathered = 0;
         while (gathered < count) {
