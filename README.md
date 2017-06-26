@@ -13,34 +13,20 @@ for examples of what you can do with this.
 > :construction: beat-link is being worked on very heavily at the
 > moment to incorporate some
 > [amazing new discoveries](https://github.com/brunchboy/dysentery#robust-metadata-understanding).
-> Expect a major release in the next week or so, which makes it very
-> easy to build graphical interfaces showing detailed information
-> about player states—including track waveforms, cue and memory
-> points, and the current playback position and state. It will also
-> soon offer support for generating time code as a track plays.
+> Until that settles down, there may be rapid releases and big changes
+> between releases.
 >
-> :ballot_box_with_check: All the features planned for the next
-> release have now been implemented, and are being tested in an
-> impending release of beat-link-trigger. As soon as the testing is
-> finished and the documentation can be updated, version 0.3.0 of both
-> beat-link and beat-link-trigger will be released. In the mean time,
-> you can build from source, or play with
-> the
-> [preview jar](https://github.com/brunchboy/beat-link-trigger/releases/tag/v0.2.1) of
-> beat-link-trigger 0.3.0.
->
-> :warning: Because beat-link is growing so much in this new release, it
+> :warning: Because beat-link is grew so much for release 0.3.0, it
 > was time to split some classes apart, and even split it into multiple
 > packages, so I also took the opportunity to make some basic changes to
 > the API to position it for future growth and better reliability. This
-> means the next release, 0.3.0, will not be API compatible with prior
-> releases, and any code which compiled against the old release will
-> require some rewriting. As soon as things settle down enough, I will
-> start posting snapshot pre-releases so people can start compiling
-> against the new API.
+> means version 0.3.0 is not API compatible with prior
+> releases, and any code which compiled against old release will
+> require some rewriting.
 >
 > :octocat: Since, as far as I know, I am still the only consumer of
->  this API, this seems like a good time to make these breaking changes.
+> this API, this seemed like a good time to make these breaking
+> changes.
 
 ## Installing
 
@@ -66,6 +52,10 @@ library from the
 put it on your project&rsquo;s class path, along with the
 [`slf4j-api.jar`](http://www.slf4j.org/download.html) and the slf4j
 binding to the logging framework you would like to use.
+
+You will also need
+[ConcurrentLinkedHashmap](https://github.com/ben-manes/concurrentlinkedhashmap)
+for maintaining album art caches, so Maven is your easiest bet.
 
 ## Usage
 

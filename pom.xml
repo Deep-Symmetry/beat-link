@@ -4,11 +4,11 @@
 
     <groupId>org.deepsymmetry</groupId>
     <artifactId>beat-link</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.3.0</version>
     <packaging>jar</packaging>
 
     <name>beat-link</name>
-    <description>A Java library for synchronizing with beats from Pioneer DJ Link equipment.</description>
+    <description>A Java library for communicating with Pioneer DJ Link equipment.</description>
     <url>https://github.com/brunchboy/beat-link</url>
     <inceptionYear>2016</inceptionYear>
 
