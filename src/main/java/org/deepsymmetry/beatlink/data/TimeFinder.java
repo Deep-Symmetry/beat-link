@@ -192,8 +192,9 @@ public class TimeFinder extends LifecycleParticipant {
         // The player has jumped or drifted somewhere unexpected, correct.
         if (newDeviceUpdate.isPlayingForwards()) {
             return beatGrid.getTimeWithinTrack(beatNumber);
+        } else {
+            return beatGrid.getTimeWithinTrack(Math.min(beatNumber + 1, beatGrid.beatCount));
         }
-        return interpolated;  // TODO This isn't right but maybe we should give up on supporting reverse; no beats!
     }
 
     /**
