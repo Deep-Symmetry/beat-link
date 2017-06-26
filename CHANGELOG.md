@@ -6,18 +6,19 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-### Fixed
+- Nothing so far.
 
-- When the last device disappears from the Pro DJ Link network, we
-  clear the DeviceFinder's notion of when we first saw one, so that
-  the VirtualCDJ's device-number conflict-avoidance code can work
-  properly when we later encounter a new network.
+## [0.3.0] - 2017-06-25
 
 ### Changed
 
 - The entire metadata retrieval approach has been fundamentally
   rewritten, based on a much deeper understanding of the message and
   field format, thanks to tips and sample code from @awwright.
+- This led to a deep refactoring of the library, and a split into
+  several packages, now that there are many more classes to support
+  all of these new features. API compatibility was not maintained with
+  previous releases.
 
 ### Added
 
@@ -28,9 +29,22 @@ This change log follows the conventions of
   collections or individual playlists from players on the network, and
   then attached for use in environments (such as busy shows with four
   physical players) where metadata queries are not reliable.
+- Metadata cache files can be monitored for automatic attachment to
+  player ports when media that matches the cache is mounted by the
+  player.
 - New listener interfaces to provide information about changes to the
   available metadata caches, as well as changes to metadata about
   tracks loaded in players on the network.
+
+### Fixed
+
+- The approach to concurrency was examined carefully, and almost all
+  synchronized methods were eliminated in favor of newer concurrent
+  classes for improved performance and safety.
+- When the last device disappears from the Pro DJ Link network, we
+  clear the DeviceFinder's notion of when we first saw one, so that
+  the VirtualCDJ's device-number conflict-avoidance code can work
+  properly when we later encounter a new network.
 
 ## [0.2.1] - 2017-03-14
 
@@ -221,7 +235,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.2.1...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/brunchboy/beat-link/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/brunchboy/beat-link/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/brunchboy/beat-link/compare/v0.1.9...v0.2.0
 [0.1.9]: https://github.com/brunchboy/beat-link/compare/v0.1.8...v0.1.9
