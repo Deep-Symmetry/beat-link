@@ -211,7 +211,12 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @throws IllegalStateException if the BeatGridFinder is not running
      */
     public BeatGrid getLatestBeatGridFor(DeviceUpdate update) {
-        return getLatestBeatGridFor(update.getDeviceNumber());
+        BeatGrid result = getLatestBeatGridFor(update.getDeviceNumber());
+        if (result != null && (update instanceof CdjStatus) &&
+                result.dataReference.rekordboxId != ((CdjStatus) update).getRekordboxId()) {
+            return null;
+        }
+        return result;
     }
 
     /**
