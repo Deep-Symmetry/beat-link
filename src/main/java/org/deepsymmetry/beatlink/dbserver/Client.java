@@ -364,7 +364,7 @@ public class Client {
      * Used to ensure that only one thread at a time is attempting to perform menu operations, which require more than
      * one request/response cycle.
      */
-    private ReentrantLock menuLock = new ReentrantLock();
+    private final ReentrantLock menuLock = new ReentrantLock();
 
     /**
      * Attempt to secure exclusive access to this player for performing a menu operation, which requires multiple

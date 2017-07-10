@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * <p>Watches the beat packets and transport information contained in player status update to infer the current
@@ -142,14 +143,15 @@ public class TimeFinder extends LifecycleParticipant {
      * speed, and direction at the time of that update, where the player will be now.
      *
      * @param update the most recent update received from a player
+     * @param currentTimestamp the nanosecond timestamp representing when we want to interpolate the track's position
      *
      * @return the playback position we believe that player has reached now
      */
-    private long interpolateTimeSinceUpdate(TrackPositionUpdate update) {
+    private long interpolateTimeSinceUpdate(TrackPositionUpdate update, long currentTimestamp) {
         if (!update.playing) {
             return update.milliseconds;
         }
-        long elapsedMillis = (System.nanoTime() - update.timestamp) / 1000000;
+        long elapsedMillis = (currentTimestamp - update.timestamp) / 1000000;
         long moved = Math.round(update.pitch * elapsedMillis);
         if (update.reverse) {
             return update.milliseconds - moved;
@@ -209,7 +211,7 @@ public class TimeFinder extends LifecycleParticipant {
     public long getTimeFor(int player) {
         TrackPositionUpdate update = positions.get(player);
         if (update != null) {
-            return interpolateTimeSinceUpdate(update);
+            return interpolateTimeSinceUpdate(update, System.nanoTime());
         }
         return  -1;  // We don't know.
     }
@@ -228,7 +230,138 @@ public class TimeFinder extends LifecycleParticipant {
     }
 
     /**
-     * Reacts to player status updates to update the predicted playback position and state.
+     * Keeps track of the listeners that have registered interest in closely following track playback for a particular
+     * player. The keys are the listener interface, and the values are the last update that was sent to that
+     * listener.
+     */
+    private final ConcurrentHashMap<TrackPositionListener, TrackPositionUpdate> trackPositionListeners =
+            new ConcurrentHashMap<TrackPositionListener, TrackPositionUpdate>();
+
+    /**
+     * Keeps track of the player numbers that registered track position listeners are interested in.
+     */
+    private final ConcurrentHashMap<TrackPositionListener, Integer> listenerPlayerNumbers =
+            new ConcurrentHashMap<TrackPositionListener, Integer>();
+
+    /**
+     * This is used to represent the fact that we have told a listener that there is no information for it, since
+     * we can't actually store a {@code null} value in a {@link ConcurrentHashMap}.
+     */
+    private final TrackPositionUpdate NO_INFORMATION = new TrackPositionUpdate(0, 0, 0,
+            false, false, 0, false, null);
+
+    /**
+     * Add a listener that wants to closely follow track playback for a particular player. The listener will be called
+     * as soon as there is an initial {@link TrackPositionUpdate} for the specified player, and whenever there is an
+     * unexpected change in playback position, speed, or state on that player.
+     *
+     * @param player the player number that the listener is interested in
+     * @param listener the interface that will be called when there are changes in track playback on the player
+     */
+    public void addTrackPositionListener(int player, TrackPositionListener listener) {
+        listenerPlayerNumbers.put(listener, player);
+        TrackPositionUpdate currentPosition = positions.get(player);
+        if (currentPosition !=  null) {
+            listener.movementChanged(currentPosition);
+            trackPositionListeners.put(listener, currentPosition);
+        } else {
+            trackPositionListeners.put(listener, NO_INFORMATION);
+        }
+    }
+
+    /**
+     * Remove a listener that was following track playback movement.
+     *
+     * @param listener the interface that will no longer be called for changes in track playback
+     */
+    public void removeTrackPositionListener(TrackPositionListener listener) {
+        trackPositionListeners.remove(listener);
+        listenerPlayerNumbers.remove(listener);
+    }
+
+    /**
+     * How many milliseconds is our interpolated time allowed to drift before we consider it a significant enough
+     * change to update listeners that are trying to track a player's playback position.
+     */
+    private final AtomicLong slack = new AtomicLong(50);
+
+    /**
+     * Check how many milliseconds our interpolated time is allowed to drift from what is being reported by a player
+     * before we consider it a significant enough change to report to listeners that are trying to closely track a
+     * player's playback position.
+     *
+     * @return the maximum number of milliseconds we will allow our listeners to diverge from the reported playback
+     * position before reporting a jump
+     */
+    public long getSlack() {
+        return slack.get();
+    }
+
+    /**
+     * Set how many milliseconds our interpolated time is allowed to drift from what is being reported by a player
+     * before we consider it a significant enough change to report to listeners that are trying to closely track a
+     * player's playback position.
+     *
+     * @param slack the maximum number of milliseconds we will allow our listeners to diverge from the reported playback
+     * position before reporting a jump
+     */
+    public void setSlack(long slack) {
+        this.slack.set(slack);
+    }
+
+    /**
+     * Check whether we have diverged from what we would predict from the last update that was sent to a particular
+     * track position listener.
+     *
+     * @param lastUpdate the last update that was sent to the listener
+     * @param currentUpdate the latest update available for the same player
+     *
+     * @return {@code true }if the listener will have diverged by more than our permitted amount of slack, and so
+     * should be updated
+     */
+    private boolean interpolationsDisagree(TrackPositionUpdate lastUpdate, TrackPositionUpdate currentUpdate) {
+        long now = System.nanoTime();
+        return Math.abs(interpolateTimeSinceUpdate(lastUpdate, now) - interpolateTimeSinceUpdate(currentUpdate, now)) >
+                slack.get();
+    }
+
+    /**
+     * Check if the current position tracking information for a player represents a significant change compared to
+     * what a listener was last informed to expect, and if so, send another update.
+     *
+     * @param player the device number for which an update has occurred
+     * @param update the latest track position tracking information for the specified player, or {@code null} if we
+     *               no longer have any
+     */
+    private void updateListenersIfNeeded(int player, TrackPositionUpdate update) {
+        // Iterate over a copy to avoid issues with concurrent modification
+        for (Map.Entry<TrackPositionListener, TrackPositionUpdate> entry :
+                new HashMap<TrackPositionListener, TrackPositionUpdate>(trackPositionListeners).entrySet()) {
+            if (player == listenerPlayerNumbers.get(entry.getKey())) {  // This listener is interested in this player
+                if (update == null) {  // We are reporting a loss of information
+                    if (entry.getValue() != NO_INFORMATION) {
+                        if (trackPositionListeners.replace(entry.getKey(), entry.getValue(), NO_INFORMATION)) {
+                            entry.getKey().movementChanged(null);
+                        }
+                    }
+                } else {  // We have some information, see if it is a significant change from what was last reported
+                    final TrackPositionUpdate lastUpdate = entry.getValue();
+                    if (lastUpdate == NO_INFORMATION ||
+                            lastUpdate.playing != update.playing ||
+                            Math.abs(lastUpdate.pitch - update.pitch) > 0.000001 ||
+                            interpolationsDisagree(lastUpdate, update)) {
+                        if (trackPositionListeners.replace(entry.getKey(), entry.getValue(), update)) {
+                            entry.getKey().movementChanged(update);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Reacts to player status updates to update the predicted playback position and state and potentially inform
+     * registered track position listeners of significant changes.
      */
     private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
         @Override
@@ -244,7 +377,7 @@ public class TimeFinder extends LifecycleParticipant {
                     while (!done && ((lastPosition == null) || lastPosition.timestamp < update.getTimestamp())) {
                         TrackPositionUpdate newPosition;
                         if (lastPosition == null || lastPosition.beatGrid != beatGrid) {
-                            // This is a new track, and we have not yet received a beat packet for it, or a big jump
+                            // This is a new track, and we have not yet received a beat packet for it
                             newPosition = new TrackPositionUpdate(update.getTimestamp(),
                                     beatGrid.getTimeWithinTrack(beatNumber), beatNumber, false,
                                     ((CdjStatus) update).isPlaying(),
@@ -262,10 +395,14 @@ public class TimeFinder extends LifecycleParticipant {
                         } else {
                             done = positions.replace(update.getDeviceNumber(), lastPosition, newPosition);
                         }
+                        if (done) {
+                            updateListenersIfNeeded(update.getDeviceNumber(), newPosition);
+                        }
                     }
                 }
             } else {
                 positions.remove(update.getDeviceNumber());  // We can't say where that player is.
+                updateListenersIfNeeded(update.getDeviceNumber(), null);
             }
         }
     };
@@ -294,11 +431,14 @@ public class TimeFinder extends LifecycleParticipant {
                         definitive = true;
                     }
                     // We know the player is playing forward because otherwise we don't get beats.
-                    positions.put(beat.getDeviceNumber(), new TrackPositionUpdate(beat.getTimestamp(),
+                    final TrackPositionUpdate newPosition = new TrackPositionUpdate(beat.getTimestamp(),
                             beatGrid.getTimeWithinTrack(beatNumber), beatNumber, definitive, true,
-                            Util.pitchToMultiplier(beat.getPitch()), false, beatGrid));
+                            Util.pitchToMultiplier(beat.getPitch()), false, beatGrid);
+                    positions.put(beat.getDeviceNumber(), newPosition);
+                    updateListenersIfNeeded(beat.getDeviceNumber(), newPosition);
                 } else {
                     positions.remove(beat.getDeviceNumber());  // We can't determine where the player is.
+                    updateListenersIfNeeded(beat.getDeviceNumber(), null);
                 }
             }
         }
