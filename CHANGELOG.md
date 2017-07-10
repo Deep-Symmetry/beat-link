@@ -6,7 +6,9 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-- Nothing so far.
+- The TimeFinder now keeps a list of listeners that want help tightly
+  following track position changes, for example to generate SMPTE
+  timecode that is tied to the current playback position.
 
 ## [0.3.0] - 2017-06-25
 
