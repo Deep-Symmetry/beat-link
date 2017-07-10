@@ -341,7 +341,11 @@ public class TimeFinder extends LifecycleParticipant {
                 if (update == null) {  // We are reporting a loss of information
                     if (entry.getValue() != NO_INFORMATION) {
                         if (trackPositionListeners.replace(entry.getKey(), entry.getValue(), NO_INFORMATION)) {
-                            entry.getKey().movementChanged(null);
+                            try {
+                                entry.getKey().movementChanged(null);
+                            } catch (Exception e) {
+                                logger.warn("Problem delivering null movementChanged update", e);
+                            }
                         }
                     }
                 } else {  // We have some information, see if it is a significant change from what was last reported
@@ -351,7 +355,11 @@ public class TimeFinder extends LifecycleParticipant {
                             Math.abs(lastUpdate.pitch - update.pitch) > 0.000001 ||
                             interpolationsDisagree(lastUpdate, update)) {
                         if (trackPositionListeners.replace(entry.getKey(), entry.getValue(), update)) {
-                            entry.getKey().movementChanged(update);
+                            try {
+                                entry.getKey().movementChanged(update);
+                            } catch (Exception e) {
+                                logger.warn("Problem delivering movementChanged update", e);
+                            }
                         }
                     }
                 }
