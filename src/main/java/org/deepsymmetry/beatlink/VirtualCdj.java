@@ -567,7 +567,6 @@ public class VirtualCdj extends LifecycleParticipant {
             socket.set(null);
             broadcastAddress.set(null);
             updates.clear();
-            setMasterTempo(0.0);
             setTempoMaster(null);
             setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
             deliverLifecycleAnnouncement(logger, false);
