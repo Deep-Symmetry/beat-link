@@ -6,9 +6,13 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [0.3.1] - 2017-07-22
+
 - The TimeFinder now keeps a list of listeners that want help tightly
   following track position changes, for example to generate SMPTE
-  timecode that is tied to the current playback position.
+  time code that is tied to the current playback position.
 
 ## [0.3.0] - 2017-06-25
 
@@ -237,7 +241,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/brunchboy/beat-link/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/brunchboy/beat-link/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/brunchboy/beat-link/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/brunchboy/beat-link/compare/v0.1.9...v0.2.0
