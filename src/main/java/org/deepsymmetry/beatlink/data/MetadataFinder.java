@@ -37,7 +37,7 @@ import java.util.zip.ZipOutputStream;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class MetadataFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class);
@@ -1494,6 +1494,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param mounted will be {@code true} if there is now media mounted in the specified slot
      */
     private void deliverMountUpdate(SlotReference slot, boolean mounted) {
+        if (mounted) {
+            logger.info("Reporting media mounted in " + slot);
+
+        } else {
+            logger.info("Reporting media removed from " + slot);
+        }
         for (final MountListener listener : getMountListeners()) {
             try {
                 if (mounted) {
@@ -1771,7 +1777,9 @@ public class MetadataFinder extends LifecycleParticipant {
                         try {
                             handleUpdate(pendingUpdates.take());
                         } catch (InterruptedException e) {
-                            // Interrupted due to MetadataFinder shutdown, presumably
+                            logger.debug("Interrupted, presumably due to MetadataFinder shutdown.", e);
+                        } catch (Exception e) {
+                            logger.error("Problem handling CDJ status update.", e);
                         }
                     }
                 }

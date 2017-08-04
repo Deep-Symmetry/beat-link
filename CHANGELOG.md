@@ -6,9 +6,21 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Added
+
+- More logging about the detection of media being mounted and removed
+  from players, to help track down problems creating metadata caches
+  on a CDJ-900 nxs2.
+
+### Fixed
+
+- There was a potential for the thread that reports media being
+  mounted or removed to terminate if any exceptions occurred while
+  handling player updates. It now logs these and continues.
 
 ## [0.3.1] - 2017-07-22
+
+### Added
 
 - The TimeFinder now keeps a list of listeners that want help tightly
   following track position changes, for example to generate SMPTE
