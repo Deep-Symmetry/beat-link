@@ -6,11 +6,14 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [0.3.2] - 2017-08-08
+
 ### Added
 
 - More logging about the detection of media being mounted and removed
-  from players, to help track down problems creating metadata caches
-  on a CDJ-900 nxs2.
+  from players, to help track down problems creating metadata caches.
 
 ### Fixed
 
@@ -253,7 +256,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.1...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/brunchboy/beat-link/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/brunchboy/beat-link/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/brunchboy/beat-link/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/brunchboy/beat-link/compare/v0.2.0...v0.2.1
