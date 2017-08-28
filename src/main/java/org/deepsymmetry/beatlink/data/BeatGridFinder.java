@@ -283,7 +283,8 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @return the cached beat grid (if available), or {@code null}
      */
-    private BeatGrid getCachedBeatGrid(ZipFile cache, DataReference reference) {
+    @SuppressWarnings("WeakerAccess")
+    public BeatGrid getCachedBeatGrid(ZipFile cache, DataReference reference) {
         ZipEntry entry = cache.getEntry(MetadataFinder.getInstance().getBeatGridEntryName(reference.rekordboxId));
         if (entry != null) {
             DataInputStream is = null;

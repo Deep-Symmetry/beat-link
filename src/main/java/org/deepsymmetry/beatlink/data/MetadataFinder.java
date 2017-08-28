@@ -219,7 +219,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the cached metadata, including cue list (if available), or {@code null}
      */
-    private TrackMetadata getCachedMetadata(ZipFile cache, DataReference track) {
+    public TrackMetadata getCachedMetadata(ZipFile cache, DataReference track) {
         ZipEntry entry = cache.getEntry(getMetadataEntryName(track.rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
@@ -255,7 +255,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the cached cue list (if available), or {@code null}
      */
-    private CueList getCachedCueList(ZipFile cache, int rekordboxId) {
+    public CueList getCachedCueList(ZipFile cache, int rekordboxId) {
         ZipEntry entry = cache.getEntry(getCueListEntryName(rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
@@ -1018,7 +1018,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return 0 if the cache was created using all tracks, or the id of the playlist that it contains otherwise
      *
-     * @throws IOException if there is a problem reading the file
+     * @throws IOException if there is a problem reading the cache file
      */
     public int getCacheSourcePlaylist(ZipFile cache) throws IOException {
         String tag = getCacheFormatEntry(cache);
@@ -1032,11 +1032,36 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the number of cached track metadata entries
      *
-     * @throws IOException if there is a problem reading the file
+     * @throws IOException if there is a problem reading the cache file
      */
     public int getCacheTrackCount(ZipFile cache) throws IOException {
         String tag = getCacheFormatEntry(cache);
         return Integer.parseInt(tag.split(":")[2]);
+    }
+
+    /**
+     * Returns a list of the rekordbox IDs of the tracks contained in a metadata cache.
+     *
+     * @param cache the metadata cache whose contents are of interest
+     *
+     * @return a list containing the rekordbox ID for each track present in the cache, in the order they appear
+     *
+     * @throws IOException if there is a problem reading the cache file
+     */
+    public List<Integer> getCacheTrackIds(ZipFile cache) throws IOException {
+        ArrayList<Integer> results = new ArrayList<Integer>(getCacheTrackCount(cache));
+        Enumeration<? extends ZipEntry> entries = cache.entries();
+        while (entries.hasMoreElements()) {
+            ZipEntry entry = entries.nextElement();
+            if (entry.getName().startsWith(CACHE_METADATA_ENTRY_PREFIX)) {
+                String idPart = entry.getName().substring(CACHE_METADATA_ENTRY_PREFIX.length());
+                if (idPart.length() > 0) {
+                    results.add(Integer.valueOf(idPart));
+                }
+            }
+        }
+
+        return Collections.unmodifiableList(results);
     }
 
     /**

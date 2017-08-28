@@ -160,6 +160,7 @@ public class CdjStatus extends DeviceUpdate {
         /**
          * The value that represents this track type in a status update.
          */
+        @SuppressWarnings("WeakerAccess")
         public final byte protocolValue;
 
         TrackType(int value) {
@@ -215,6 +216,7 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values of the first play state found in the packet, labeled <i>P<sub>1</sub></i> in Figure 11 of
      * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
+    @SuppressWarnings("WeakerAccess")
     public enum PlayState1 {
         /**
          * No track has been loaded.
@@ -323,6 +325,7 @@ public class CdjStatus extends DeviceUpdate {
         /**
          * The value that represents this play state in a status update.
          */
+        @SuppressWarnings("WeakerAccess")
         public final byte protocolValue;
 
         PlayState2(int value) {
@@ -390,6 +393,7 @@ public class CdjStatus extends DeviceUpdate {
         /**
          * The value that represents this play state in a status update.
          */
+        @SuppressWarnings("WeakerAccess")
         public final byte protocolValue;
 
         PlayState3(int value) {

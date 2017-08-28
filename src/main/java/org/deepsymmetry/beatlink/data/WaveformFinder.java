@@ -429,7 +429,8 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @return the cached waveform preview (if available), or {@code null}
      */
-    private WaveformPreview getCachedWaveformPreview(ZipFile cache, DataReference dataReference) {
+    @SuppressWarnings("WeakerAccess")
+    public WaveformPreview getCachedWaveformPreview(ZipFile cache, DataReference dataReference) {
         ZipEntry entry = cache.getEntry(MetadataFinder.getInstance().getWaveformPreviewEntryName(dataReference.rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
@@ -542,7 +543,8 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @return the cached waveform detail (if available), or {@code null}
      */
-    private WaveformDetail getCachedWaveformDetail(ZipFile cache, DataReference dataReference) {
+    @SuppressWarnings("WeakerAccess")
+    public WaveformDetail getCachedWaveformDetail(ZipFile cache, DataReference dataReference) {
         ZipEntry entry = cache.getEntry(MetadataFinder.getInstance().getWaveformDetailEntryName(dataReference.rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
@@ -896,6 +898,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
+    @SuppressWarnings("WeakerAccess")
     public static WaveformFinder getInstance() {
         return ourInstance;
     }

@@ -339,7 +339,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the ArtFinder is not running
      */
-    private AlbumArt getCachedArtwork(ZipFile cache, DataReference artReference) {
+    public AlbumArt getCachedArtwork(ZipFile cache, DataReference artReference) {
         ensureRunning();
         ZipEntry entry = cache.getEntry(MetadataFinder.getInstance().getArtworkEntryName(artReference.rekordboxId));
         if (entry != null) {
