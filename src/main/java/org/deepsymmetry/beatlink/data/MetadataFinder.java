@@ -978,7 +978,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @throws IOException if there is a problem reading the file, or it does not contain a valid metadata cache
      */
-    private ZipFile openMetadataCache(File cache) throws IOException {
+    public ZipFile openMetadataCache(File cache) throws IOException {
         ZipFile newCache = new ZipFile(cache, ZipFile.OPEN_READ);
         String tag = getCacheFormatEntry(newCache);
         if (tag == null || !tag.startsWith(CACHE_FORMAT_IDENTIFIER)) {
