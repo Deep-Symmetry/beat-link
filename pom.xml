@@ -4,7 +4,7 @@
 
     <groupId>org.deepsymmetry</groupId>
     <artifactId>beat-link</artifactId>
-    <version>0.3.4</version>
+    <version>0.3.5-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>beat-link</name>
@@ -88,7 +88,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>animal-sniffer-maven-plugin</artifactId>
-                <version>1.15</version>
+                <version>1.16</version>
                 <configuration>
                     <signature>
                         <groupId>org.codehaus.mojo.signature</groupId>
