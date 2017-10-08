@@ -465,6 +465,7 @@ public class MetadataFinder extends LifecycleParticipant {
         BufferedOutputStream bos = null;
         ZipOutputStream zos = null;
         WritableByteChannel channel = null;
+        final Set<Integer> tracksAdded = new HashSet<Integer>();
         final Set<Integer> artworkAdded = new HashSet<Integer>();
         try {
             fos = new FileOutputStream(cache);
@@ -483,6 +484,7 @@ public class MetadataFinder extends LifecycleParticipant {
             // Write the actual metadata entries
             channel = Channels.newChannel(zos);
             final int totalToCopy = trackListEntries.size();
+            TrackMetadata lastTrackAdded = null;
             int tracksCopied = 0;
 
             for (Message entry : trackListEntries) {
@@ -491,10 +493,13 @@ public class MetadataFinder extends LifecycleParticipant {
                 }
 
                 int rekordboxId = (int)((NumberField)entry.arguments.get(1)).getValue();
-                TrackMetadata track = copyTrackToCache(client, slot, zos, channel, artworkAdded, rekordboxId);
+                if (!tracksAdded.contains(rekordboxId)) {  // Ignore extra copies of a track present on a playlist.
+                    lastTrackAdded = copyTrackToCache(client, slot, zos, channel, artworkAdded, rekordboxId);
+                    tracksAdded.add(rekordboxId);
+                }
 
                 if (listener != null) {
-                    if (!listener.cacheCreationContinuing(track, ++tracksCopied, totalToCopy)) {
+                    if (!listener.cacheCreationContinuing(lastTrackAdded, ++tracksCopied, totalToCopy)) {
                         logger.info("Track metadata cache creation canceled by listener");
                         if (!cache.delete()) {
                             logger.warn("Unable to delete metadata cache file, {}", cache);

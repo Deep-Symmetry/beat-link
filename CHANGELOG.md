@@ -8,6 +8,15 @@ This change log follows the conventions of
 
 Nothing so far.
 
+## [0.3.5] - 2017-10-08
+
+### Fixed
+
+- Creating a metadata cache would fail if a playlist contained more
+  than one copy of the same track, as it would try to create the same
+  ZIP file entry more than once. Now redundant copies of the same track
+  are skipped.
+
 ## [0.3.4] - 2017-09-05
 
 ### Added
@@ -264,7 +273,8 @@ Nothing so far.
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.4...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.5...HEAD
+[0.3.5]: https://github.com/brunchboy/beat-link/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/brunchboy/beat-link/compare/v0.3.2...v0.3.4
 [0.3.2]: https://github.com/brunchboy/beat-link/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/brunchboy/beat-link/compare/v0.3.0...v0.3.1
