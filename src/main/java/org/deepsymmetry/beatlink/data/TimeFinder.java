@@ -416,6 +416,36 @@ public class TimeFinder extends LifecycleParticipant {
     };
 
     /**
+     * Translates a beat number to a track time, given a beat grid. In almost all cases, simply delegates that task
+     * to the beat grid. However, since players sometimes report beats that are outside the beat grid (especially when
+     * looping tracks that extend for more than a beat's worth of time past the last beat in the beat grid), to avoid
+     * weird exceptions and infinitely-growing track time reports in such situations, we extrapolate an extension to
+     * the beat grid by repeating the interval between the last two beats in the track.
+     *
+     * In the completely degenerate case of a track with a single beat (which probably will never occur), we simply
+     * return that beat's time even if you ask for a later one.
+     *
+     * @param beatGrid the times at which known beats fall in the track whose playback time we are reporting.
+     *
+     * @param beatNumber the number of the beat that a player has just reported reaching, which may be slightly
+     *                   greater than the actual number of beats in the track.
+     *
+     * @return the number of milliseconds into the track at which that beat falls, perhaps extrapolated past the final
+     *         recorded beat.
+     */
+    private long timeOfBeat(BeatGrid beatGrid, int beatNumber) {
+        if (beatNumber <= beatGrid.beatCount) {
+            return beatGrid.getTimeWithinTrack(beatNumber);
+        }
+        if (beatGrid.beatCount < 2) {
+            return beatGrid.getTimeWithinTrack(1);
+        }
+        long lastTime = beatGrid.getTimeWithinTrack(beatGrid.beatCount);
+        long lastInterval = lastTime - beatGrid.getTimeWithinTrack(beatGrid.beatCount - 1);
+        return lastTime + (lastInterval * (beatNumber - beatGrid.beatCount));
+    }
+
+    /**
      * Reacts to beat messages to update the definitive playback position for that player
      */
     private final BeatListener beatListener = new BeatListener() {
@@ -438,9 +468,10 @@ public class TimeFinder extends LifecycleParticipant {
                         beatNumber = lastPosition.beatNumber + 1;
                         definitive = true;
                     }
+
                     // We know the player is playing forward because otherwise we don't get beats.
                     final TrackPositionUpdate newPosition = new TrackPositionUpdate(beat.getTimestamp(),
-                            beatGrid.getTimeWithinTrack(beatNumber), beatNumber, definitive, true,
+                            timeOfBeat(beatGrid, beatNumber), beatNumber, definitive, true,
                             Util.pitchToMultiplier(beat.getPitch()), false, beatGrid);
                     positions.put(beat.getDeviceNumber(), newPosition);
                     updateListenersIfNeeded(beat.getDeviceNumber(), newPosition);
