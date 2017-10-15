@@ -181,7 +181,7 @@ public class TimeFinder extends LifecycleParticipant {
                 }
                 // As a heuristic, assume we are right before the beat? Interfering with correction logic right now.
                 // This all needs some serious pondering on more sleep.
-                return beatGrid.getTimeWithinTrack(beatNumber);
+                return timeOfBeat(beatGrid, beatNumber);
             }
         }
         long elapsedMillis = (newDeviceUpdate.getTimestamp() - lastTrackUpdate.timestamp) / 1000000;
@@ -193,7 +193,7 @@ public class TimeFinder extends LifecycleParticipant {
         }
         // The player has jumped or drifted somewhere unexpected, correct.
         if (newDeviceUpdate.isPlayingForwards()) {
-            return beatGrid.getTimeWithinTrack(beatNumber);
+            return timeOfBeat(beatGrid, beatNumber);
         } else {
             return beatGrid.getTimeWithinTrack(Math.min(beatNumber + 1, beatGrid.beatCount));
         }
@@ -387,7 +387,7 @@ public class TimeFinder extends LifecycleParticipant {
                         if (lastPosition == null || lastPosition.beatGrid != beatGrid) {
                             // This is a new track, and we have not yet received a beat packet for it
                             newPosition = new TrackPositionUpdate(update.getTimestamp(),
-                                    beatGrid.getTimeWithinTrack(beatNumber), beatNumber, false,
+                                    timeOfBeat(beatGrid, beatNumber), beatNumber, false,
                                     ((CdjStatus) update).isPlaying(),
                                     Util.pitchToMultiplier(update.getPitch()),
                                     ((CdjStatus) update).isPlayingBackwards(), beatGrid);
