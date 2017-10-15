@@ -452,7 +452,9 @@ public class TimeFinder extends LifecycleParticipant {
     }
 
     /**
-     * Reacts to beat messages to update the definitive playback position for that player
+     * Reacts to beat messages to update the definitive playback position for that player. Because we may sometimes get
+     * a beat packet before a corresponding device update containing the actual beat number, don't increment past the
+     * end of the beat grid, because we must be looping if we get an extra beat there.
      */
     private final BeatListener beatListener = new BeatListener() {
         @Override
@@ -471,7 +473,7 @@ public class TimeFinder extends LifecycleParticipant {
                         beatNumber = 1;
                         definitive = false;
                     } else {
-                        beatNumber = lastPosition.beatNumber + 1;
+                        beatNumber = Math.min(lastPosition.beatNumber + 1, beatGrid.beatCount);  // Handle loop at end
                         definitive = true;
                     }
 
