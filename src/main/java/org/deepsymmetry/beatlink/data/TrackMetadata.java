@@ -265,6 +265,15 @@ public class TrackMetadata {
     }
 
     /**
+     * Get the album of the track.
+     *
+     * @return the track album
+     */
+    public SearchableItem getAlbum() {
+        return album;
+    }
+
+    /**
      * Get the artist of the track.
      *
      * @return the track artist

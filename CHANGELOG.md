@@ -8,6 +8,15 @@ This change log follows the conventions of
 
 Nothing so far.
 
+## [0.3.7] - 2018-03-26
+
+
+### Fixed
+
+- Although the `TrackMetadata` object received the Album field, and
+  would display it in the `toString()` method, there was no accessor
+  by which the value could be obtained and used by other code!
+
 ## [0.3.6] - 2017-11-30
 
 ### Fixed
@@ -286,7 +295,8 @@ Nothing so far.
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.6...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.7...HEAD
+[0.3.7]: https://github.com/brunchboy/beat-link/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/brunchboy/beat-link/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/brunchboy/beat-link/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/brunchboy/beat-link/compare/v0.3.2...v0.3.4
