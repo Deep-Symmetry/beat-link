@@ -33,7 +33,7 @@ for examples of what you can do with this.
 Beat-link is available through Maven Central, so to use it in your
 Maven project, all you need is to include the appropriate dependency.
 
-[![Maven Central](https://img.shields.io/maven-metadata/v/http/central.maven.org/maven2/org/deepsymmetry/beat-link/maven-metadata.xml.svg)](https://search.maven.org/#search%7Cga%7C1%7Ca%3A%22beat-link%22%20g%3A%22org.deepsymmetry%22)
+[![Maven Central](https://img.shields.io/maven-metadata/v/http/central.maven.org/maven2/org/deepsymmetry/beat-link/maven-metadata.xml.svg)](https://search.maven.org/#search%7Cga%7C1%7Ca%3A%22beat-link%22)
 
 Click the **maven central** badge above to view the repository entry
 for beat-link. The proper format for including the latest release as a
