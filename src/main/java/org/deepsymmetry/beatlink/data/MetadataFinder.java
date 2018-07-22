@@ -155,7 +155,7 @@ public class MetadataFinder extends LifecycleParticipant {
                 // Gather the cue list and all the metadata menu items
                 final CueList cueList = getCueList(track.rekordboxId, track.slot, client);
                 final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, trackType, response);
-                return new TrackMetadata(track, items, cueList);
+                return new TrackMetadata(track, trackType, items, cueList);
             } finally {
                 client.unlockForMenuOperations();
             }
@@ -241,7 +241,7 @@ public class MetadataFinder extends LifecycleParticipant {
                     items.add(current);
                     current = Message.read(is);
                 }
-                return new TrackMetadata(track, items, getCachedCueList(cache, track.rekordboxId));
+                return new TrackMetadata(track, CdjStatus.TrackType.REKORDBOX, items, getCachedCueList(cache, track.rekordboxId));
             } catch (IOException e) {
                 logger.error("Problem reading metadata from cache file, returning null", e);
             } finally {

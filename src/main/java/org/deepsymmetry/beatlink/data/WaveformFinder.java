@@ -709,7 +709,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param update describes the new metadata we have for a player, if any
      */
     private void handleUpdate(final TrackMetadataUpdate update) {
-        if (update.metadata == null) {
+        if (update.metadata == null || update.metadata.trackType != CdjStatus.TrackType.REKORDBOX) {
             clearDeck(update);
         } else {
             // We can offer waveform information for this device; check if we've already looked it up. First, preview:

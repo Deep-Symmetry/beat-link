@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.deepsymmetry.beatlink.CdjStatus;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.deepsymmetry.beatlink.dbserver.StringField;
@@ -25,6 +26,11 @@ public class TrackMetadata {
      */
     @SuppressWarnings("WeakerAccess")
     public final DataReference trackReference;
+
+    /**
+     * The type of track described by this metadata.
+     */
+    public final CdjStatus.TrackType trackType;
 
     /**
      * The raw dbserver messages containing the metadata when it was read over the network.
@@ -185,11 +191,13 @@ public class TrackMetadata {
      * Sets all the interpreted fields based on the received response messages.
      *
      * @param reference the unique track reference that was used to request this track metadata
+     * @param trackType the type of track described by this metadata
      * @param items the menu item responses that were received in response to the render menu request
      * @param cueList the cues associated with the track, if any
      */
-    TrackMetadata(DataReference reference, List<Message> items, CueList cueList) {
+    TrackMetadata(DataReference reference, CdjStatus.TrackType trackType, List<Message> items, CueList cueList) {
         trackReference = reference;
+        this.trackType = trackType;
         this.cueList = cueList;
         rawItems = Collections.unmodifiableList(new LinkedList<Message>(items));
         for (Message item : items) {
@@ -317,6 +325,8 @@ public class TrackMetadata {
 
         TrackMetadata metadata = (TrackMetadata) o;
 
+        if (trackReference != metadata.trackReference) return false;
+        if (trackType != metadata.trackType) return false;
         if (duration != metadata.duration) return false;
         if (rating != metadata.rating) return false;
         if (tempo != metadata.tempo) return false;
@@ -354,6 +364,8 @@ public class TrackMetadata {
         result = 31 * result + (title != null ? title.hashCode() : 0);
         result = 31 * result + artworkId;
         result = 31 * result + (cueList != null ? cueList.hashCode() : 0);
+        result = 31 * result + trackReference.hashCode();
+        result = 31 * result + trackType.hashCode();
         return result;
     }
 
@@ -461,7 +473,7 @@ public class TrackMetadata {
 
     @Override
     public String toString() {
-        return "Track Metadata[trackReference: " + trackReference +
+        return "Track Metadata[trackReference: " + trackReference + ", TrackType: " + trackType +
                 ", Title: " + title + ", Artist: " + artist + ", Album: " + album + ", Remixer: " + remixer +
                 ", Label: " + label + ", Original Artist: " + originalArtist + ", Date Added: " + dateAdded +
                 ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
