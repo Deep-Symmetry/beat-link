@@ -181,7 +181,7 @@ public class WaveformPreviewComponent extends JComponent {
     @SuppressWarnings("WeakerAccess")
     public void setPlaying(boolean playing) {
         final boolean oldValue = this.playing.getAndSet(playing);
-        if ((metadata != null) && oldValue != playing) {
+        if ((metadata.get() != null) && oldValue != playing) {
             int left = Math.max(0, Math.min(408, millisecondsToX(playbackPosition.get()) - 2));
             repaint(left, 0, 4, VIEW_HEIGHT);
         }

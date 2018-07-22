@@ -15,7 +15,10 @@ This change log follows the conventions of
   mount listeners.
 - The number of tracks on a disc can be discovered.
 
+### Fixed
 
+- Removed a potential source of crashes in the waveform rendering
+  code.
 
 ## [0.3.7] - 2018-03-26
 
@@ -322,4 +325,3 @@ This change log follows the conventions of
 [0.1.3]: https://github.com/brunchboy/beat-link/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/brunchboy/beat-link/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/brunchboy/beat-link/compare/v0.1.0...v0.1.1
-

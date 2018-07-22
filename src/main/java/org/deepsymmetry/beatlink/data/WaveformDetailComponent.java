@@ -149,7 +149,7 @@ public class WaveformDetailComponent extends JComponent {
     @SuppressWarnings("WeakerAccess")
     public void setPlaying(boolean playing) {
         final boolean oldValue = this.playing.getAndSet(playing);
-        if ((metadata != null) && oldValue != playing) {
+        if ((metadata.get() != null) && oldValue != playing) {
             repaint((getWidth() / 2) - 2, 0, 4, getHeight());
         }
     }
