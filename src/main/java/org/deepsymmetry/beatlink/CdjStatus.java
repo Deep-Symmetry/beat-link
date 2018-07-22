@@ -10,6 +10,7 @@ import java.util.Map;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public class CdjStatus extends DeviceUpdate {
 
     /**
@@ -144,8 +145,8 @@ public class CdjStatus extends DeviceUpdate {
          */
         REKORDBOX        (1),
         /**
-         * The track was loaded from digital media, but was not from rekordbox, and so has not been analyzed
-         * for beat grid and waveforms.
+         * The track was loaded from digital media (including a data disc), but was not from rekordbox,
+         * and so has not been analyzed for beat grid and waveforms.
          */
         UNANALYZED       (2),
         /**
@@ -733,6 +734,26 @@ public class CdjStatus extends DeviceUpdate {
     public boolean isLocalSdEmpty() {
         return (packetBytes[115] == 4);
     }
+
+    /**
+     * Is disc media absent from this particular CDJ?
+     *
+     * @return true if there is no disc mounted
+     */
+    public boolean isDiscSlotEmpty() {
+        return (packetBytes[0x37] == 0);
+    }
+
+    /**
+     * How many tracks are on the mounted disc? Audio CDs will reflect the audio track count, while data discs
+     * will generally have one track regardless of how many usable audio files they contain when mounted.
+     *
+     * @return the number of tracks found on the mounted disc, or zero if no disc is mounted.
+     */
+    public int getDiscTrackCount() {
+        return Util.unsign(packetBytes[0x47]);
+    }
+
     /**
      * Is a track loaded?
      *

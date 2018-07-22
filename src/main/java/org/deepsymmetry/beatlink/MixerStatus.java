@@ -7,6 +7,7 @@ import java.net.DatagramPacket;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public class MixerStatus extends DeviceUpdate {
 
     /**
@@ -65,6 +66,7 @@ public class MixerStatus extends DeviceUpdate {
      *
      * @return false because mixers make no effort to line up their beats with rekordbox-identified measures
      */
+    @SuppressWarnings("SameReturnValue")
     @Override
     public boolean isBeatWithinBarMeaningful() {
         return false;

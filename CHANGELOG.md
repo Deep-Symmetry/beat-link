@@ -6,10 +6,18 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Added
+
+- Metadata can now be retrieved for non-rekordbox tracks, including
+  unanalyzed files in the media slots, and on audio CDs and data
+  discs.
+- The mounting and removal of discs is reported to registered media
+  mount listeners.
+- The number of tracks on a disc can be discovered.
+
+
 
 ## [0.3.7] - 2018-03-26
-
 
 ### Fixed
 

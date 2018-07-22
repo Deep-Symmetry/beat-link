@@ -15,13 +15,16 @@ package org.deepsymmetry.beatlink;
  *
  * @author  James Elliott
  */
+@SuppressWarnings({"WeakerAccess", "EmptyMethod", "unused"})
 public abstract class DeviceAnnouncementAdapter implements DeviceAnnouncementListener {
 
+    @SuppressWarnings("EmptyMethod")
     @Override
     public void deviceFound(DeviceAnnouncement announcement) {
 
     }
 
+    @SuppressWarnings({"EmptyMethod", "unused"})
     @Override
     public void deviceLost(DeviceAnnouncement announcement) {
 

@@ -52,12 +52,13 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return the metadata that was obtained, if any
      */
     @SuppressWarnings("WeakerAccess")
-    public TrackMetadata requestMetadataFrom(CdjStatus status) {
+    public TrackMetadata requestMetadataFrom(final CdjStatus status) {
         if (status.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK || status.getRekordboxId() == 0) {
             return null;
         }
-        return requestMetadataFrom(new DataReference(status.getTrackSourcePlayer(),
-                status.getTrackSourceSlot(), status.getRekordboxId()));
+        final DataReference track = new DataReference(status.getTrackSourcePlayer(), status.getTrackSourceSlot(),
+                status.getRekordboxId());
+        return requestMetadataFrom(track, status.getTrackType());
     }
 
 
@@ -66,12 +67,14 @@ public class MetadataFinder extends LifecycleParticipant {
      * unless we have a metadata cache available for the specified media slot, in which case that will be used instead.
      *
      * @param track uniquely identifies the track whose metadata is desired
+     * @param trackType identifies the type of track being requested, which affects the type of metadata request
+     *                  message that must be used
      *
      * @return the metadata, if any
      */
     @SuppressWarnings("WeakerAccess")
-    public TrackMetadata requestMetadataFrom(DataReference track) {
-        return requestMetadataInternal(track, false);
+    public TrackMetadata requestMetadataFrom(final DataReference track, final CdjStatus.TrackType trackType) {
+        return requestMetadataInternal(track, trackType, false);
     }
 
     /**
@@ -79,15 +82,18 @@ public class MetadataFinder extends LifecycleParticipant {
      * using cached media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param track uniquely identifies the track whose metadata is desired
+     * @param trackType identifies the type of track being requested, which affects the type of metadata request
+     *                  message that must be used
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
      *                      metadata updates will use available caches only
      *
      * @return the metadata found, if any
      */
-    private TrackMetadata requestMetadataInternal(final DataReference track, boolean failIfPassive) {
+    private TrackMetadata requestMetadataInternal(final DataReference track, final CdjStatus.TrackType trackType,
+                                                  final boolean failIfPassive) {
         // First check if we are using cached data for this request
         ZipFile cache = getMetadataCache(SlotReference.getSlotReference(track));
-        if (cache != null) {
+        if (cache != null && trackType == CdjStatus.TrackType.REKORDBOX) {
             return getCachedMetadata(cache, track);
         }
 
@@ -98,7 +104,7 @@ public class MetadataFinder extends LifecycleParticipant {
         ConnectionManager.ClientTask<TrackMetadata> task = new ConnectionManager.ClientTask<TrackMetadata>() {
             @Override
             public TrackMetadata useClient(Client client) throws Exception {
-                return queryMetadata(track, client);
+                return queryMetadata(track, trackType, client);
             }
         };
 
@@ -121,6 +127,8 @@ public class MetadataFinder extends LifecycleParticipant {
      * all track metadata.
      *
      * @param track uniquely identifies the track whose metadata is desired
+     * @param trackType identifies the type of track being requested, which affects the type of metadata request
+     *                  message that must be used
      * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the retrieved metadata, or {@code null} if there is no such track
@@ -129,14 +137,16 @@ public class MetadataFinder extends LifecycleParticipant {
      * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
      * @throws TimeoutException if we are unable to lock the client for menu operations
      */
-    private TrackMetadata queryMetadata(DataReference track, Client client)
+    private TrackMetadata queryMetadata(final DataReference track, final CdjStatus.TrackType trackType, final Client client)
             throws IOException, InterruptedException, TimeoutException {
 
         // Send the metadata menu request
         if (client.tryLockingForMenuOperations(20, TimeUnit.SECONDS)) {
             try {
-                Message response = client.menuRequest(Message.KnownType.METADATA_REQ, Message.MenuIdentifier.MAIN_MENU,
-                        track.slot, new NumberField(track.rekordboxId));
+                final Message.KnownType requestType = (trackType == CdjStatus.TrackType.REKORDBOX) ?
+                        Message.KnownType.REKORDBOX_METADATA_REQ : Message.KnownType.UNANALYZED_METADATA_REQ;
+                final Message response = client.menuRequestTyped(requestType, Message.MenuIdentifier.MAIN_MENU,
+                        track.slot, trackType, new NumberField(track.rekordboxId));
                 final long count = response.getMenuResultsCount();
                 if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
                     return null;
@@ -144,7 +154,7 @@ public class MetadataFinder extends LifecycleParticipant {
 
                 // Gather the cue list and all the metadata menu items
                 final CueList cueList = getCueList(track.rekordboxId, track.slot, client);
-                final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, response);
+                final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, trackType, response);
                 return new TrackMetadata(track, items, cueList);
             } finally {
                 client.unlockForMenuOperations();
@@ -167,7 +177,7 @@ public class MetadataFinder extends LifecycleParticipant {
     private CueList getCueList(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
             throws IOException {
         Message response = client.simpleRequest(Message.KnownType.CUE_LIST_REQ, null,
-                client.buildRMS1(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId));
+                client.buildRMST(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId));
         if (response.knownType == Message.KnownType.CUE_LIST) {
             return new CueList(response);
         }
@@ -201,7 +211,7 @@ public class MetadataFinder extends LifecycleParticipant {
                 }
 
                 // Gather all the metadata menu items
-                return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
+                return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, CdjStatus.TrackType.REKORDBOX, response);
             }
             finally {
                 client.unlockForMenuOperations();
@@ -311,7 +321,7 @@ public class MetadataFinder extends LifecycleParticipant {
                 }
 
                 // Gather all the metadata menu items
-                return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, response);
+                return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, CdjStatus.TrackType.REKORDBOX, response);
             } finally {
                 client.unlockForMenuOperations();
             }
@@ -567,7 +577,7 @@ public class MetadataFinder extends LifecycleParticipant {
                                            WritableByteChannel channel, Set<Integer> artworkAdded, int rekordboxId)
             throws IOException, TimeoutException, InterruptedException {
 
-        final TrackMetadata track = queryMetadata(new DataReference(slot, rekordboxId), client);
+        final TrackMetadata track = queryMetadata(new DataReference(slot, rekordboxId), CdjStatus.TrackType.REKORDBOX, client);
         if (track != null) {
             logger.debug("Adding metadata with ID {}", track.trackReference.rekordboxId);
             zos.putNextEntry(new ZipEntry(getMetadataEntryName(track.trackReference.rekordboxId)));
@@ -950,6 +960,9 @@ public class MetadataFinder extends LifecycleParticipant {
         if (slot.player < 1 || slot.player > 4 || DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player) == null) {
             throw new IllegalArgumentException("unable to attach metadata cache for player " + slot.player);
         }
+        if ((slot.slot != CdjStatus.TrackSourceSlot.USB_SLOT) && (slot.slot != CdjStatus.TrackSourceSlot.SD_SLOT)) {
+            throw new IllegalArgumentException("unable to attach metadata cache for slot " + slot.slot);
+        }
 
         ZipFile newCache = openMetadataCache(cache);
         attachMetadataCacheInternal(slot, newCache);
@@ -1267,7 +1280,7 @@ public class MetadataFinder extends LifecycleParticipant {
                 logger.info("Comparing track " + trackId + " with " + candidates.size() + " metadata cache file(s).");
 
                 DataReference reference = new DataReference(slot, trackId);
-                TrackMetadata track = queryMetadata(reference, client);
+                TrackMetadata track = queryMetadata(reference, CdjStatus.TrackType.REKORDBOX, client);
                 if (track == null) {
                     logger.warn("Unable to retrieve metadata when attempting cache auto-attach for slot {}, giving up", slot);
                     return;
@@ -1393,7 +1406,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @throws IOException if there is a problem communicating with the player
      */
     private int findTrackIdAtOffset(SlotReference slot, Client client, int offset) throws IOException {
-        Message entry = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot.slot, offset, 1).get(0);
+        Message entry = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot.slot, CdjStatus.TrackType.REKORDBOX, offset, 1).get(0);
         if (entry.getMenuItemType() == Message.MenuItemType.UNKNOWN) {
             logger.warn("Encountered unrecognized track list entry item type: {}", entry);
         }
@@ -1712,6 +1725,7 @@ public class MetadataFinder extends LifecycleParticipant {
         } else if (update.isLocalUsbLoaded()) {
             recordMount(SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
         }
+
         if (update.isLocalSdEmpty()) {
             final SlotReference slot = SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT);
             detachMetadataCache(slot);
@@ -1721,8 +1735,15 @@ public class MetadataFinder extends LifecycleParticipant {
             recordMount(SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
         }
 
+        if (update.isDiscSlotEmpty()) {
+            removeMount(SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.CD_SLOT));
+        } else {
+            recordMount(SlotReference.getSlotReference(update.getDeviceNumber(), CdjStatus.TrackSourceSlot.CD_SLOT));
+        }
+
         // Now see if a track has changed that needs new metadata.
-        if (update.getTrackType() != CdjStatus.TrackType.REKORDBOX ||
+        if (update.getTrackType() == CdjStatus.TrackType.UNKNOWN ||
+                update.getTrackType() == CdjStatus.TrackType.NO_TRACK ||
                 update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK ||
                 update.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.UNKNOWN ||
                 update.getRekordboxId() == 0) {  // We no longer have metadata for this device.
@@ -1742,13 +1763,13 @@ public class MetadataFinder extends LifecycleParticipant {
 
                 // Not in the hot cache so try actually retrieving it.
                 if (activeRequests.add(update.getTrackSourcePlayer())) {
-                    clearDeck(update);  // We won't know what it is until our request completes.
                     // We had to make sure we were not already asking for this track.
+                    clearDeck(update);  // We won't know what it is until our request completes.
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
                             try {
-                                TrackMetadata data = requestMetadataInternal(trackReference, true);
+                                TrackMetadata data = requestMetadataInternal(trackReference, update.getTrackType(), true);
                                 if (data != null) {
                                     updateMetadata(update, data);
                                 }

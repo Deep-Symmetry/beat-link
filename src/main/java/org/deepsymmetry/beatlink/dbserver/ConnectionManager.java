@@ -389,8 +389,8 @@ public class ConnectionManager extends LifecycleParticipant {
             final int realDevice = candidate.getNumber();
             if (realDevice != targetPlayer && realDevice >= 1 && realDevice <= 4) {
                 final DeviceUpdate lastUpdate =  VirtualCdj.getInstance().getLatestStatusFor(realDevice);
-                if (lastUpdate != null && lastUpdate instanceof CdjStatus &&
-                        ((CdjStatus)lastUpdate).getTrackSourcePlayer() != targetPlayer) {
+                if (lastUpdate instanceof CdjStatus &&
+                        ((CdjStatus) lastUpdate).getTrackSourcePlayer() != targetPlayer) {
                     return candidate.getNumber();
                 }
             }

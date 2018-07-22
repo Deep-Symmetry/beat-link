@@ -382,7 +382,7 @@ public class ArtFinder extends LifecycleParticipant {
 
         // Send the artwork request
         Message response = client.simpleRequest(Message.KnownType.ALBUM_ART_REQ, Message.KnownType.ALBUM_ART,
-                client.buildRMS1(Message.MenuIdentifier.DATA, slot.slot), new NumberField((long)artworkId));
+                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot), new NumberField((long)artworkId));
 
         // Create an image from the response bytes
         return new AlbumArt(new DataReference(slot, artworkId), ((BinaryField)response.arguments.get(3)).getValue());

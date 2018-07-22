@@ -10,6 +10,7 @@ import java.net.DatagramPacket;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public class Beat extends DeviceUpdate {
 
     /**

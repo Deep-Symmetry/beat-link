@@ -45,52 +45,52 @@ public class Message {
         /**
          * Asks for the top-level menu of the player.
          */
-        ROOT_MENU_REQ    (0x1000, "root menu request", "r:m:s:1", "sort order", "magic constant?"),
+        ROOT_MENU_REQ    (0x1000, "root menu request", "r:m:s:t", "sort order", "magic constant?"),
         /**
          * Asks for a list of artists in the specified media slot.
          */
-        ARTIST_LIST_REQ  (0x1002, "artist list request", "r:m:s:1", "sort order?"),
+        ARTIST_LIST_REQ  (0x1002, "artist list request", "r:m:s:t", "sort order?"),
         /**
          * Asks for a list of all the tracks in the specified media slot.
          */
-        TRACK_LIST_REQ   (0x1004, "track list request", "r:m:s:1", "sort order"),
+        TRACK_LIST_REQ   (0x1004, "track list request", "r:m:s:t", "sort order"),
         /**
          * Asks for a playlist or folder by ID.
          */
-        PLAYLIST_REQ     (0x1105, "playlist/folder request", "r:m:s:1", "sort order", "playlist/folder ID", "0=playlist, 1=folder"),
+        PLAYLIST_REQ     (0x1105, "playlist/folder request", "r:m:s:t", "sort order", "playlist/folder ID", "0=playlist, 1=folder"),
         /**
          * Asks for the metadata associated with a particular track, by rekordbox ID.
          */
-        METADATA_REQ     (0x2002, "track metadata request", "r:m:s:1", "rekordbox id"),
+        REKORDBOX_METADATA_REQ (0x2002, "rekordbox track metadata request", "r:m:s:t", "rekordbox id"),
         /**
          * Asks for an album artwork image, by artwork ID.
          */
-        ALBUM_ART_REQ    (0x2003, "album art request", "r:m:s:1", "artwork id"),
+        ALBUM_ART_REQ    (0x2003, "album art request", "r:m:s:t", "artwork id"),
         /**
          * Asks for the preview (summary) waveform data for a track, by rekordbox ID.
          */
-        WAVE_PREVIEW_REQ (0x2004, "track waveform preview request", "r:m:s:1", "unknown (4)", "rekordbox id", "unknown (0)"),
+        WAVE_PREVIEW_REQ (0x2004, "track waveform preview request", "r:m:s:t", "unknown (4)", "rekordbox id", "unknown (0)"),
         /**
          * Asks for the cue points of a track, by rekordbox ID.
          */
-        CUE_LIST_REQ     (0x2104, "track cue list request", "r:m:s:1", "rekordbox id"),
+        CUE_LIST_REQ     (0x2104, "track cue list request", "r:m:s:t", "rekordbox id"),
         /**
          * Asks for metadata about a CD track, by track number.
          */
-        CD_METADATA_REQ  (0x2202, "CD track metadata request", "r:m:s:1", "track number"),
+        UNANALYZED_METADATA_REQ  (0x2202, "unanalyzed track metadata request", "r:m:s:t", "track number"),
         /**
          * Asks for the beat grid of a track, by rekordbox id.
          */
-        BEAT_GRID_REQ    (0x2204, "beat grid request", "r:m:s:1", "rekordbox id"),
+        BEAT_GRID_REQ    (0x2204, "beat grid request", "r:m:s:t", "rekordbox id"),
         /**
          * Asks for the detailed waveform data for a track, by rekordbox ID.
          */
-        WAVE_DETAIL_REQ  (0x2904, "track waveform detail request", "r:m:s:1", "rekordbox id"),
+        WAVE_DETAIL_REQ  (0x2904, "track waveform detail request", "r:m:s:t", "rekordbox id"),
         /**
          * Once a specific type of request has been made and acknowledged, this allows the results to be retrieved,
          * possibly in paginated chunks starting at <em>offset</em>, returning up to <em>limit</em> results.
          */
-        RENDER_MENU_REQ  (0x3000, "render items from last requested menu", "r:m:s:1", "offset", "limit", "unknown (0)", "len_a (=limit)?", "unknown (0)"),
+        RENDER_MENU_REQ  (0x3000, "render items from last requested menu", "r:m:s:t", "offset", "limit", "unknown (0)", "len_a (=limit)?", "unknown (0)"),
         /**
          * This response indicates that a query has been accepted, and reports how many results are available. They are
          * now ready to be retrieved using {@link #RENDER_MENU_REQ}.
@@ -580,8 +580,8 @@ public class Message {
         Field[] arguments = new Field[argCount];
         Field lastArg = null;
         for (int i = 0; i < argCount; i++) {
-            if (argTags[i] == 3 && lastArg != null && (lastArg instanceof  NumberField) &&
-                    ((NumberField)lastArg).getValue() == 0) {
+            if (argTags[i] == 3 && (lastArg instanceof NumberField) &&
+                    ((NumberField) lastArg).getValue() == 0) {
                 arguments [i] = new BinaryField(new byte[0]);  // Do not attempt to read a zero-length binary field
             } else {
                 arguments[i] = Field.read(is);
@@ -646,11 +646,11 @@ public class Message {
 
     /**
      * For many types of query messages, the first argument of the message is a 4-byte integer which we currently
-     * refer to as <em>r:m:s:1</em>, because the first byte is the player number of the player making the
+     * refer to as <em>r:m:s:t</em>, because the first byte is the player number of the player making the
      * <em>request</em>, the second byte identifies the <em>menu</em> or destination for which information is being
      * loaded, the third byte identifies the media <em>slot</em> (USB or SD) being asked about (as described in
-     * {@link org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot}), and the fourth byte
-     * always seems to be <em>1</em> (Austin's libpdjl called it <em>sourceAnalyzed</em>). This enumeration lists
+     * {@link org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot}), and the fourth byte identifies the type of
+     * track being worked with (for most requests this is 1, meaning rekordbox). This enumeration lists
      * the known values for the second, menu, byte.
      */
     public enum MenuIdentifier {

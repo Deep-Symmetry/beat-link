@@ -322,7 +322,7 @@ public class BeatGridFinder extends LifecycleParticipant {
     BeatGrid getBeatGrid(int rekordboxId, SlotReference slot, Client client)
             throws IOException {
         Message response = client.simpleRequest(Message.KnownType.BEAT_GRID_REQ, null,
-                client.buildRMS1(Message.MenuIdentifier.DATA, slot.slot), new NumberField(rekordboxId));
+                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot), new NumberField(rekordboxId));
         if (response.knownType == Message.KnownType.BEAT_GRID) {
             return new BeatGrid(new DataReference(slot, rekordboxId), response);
         }

@@ -63,6 +63,7 @@ public class TimeFinder extends LifecycleParticipant {
      *
      * @return true if track playback positions are being kept track of for all active players
      */
+    @SuppressWarnings("WeakerAccess")
     public boolean isRunning() {
         return running.get();
     }

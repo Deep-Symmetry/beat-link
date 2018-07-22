@@ -45,6 +45,7 @@ public class SearchableItem {
         return result;
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     @Override
     public boolean equals(Object obj) {
         if (obj == this) {

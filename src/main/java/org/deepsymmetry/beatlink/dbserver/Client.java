@@ -216,13 +216,14 @@ public class Client {
     }
 
     /**
-     * <p>Build the <em>R:M:S:1</em> parameter that begins many queries.</p>
+     * <p>Build the <em>R:M:S:T</em> parameter that begins many queries, when T=1.</p>
      *
      * <p>Many request messages take, as their first argument, a 4-byte value where each byte has a special meaning.
      * The first byte is the player number of the requesting player. The second identifies the menu into which
      * the response is being loaded, as described by {@link Message.MenuIdentifier}. The third specifies the media
      * slot from which information is desired, as described by {@link CdjStatus.TrackSourceSlot}, and the fourth
-     * byte always seems to be <em>1</em> (Austin's libpdjl called it <em>sourceAnalyzed</em>).</p>
+     * byte identifies the type of track about which information is being requested; in most requests this has the
+     * value 1, which corresponds to rekordbox tracks, and this version of the function assumes that.</p>
      *
      * @param requestingPlayer the player number that is asking the question
      * @param targetMenu the destination for the response to this query
@@ -231,31 +232,76 @@ public class Client {
      * @return the first argument to send with the query in order to obtain the desired information
      */
     @SuppressWarnings("WeakerAccess")
-    public static NumberField buildRMS1(int requestingPlayer, Message.MenuIdentifier targetMenu,
+    public static NumberField buildRMST(int requestingPlayer, Message.MenuIdentifier targetMenu,
                                         CdjStatus.TrackSourceSlot slot) {
-        return new NumberField(((requestingPlayer & 0x0ff) << 24) |
-                ((targetMenu.protocolValue & 0xff) << 16) |
-                ((slot.protocolValue & 0xff) << 8) | 0x01);
+        return buildRMST(requestingPlayer, targetMenu, slot, CdjStatus.TrackType.REKORDBOX);
     }
 
     /**
-     * <p>Build the <em>R:M:S:1</em> parameter that begins many queries.</p>
+     * <p>Build the <em>R:M:S:T</em> parameter that begins many queries.</p>
      *
      * <p>Many request messages take, as their first argument, a 4-byte value where each byte has a special meaning.
      * The first byte is the player number of the requesting player. The second identifies the menu into which
      * the response is being loaded, as described by {@link Message.MenuIdentifier}. The third specifies the media
      * slot from which information is desired, as described by {@link CdjStatus.TrackSourceSlot}, and the fourth
-     * byte always seems to be <em>1</em> (Austin's libpdjl called it <em>sourceAnalyzed</em>).</p>
+     * byte identifies the type of track about which information is being requested; in most requests this has the
+     * value 1, which corresponds to rekordbox tracks.</p>
+     *
+     * @param requestingPlayer the player number that is asking the question
+     * @param targetMenu the destination for the response to this query
+     * @param slot the media library of interest for this query
+     * @param trackType the type of track about which information is being requested
+     *
+     * @return the first argument to send with the query in order to obtain the desired information
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static NumberField buildRMST(int requestingPlayer, Message.MenuIdentifier targetMenu,
+                                        CdjStatus.TrackSourceSlot slot, CdjStatus.TrackType trackType) {
+        return new NumberField(((requestingPlayer & 0x0ff) << 24) |
+                ((targetMenu.protocolValue & 0xff) << 16) |
+                ((slot.protocolValue & 0xff) << 8) |
+                (trackType.protocolValue & 0xff));
+    }
+    /**
+     * <p>Build the <em>R:M:S:T</em> parameter that begins many queries.</p>
+     *
+     * <p>Many request messages take, as their first argument, a 4-byte value where each byte has a special meaning.
+     * The first byte is the player number of the requesting player. The second identifies the menu into which
+     * the response is being loaded, as described by {@link Message.MenuIdentifier}. The third specifies the media
+     * slot from which information is desired, as described by {@link CdjStatus.TrackSourceSlot}, and the fourth
+     * byte identifies the type of track about which information is being requested; in most requests this has the
+     * value 1, which corresponds to rekordbox tracks, and this version of the function assumes that.</p>
      *
      * @param targetMenu the destination for the response to this query
      * @param slot the media library of interest for this query
      *
      * @return the first argument to send with the query in order to obtain the desired information
      */
-    public NumberField buildRMS1(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot) {
-        return buildRMS1(posingAsPlayer, targetMenu, slot);
+    public NumberField buildRMST(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot) {
+        return buildRMST(posingAsPlayer, targetMenu, slot, CdjStatus.TrackType.REKORDBOX);
     }
 
+    /**
+     * <p>Build the <em>R:M:S:T</em> parameter that begins many queries.</p>
+     *
+     * <p>Many request messages take, as their first argument, a 4-byte value where each byte has a special meaning.
+     * The first byte is the player number of the requesting player. The second identifies the menu into which
+     * the response is being loaded, as described by {@link Message.MenuIdentifier}. The third specifies the media
+     * slot from which information is desired, as described by {@link CdjStatus.TrackSourceSlot}, and the fourth
+     * byte identifies the type of track about which information is being requested; in most requests this has the
+     * value 1, which corresponds to rekordbox tracks.</p>
+     *
+     * @param targetMenu the destination for the response to this query
+     * @param slot the media library of interest for this query
+     * @param trackType the type of track about which information is being requested
+     *
+     * @return the first argument to send with the query in order to obtain the desired information
+     */
+    @SuppressWarnings("WeakerAccess")
+    public NumberField buildRMST(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot,
+                                 CdjStatus.TrackType trackType) {
+        return buildRMST(posingAsPlayer, targetMenu, slot, trackType);
+    }
     /**
      * Send a request that expects a single message as its response, then read and return that response.
      *
@@ -287,7 +333,10 @@ public class Client {
     }
 
     /**
-     * Send a request for a menu that we will retrieve items from in subsequent requests.
+     * Send a request for a menu that we will retrieve items from in subsequent requests. This variant works for
+     * nearly all menus, but when you are trying to request metadata for an unanalyzed (non-rekordbox) track, you
+     * need to use {@link #menuRequestTyped(Message.KnownType, Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType, Field...)}
+     * and specify the actual type of the track whose metadata you want to retrieve.
      *
      * @param requestType identifies what kind of menu request to send
      * @param targetMenu the destination for the response to this query
@@ -301,16 +350,38 @@ public class Client {
      *         before attempting this call
      */
     @SuppressWarnings("SameParameterValue")
-    public synchronized Message menuRequest(Message.KnownType requestType, Message.MenuIdentifier targetMenu,
+    public Message menuRequest(Message.KnownType requestType, Message.MenuIdentifier targetMenu,
                                             CdjStatus.TrackSourceSlot slot, Field... arguments)
         throws IOException {
+        return menuRequestTyped(requestType, targetMenu, slot, CdjStatus.TrackType.REKORDBOX, arguments);
+    }
+
+    /**
+     * Send a request for a menu that we will retrieve items from in subsequent requests, when the request must reflect
+     * the actual type of track being asked about.
+     *
+     * @param requestType identifies what kind of menu request to send
+     * @param targetMenu the destination for the response to this query
+     * @param slot the media library of interest for this query
+     * @param trackType the type of track for which metadata is being requested, since this affects the request format
+     * @param arguments the additional arguments needed, if any, to complete the request
+     *
+     * @return the {@link Message.KnownType#MENU_AVAILABLE} response reporting how many items are available in the menu
+     *
+     * @throws IOException if there is a problem communicating, or if the requested menu is not available
+     * @throws IllegalStateException if {@link #tryLockingForMenuOperations(long, TimeUnit)} was not called successfully
+     *         before attempting this call
+     */
+    public synchronized Message menuRequestTyped(Message.KnownType requestType, Message.MenuIdentifier targetMenu,
+                                                 CdjStatus.TrackSourceSlot slot, CdjStatus.TrackType trackType, Field... arguments)
+            throws IOException {
 
         if (!menuLock.isHeldByCurrentThread()) {
             throw new IllegalStateException("renderMenuItems() cannot be called without first successfully calling tryLockingForMenuOperation()");
         }
 
         Field[] combinedArguments = new Field[arguments.length + 1];
-        combinedArguments[0] = buildRMS1(targetMenu, slot);
+        combinedArguments[0] = buildRMST(targetMenu, slot, trackType);
         System.arraycopy(arguments, 0, combinedArguments, 1, arguments.length);
         final Message response = simpleRequest(requestType, Message.KnownType.MENU_AVAILABLE, combinedArguments);
         final NumberField reportedRequestType = (NumberField)response.arguments.get(0);
@@ -332,9 +403,9 @@ public class Client {
     /**
      * Ghe maximum number of menu items we will request at a single time. We are not sure what the largest safe
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players. Changing this will affect future calls
-     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}.
+     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType,, Message)}.
      *
-     * @return the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}
+     * @return the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType,, Message)}
      *         will request at once
      */
     public static long getMenuBatchSize() {
@@ -344,9 +415,9 @@ public class Client {
     /**
      * Set the maximum number of menu items we will request at a single time. We are not sure what the largest safe
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players. Changing this will affect future calls
-     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}.
+     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType,, Message)}.
      *
-     * @param batchSize the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}
+     * @param batchSize the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType,, Message)}
      *                      will request at once
      */
     public static void setMenuBatchSize(long batchSize) {
@@ -356,7 +427,7 @@ public class Client {
     /**
      * The maximum number of menu items we will request at a single time. We are not sure what the largest safe
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players. Changing this will affect future calls
-     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}.
+     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType, Message)}.
      */
     private static final AtomicLong menuBatchSize = new AtomicLong(DEFAULT_MENU_BATCH_SIZE);
 
@@ -397,6 +468,7 @@ public class Client {
      *
      * @param targetMenu the destination for the response to this query
      * @param slot the media library of interest for this query
+     * @param trackType the type of track about which information is being requested
      * @param availableResponse the response to the initial menu setup request, reporting how many responses are
      *                          available, as well as the target menu we are working with
      *
@@ -408,14 +480,14 @@ public class Client {
      *         before attempting this call
      */
     @SuppressWarnings("SameParameterValue")
-    public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu,
-                                                      CdjStatus.TrackSourceSlot slot, Message availableResponse)
+    public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot,
+                                                      CdjStatus.TrackType trackType, Message availableResponse)
             throws IOException {
         final long count = availableResponse.getMenuResultsCount();
         if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
             return Collections.emptyList();
         }
-        return renderMenuItems(targetMenu, slot, 0, (int) count);
+        return renderMenuItems(targetMenu, slot, trackType, 0, (int) count);
     }
 
     /**
@@ -423,10 +495,11 @@ public class Client {
      * the number of responses requested is larger than our maximum batch size (see {@link #getMenuBatchSize()}.
      * It is the caller's responsibility to make sure that {@code offset} and {@code count} remain within the
      * legal, available menu items based on the initial menu setup request. Most use cases will be best served
-     * by the simpler {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, Message)}.
+     * by the simpler {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType, Message)}.
      *
      * @param targetMenu the destination for the response to this query
      * @param slot the media library of interest for this query
+     * @param trackType the type of track about which information is being requested
      * @param offset the first response desired (the first one available has offset 0)
      * @param count the number of responses desired
      *
@@ -437,8 +510,8 @@ public class Client {
      * @throws IllegalStateException if {@link #tryLockingForMenuOperations(long, TimeUnit)} was not called successfully
      *         before attempting this call
      */
-    public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu,
-                                                      CdjStatus.TrackSourceSlot slot, int offset, int count)
+    public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot,
+                                                      CdjStatus.TrackType trackType, int offset, int count)
             throws IOException {
 
         if (!menuLock.isHeldByCurrentThread()) {
@@ -459,7 +532,7 @@ public class Client {
             final NumberField limit = new NumberField(batchSize);
             final Message request = new Message(transaction,
                     new NumberField(Message.KnownType.RENDER_MENU_REQ.protocolValue, 2),
-                    buildRMS1(targetMenu, slot), new NumberField(offset), limit, NumberField.WORD_0, limit, NumberField.WORD_0);
+                    buildRMST(targetMenu, slot, trackType), new NumberField(offset), limit, NumberField.WORD_0, limit, NumberField.WORD_0);
             // Based on LinkInfo.tracklist.txt it looks like the last limit should be count instead? But this works!
 
             sendMessage(request);

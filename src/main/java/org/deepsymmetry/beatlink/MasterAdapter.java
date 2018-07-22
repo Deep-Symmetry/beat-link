@@ -15,6 +15,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author  James Elliott
  */
+@SuppressWarnings({"WeakerAccess", "EmptyMethod", "unused"})
 public abstract class MasterAdapter implements MasterListener{
     @Override
     public void masterChanged(DeviceUpdate update) {
