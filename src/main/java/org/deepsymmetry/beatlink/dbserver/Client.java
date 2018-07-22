@@ -403,9 +403,9 @@ public class Client {
     /**
      * Ghe maximum number of menu items we will request at a single time. We are not sure what the largest safe
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players. Changing this will affect future calls
-     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType,, Message)}.
+     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType, Message)}.
      *
-     * @return the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType,, Message)}
+     * @return the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType, Message)}
      *         will request at once
      */
     public static long getMenuBatchSize() {
@@ -415,9 +415,9 @@ public class Client {
     /**
      * Set the maximum number of menu items we will request at a single time. We are not sure what the largest safe
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players. Changing this will affect future calls
-     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType,, Message)}.
+     * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType, Message)}.
      *
-     * @param batchSize the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType,, Message)}
+     * @param batchSize the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType, Message)}
      *                      will request at once
      */
     public static void setMenuBatchSize(long batchSize) {
