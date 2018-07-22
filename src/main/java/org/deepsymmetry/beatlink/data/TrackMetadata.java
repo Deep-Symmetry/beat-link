@@ -266,6 +266,9 @@ public class TrackMetadata {
                     dateAdded = buildSearchableItem(item);
                     break;
 
+                case UNANALYZED_UNKNOWN:  // Don't yet know what to do with this.
+                    break;
+
                 default:
                     logger.warn("Ignoring track metadata item with unknown type: {}", item);
             }

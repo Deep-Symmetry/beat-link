@@ -262,6 +262,10 @@ public class Message {
          */
         KEY (0x000f),
         /**
+         * This value appears in non-rekordbox metadata, and we have not yet figured out what it contains.
+         */
+        UNANALYZED_UNKNOWN (0x0010),
+        /**
          * Indicates the DJ has not assigned a color label to a track, part of the track metadata response.
          */
         COLOR_NONE (0x0013),
