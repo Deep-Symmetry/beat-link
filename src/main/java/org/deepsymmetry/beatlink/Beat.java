@@ -109,6 +109,7 @@ public class Beat extends DeviceUpdate {
         return (master != null) && master.getAddress().equals(address);
     }
 
+    @SuppressWarnings("SameReturnValue")
     @Override
     public DeviceUpdate getDeviceBecomingTempoMaster() {
         return null;

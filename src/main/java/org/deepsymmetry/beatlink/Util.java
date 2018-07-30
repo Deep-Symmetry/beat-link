@@ -189,6 +189,33 @@ public class Util {
     }
 
     /**
+     * The sequence of nine bytes which begins all UDP packets sent in the protocol.
+     */
+    private static final byte[] MAGIC_HEADER = {0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c};
+
+    /**
+     * The offset into protocol packets which identify the content of the packet.
+     */
+    public static final int PACKET_TYPE_OFFSET = 0x0a;
+
+    /**
+     * Build a standard-format UDP packet for sending to port 50001 or 50002 in the protocol.
+     *
+     * @param type the byte which follows the standard ten magic header bytes, identifying the type of this packet.
+     * @param deviceName the bytes of the device name to send in the packet; up to 20 will be used.
+     * @param payload the remaining bytes which come after the device name.
+     * @return the packet to send.
+     */
+    public static DatagramPacket buildPacket(byte type, byte[] deviceName, byte[] payload) {
+        byte[] content = new byte[0x1f + payload.length];
+        System.arraycopy(MAGIC_HEADER, 0, content, 0, MAGIC_HEADER.length);
+        content[PACKET_TYPE_OFFSET] = type;
+        System.arraycopy(deviceName, 0, content, PACKET_TYPE_OFFSET + 1, Math.min(20, deviceName.length));
+        System.arraycopy(payload, 0, content, 0x1f, payload.length);
+        return new DatagramPacket(content, content.length);
+    }
+
+    /**
      * Prevent instantiation.
      */
     private Util() {

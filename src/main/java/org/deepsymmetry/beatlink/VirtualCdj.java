@@ -124,7 +124,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the virtual player number
      */
     public synchronized byte getDeviceNumber() {
-        return announcementBytes[36];
+        return announcementBytes[DEVICE_NUMBER_OFFSET];
     }
 
     /**
@@ -146,7 +146,7 @@ public class VirtualCdj extends LifecycleParticipant {
         if (number == 0 && isRunning()) {
             selfAssignDeviceNumber();
         } else {
-            announcementBytes[36] = number;
+            announcementBytes[DEVICE_NUMBER_OFFSET] = number;
         }
     }
 
@@ -193,12 +193,27 @@ public class VirtualCdj extends LifecycleParticipant {
     };
 
     /**
+     * The location of the device name in the announcement packet.
+     */
+    public static final int DEVICE_NAME_OFFSET = 0x0c;
+
+    /**
+     * The length of the device name in the announcement packet.
+     */
+    public static final int DEVICE_NAME_LENGTH = 0x14;
+
+    /**
+     * The location of the device number in the announcement packet.
+     */
+    public static final int DEVICE_NUMBER_OFFSET = 0x24;
+
+    /**
      * Get the name to be used in announcing our presence on the network.
      *
      * @return the device name reported in our presence announcement packets
      */
     public static String getDeviceName() {
-        return new String(announcementBytes, 12, 20).trim();
+        return new String(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).trim();
     }
 
     /**
@@ -208,11 +223,11 @@ public class VirtualCdj extends LifecycleParticipant {
      * @param name the device name to report in our presence announcement packets.
      */
     public synchronized void setDeviceName(String name) {
-        if (name.getBytes().length > 20) {
-            throw new IllegalArgumentException("name cannot be more than 20 bytes long");
+        if (name.getBytes().length > DEVICE_NAME_LENGTH) {
+            throw new IllegalArgumentException("name cannot be more than " + DEVICE_NAME_LENGTH + " bytes long");
         }
-        Arrays.fill(announcementBytes, 12, 32, (byte)0);
-        System.arraycopy(name.getBytes(), 0, announcementBytes, 12, name.getBytes().length);
+        Arrays.fill(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        System.arraycopy(name.getBytes(), 0, announcementBytes, DEVICE_NAME_OFFSET, name.getBytes().length);
     }
 
     /**
@@ -306,7 +321,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private DeviceUpdate buildUpdate(DatagramPacket packet) {
         int length = packet.getLength();
-        int kind = packet.getData()[10];
+        int kind = packet.getData()[Util.PACKET_TYPE_OFFSET];
         if (length == 56 && kind == 0x29 && Util.validateHeader(packet, 0x29, "Mixer Status")) {
             return new MixerStatus(packet);
         } else if ((length == 212 || length == 208 || length == 284 || length == 292) &&
@@ -834,6 +849,87 @@ public class VirtualCdj extends LifecycleParticipant {
         }
     }
 
+    private final static byte[] SYNC_CONTROL_PAYLOAD = { 0x01,
+            0x00, 0x0d, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x0f };
+
+    private void sendSyncControlCommand(DeviceUpdate update, byte command) throws IOException {
+        ensureRunning();
+        byte[] payload = new byte[SYNC_CONTROL_PAYLOAD.length];
+        System.arraycopy(SYNC_CONTROL_PAYLOAD, 0, payload, 0, SYNC_CONTROL_PAYLOAD.length);
+        payload[2] = getDeviceNumber();
+        payload[8] = getDeviceNumber();
+        payload[12] = command;
+        DatagramPacket packet = Util.buildPacket((byte) 0x2a,
+                Arrays.copyOfRange(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_OFFSET + DEVICE_NAME_LENGTH),
+                payload);
+        packet.setAddress(update.getAddress());
+        packet.setPort(BeatFinder.BEAT_PORT);
+        socket.get().send(packet);
+    }
+
+    /**
+     * Tell a device to turn sync on or off.
+     *
+     * @param deviceNumber the device whose sync state is to be set
+     * @param synced {@code} true if sync should be turned on, else it will be turned off
+     *
+     * @throws IOException if there is a problem sending the command to the device
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     * @throws IllegalArgumentException if {@code deviceNumber} is not found on the network
+     */
+    public void setDeviceSyncMode(int deviceNumber, boolean synced) throws IOException {
+        final DeviceUpdate update = getLatestStatusFor(deviceNumber);
+        if (update == null) {
+            throw new IllegalArgumentException("Device " + deviceNumber + " not found on network.");
+        }
+        setDeviceSyncMode(update, synced);
+    }
+
+    /**
+     * Tell a device to turn sync on or off.
+     *
+     * @param update an update from the device whose sync state is to be set
+     * @param synced {@code} true if sync should be turned on, else it will be turned off
+     *
+     * @throws IOException if there is a problem sending the command to the device
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     * @throws NullPointerException if {@code update} is {@code null}
+     */
+    public void setDeviceSyncMode(DeviceUpdate update, boolean synced) throws IOException {
+        sendSyncControlCommand(update, synced? (byte)0x10 : (byte)0x20);
+    }
+
+    /**
+     * Tell a device to become tempo master.
+     *
+     * @param deviceNumber the device whose sync state is to be set
+     *
+     * @throws IOException if there is a problem sending the command to the device
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     * @throws IllegalArgumentException if {@code deviceNumber} is not found on the network
+     */
+    public void appointTempoMaster(int deviceNumber) throws IOException {
+        final DeviceUpdate update = getLatestStatusFor(deviceNumber);
+        if (update == null) {
+            throw new IllegalArgumentException("Device " + deviceNumber + " not found on network.");
+        }
+        appointTempoMaster(update);
+    }
+
+    /**
+     * Tell a device to become tempo master.
+     *
+     * @param update an update from the device whose sync state is to be set
+     *
+     * @throws IOException if there is a problem sending the command to the device
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     * @throws NullPointerException if {@code update} is {@code null}
+     */
+    public void appointTempoMaster(DeviceUpdate update) throws IOException {
+        sendSyncControlCommand(update,(byte)0x01);
+    }
+
+
     /**
      * Holds the singleton instance of this class.
      */
@@ -842,7 +938,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Get the singleton instance of this class.
      *
-     * @return the only instance of this class which exists.
+     * @return the only instance of this class which exists
      */
     public static VirtualCdj getInstance() {
         return ourInstance;
