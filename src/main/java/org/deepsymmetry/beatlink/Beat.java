@@ -110,6 +110,11 @@ public class Beat extends DeviceUpdate {
     }
 
     @Override
+    public DeviceUpdate getDeviceBecomingTempoMaster() {
+        return null;
+    }
+
+    @Override
     public double getEffectiveTempo() {
         return bpm * Util.pitchToMultiplier(pitch) / 100.0;
     }

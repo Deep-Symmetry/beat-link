@@ -14,11 +14,22 @@ import java.util.Map;
 public class CdjStatus extends DeviceUpdate {
 
     /**
-     * The byte within the packet which contains useful status information, labeled <i>F</i> in Figure 11 of the
+     * The byte within the status packet which contains useful status information, labeled <i>F</i> in Figure 11 of the
      * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     @SuppressWarnings("WeakerAccess")
-    public static final int STATUS_FLAGS = 137;
+    public static final int STATUS_FLAGS = 0x89;
+
+    /**
+     * The byte within a status packet which indicates that the device is in the process of handing off the tempo
+     * master role to anther device, labeled <i>M<sub>h</sub></i> in Figure 11 of the
+     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     *
+     * Normally it holds the value 0xff, but during a tempo master hand-off, it holds
+     * the device number of the incoming tempo master, until that device asserts the master state, after which this
+     * device will stop doing so.
+     */
+    public static final int MASTER_HAND_OFF = 0x9f;
 
     /**
      * The bit within the status flag that indicates the player is on the air, as illustrated in Figure 12 of the
@@ -448,6 +459,12 @@ public class CdjStatus extends DeviceUpdate {
     private final String firmwareVersion;
 
     /**
+     * If we are in the process of handing the tempo master role to another device, this will be the device number
+     * of that device, otherwise it will have the value 255.
+     */
+    private final int handingMasterToDevice;
+
+    /**
      * Determine the enum value corresponding to the track source slot found in the packet.
      *
      * @return the proper value
@@ -541,6 +558,7 @@ public class CdjStatus extends DeviceUpdate {
         playState2 = findPlayState2();
         playState3 = findPlayState3();
         firmwareVersion = new String(packetBytes, 124, 4).trim();
+        handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
     }
 
     /**
@@ -635,6 +653,14 @@ public class CdjStatus extends DeviceUpdate {
     @Override
     public boolean isTempoMaster() {
         return (packetBytes[STATUS_FLAGS] & MASTER_FLAG) > 0;
+    }
+
+    @Override
+    public DeviceUpdate getDeviceBecomingTempoMaster() {
+        if (handingMasterToDevice < 255) {
+            return VirtualCdj.getInstance().getLatestStatusFor(handingMasterToDevice);
+        }
+        return null;
     }
 
     @Override
@@ -976,7 +1002,8 @@ public class CdjStatus extends DeviceUpdate {
                 ", beat:" + getBeatNumber() + ", beatWithinBar:" + getBeatWithinBar() +
                 ", isBeatWithinBarMeaningful? " + isBeatWithinBarMeaningful() + ", cue: " + formatCueCountdown() +
                 ", Playing? " + isPlaying() + ", Master? " + isTempoMaster() +
-                ", Synced? " + isSynced() + ", On-Air? " + isOnAir() + "]";
+                ", Synced? " + isSynced() + ", On-Air? " + isOnAir() +
+                ", handingMasterToDevice:" + handingMasterToDevice + "]";
     }
 
 }
