@@ -877,11 +877,39 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
+     * Finish the work of building and sending a protocol packet.
+     *
+     * @param kind the type of packet to create and send
+     * @param payload the content which will follow our device name in the packet
+     * @param destination where the packet should be sent
+     * @param port the port to which the packet should be sent
+     *
+     * @throws IOException if there is a problem sending the packet
+     */
+    private void assembleAndSendPacket(Util.PacketType kind, byte[] payload, InetAddress destination, int port) throws IOException {
+        DatagramPacket packet = Util.buildPacket(kind,
+                ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
+                ByteBuffer.wrap(payload));
+        packet.setAddress(destination);
+        packet.setPort(port);
+        socket.get().send(packet);
+    }
+
+    /**
      * The bytes at the end of a sync control command packet.
      */
     private final static byte[] SYNC_CONTROL_PAYLOAD = { 0x01,
             0x00, 0x0d, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x0f };
 
+    /**
+     * Assemble and send a packet that performs sync control, turning a device's sync mode on or off, or telling it
+     * to become the tempo master.
+     *
+     * @param update an update from the device whose sync state is to be set
+     * @param command the byte identifying the specific sync command to be sent
+     *
+     * @throws IOException if there is a problem sending the command to the device
+     */
     private void sendSyncControlCommand(DeviceUpdate update, byte command) throws IOException {
         ensureRunning();
         byte[] payload = new byte[SYNC_CONTROL_PAYLOAD.length];
@@ -889,12 +917,7 @@ public class VirtualCdj extends LifecycleParticipant {
         payload[2] = getDeviceNumber();
         payload[8] = getDeviceNumber();
         payload[12] = command;
-        DatagramPacket packet = Util.buildPacket(Util.PacketType.SYNC_CONTROL,
-                ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
-                ByteBuffer.wrap(payload));
-        packet.setAddress(update.getAddress());
-        packet.setPort(BeatFinder.BEAT_PORT);
-        socket.get().send(packet);
+        assembleAndSendPacket(Util.PacketType.SYNC_CONTROL, payload, update.getAddress(), BeatFinder.BEAT_PORT);
     }
 
     /**
@@ -966,13 +989,14 @@ public class VirtualCdj extends LifecycleParticipant {
             0x00, 0x0d, 0x00, 0x04, 0x02, 0x02, 0x02, 0x02 };
 
     /**
-     * Send a packet that tells some players to start playing and others to stop. If a player number is in
+     * Broadcast a packet that tells some players to start playing and others to stop. If a player number is in
      * both sets, it will be told to stop. Numbers outside the range 1 to 4 are ignored.
      *
      * @param deviceNumbersToStart the players that should start playing if they aren't already
      * @param deviceNumbersToStop the players that should stop playing
      *
      * @throws IOException if there is a problem broadcasting the command to the players
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public void sendFaderStartCommand(Set<Integer> deviceNumbersToStart, Set<Integer> deviceNumbersToStop) throws IOException {
         ensureRunning();
@@ -989,21 +1013,40 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         }
 
-        DatagramPacket packet = Util.buildPacket(Util.PacketType.FADER_START_COMMAND,
-                ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
-                ByteBuffer.wrap(payload));
-        packet.setAddress(getBroadcastAddress());
-        packet.setPort(BeatFinder.BEAT_PORT);
-        socket.get().send(packet);
+        assembleAndSendPacket(Util.PacketType.FADER_START_COMMAND, payload, getBroadcastAddress(), BeatFinder.BEAT_PORT);
     }
 
     /**
      * The bytes at the end of a channels on-air report packet.
      */
     private final static byte[] CHANNELS_ON_AIR_PAYLOAD = { 0x01,
-            0x00, 0x0d, 0x00, 0x09, 0x01, 0x02, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00 };
+            0x00, 0x0d, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-    // TODO: Implement on-air message
+    /**
+     * Broadcast a packet that tells the players which channels are on the air (audible in the mixer output).
+     * Numbers outside the range 1 to 4 are ignored. If there is an actual DJM mixer on the network, it will
+     * be sending these packets several times per second, so the results of calling this method will be quickly
+     * overridden.
+     *
+     * @param deviceNumbersOnAir the players whose channels are currently on the air
+     *
+     * @throws IOException if there is a problem broadcasting the command to the players
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     */
+    public void sendOnAirCommand(Set<Integer> deviceNumbersOnAir) throws IOException {
+        ensureRunning();
+        byte[] payload = new byte[CHANNELS_ON_AIR_PAYLOAD.length];
+        System.arraycopy(CHANNELS_ON_AIR_PAYLOAD, 0, payload, 0, CHANNELS_ON_AIR_PAYLOAD.length);
+        payload[2] = getDeviceNumber();
+
+        for (int i = 1; i <= 4; i++) {
+            if (deviceNumbersOnAir.contains(i)) {
+                payload[i + 4] = 1;
+            }
+        }
+
+        assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, getBroadcastAddress(), BeatFinder.BEAT_PORT);
+    }
 
     /**
      * Holds the singleton instance of this class.

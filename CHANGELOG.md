@@ -18,6 +18,8 @@ This change log follows the conventions of
   to turn sync mode on or off, or to become the tempo master.
 - The `VirtualCdj` has a new method allowing you to tell other players
   to start or stop playing.
+- The `VirtualCdj` has a new method allowing you to tell players
+  whether they are on or off the air in the absence of a DJM mixer.
 - A new Enum which captures all known packet types, to improve the
   readability and compactness of code that works with them.
 
