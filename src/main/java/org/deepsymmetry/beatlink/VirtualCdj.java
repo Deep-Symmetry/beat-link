@@ -876,6 +876,9 @@ public class VirtualCdj extends LifecycleParticipant {
         }
     }
 
+    /**
+     * The bytes at the end of a sync control command packet.
+     */
     private final static byte[] SYNC_CONTROL_PAYLOAD = { 0x01,
             0x00, 0x0d, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x0f };
 
@@ -904,12 +907,12 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      * @throws IllegalArgumentException if {@code deviceNumber} is not found on the network
      */
-    public void setDeviceSyncMode(int deviceNumber, boolean synced) throws IOException {
+    public void sendSyncModeCommand(int deviceNumber, boolean synced) throws IOException {
         final DeviceUpdate update = getLatestStatusFor(deviceNumber);
         if (update == null) {
             throw new IllegalArgumentException("Device " + deviceNumber + " not found on network.");
         }
-        setDeviceSyncMode(update, synced);
+        sendSyncModeCommand(update, synced);
     }
 
     /**
@@ -922,14 +925,14 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      * @throws NullPointerException if {@code update} is {@code null}
      */
-    public void setDeviceSyncMode(DeviceUpdate update, boolean synced) throws IOException {
+    public void sendSyncModeCommand(DeviceUpdate update, boolean synced) throws IOException {
         sendSyncControlCommand(update, synced? (byte)0x10 : (byte)0x20);
     }
 
     /**
      * Tell a device to become tempo master.
      *
-     * @param deviceNumber the device whose sync state is to be set
+     * @param deviceNumber the device we want to take over the role of tempo master
      *
      * @throws IOException if there is a problem sending the command to the device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
@@ -946,7 +949,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Tell a device to become tempo master.
      *
-     * @param update an update from the device whose sync state is to be set
+     * @param update an update from the device that we want to take over the role of tempo master
      *
      * @throws IOException if there is a problem sending the command to the device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
@@ -956,6 +959,51 @@ public class VirtualCdj extends LifecycleParticipant {
         sendSyncControlCommand(update,(byte)0x01);
     }
 
+    /**
+     * The bytes at the end of a fader start command packet.
+     */
+    private final static byte[] FADER_START_PAYLOAD = { 0x01,
+            0x00, 0x0d, 0x00, 0x04, 0x02, 0x02, 0x02, 0x02 };
+
+    /**
+     * Send a packet that tells some players to start playing and others to stop. If a player number is in
+     * both sets, it will be told to stop. Numbers outside the range 1 to 4 are ignored.
+     *
+     * @param deviceNumbersToStart the players that should start playing if they aren't already
+     * @param deviceNumbersToStop the players that should stop playing
+     *
+     * @throws IOException if there is a problem broadcasting the command to the players
+     */
+    public void sendFaderStartCommand(Set<Integer> deviceNumbersToStart, Set<Integer> deviceNumbersToStop) throws IOException {
+        ensureRunning();
+        byte[] payload = new byte[FADER_START_PAYLOAD.length];
+        System.arraycopy(FADER_START_PAYLOAD, 0, payload, 0, FADER_START_PAYLOAD.length);
+        payload[2] = getDeviceNumber();
+
+        for (int i = 1; i <= 4; i++) {
+            if (deviceNumbersToStart.contains(i)) {
+                payload[i + 4] = 0;
+            }
+            if (deviceNumbersToStop.contains(i)) {
+                payload[i + 4] = 1;
+            }
+        }
+
+        DatagramPacket packet = Util.buildPacket(Util.PacketType.FADER_START_COMMAND,
+                ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
+                ByteBuffer.wrap(payload));
+        packet.setAddress(getBroadcastAddress());
+        packet.setPort(BeatFinder.BEAT_PORT);
+        socket.get().send(packet);
+    }
+
+    /**
+     * The bytes at the end of a channels on-air report packet.
+     */
+    private final static byte[] CHANNELS_ON_AIR_PAYLOAD = { 0x01,
+            0x00, 0x0d, 0x00, 0x09, 0x01, 0x02, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+    // TODO: Implement on-air message
 
     /**
      * Holds the singleton instance of this class.

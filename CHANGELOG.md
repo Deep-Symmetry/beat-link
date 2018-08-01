@@ -16,6 +16,8 @@ This change log follows the conventions of
 - The number of tracks on a disc can be discovered.
 - The `VirtualCdj` has new methods allowing you to tell other devices
   to turn sync mode on or off, or to become the tempo master.
+- The `VirtualCdj` has a new method allowing you to tell other players
+  to start or stop playing.
 - A new Enum which captures all known packet types, to improve the
   readability and compactness of code that works with them.
 
