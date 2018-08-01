@@ -2,6 +2,7 @@ package org.deepsymmetry.beatlink;
 
 import java.io.IOException;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -320,16 +321,42 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the corresponding {@link DeviceUpdate} subclass, or {@code nil} if the packet was not recognizable
      */
     private DeviceUpdate buildUpdate(DatagramPacket packet) {
-        int length = packet.getLength();
-        int kind = packet.getData()[Util.PACKET_TYPE_OFFSET];
-        if (length == 56 && kind == 0x29 && Util.validateHeader(packet, 0x29, "Mixer Status")) {
-            return new MixerStatus(packet);
-        } else if ((length == 212 || length == 208 || length == 284 || length == 292) &&
-                kind == 0x0a && Util.validateHeader(packet, 0x0a, "CDJ Status")) {
-            return new CdjStatus(packet);
+        final int length = packet.getLength();
+        final Util.PacketType kind = Util.validateHeader(packet, UPDATE_PORT);
+
+        if (kind == null) {
+            logger.warn("Ignoring unrecognized packet sent to update port.");
+            return null;
         }
-        logger.warn("Unrecognized device update packet with length " + length + " and kind " + kind);
-        return null;
+
+        switch (kind) {
+            case MIXER_STATUS:
+                if (length != 56) {
+                    logger.warn("Processing a Mixer Status packet with unexpected length " + length + ", expected 56 bytes.");
+                }
+                if (length >= 56) {
+                    return new MixerStatus(packet);
+                } else {
+                    logger.warn("Ignoring too-short Mixer Status packet.");
+                    return null;
+                }
+
+            case CDJ_STATUS:
+                if (length != 208 && length != 212 && length != 284 && length != 292) {
+                    logger.warn("Processing a CDJ Status packet with unexpected length " + length + ".");
+                }
+                if (length >= 208) {
+                    return new CdjStatus(packet);
+
+                } else {
+                    logger.warn("Ignoring too-short CDJ Status packet.");
+                    return null;
+                }
+
+            default:
+                logger.warn("Ignoring " + kind.name + " packet sent to update port.");
+                return null;
+        }
     }
 
     /**
@@ -859,9 +886,9 @@ public class VirtualCdj extends LifecycleParticipant {
         payload[2] = getDeviceNumber();
         payload[8] = getDeviceNumber();
         payload[12] = command;
-        DatagramPacket packet = Util.buildPacket((byte) 0x2a,
-                Arrays.copyOfRange(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_OFFSET + DEVICE_NAME_LENGTH),
-                payload);
+        DatagramPacket packet = Util.buildPacket(Util.PacketType.SYNC_CONTROL,
+                ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
+                ByteBuffer.wrap(payload));
         packet.setAddress(update.getAddress());
         packet.setPort(BeatFinder.BEAT_PORT);
         socket.get().send(packet);

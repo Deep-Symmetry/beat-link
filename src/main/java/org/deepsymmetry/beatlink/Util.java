@@ -5,6 +5,9 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,43 +17,187 @@ import org.slf4j.LoggerFactory;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public class Util {
 
     private static final Logger logger = LoggerFactory.getLogger(Util.class);
 
     /**
-     * The bytes that should always be present at the start of a DJ Link packet.
+     * The sequence of nine bytes which begins all UDP packets sent in the protocol.
      */
-    private static final byte[] EXPECTED_HEADER = { 0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c };
+    private static final byte[] MAGIC_HEADER = {0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c};
 
     /**
-     * Check to see whether a packet starts with the standard header bytes, followed by a byte identifying it as the
-     * kind of packet that is expected.
+     * Get the sequence of nine bytes which begins all UDP packets sent in the protocol as a {@link ByteBuffer}.
+     * Each call returns a new instance, so you don't need to worry about messing with buffer positions.
+     *
+     * @return a read-only {@link ByteBuffer} containing the header with which all protocol packets begin.
+     */
+    public static ByteBuffer getMagicHeader() {
+        return ByteBuffer.wrap(MAGIC_HEADER).asReadOnlyBuffer();
+    }
+
+    /**
+     * The offset into protocol packets which identify the content of the packet.
+     */
+    public static final int PACKET_TYPE_OFFSET = 0x0a;
+
+    /**
+     * The known packet types used in the protocol, along with the byte values
+     * which identify them, and the names by which we describe them, and the port
+     * on which they are received.
+     */
+    public enum PacketType {
+
+        /**
+         * Used by the mixer to tell a set of players to start and/or stop playing.
+         */
+        FADER_START_COMMAND(0x02, "Fader Start", BeatFinder.BEAT_PORT),
+
+        /**
+         * Used by the mixer to tell the players which channels are on and off the air.
+         */
+        CHANNELS_ON_AIR(0x03, "Channels On Air", BeatFinder.BEAT_PORT),
+
+        /**
+         * Used to report that a device is still present on the DJ Link network.
+         */
+        DEVICE_KEEP_ALIVE(0x06, "Device Keep-Alive", DeviceFinder.ANNOUNCEMENT_PORT),
+
+        /**
+         * A status update from a player, with a great many status flags, pitch, tempo, and beat-within-bar details.
+         * Sadly, the same number is used (on port 50000) as part of the CDJ startup process.
+         */
+        CDJ_STATUS(0x0a, "CDJ Status", VirtualCdj.UPDATE_PORT),
+
+        /**
+         * Used by an incoming tempo master to ask the current tempo master to relinquish that role.
+         */
+        MASTER_HANDOFF_REQUEST(0x26, "Master Handoff Request", BeatFinder.BEAT_PORT),
+
+        /**
+         * Used by the active tempo master to respond to a request to relinquish that role.
+         */
+        MASTER_HANDOFF_RESPONSE(0x27, "Master Handoff Response", BeatFinder.BEAT_PORT),
+
+        /**
+         * Announces a beat has been played in a rekordbox-analyzed track, with lots of useful synchronization
+         * information.
+         */
+        BEAT(0x28, "Beat", BeatFinder.BEAT_PORT),
+
+        /**
+         * A status update from the mixer, with status flags, pitch, and tempo, and beat-within-bar information.
+         */
+        MIXER_STATUS(0x29, "Mixer Status", VirtualCdj.UPDATE_PORT),
+
+        /**
+         * Used to tell a player to turn sync on or off, or that it should become the tempo master.
+         */
+        SYNC_CONTROL(0x2a, "Sync Control", BeatFinder.BEAT_PORT);
+
+        /**
+         * The value that appears in the type byte which identifies this type of packet.
+         */
+        public final byte protocolValue;
+
+        /**
+         * The name by which we describe this kind of packet.
+         */
+        public final String name;
+
+        /**
+         * The port on which this kind of packet is received.
+         */
+        public final int port;
+
+        /**
+         * Constructor simply sets the protocol value and name.
+         *
+         * @param value the value that appears in the type byte which identifies this type of packet
+         * @param name how we describe this kind of packet
+         * @param port the port number on which this kind of packet is received
+         */
+        PacketType(int value, String name, int port) {
+            protocolValue = (byte)value;
+            this.name = name;
+            this.port = port;
+        }
+    }
+
+    /**
+     * Allows a known packet type to be looked up given the port number it was received on and the packet type byte.
+     */
+    public static final Map<Integer, Map<Byte, PacketType>> PACKET_TYPE_MAP;
+    static {
+        Map<Integer, Map<Byte, PacketType>> scratch = new HashMap<Integer, Map<Byte, PacketType>>();
+        for (PacketType packetType : PacketType.values()) {
+            Map<Byte, PacketType> portMap = scratch.get(packetType.port);
+            if (portMap == null) {
+                portMap = new HashMap<Byte, PacketType>();
+                scratch.put(packetType.port, portMap);
+            }
+            portMap.put(packetType.protocolValue, packetType);
+        }
+        for (Map.Entry<Integer, Map<Byte, PacketType>> entry : scratch.entrySet()) {
+            scratch.put(entry.getKey(), Collections.unmodifiableMap(entry.getValue()));
+        }
+        PACKET_TYPE_MAP = Collections.unmodifiableMap(scratch);
+    }
+
+    /**
+     * Build a standard-format UDP packet for sending to port 50001 or 50002 in the protocol.
+     *
+     * @param type the type of packet to create.
+     * @param deviceName the 0x14 (twenty) bytes of the device name to send in the packet.
+     * @param payload the remaining bytes which come after the device name.
+     * @return the packet to send.
+     */
+    public static DatagramPacket buildPacket(PacketType type, ByteBuffer deviceName, ByteBuffer payload) {
+        ByteBuffer content = ByteBuffer.allocate(0x1f + payload.remaining());
+        content.put(getMagicHeader());
+        content.put(type.protocolValue);
+        content.put(deviceName);
+        content.put(payload);
+        return new DatagramPacket(content.array(), content.capacity());
+    }
+
+    /**
+     * Check to see whether a packet starts with the standard header bytes, followed by a known byte identifying it.
+     * If so, return the kind of packet that has been recognized.
      *
      * @param packet a packet that has just been received
-     * @param kind the expected value of the eleventh byte, which seems to identify the packet type
-     * @param name the name of the kind of packet expected, for use in logging warnings if a mismatch is found
+     * @param port the port on which the packet has been received
      *
-     * @return {@code true} if the packet has the right header
+     * @return the type of packet that was recognized, or {@code null} if the packet was not recognized
      */
-    public static boolean validateHeader(DatagramPacket packet, int kind, String name) {
-        boolean valid = true;
+    public static PacketType validateHeader(DatagramPacket packet, int port) {
         byte[] data = packet.getData();
 
-        for (int i = 0; i < EXPECTED_HEADER.length; i++) {
-            if (EXPECTED_HEADER[i] != data[i]) {
-                logger.warn("Header mismatch at byte " + i + " of " + name + " packet: expecting " +
-                EXPECTED_HEADER[i] + ", found " + data[i]);
-                valid = false;
-            }
+        if (data.length < PACKET_TYPE_OFFSET) {
+            logger.warn("Packet is too short to be a Pro DJ Link packet; must be at least " + PACKET_TYPE_OFFSET +
+                    " bytes long, was only " + data.length + ".");
+            return null;
         }
 
-        if (data[10] != (byte)kind) {
-            logger.warn("Expecting " + name + " packet to have kind value " + kind + ", but found " + data[10]);
-            valid = false;
+        if (!getMagicHeader().equals(ByteBuffer.wrap(data, 0, MAGIC_HEADER.length))) {
+            logger.warn("Packet did not have correct nine-byte header for the Pro DJ Link protocol.");
+            return null;
         }
 
-        return valid;
+        final Map<Byte, PacketType> portMap = PACKET_TYPE_MAP.get(port);
+        if (portMap == null) {
+            logger.warn("Do not know any Pro DJ Link packets that are received on port " + port + ".");
+            return null;
+        }
+
+        final PacketType result = portMap.get(data[PACKET_TYPE_OFFSET]);
+        if (result == null) {
+            logger.warn("Do not know any Pro DJ Link packets received on port " + port + " with type " +
+                    String.format("0x%02x", data[PACKET_TYPE_OFFSET]) + ".");
+        }
+
+        return result;
     }
 
     /**
@@ -186,33 +333,6 @@ public class Util {
      */
     public static int timeToHalfFrame(long milliseconds) {
         return  (int) (milliseconds * 15 / 100);
-    }
-
-    /**
-     * The sequence of nine bytes which begins all UDP packets sent in the protocol.
-     */
-    private static final byte[] MAGIC_HEADER = {0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c};
-
-    /**
-     * The offset into protocol packets which identify the content of the packet.
-     */
-    public static final int PACKET_TYPE_OFFSET = 0x0a;
-
-    /**
-     * Build a standard-format UDP packet for sending to port 50001 or 50002 in the protocol.
-     *
-     * @param type the byte which follows the standard ten magic header bytes, identifying the type of this packet.
-     * @param deviceName the bytes of the device name to send in the packet; up to 20 will be used.
-     * @param payload the remaining bytes which come after the device name.
-     * @return the packet to send.
-     */
-    public static DatagramPacket buildPacket(byte type, byte[] deviceName, byte[] payload) {
-        byte[] content = new byte[0x1f + payload.length];
-        System.arraycopy(MAGIC_HEADER, 0, content, 0, MAGIC_HEADER.length);
-        content[PACKET_TYPE_OFFSET] = type;
-        System.arraycopy(deviceName, 0, content, PACKET_TYPE_OFFSET + 1, Math.min(20, deviceName.length));
-        System.arraycopy(payload, 0, content, 0x1f, payload.length);
-        return new DatagramPacket(content, content.length);
     }
 
     /**

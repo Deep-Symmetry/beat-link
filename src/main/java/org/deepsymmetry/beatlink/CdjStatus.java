@@ -280,6 +280,11 @@ public class CdjStatus extends DeviceUpdate {
          */
         public final byte protocolValue;
 
+        /**
+         * Constructor simply sets the protocol value.
+         *
+         * @param value the value that represents this play state in a status update.
+         */
         PlayState1(int value) {
             protocolValue = (byte) value;
         }
@@ -340,6 +345,11 @@ public class CdjStatus extends DeviceUpdate {
         @SuppressWarnings("WeakerAccess")
         public final byte protocolValue;
 
+        /**
+         * Constructor simply sets the protocol value.
+         *
+         * @param value the value that represents this play state in a status update.
+         */
         PlayState2(int value) {
             protocolValue = (byte) value;
         }
@@ -405,9 +415,13 @@ public class CdjStatus extends DeviceUpdate {
         /**
          * The value that represents this play state in a status update.
          */
-        @SuppressWarnings("WeakerAccess")
         public final byte protocolValue;
 
+        /**
+         * Constructor simply sets the protocol value.
+         *
+         * @param value the value that represents this play state in a status update.
+         */
         PlayState3(int value) {
             protocolValue = (byte) value;
         }

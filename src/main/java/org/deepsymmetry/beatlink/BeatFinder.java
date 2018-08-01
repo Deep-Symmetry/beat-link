@@ -84,9 +84,19 @@ public class BeatFinder extends LifecycleParticipant {
                             received = false;
                         }
                         try {
-                            if (received && packet.getLength() == 96 && Util.validateHeader(packet, 0x28, "beat")) {
-                                // Looks like a beat packet
-                                deliverBeat(new Beat(packet));
+                            if (received) {
+                                final Util.PacketType kind = Util.validateHeader(packet,  BEAT_PORT);
+                                if (kind == Util.PacketType.BEAT) {
+                                    final int length = packet.getLength();
+                                    if (length < 96) {
+                                        logger.warn("Ignoring too-short beat packet; expecting 96 bytes and got " + length + ".");
+                                    } else {
+                                        if (length > 96) {
+                                            logger.warn("Processing too-long beat packet; expecting 96 bytes and got " + length + ".");
+                                        }
+                                        deliverBeat(new Beat(packet));
+                                    }
+                                }
                             }
                         } catch (Exception e) {
                             logger.warn("Problem processing beat packet", e);

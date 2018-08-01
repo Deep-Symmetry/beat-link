@@ -198,14 +198,25 @@ public class DeviceFinder extends LifecycleParticipant {
                             received = false;
                         }
                         try {
-                            if (received && !ignoredAddresses.contains(packet.getAddress()) && (packet.getLength() == 54) &&
-                                    Util.validateHeader(packet, 6, "device announcement")) {
-                                // Looks like the kind of packet we need
-                                DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
-                                final boolean foundNewDevice = isDeviceNew(announcement);
-                                updateDevices(announcement);
-                                if (foundNewDevice) {
-                                    deliverFoundAnnouncement(announcement);
+                            if (received && !ignoredAddresses.contains(packet.getAddress()) && (packet.getLength() == 54)) {
+                                final Util.PacketType kind = Util.validateHeader(packet, ANNOUNCEMENT_PORT);
+                                if (kind == Util.PacketType.DEVICE_KEEP_ALIVE) {
+                                    // Looks like the kind of packet we need
+                                    if (packet.getLength() < 54) {
+                                        logger.warn("Ignoring too-short " + kind.name + " packet; expected 54 bytes, but only got " +
+                                                packet.getLength() + ".");
+                                    } else {
+                                        if (packet.getLength() > 54) {
+                                            logger.warn("Processing too-long " + kind.name + " packet; expected 54 bytes, but got " +
+                                                    packet.getLength() + ".");
+                                        }
+                                        DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
+                                        final boolean foundNewDevice = isDeviceNew(announcement);
+                                        updateDevices(announcement);
+                                        if (foundNewDevice) {
+                                            deliverFoundAnnouncement(announcement);
+                                        }
+                                    }
                                 }
                             }
                             expireDevices();

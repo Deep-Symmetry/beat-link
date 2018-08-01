@@ -16,11 +16,21 @@ This change log follows the conventions of
 - The number of tracks on a disc can be discovered.
 - The `VirtualCdj` has new methods allowing you to tell other devices
   to turn sync mode on or off, or to become the tempo master.
+- A new Enum which captures all known packet types, to improve the
+  readability and compactness of code that works with them.
 
 ### Fixed
 
 - Removed a potential source of crashes in the waveform rendering
   code.
+
+### Changed
+
+- We no longer simply reject packets with unexpected lengths; if they
+  are longer than the minimum value we expect, we try to process them
+  after logging a warning. If they are too short, we just log the
+  warning.
+- More use of ByteBuffers to efficiently assemble and compare packets.
 
 ## [0.3.7] - 2018-03-26
 
