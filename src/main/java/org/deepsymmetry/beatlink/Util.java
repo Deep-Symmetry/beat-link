@@ -246,6 +246,22 @@ public class Util {
     }
 
     /**
+     * Writes a number to the specified byte array field, breaking it into its component bytes in big-endian order.
+     * If the number is too large to fit in the specified number of bytes, only the low-order bytes are written.
+     *
+     * @param number the number to be written to the array
+     * @param buffer the buffer to which the number should be written
+     * @param start where the high-order byte should be written
+     * @param length how many bytes of the number should be written
+     */
+    public static void numberToBytes(int number, byte[] buffer, int start, int length) {
+        for (int index = start + length - 1; index >= start; index--) {
+            buffer[index] = (byte)(number & 0xff);
+            number = number >> 8;
+        }
+    }
+
+    /**
      * Converts the bytes that make up an internet address into the corresponding integer value to make
      * it easier to perform bit-masking operations on them.
      *
@@ -253,7 +269,6 @@ public class Util {
      *
      * @return the integer corresponding to that address
      */
-    @SuppressWarnings("WeakerAccess")
     public static long addressToLong(InetAddress address) {
         long result = 0;
         for (byte element : address.getAddress()) {

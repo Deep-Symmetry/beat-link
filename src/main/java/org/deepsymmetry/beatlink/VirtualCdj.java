@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.deepsymmetry.electro.Metronome;
+import org.deepsymmetry.electro.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -605,6 +606,7 @@ public class VirtualCdj extends LifecycleParticipant {
     @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
+            setSendingStatus(false);
             DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
             socket.get().close();
             socket.set(null);
@@ -1050,16 +1052,53 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
+     * Indicates whether we are sending our own status packets. Most uses of Beat Link will not require this level
+     * of activity. However, if you want to be able to take over the tempo master role, and control the tempo and
+     * beat alignment of other players, you will need to turn on this feature, which also requires that you are using
+     * one of the standard player numbers, 1-4.
+     */
+    private boolean sendingStatus = false;
+
+    /**
+     * Control whether the Virtual CDJ sends status packets to the other players. Most uses of Beat Link will not
+     * require this level of activity. However, if you want to be able to take over the tempo master role, and control
+     * the tempo and beat alignment of other players, you will need to turn on this feature, which also requires that
+     * you are using one of the standard player numbers, 1-4.
+     *
+     * @param send if {@code true} we will send status packets, and can participate in (and control) tempo and beat sync
+     *
+     * @throws IllegalStateException if the virtual CDJ is not running, or if it is not using a device number in the
+     *                               range 1 through 4.
+     */
+    private synchronized void setSendingStatus(boolean send) {
+        if (sendingStatus == send) {
+            return;
+        }
+
+        if (send) {  // Start sending status packets.
+            ensureRunning();
+            if ((getDeviceNumber() < 1) || (getDeviceNumber() > 4)) {
+                throw new IllegalStateException("Can only send status when using a standard player number, 1 through 4.");
+            }
+            // TODO: Start the status sending thread, and the beat sending thread.
+            sendingStatus = true;
+        } else {  // Stop sending status packets.
+            sendingStatus = false;
+            // TODO: Shut down the status sending thread, and the beat sending thread.
+        }
+    }
+
+    /**
      * Used to keep time when we are pretending to play a track, and to allow us to sync with other players when we
      * are told to do so.
      */
     private final Metronome metronome = new Metronome();
 
     /**
-     * Keeps track of our position when we are not playing; this value gets loaded into the metronome when we start
+     * Keeps track of our position when we are not playing; this beat gets loaded into the metronome when we start
      * playing, and it will keep time from there. When we stop again, we save the metronome's current beat here.
      */
-    private long currentBeat = 1;
+    private Snapshot whereStopped = metronome.getSnapshot(metronome.getStartTime());
 
     /**
      * Indicates whether we should currently pretend to be playing. This will only have an impact when we are sending
@@ -1082,11 +1121,11 @@ public class VirtualCdj extends LifecycleParticipant {
         this.playing = playing;
 
         if (playing) {
-            metronome.jumpToBeat(currentBeat);
+            metronome.jumpToBeat(whereStopped.beat);
             // TODO: Start the beat sender
         } else {
             // TODO: Stop the beat sender
-            currentBeat = metronome.getBeat();
+            whereStopped = metronome.getSnapshot();
         }
     }
 
@@ -1101,17 +1140,119 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
+     * Indicates whether we are currently the tempo master. Will only be meaningful (and get set) if we are sending
+     * status packets.
+     */
+    private boolean master = false;
+
+    /**
+     * Arrange to become the tempo master. Starts a sequence of interactions with the other players that should end
+     * up with us in charge of the group tempo and beat alignment.
+     *
+     * @throws IllegalStateException if we are not sending status updates
+     */
+    public synchronized void becomeTempoMaster() {
+        if (!sendingStatus) {
+            throw new IllegalStateException("Must be sending status updates to become the tempo master.");
+        }
+        // TODO: Copy implementation out of dysentery.
+    }
+
+    /**
+     * Check whether we are currently in charge of the tempo and beat alignment.
+     *
+     * @return {@code true} if we hold the tempo master role
+     */
+    public synchronized boolean isTempoMaster() {
+        return master;
+    }
+
+    /**
+     * Indicates whether we are currently staying in sync with the tempo master. Will only be meaningful if we are
+     * sending status packets.
+     */
+    private boolean synced = false;
+
+    /**
+     * Controls whether we are currently staying in sync with the tempo master. Will only be meaningful if we are
+     * sending status packets.
+     *
+     * @param sync if {@code true}, our status packets will be tempo and beat aligned with the tempo master
+     */
+    public synchronized void setSynced(boolean sync) {
+        synced = sync;
+    }
+
+    /**
+     * Check whether we are currently staying in sync with the tempo master. Will only be meaningful if we are
+     * sending status packets.
+     *
+     * @return {@code true} if our status packets will be tempo and beat aligned with the tempo master
+     */
+    public synchronized boolean isSynced() {
+        return synced;
+    }
+
+    /**
+     * Indicates whether we believe our channel is currently on the air (audible in the mixer output). Will only
+     * be meaningful if we are sending status packets.
+     */
+    private boolean onAir = false;
+
+    /**
+     * Change whether we believe our channel is currently on the air (audible in the mixer output). Only meaningful
+     * if we are sending status packets. If there is a real DJM mixer on the network, it will rapidly override any
+     * value established by this method with its actual report about the channel state.
+     *
+     * @param audible {@code true} if we should report ourselves as being on the air in our status packets
+     */
+    public synchronized void setOnAir(boolean audible) {
+        onAir = audible;
+    }
+
+    /**
+     * Checks whether we believe our channel is currently on the air (audible in the mixer output). Only meaningful
+     * if we are sending status packets. If there is a real DJM mixer on the network, it will be controlling the state
+     * of this property.
+     *
+     * @return audible {@code true} if we should report ourselves as being on the air in our status packets
+     */
+    public synchronized boolean isOnAir() {
+        return onAir;
+    }
+
+    /**
+     * Controls the tempo at which we report ourselves to be playing. Only meaningful if we are sending status packets.
+     * If {@link #isSynced()} is {@code true} and we are not the tempo master, any value set by this method will
+     * quickly be overridden by the tempo master.
+     *
+     * @param bpm the tempo, in beats per minute, that we should report in our status and beat packets
+     */
+    public void setTempo(double bpm) {
+        metronome.setTempo(bpm);
+    }
+
+    /**
+     * Check the tempo at which we report ourselves to be playing. Only meaningful if we are sending status packets.
+     *
+     * @return the tempo, in beats per minute, that we are reporting in our status and beat packets
+     */
+    public double getTempo() {
+        return metronome.getTempo();
+    }
+
+    /**
      * The longest beat we will report playing; if we are still playing and reach this beat, we will loop back to beat
      * one. If we are told to jump to a larger beat than this, we map it back into the range we will play. This would
      * be a little over nine hours at 120 bpm, which seems long enough for any track.
      */
-    public long MAX_BEAT = 65536;
+    public int MAX_BEAT = 65536;
 
     /**
      * Used to keep our beat number from growing indefinitely; we wrap it after a little over nine hours of playback;
      * maybe we are playing a giant loop?
      */
-    private long wrapBeat(long beat) {
+    private int wrapBeat(int beat) {
         if (beat <= MAX_BEAT) {
             return beat;
         }
@@ -1125,13 +1266,37 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param beat the beat that we should pretend to be playing
      */
-    public synchronized void jumpToBeat(long beat) {
+    public synchronized void jumpToBeat(int beat) {
+
         if (beat < 1) {
-            currentBeat = 1;
+            beat = 1;
         } else {
-            currentBeat = wrapBeat(beat);
+            beat = wrapBeat(beat);
+        }
+
+        if (playing) {
+            metronome.jumpToBeat(beat);
+        } else {
+            whereStopped = metronome.getSnapshot(metronome.getTimeOfBeat(beat));
         }
     }
+
+    /**
+     * Used in the process of handing off the tempo master role to another player.
+     */
+    private int syncCounter = 0;
+
+    /**
+     * Used in the process of handing off the tempo master role to another player. Usually has the value 0xff, meaning
+     * no handoff is taking place. But when we are in the process of handing off the role, will hold the device number
+     * of the player that is taking over as tempo master.
+     */
+    private byte nextMaster = (byte)0xff;
+
+    /**
+     * Keeps track of the number of status packets we send.
+     */
+    private int packetCounter = 0;
 
     /**
      * The template used to assemble a status packet when we are sending them.
@@ -1160,14 +1325,25 @@ public class VirtualCdj extends LifecycleParticipant {
      * can be the tempo master.
      */
     private synchronized void sendStatus() {
+        Snapshot playState = (playing ? metronome.getSnapshot() : whereStopped);
         byte[] payload = new byte[STATUS_PAYLOAD.length];
         System.arraycopy(STATUS_PAYLOAD, 0, payload, 0, STATUS_PAYLOAD.length);
         payload[0x02] = getDeviceNumber();
         payload[0x05] = payload[0x02];
-        payload[0x08] = (byte)(playing ? 1 : 0);
-        payload[0x09] = payload[0x02];
-
-        // TODO: Flesh out rest of packet, as shown in dysentery.
+        payload[0x08] = (byte)(playing ? 1 : 0);        // a, playing flag
+        payload[0x09] = payload[0x02];                  // Dr, the player from which the track was loaded
+        payload[0x5c] = (byte)(playing ? 3 : 5);        // P1, playing flag
+        Util.numberToBytes(syncCounter, payload, 0x65, 4);
+        payload[0x6a] = (byte)(0x84 +                   // F, main status bit vector
+                (playing ? 0x40 : 0) + (master ? 0x20 : 0) + (synced ? 0x10 : 0) + (onAir ? 0x08 : 0));
+        payload[0x6c] = (byte)(playing ? 0x7a : 0x7e);  // P2, playing flag
+        Util.numberToBytes((int)Math.round(getTempo() * 100), payload, 0x73, 2);
+        payload[0x7e] = (byte)(playing ? 9 : 1);        // P3, playing flag
+        payload[0x7f] = (byte)(master ? 1 : 0);         // Mm, tempo master flag
+        payload[0x80] = nextMaster;                     // Mh, tempo master handoff indicator
+        Util.numberToBytes((int)playState.beat, payload, 0x81, 4);
+        payload[0x87] = (byte)(playState.getBeatWithinBar());
+        Util.numberToBytes(++packetCounter, payload, 0xa9, 4);
 
         DatagramPacket packet = Util.buildPacket(Util.PacketType.CDJ_STATUS,
                 ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
@@ -1182,6 +1358,8 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         }
     }
+
+    // TODO: Watch for sync control and on-air packets, and react accordingly.
 
     /**
      * Holds the singleton instance of this class.
