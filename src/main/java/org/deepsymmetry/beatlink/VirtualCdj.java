@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.deepsymmetry.beatlink.data.MetadataFinder;
+import org.deepsymmetry.electro.Metronome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1048,6 +1049,93 @@ public class VirtualCdj extends LifecycleParticipant {
         assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, getBroadcastAddress(), BeatFinder.BEAT_PORT);
     }
 
+    /**
+     * Used to keep time when we are pretending to play a track, and to allow us to sync with other players when we
+     * are told to do so.
+     */
+    private final Metronome metronome = new Metronome();
+
+    /**
+     * Keeps track of our position when we are not playing; this value gets loaded into the metronome when we start
+     * playing, and it will keep time from there. When we stop again, we save the metronome's current beat here.
+     */
+    private long currentBeat = 1;
+
+    /**
+     * Indicates whether we should currently pretend to be playing. This will only have an impact when we are sending
+     * status and beat packets.
+     */
+    private boolean playing = false;
+
+    /**
+     * Controls whether we report that we are playing. This will only have an impact when we are sending status and
+     * beat packets.
+     *
+     * @param playing {@code true} if we should seem to be playing
+     */
+    public synchronized void setPlaying(boolean playing) {
+
+        if (this.playing == playing) {
+            return;
+        }
+
+        this.playing = playing;
+
+        if (playing) {
+            metronome.jumpToBeat(currentBeat);
+            // TODO: Start the beat sender
+        } else {
+            // TODO: Stop the beat sender
+            currentBeat = metronome.getBeat();
+        }
+    }
+
+    /**
+     * Check whether we are pretending to be playing. This will only have an impact when we are sending status and
+     * beat packets.
+     *
+     * @return {@code true} if we are reporting active playback
+     */
+    public synchronized boolean isPlaying() {
+        return playing;
+    }
+
+    /**
+     * The longest beat we will report playing; if we are still playing and reach this beat, we will loop back to beat
+     * one. If we are told to jump to a larger beat than this, we map it back into the range we will play. This would
+     * be a little over nine hours at 120 bpm, which seems long enough for any track.
+     */
+    public long MAX_BEAT = 65536;
+
+    /**
+     * Used to keep our beat number from growing indefinitely; we wrap it after a little over nine hours of playback;
+     * maybe we are playing a giant loop?
+     */
+    private long wrapBeat(long beat) {
+        if (beat <= MAX_BEAT) {
+            return beat;
+        }
+        // This math is a little funky because beats are one-based rather than zero-based.
+        return ((beat - 1) % MAX_BEAT) + 1;
+    }
+
+    /**
+     * Moves our current playback position to the specified beat; this will be reflected in any status and beat packets
+     * that we are sending. An incoming value less than one will jump us to the first beat.
+     *
+     * @param beat the beat that we should pretend to be playing
+     */
+    public synchronized void jumpToBeat(long beat) {
+        if (beat < 1) {
+            currentBeat = 1;
+        } else {
+            currentBeat = wrapBeat(beat);
+        }
+    }
+
+    /**
+     * The template used to assemble a status packet when we are sending them.
+     */
     private final static byte[] STATUS_PAYLOAD = { 0x01,
             0x04, 0x00, 0x00, (byte)0xf8, 0x00, 0x00, 0x01, 0x00, 0x00,  0x03,  0x00,  0x00, 0x00, 0x00, 0x00, 0x01,  // 0x020
             0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x030
@@ -1071,13 +1159,13 @@ public class VirtualCdj extends LifecycleParticipant {
      * Send a status packet to all devices on the network. Used when we are actively sending status, presumably so we
      * can be the tempo master.
      */
-    private void sendStatus() {
+    private synchronized void sendStatus() {
         byte[] payload = new byte[STATUS_PAYLOAD.length];
         System.arraycopy(STATUS_PAYLOAD, 0, payload, 0, STATUS_PAYLOAD.length);
-        payload[2] = getDeviceNumber();
-        payload[5] = payload[2];
-        payload[8] = 0;  // TODO: If we are playing this is 1
-        payload[9] = payload[2];
+        payload[0x02] = getDeviceNumber();
+        payload[0x05] = payload[0x02];
+        payload[0x08] = (byte)(playing ? 1 : 0);
+        payload[0x09] = payload[0x02];
 
         // TODO: Flesh out rest of packet, as shown in dysentery.
 
