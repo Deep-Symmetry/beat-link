@@ -143,9 +143,13 @@ public class VirtualCdj extends LifecycleParticipant {
      * {@code VirtualCdj} is stopped.</p>
      *
      * @param number the virtual player number
+     * @throws IllegalStateException if we are currently sending status updates
      */
     @SuppressWarnings("WeakerAccess")
     public synchronized void setDeviceNumber(byte number) {
+        if (isSendingStatus()) {
+            throw new IllegalStateException("Can't change device number while sending status packets.");
+        }
         if (number == 0 && isRunning()) {
             selfAssignDeviceNumber();
         } else {
@@ -1052,12 +1056,42 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Indicates whether we are sending our own status packets. Most uses of Beat Link will not require this level
-     * of activity. However, if you want to be able to take over the tempo master role, and control the tempo and
-     * beat alignment of other players, you will need to turn on this feature, which also requires that you are using
-     * one of the standard player numbers, 1-4.
+     * The number of milliseconds that we will wait between sending status packets, when we are sending them.
      */
-    private boolean sendingStatus = false;
+    private int statusInterval = 200;
+
+    /**
+     * Check how often we will send status packets, if we are configured to send them.
+     *
+     * @return the millisecond interval that will pass between status packets we send
+     */
+    public synchronized int getStatusInterval() {
+        return statusInterval;
+    }
+
+    /**
+     * Change the interval at which we will send status packets, if we are configured to send them. You probably won't
+     * need to change this unless you are experimenting. If you find an environment where the default of 200ms doesn't
+     * work, please open an issue.
+     *
+     * @param interval the millisecond interval that will pass between each status packet we send
+     *
+     * @throws IllegalArgumentException if {@code interval} is less than 20 or more than 2000
+     */
+    public synchronized void setStatusInterval(int interval) {
+        if (interval < 20 || interval > 2000) {
+            throw new IllegalArgumentException("interval must be between 20 and 2000");
+        }
+        this.statusInterval = interval;
+    }
+
+    /**
+     * Will hold a non-null value when we are sending our own status packets, which can be used to stop the thread
+     * doing so. Most uses of Beat Link will not require this level of activity. However, if you want to be able to
+     * take over the tempo master role, and control the tempo and beat alignment of other players, you will need to
+     * turn on this feature, which also requires that you are using one of the standard player numbers, 1-4.
+     */
+    private AtomicBoolean sendingStatus = null;
 
     /**
      * Control whether the Virtual CDJ sends status packets to the other players. Most uses of Beat Link will not
@@ -1070,8 +1104,8 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if the virtual CDJ is not running, or if it is not using a device number in the
      *                               range 1 through 4.
      */
-    private synchronized void setSendingStatus(boolean send) {
-        if (sendingStatus == send) {
+    public synchronized void setSendingStatus(boolean send) {
+        if (isSendingStatus() == send) {
             return;
         }
 
@@ -1080,12 +1114,41 @@ public class VirtualCdj extends LifecycleParticipant {
             if ((getDeviceNumber() < 1) || (getDeviceNumber() > 4)) {
                 throw new IllegalStateException("Can only send status when using a standard player number, 1 through 4.");
             }
-            // TODO: Start the status sending thread, and the beat sending thread.
-            sendingStatus = true;
+
+            final AtomicBoolean stillRunning = new AtomicBoolean(true);
+            sendingStatus =  stillRunning;  // Allow other threads to stop us when necessary.
+
+            Thread sender = new Thread(null, new Runnable() {
+                @Override
+                public void run() {
+                    while (stillRunning.get()) {
+                        sendStatus();
+                        try {
+                            Thread.sleep(getStatusInterval());
+                        } catch (InterruptedException e) {
+                            logger.warn("beat-link VirtualCDJ status sender thread was interrupted; continuing");
+                        }
+                    }
+                }
+            }, "beat-link VirtualCdj status sender");
+            sender.setDaemon(true);
+            sender.start();
+
+            // TODO: Start the beat sending thread if we are playing.
         } else {  // Stop sending status packets.
-            sendingStatus = false;
-            // TODO: Shut down the status sending thread, and the beat sending thread.
+            sendingStatus.set(false);  // Stop the status sending thread.
+            sendingStatus = null;  // And indicate that we are no longer sending status.
+            // TODO: Shut down the beat sending thread.
         }
+    }
+
+    /**
+     * Check whether we are currently sending status packets.
+     *
+     * @return {@code true} if we are sending status packets, and can participate in (and control) tempo and beat sync
+     */
+    public synchronized boolean isSendingStatus() {
+        return (sendingStatus != null);
     }
 
     /**
@@ -1152,7 +1215,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if we are not sending status updates
      */
     public synchronized void becomeTempoMaster() {
-        if (!sendingStatus) {
+        if (!isSendingStatus()) {
             throw new IllegalStateException("Must be sending status updates to become the tempo master.");
         }
         // TODO: Copy implementation out of dysentery.
@@ -1395,6 +1458,7 @@ public class VirtualCdj extends LifecycleParticipant {
             sb.append(", latestStatus:").append(getLatestStatus()).append(", masterTempo:").append(getMasterTempo());
             sb.append(", tempoMaster:").append(getTempoMaster());
         }
+        // TODO: Add new fields related to our ability to send status updates and control tempo?
         return sb.append("]").toString();
     }
 }
