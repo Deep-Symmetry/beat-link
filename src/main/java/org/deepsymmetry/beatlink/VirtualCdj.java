@@ -554,6 +554,9 @@ public class VirtualCdj extends LifecycleParticipant {
         return true;
     }
 
+    /**
+     * Makes sure we get shut down if the {@link DeviceFinder} does, because we rely on it.
+     */
     private final LifecycleListener deviceFinderLifecycleListener = new LifecycleListener() {
         @Override
         public void started(LifecycleParticipant sender) {
@@ -1219,6 +1222,7 @@ public class VirtualCdj extends LifecycleParticipant {
             throw new IllegalStateException("Must be sending status updates to become the tempo master.");
         }
         // TODO: Copy implementation out of dysentery.
+        // TODO: When we do support becoming master in response to a handoff, will need to tell our listeners somehow.
     }
 
     /**
