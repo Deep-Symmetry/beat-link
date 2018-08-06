@@ -1,11 +1,12 @@
 package org.deepsymmetry.beatlink;
 
+import java.util.Set;
+
 /**
  * The listener interface for receiving on-air status messages. Classes that are interested in knowing when the
  * mixer reports which channels are on and off the air (audible in its audio output) can implement this interface.
  * The listener object created is then registered using {@link BeatFinder#addOnAirListener(OnAirListener)}.
- * Whenever a relevant message is received, the {@link #channelsOnAir(boolean, boolean, boolean, boolean)} method
- * in the listener object is invoked.
+ * Whenever a relevant message is received, the {@link #channelsOnAir(Set)} method in the listener object is invoked.
  *
  * @author James Elliott
  */
@@ -25,11 +26,8 @@ public interface OnAirListener {
      * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
-     * @param channel1 will be {@code true} when channel 1 can currently be heard in the mixer output
-     * @param channel2 will be {@code true} when channel 2 can currently be heard in the mixer output
-     * @param channel3 will be {@code true} when channel 3 can currently be heard in the mixer output
-     * @param channel4 will be {@code true} when channel 4 can currently be heard in the mixer output
+     * @param audibleChannels holds the device numbers of all channels that can currently be heard in the mixer output
      */
-    void channelsOnAir(boolean channel1, boolean channel2, boolean channel3, boolean channel4);
+    void channelsOnAir(Set<Integer> audibleChannels);
 
 }

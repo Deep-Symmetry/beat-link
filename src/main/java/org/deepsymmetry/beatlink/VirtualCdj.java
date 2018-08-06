@@ -1059,28 +1059,8 @@ public class VirtualCdj extends LifecycleParticipant implements OnAirListener, S
     }
 
     @Override
-    public void channelsOnAir(boolean channel1, boolean channel2, boolean channel3, boolean channel4) {
-        switch (getDeviceNumber()) {
-
-            case 1:
-                setOnAir(channel1);
-                break;
-
-            case 2:
-                setOnAir(channel2);
-                break;
-
-            case 3:
-                setOnAir(channel3);
-                break;
-
-            case 4:
-                setOnAir(channel4);
-                break;
-
-            default:
-                // We don't have a standard player number, so no channel can affect our on-air status.
-        }
+    public void channelsOnAir(Set<Integer> audibleChannels) {
+        setOnAir(audibleChannels.contains(getDeviceNumber()));
     }
 
     @Override

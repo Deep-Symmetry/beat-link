@@ -7,6 +7,7 @@ import java.net.SocketException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -127,7 +128,14 @@ public class BeatFinder extends LifecycleParticipant {
                                         case CHANNELS_ON_AIR:
                                             if (isPacketLongEnough(packet, 0x2d, "channels on-air")) {
                                                 byte[] data = packet.getData();
-                                                deliverOnAirUpdate(data[0x24] != 0, data[0x25] != 0, data[0x26] != 0, data[0x27] != 0);
+                                                Set<Integer> audibleChannels = new TreeSet<Integer>();
+                                                for (int channel = 1; channel <= 4; channel++) {
+                                                    if (data[0x23 + channel] != 0) {
+                                                        audibleChannels.add(channel);
+                                                    }
+                                                }
+                                                audibleChannels = Collections.unmodifiableSet(audibleChannels);
+                                                deliverOnAirUpdate(audibleChannels);
                                             }
                                             break;
 
@@ -463,15 +471,12 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Send a channels on-air update to all registered listeners.
      *
-     * @param channel1 will be true when channel 1 is on the air
-     * @param channel2 will be true when channel 2 is on the air
-     * @param channel3 will be true when channel 3 is on the air
-     * @param channel4 will be true when channel 4 is on the air
+     * @param audibleChannels holds the device numbers of all channels that can currently be heard in the mixer output
      */
-    private void deliverOnAirUpdate(boolean channel1, boolean channel2, boolean channel3, boolean channel4) {
+    private void deliverOnAirUpdate(Set<Integer> audibleChannels) {
         for (final OnAirListener listener : getOnAirListeners()) {
             try {
-                listener.channelsOnAir(channel1, channel2, channel3, channel4);
+                listener.channelsOnAir(audibleChannels);
             } catch (Exception e) {
                 logger.warn("Problem delivering channels on-air update to listener", e);
             }
