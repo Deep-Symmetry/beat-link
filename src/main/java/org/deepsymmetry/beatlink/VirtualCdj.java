@@ -246,7 +246,10 @@ public class VirtualCdj
 
     /**
      * Check which device is the current tempo master, returning the {@link DeviceUpdate} packet in which it
-     * reported itself to be master. If there is no current tempo master returns {@code null}.
+     * reported itself to be master. If there is no current tempo master returns {@code null}. Note that when
+     * we are acting as tempo master ourselves in order to control player tempo and beat alignment, this will
+     * also have a {@code null} value, as there is no real player that is acting as master; we will instead
+     * send tempo and beat updates ourselves.
      *
      * @return the most recent update from a device which reported itself as the master
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
@@ -367,14 +370,19 @@ public class VirtualCdj
         }
     }
 
+
+
     /**
      * Process a device update once it has been received. Track it as the most recent update from its address,
      * and notify any registered listeners, including master listeners if it results in changes to tracked state,
-     * such as the current master player and tempo.
+     * such as the current master player and tempo. Also handles the Baroque dance of handing off the tempo master
+     * role from or to another device.
      */
     private void processUpdate(DeviceUpdate update) {
         updates.put(update.getAddress(), update);
         if (update.isTempoMaster()) {
+            // TODO: Need to copy in the logic from dysentery's vcdj/saw-master-packet about master yielding!
+            // TODO: When we do support becoming master in response to a handoff, will need to tell our listeners.
             setTempoMaster(update);
             setMasterTempo(update.getEffectiveTempo());
         } else {
@@ -582,7 +590,6 @@ public class VirtualCdj
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
-    @SuppressWarnings("UnusedReturnValue")
     public synchronized boolean start() throws SocketException {
         if (!isRunning()) {
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
@@ -612,10 +619,13 @@ public class VirtualCdj
     /**
      * Stop announcing ourselves and listening for status updates.
      */
-    @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
-            setSendingStatus(false);
+            try {
+                setSendingStatus(false);
+            } catch (Exception e) {
+                logger.error("Problem stopping sending status during shutdown", e);
+            }
             DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
             socket.get().close();
             socket.set(null);
@@ -1071,7 +1081,16 @@ public class VirtualCdj
     @Override
     public void becomeMaster() {
         if (isSendingStatus()) {
-            becomeTempoMaster();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        becomeTempoMaster();
+                    } catch (Exception e) {
+                        logger.error("Problem becoming tempo master in response to sync command packet", e);
+                    }
+                }
+            }).start();
         } else {
             logger.warn("Ignoring sync command to become tempo master, since we are not sending status packets.");
         }
@@ -1079,12 +1098,22 @@ public class VirtualCdj
 
     @Override
     public void yieldMasterTo(int deviceNumber) {
-        // TODO: Implement, copying from dysentery
+        if (isSendingStatus() && getDeviceNumber() != deviceNumber) {
+            nextMaster.set(deviceNumber);
+        }
     }
 
     @Override
     public void yieldResponse(int deviceNumber, boolean yielded) {
-        // TODO: Implement, copying from dysentery
+        if (yielded) {
+            if (isSendingStatus()) {
+                masterYieldedFrom.set(deviceNumber);
+            } else {
+                logger.warn("Ignoring master yield response because we are not sending status.");
+            }
+        } else {
+            logger.warn("Ignoring master yield response with unexpected non-yielding value.");
+        }
     }
 
     @Override
@@ -1127,6 +1156,28 @@ public class VirtualCdj
     }
 
     /**
+     * Makes sure we stop sending status if the {@link BeatFinder} shuts down, because we rely on it.
+     */
+    private final LifecycleListener beatFinderLifecycleListener = new LifecycleListener() {
+        @Override
+        public void started(LifecycleParticipant sender) {
+            logger.debug("VirtualCDJ doesn't have anything to do when the BeatFinder starts");
+        }
+
+        @Override
+        public void stopped(LifecycleParticipant sender) {
+            if (isSendingStatus()) {
+                logger.info("VirtualCDJ no longer sending status updates because BeatFinder has stopped.");
+                try {
+                    setSendingStatus(false);
+                } catch (Exception e) {
+                    logger.error("Problem stopping sending status packets when the BeatFinder stopped", e);
+                }
+            }
+        }
+    };
+
+    /**
      * Will hold a non-null value when we are sending our own status packets, which can be used to stop the thread
      * doing so. Most uses of Beat Link will not require this level of activity. However, if you want to be able to
      * take over the tempo master role, and control the tempo and beat alignment of other players, you will need to
@@ -1143,9 +1194,10 @@ public class VirtualCdj
      * @param send if {@code true} we will send status packets, and can participate in (and control) tempo and beat sync
      *
      * @throws IllegalStateException if the virtual CDJ is not running, or if it is not using a device number in the
-     *                               range 1 through 4.
+     *                               range 1 through 4
+     * @throws IOException if there is a problem starting the {@link BeatFinder}
      */
-    public synchronized void setSendingStatus(boolean send) {
+    public synchronized void setSendingStatus(boolean send) throws IOException {
         if (isSendingStatus() == send) {
             return;
         }
@@ -1155,6 +1207,9 @@ public class VirtualCdj
             if ((getDeviceNumber() < 1) || (getDeviceNumber() > 4)) {
                 throw new IllegalStateException("Can only send status when using a standard player number, 1 through 4.");
             }
+
+            BeatFinder.getInstance().start();
+            BeatFinder.getInstance().addLifecycleListener(beatFinderLifecycleListener);
 
             final AtomicBoolean stillRunning = new AtomicBoolean(true);
             sendingStatus =  stillRunning;  // Allow other threads to stop us when necessary.
@@ -1249,18 +1304,34 @@ public class VirtualCdj
      */
     private boolean master = false;
 
+    private static final byte[] MASTER_YIELD_REQUEST_PAYLOAD = { 0x01,
+            0x00, 0x0d, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0d };
+
     /**
      * Arrange to become the tempo master. Starts a sequence of interactions with the other players that should end
      * up with us in charge of the group tempo and beat alignment.
      *
      * @throws IllegalStateException if we are not sending status updates
+     * @throws IOException if there is a problem sending the master yield request
      */
-    public synchronized void becomeTempoMaster() {
+    public synchronized void becomeTempoMaster() throws IOException {
         if (!isSendingStatus()) {
             throw new IllegalStateException("Must be sending status updates to become the tempo master.");
         }
-        // TODO: Copy implementation out of dysentery.
-        // TODO: When we do support becoming master in response to a handoff, will need to tell our listeners somehow.
+
+        // Is there someone we need to ask to yield to us?
+        final DeviceUpdate currentMaster = getTempoMaster();
+        if (currentMaster != null) {
+            // Send the yield request; we will become master when we get a successful response.
+            byte[] payload = new byte[MASTER_YIELD_REQUEST_PAYLOAD.length];
+            System.arraycopy(MASTER_YIELD_REQUEST_PAYLOAD, 0, payload, 0, MASTER_YIELD_REQUEST_PAYLOAD.length);
+            payload[2] = getDeviceNumber();
+            payload[8] = getDeviceNumber();
+            assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, currentMaster.address, BeatFinder.BEAT_PORT);
+        } else if (!master) {
+            // There is no other master, we can just become it immediately.
+            master = true;
+        }
     }
 
     /**
@@ -1334,7 +1405,11 @@ public class VirtualCdj
      * @param bpm the tempo, in beats per minute, that we should report in our status and beat packets
      */
     public void setTempo(double bpm) {
+        final double oldTempo = metronome.getTempo();
         metronome.setTempo(bpm);
+        if (isTempoMaster() && (bpm != oldTempo)) {
+            deliverTempoChangedAnnouncement(bpm);
+        }
     }
 
     /**
@@ -1389,19 +1464,32 @@ public class VirtualCdj
     /**
      * Used in the process of handing off the tempo master role to another player.
      */
-    private int syncCounter = 0;
+    private final AtomicInteger syncCounter = new AtomicInteger(0);
+
+    /**
+     * Tracks the largest sync counter we have seen on the network, used in the process of handing off the tempo master
+     * role to another player.
+     */
+    private final AtomicInteger largestSyncCounter = new AtomicInteger(0);
 
     /**
      * Used in the process of handing off the tempo master role to another player. Usually has the value 0xff, meaning
      * no handoff is taking place. But when we are in the process of handing off the role, will hold the device number
      * of the player that is taking over as tempo master.
      */
-    private byte nextMaster = (byte)0xff;
+    private final AtomicInteger nextMaster = new AtomicInteger(0xff);
+
+    /**
+     * Used in the process of being handed the tempo master role from another player. Usually has the value 0, meaning
+     * no handoff is taking place. But when we have received a successful yield response, will hold the device number
+     * of the player that is yielding to us, so we can watch for the next stage in its status updates.
+     */
+    private final AtomicInteger masterYieldedFrom = new AtomicInteger(0);
 
     /**
      * Keeps track of the number of status packets we send.
      */
-    private int packetCounter = 0;
+    private final AtomicInteger packetCounter = new AtomicInteger(0);
 
     /**
      * The template used to assemble a status packet when we are sending them.
@@ -1438,17 +1526,17 @@ public class VirtualCdj
         payload[0x08] = (byte)(playing ? 1 : 0);        // a, playing flag
         payload[0x09] = payload[0x02];                  // Dr, the player from which the track was loaded
         payload[0x5c] = (byte)(playing ? 3 : 5);        // P1, playing flag
-        Util.numberToBytes(syncCounter, payload, 0x65, 4);
+        Util.numberToBytes(syncCounter.get(), payload, 0x65, 4);
         payload[0x6a] = (byte)(0x84 +                   // F, main status bit vector
                 (playing ? 0x40 : 0) + (master ? 0x20 : 0) + (synced ? 0x10 : 0) + (onAir ? 0x08 : 0));
         payload[0x6c] = (byte)(playing ? 0x7a : 0x7e);  // P2, playing flag
         Util.numberToBytes((int)Math.round(getTempo() * 100), payload, 0x73, 2);
         payload[0x7e] = (byte)(playing ? 9 : 1);        // P3, playing flag
         payload[0x7f] = (byte)(master ? 1 : 0);         // Mm, tempo master flag
-        payload[0x80] = nextMaster;                     // Mh, tempo master handoff indicator
+        payload[0x80] = (byte)nextMaster.get();         // Mh, tempo master handoff indicator
         Util.numberToBytes((int)playState.beat, payload, 0x81, 4);
         payload[0x87] = (byte)(playState.getBeatWithinBar());
-        Util.numberToBytes(++packetCounter, payload, 0xa9, 4);
+        Util.numberToBytes(packetCounter.incrementAndGet(), payload, 0xa9, 4);
 
         DatagramPacket packet = Util.buildPacket(Util.PacketType.CDJ_STATUS,
                 ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
@@ -1482,7 +1570,7 @@ public class VirtualCdj
      * Register any relevant listeners; private to prevent instantiation.
      */
     private VirtualCdj() {
-        // Arrange to have our on-air status accurately reflect any relevant updates from the mixer.
+        // Arrange to have our status accurately reflect any relevant updates and commands from the mixer.
         BeatFinder.getInstance().addOnAirListener(this);
         BeatFinder.getInstance().addFaderStartListener(this);
         BeatFinder.getInstance().addSyncListener(this);

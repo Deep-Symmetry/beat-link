@@ -134,6 +134,14 @@ public abstract class DeviceUpdate {
     public abstract boolean isTempoMaster();
 
     /**
+     * If this packet indicates the device in the process of yielding the tempo master role to another player,
+     * this will hold the device number of that player, otherwise it will be {@code null}.
+     *
+     * @return the device number, if any, this update is yielding the tempo master role to
+     */
+    public abstract Integer getDeviceMasterIsBeingYieldedTo();
+
+    /**
      * If we are in the process of handing the tempo master role to another device, this will return the latest
      * status update from the device becoming tempo master. If not, it will return {@code null}.
      *

@@ -109,6 +109,11 @@ public class Beat extends DeviceUpdate {
         return (master != null) && master.getAddress().equals(address);
     }
 
+    @Override
+    public Integer getDeviceMasterIsBeingYieldedTo() {
+        return null;  // Beats never yield the master role
+    }
+
     @SuppressWarnings("SameReturnValue")
     @Override
     public DeviceUpdate getDeviceBecomingTempoMaster() {

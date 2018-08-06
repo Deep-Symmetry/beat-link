@@ -106,6 +106,14 @@ public class MixerStatus extends DeviceUpdate {
     }
 
     @Override
+    public Integer getDeviceMasterIsBeingYieldedTo() {
+        if (handingMasterToDevice == 0xff) {
+            return null;
+        }
+        return handingMasterToDevice;
+    }
+
+    @Override
     public DeviceUpdate getDeviceBecomingTempoMaster() {
         if (handingMasterToDevice < 255) {
             return VirtualCdj.getInstance().getLatestStatusFor(handingMasterToDevice);
