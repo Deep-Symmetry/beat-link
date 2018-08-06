@@ -27,7 +27,9 @@ import org.slf4j.LoggerFactory;
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public class VirtualCdj extends LifecycleParticipant implements OnAirListener, SyncListener, MasterHandoffListener {
+public class VirtualCdj
+        extends LifecycleParticipant
+        implements OnAirListener, SyncListener, MasterHandoffListener, FaderStartListener {
 
     private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class);
 
@@ -853,7 +855,6 @@ public class VirtualCdj extends LifecycleParticipant implements OnAirListener, S
      *
      * @param listener the device update listener to remove
      */
-    @SuppressWarnings("SameParameterValue")
     public void removeUpdateListener(DeviceUpdateListener listener) {
         if (listener != null) {
             updateListeners.remove(listener);
@@ -865,7 +866,6 @@ public class VirtualCdj extends LifecycleParticipant implements OnAirListener, S
      *
      * @return the currently registered update listeners
      */
-    @SuppressWarnings("WeakerAccess")
     public Set<DeviceUpdateListener> getUpdateListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableSet(new HashSet<DeviceUpdateListener>(updateListeners));
@@ -1060,7 +1060,7 @@ public class VirtualCdj extends LifecycleParticipant implements OnAirListener, S
 
     @Override
     public void channelsOnAir(Set<Integer> audibleChannels) {
-        setOnAir(audibleChannels.contains(getDeviceNumber()));
+        setOnAir(audibleChannels.contains((int)getDeviceNumber()));
     }
 
     @Override
@@ -1085,6 +1085,15 @@ public class VirtualCdj extends LifecycleParticipant implements OnAirListener, S
     @Override
     public void yieldResponse(int deviceNumber, boolean yielded) {
         // TODO: Implement, copying from dysentery
+    }
+
+    @Override
+    public void fadersChanged(Set<Integer> playersToStart, Set<Integer> playersToStop) {
+        if (playersToStart.contains((int)getDeviceNumber())) {
+            setPlaying(true);
+        } else if (playersToStop.contains((int)getDeviceNumber())) {
+            setPlaying(false);
+        }
     }
 
     /**
@@ -1475,6 +1484,7 @@ public class VirtualCdj extends LifecycleParticipant implements OnAirListener, S
     private VirtualCdj() {
         // Arrange to have our on-air status accurately reflect any relevant updates from the mixer.
         BeatFinder.getInstance().addOnAirListener(this);
+        BeatFinder.getInstance().addFaderStartListener(this);
         BeatFinder.getInstance().addSyncListener(this);
         BeatFinder.getInstance().addMasterHandoffListener(this);
     }

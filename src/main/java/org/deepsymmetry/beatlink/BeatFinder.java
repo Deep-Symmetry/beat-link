@@ -86,7 +86,7 @@ public class BeatFinder extends LifecycleParticipant {
     }
 
     /**
-     * Start listening for beat announcements. If already listening, has no effect.
+     * Start listening for beat announcements and sync commands. If already listening, has no effect.
      *
      * @throws SocketException if the socket to listen on port 50001 cannot be created
      */
@@ -158,7 +158,35 @@ public class BeatFinder extends LifecycleParticipant {
                                             }
                                             break;
 
-                                            // TODO: Handle fader start commands
+                                        case FADER_START_COMMAND:
+                                            if (isPacketLongEnough(packet, 0x28, "fader start command")) {
+                                                byte[] data = packet.getData();
+                                                Set<Integer> playersToStart = new TreeSet<Integer>();
+                                                Set<Integer> playersToStop = new TreeSet<Integer>();
+                                                for (int channel = 1; channel <= 4; channel++) {
+                                                    switch (data[0x23 + channel]) {
+
+                                                        case 0:
+                                                            playersToStart.add(channel);
+                                                            break;
+
+                                                        case 1:
+                                                            playersToStop.add(channel);
+                                                            break;
+
+                                                        case 2:
+                                                            // Leave this player alone
+                                                            break;
+
+                                                        default:
+                                                            logger.warn("Ignoring unrecognized fader start command, " +
+                                                                    data[0x23 + channel] + ", for channel " + channel);
+                                                    }
+                                                }
+                                                playersToStart = Collections.unmodifiableSet(playersToStart);
+                                                playersToStop = Collections.unmodifiableSet(playersToStop);
+                                                deliverFaderStartCommand(playersToStart, playersToStop);
+                                            }
 
                                         default:
                                             logger.warn("Ignoring packet received on beat port with unexpected type: " + kind);
@@ -479,6 +507,73 @@ public class BeatFinder extends LifecycleParticipant {
                 listener.channelsOnAir(audibleChannels);
             } catch (Exception e) {
                 logger.warn("Problem delivering channels on-air update to listener", e);
+            }
+        }
+    }
+
+    /**
+     * Keeps track of the registered fader start listeners.
+     */
+    private final Set<FaderStartListener> faderStartListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<FaderStartListener, Boolean>());
+
+    /**
+     * <p>Adds the specified fader start listener to receive fader start commands when the mixer broadcasts
+     * them on the network. If {@code listener} is {@code null} or already present in the list
+     * of registered listeners, no exception is thrown and no action is performed.</p>
+     *
+     * <p>To reduce latency, fader start commands are delivered to listeners directly on the thread that is receiving them
+     * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     *
+     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the fader start listener to add
+     */
+    public void addFaderStartListener(FaderStartListener listener) {
+        if (listener != null) {
+            faderStartListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified fader start listener so that it no longer receives fader start commands when
+     * the mixer broadcasts them to the network. If {@code listener} is {@code null} or not present
+     * in the list of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the fader start listener to remove
+     */
+    public void removeFaderStartListener(FaderStartListener listener) {
+        if (listener != null) {
+            faderStartListeners.remove(listener);
+        }
+    }
+
+    /**
+     * Get the set of fader start listeners that are currently registered.
+     *
+     * @return the currently registered fader start listeners
+     */
+    public Set<FaderStartListener> getFaderStartListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Collections.unmodifiableSet(new HashSet<FaderStartListener>(faderStartListeners));
+    }
+
+    /**
+     * Send a fader start command to all registered listeners.
+     *
+     * @param playersToStart contains the device numbers of all players that should start playing
+     * @param playersToStop contains the device numbers of all players that should stop playing
+     */
+    private void deliverFaderStartCommand(Set<Integer> playersToStart, Set<Integer> playersToStop) {
+        for (final FaderStartListener listener : getFaderStartListeners()) {
+            try {
+                listener.fadersChanged(playersToStart, playersToStop);
+            } catch (Exception e) {
+                logger.warn("Problem delivering fader start command to listener", e);
             }
         }
     }
