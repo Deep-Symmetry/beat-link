@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public class VirtualCdj extends LifecycleParticipant {
+public class VirtualCdj extends LifecycleParticipant implements OnAirListener, SyncListener, MasterHandoffListener {
 
     private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class);
 
@@ -1058,6 +1058,55 @@ public class VirtualCdj extends LifecycleParticipant {
         assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, getBroadcastAddress(), BeatFinder.BEAT_PORT);
     }
 
+    @Override
+    public void channelsOnAir(boolean channel1, boolean channel2, boolean channel3, boolean channel4) {
+        switch (getDeviceNumber()) {
+
+            case 1:
+                setOnAir(channel1);
+                break;
+
+            case 2:
+                setOnAir(channel2);
+                break;
+
+            case 3:
+                setOnAir(channel3);
+                break;
+
+            case 4:
+                setOnAir(channel4);
+                break;
+
+            default:
+                // We don't have a standard player number, so no channel can affect our on-air status.
+        }
+    }
+
+    @Override
+    public void setSyncMode(boolean synced) {
+        setSynced(synced);
+    }
+
+    @Override
+    public void becomeMaster() {
+        if (isSendingStatus()) {
+            becomeTempoMaster();
+        } else {
+            logger.warn("Ignoring sync command to become tempo master, since we are not sending status packets.");
+        }
+    }
+
+    @Override
+    public void yieldMasterTo(int deviceNumber) {
+        // TODO: Implement, copying from dysentery
+    }
+
+    @Override
+    public void yieldResponse(int deviceNumber, boolean yielded) {
+        // TODO: Implement, copying from dysentery
+    }
+
     /**
      * The number of milliseconds that we will wait between sending status packets, when we are sending them.
      */
@@ -1426,8 +1475,6 @@ public class VirtualCdj extends LifecycleParticipant {
         }
     }
 
-    // TODO: Watch for sync control and on-air packets, and react accordingly.
-
     /**
      * Holds the singleton instance of this class.
      */
@@ -1443,10 +1490,13 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Prevent instantiation.
+     * Register any relevant listeners; private to prevent instantiation.
      */
     private VirtualCdj() {
-        // Nothing to do.
+        // Arrange to have our on-air status accurately reflect any relevant updates from the mixer.
+        BeatFinder.getInstance().addOnAirListener(this);
+        BeatFinder.getInstance().addSyncListener(this);
+        BeatFinder.getInstance().addMasterHandoffListener(this);
     }
 
     @Override
