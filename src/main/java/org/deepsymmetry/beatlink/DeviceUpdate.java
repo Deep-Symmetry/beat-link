@@ -142,15 +142,6 @@ public abstract class DeviceUpdate {
     public abstract Integer getDeviceMasterIsBeingYieldedTo();
 
     /**
-     * If we are in the process of handing the tempo master role to another device, this will return the latest
-     * status update from the device becoming tempo master. If not, it will return {@code null}.
-     *
-     * @return the device number to which we are handing the tempo master role, or {@code null}.
-     * @throws  IllegalStateException if the {@link VirtualCdj} is not running.
-     */
-    public abstract DeviceUpdate getDeviceBecomingTempoMaster();
-
-    /**
      * Get the effective tempo reflected by this update, which reflects both its track BPM and pitch as needed.
      *
      * @return the beats per minute this device is reporting

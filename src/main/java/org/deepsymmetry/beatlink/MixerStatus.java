@@ -114,14 +114,6 @@ public class MixerStatus extends DeviceUpdate {
     }
 
     @Override
-    public DeviceUpdate getDeviceBecomingTempoMaster() {
-        if (handingMasterToDevice < 255) {
-            return VirtualCdj.getInstance().getLatestStatusFor(handingMasterToDevice);
-        }
-        return null;
-    }
-
-    @Override
     public double getEffectiveTempo() {
         return bpm * Util.pitchToMultiplier(pitch) / 100.0;
     }

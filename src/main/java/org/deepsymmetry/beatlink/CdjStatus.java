@@ -678,14 +678,6 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     @Override
-    public DeviceUpdate getDeviceBecomingTempoMaster() {
-        if (handingMasterToDevice < 255) {
-            return VirtualCdj.getInstance().getLatestStatusFor(handingMasterToDevice);
-        }
-        return null;
-    }
-
-    @Override
     public double getEffectiveTempo() {
         return bpm * Util.pitchToMultiplier(pitch) / 100.0;
     }
@@ -923,12 +915,13 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * Get the counter identifying how many times the tempo master has changed.
+     * Get the sync counter used in the tempo master handoff.
      *
-     * @return a number that seems to increment whenever a new player becomes tempo master.
+     * @return a number that becomes one greater than the value reported by any other player when a player gives up
+     * its role as the tempo master.
      */
     public int getSyncNumber() {
-        return (int)Util.bytesToNumber(packetBytes, 134, 2);
+        return (int)Util.bytesToNumber(packetBytes, 0x84, 4);
     }
 
     /**

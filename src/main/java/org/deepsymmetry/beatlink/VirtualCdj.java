@@ -380,12 +380,54 @@ public class VirtualCdj
      */
     private void processUpdate(DeviceUpdate update) {
         updates.put(update.getAddress(), update);
+
+        // Keep track of the largest sync number we see.
+        if (update instanceof CdjStatus) {
+            int syncNumber = ((CdjStatus)update).getSyncNumber();
+            if (syncNumber > this.syncCounter.get()) {
+                this.syncCounter.set(syncNumber);
+            }
+        }
+
+        // Deal with the tempo master complexities, including handoff to/from us.
         if (update.isTempoMaster()) {
-            // TODO: Need to copy in the logic from dysentery's vcdj/saw-master-packet about master yielding!
-            // TODO: When we do support becoming master in response to a handoff, will need to tell our listeners.
-            setTempoMaster(update);
-            setMasterTempo(update.getEffectiveTempo());
+            final Integer packetYieldingTo = update.getDeviceMasterIsBeingYieldedTo();
+            if (packetYieldingTo == null) {
+                // This is a normal, non-yielding master packet. Update our notion of the current master, and,
+                // if we were yielding, finish that process, updating our sync number appropriately.
+                if (master.get()) {
+                    if (nextMaster.get() == update.deviceNumber) {
+                        syncCounter.set(largestSyncCounter.get() + 1);
+                    } else {
+                        if (nextMaster.get() == 0xff) {
+                            logger.warn("Saw master asserted by player " + update.deviceNumber +
+                                    " when we were not yielding it.");
+                        } else {
+                            logger.warn("Expected to yield master role to player " + nextMaster.get() +
+                                    " but saw master asserted by player " + update.deviceNumber);
+                        }
+                    }
+                }
+                master.set(false);
+                nextMaster.set(0xff);
+                setTempoMaster(update);
+                setMasterTempo(update.getEffectiveTempo());
+            } else {
+                // This is a yielding master packet. If it is us that is being yielded to, take over master if we
+                // are expecting to, otherwise log a warning.
+                if (packetYieldingTo == getDeviceNumber()) {
+                    if (update.deviceNumber != masterYieldedFrom.get()) {
+                        logger.warn("Expected player " + masterYieldedFrom.get() + " to yield master to us, but player " +
+                                update.deviceNumber + " did.");
+                    }
+                    master.set(true);
+                    masterYieldedFrom.set(0);
+                    setTempoMaster(null);
+                    setMasterTempo(getTempo());
+                }
+            }
         } else {
+            // This update did was not acting as a tempo master; if we thought it should be, update our records.
             DeviceUpdate oldMaster = getTempoMaster();
             if (oldMaster != null && oldMaster.getAddress().equals(update.getAddress())) {
                 // This device has resigned master status, and nobody else has claimed it so far
@@ -590,6 +632,7 @@ public class VirtualCdj
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
+    @SuppressWarnings("UnusedReturnValue")
     public synchronized boolean start() throws SocketException {
         if (!isRunning()) {
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
@@ -906,6 +949,7 @@ public class VirtualCdj
      *
      * @throws IOException if there is a problem sending the packet
      */
+    @SuppressWarnings("SameParameterValue")
     private void assembleAndSendPacket(Util.PacketType kind, byte[] payload, InetAddress destination, int port) throws IOException {
         DatagramPacket packet = Util.buildPacket(kind,
                 ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
@@ -1080,6 +1124,7 @@ public class VirtualCdj
 
     @Override
     public void becomeMaster() {
+        logger.debug("Received packet telling us to become master.");
         if (isSendingStatus()) {
             new Thread(new Runnable() {
                 @Override
@@ -1098,13 +1143,16 @@ public class VirtualCdj
 
     @Override
     public void yieldMasterTo(int deviceNumber) {
+        logger.debug("Received instruction to yield master to device " + deviceNumber);
         if (isSendingStatus() && getDeviceNumber() != deviceNumber) {
             nextMaster.set(deviceNumber);
         }
+        // TODO send yield response!
     }
 
     @Override
     public void yieldResponse(int deviceNumber, boolean yielded) {
+        logger.debug("Received yield response of " + yielded + " from device " + deviceNumber);
         if (yielded) {
             if (isSendingStatus()) {
                 masterYieldedFrom.set(deviceNumber);
@@ -1232,6 +1280,8 @@ public class VirtualCdj
 
             // TODO: Start the beat sending thread if we are playing.
         } else {  // Stop sending status packets.
+            BeatFinder.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
+
             sendingStatus.set(false);  // Stop the status sending thread.
             sendingStatus = null;  // And indicate that we are no longer sending status.
             // TODO: Shut down the beat sending thread.
@@ -1302,9 +1352,9 @@ public class VirtualCdj
      * Indicates whether we are currently the tempo master. Will only be meaningful (and get set) if we are sending
      * status packets.
      */
-    private boolean master = false;
+    private final AtomicBoolean master = new AtomicBoolean(false);
 
-    private static final byte[] MASTER_YIELD_REQUEST_PAYLOAD = { 0x01,
+    private static final byte[] MASTER_HANDOFF_REQUEST_PAYLOAD = { 0x01,
             0x00, 0x0d, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0d };
 
     /**
@@ -1315,6 +1365,7 @@ public class VirtualCdj
      * @throws IOException if there is a problem sending the master yield request
      */
     public synchronized void becomeTempoMaster() throws IOException {
+        logger.debug("Trying to become master.");
         if (!isSendingStatus()) {
             throw new IllegalStateException("Must be sending status updates to become the tempo master.");
         }
@@ -1323,14 +1374,16 @@ public class VirtualCdj
         final DeviceUpdate currentMaster = getTempoMaster();
         if (currentMaster != null) {
             // Send the yield request; we will become master when we get a successful response.
-            byte[] payload = new byte[MASTER_YIELD_REQUEST_PAYLOAD.length];
-            System.arraycopy(MASTER_YIELD_REQUEST_PAYLOAD, 0, payload, 0, MASTER_YIELD_REQUEST_PAYLOAD.length);
+            byte[] payload = new byte[MASTER_HANDOFF_REQUEST_PAYLOAD.length];
+            System.arraycopy(MASTER_HANDOFF_REQUEST_PAYLOAD, 0, payload, 0, MASTER_HANDOFF_REQUEST_PAYLOAD.length);
             payload[2] = getDeviceNumber();
             payload[8] = getDeviceNumber();
-            assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, currentMaster.address, BeatFinder.BEAT_PORT);
-        } else if (!master) {
+            logger.debug("Sending master yield request to player " + currentMaster);
+            assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_REQUEST, payload, currentMaster.address, BeatFinder.BEAT_PORT);
+        } else if (!master.get()) {
             // There is no other master, we can just become it immediately.
-            master = true;
+            setMasterTempo(getTempo());
+            master.set(true);
         }
     }
 
@@ -1339,8 +1392,8 @@ public class VirtualCdj
      *
      * @return {@code true} if we hold the tempo master role
      */
-    public synchronized boolean isTempoMaster() {
-        return master;
+    public boolean isTempoMaster() {
+        return master.get();
     }
 
     /**
@@ -1426,7 +1479,7 @@ public class VirtualCdj
      * one. If we are told to jump to a larger beat than this, we map it back into the range we will play. This would
      * be a little over nine hours at 120 bpm, which seems long enough for any track.
      */
-    public int MAX_BEAT = 65536;
+    public final int MAX_BEAT = 65536;
 
     /**
      * Used to keep our beat number from growing indefinitely; we wrap it after a little over nine hours of playback;
@@ -1528,11 +1581,11 @@ public class VirtualCdj
         payload[0x5c] = (byte)(playing ? 3 : 5);        // P1, playing flag
         Util.numberToBytes(syncCounter.get(), payload, 0x65, 4);
         payload[0x6a] = (byte)(0x84 +                   // F, main status bit vector
-                (playing ? 0x40 : 0) + (master ? 0x20 : 0) + (synced ? 0x10 : 0) + (onAir ? 0x08 : 0));
+                (playing ? 0x40 : 0) + (master.get() ? 0x20 : 0) + (synced ? 0x10 : 0) + (onAir ? 0x08 : 0));
         payload[0x6c] = (byte)(playing ? 0x7a : 0x7e);  // P2, playing flag
         Util.numberToBytes((int)Math.round(getTempo() * 100), payload, 0x73, 2);
         payload[0x7e] = (byte)(playing ? 9 : 1);        // P3, playing flag
-        payload[0x7f] = (byte)(master ? 1 : 0);         // Mm, tempo master flag
+        payload[0x7f] = (byte)(master.get() ? 1 : 0);   // Mm, tempo master flag
         payload[0x80] = (byte)nextMaster.get();         // Mh, tempo master handoff indicator
         Util.numberToBytes((int)playState.beat, payload, 0x81, 4);
         payload[0x87] = (byte)(playState.getBeatWithinBar());

@@ -10,6 +10,7 @@ import java.util.Set;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public interface OnAirListener {
 
     /**
