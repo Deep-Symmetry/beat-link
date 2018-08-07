@@ -1330,7 +1330,7 @@ public class VirtualCdj
         this.playing = playing;
 
         if (playing) {
-            metronome.jumpToBeat(whereStopped.beat);
+            metronome.jumpToBeat(whereStopped.getBeat());
             // TODO: Start the beat sender
         } else {
             // TODO: Stop the beat sender
@@ -1587,7 +1587,7 @@ public class VirtualCdj
         payload[0x7e] = (byte)(playing ? 9 : 1);        // P3, playing flag
         payload[0x7f] = (byte)(master.get() ? 1 : 0);   // Mm, tempo master flag
         payload[0x80] = (byte)nextMaster.get();         // Mh, tempo master handoff indicator
-        Util.numberToBytes((int)playState.beat, payload, 0x81, 4);
+        Util.numberToBytes((int)playState.getBeat(), payload, 0x81, 4);
         payload[0x87] = (byte)(playState.getBeatWithinBar());
         Util.numberToBytes(packetCounter.incrementAndGet(), payload, 0xa9, 4);
 
