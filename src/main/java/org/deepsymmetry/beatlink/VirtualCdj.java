@@ -1349,6 +1349,25 @@ public class VirtualCdj
     }
 
     /**
+     * Find details about the current simulated playback position.
+     *
+     * @return the current (or last, if we are stopped) playback state
+     */
+    public Snapshot getPlaybackPosition() {
+        return metronome.getSnapshot();
+    }
+
+    /**
+     * Nudge the playback position by the specified number of milliseconds, to support synchronization with an external
+     * clock. Positive values move playback forward in time, while negative values jump back.
+     *
+     * @param ms the number of millisecond to shift the simulated playback position
+     */
+    public void adjustPlaybackPosition(int ms) {
+        metronome.adjustStart(-ms);
+    }
+
+    /**
      * Indicates whether we are currently the tempo master. Will only be meaningful (and get set) if we are sending
      * status packets.
      */
