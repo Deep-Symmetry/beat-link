@@ -1271,16 +1271,15 @@ public class VirtualCdj
         System.arraycopy(BEAT_PAYLOAD, 0, payload, 0, BEAT_PAYLOAD.length);
         payload[0x02] = getDeviceNumber();
 
-        final long now = snapshot.getInstant();
-        final long beat = snapshot.getBeat();
-        Util.numberToBytes((int)(snapshot.getTimeOfBeat(beat + 1) - now), payload, 0x05, 4);
-        Util.numberToBytes((int)(snapshot.getTimeOfBeat(beat + 2) - now), payload, 0x09, 4);
-        Util.numberToBytes((int)(snapshot.getTimeOfBeat(beat + 4) - now), payload, 0x11, 4);
-        Util.numberToBytes((int)(snapshot.getTimeOfBeat(beat + 8) - now), payload, 0x19, 4);
+        Util.numberToBytes((int)snapshot.getBeatInterval(), payload, 0x05, 4);
+        Util.numberToBytes((int)(snapshot.getBeatInterval() * 2), payload, 0x09, 4);
+        Util.numberToBytes((int)(snapshot.getBeatInterval() * 4), payload, 0x11, 4);
+        Util.numberToBytes((int)(snapshot.getBeatInterval() * 8), payload, 0x19, 4);
 
-        final long bar = snapshot.getBar();
-        Util.numberToBytes((int)(snapshot.getTimeOfBar(bar + 1) - now), payload, 0x0d, 4);
-        Util.numberToBytes((int)(snapshot.getTimeOfBar(bar + 2) - now), payload, 0x15, 4);
+        final int beatsLeft = 5 - snapshot.getBeatWithinBar();
+        final int nextBar = (int)(snapshot.getBeatInterval() * beatsLeft);
+        Util.numberToBytes(nextBar, payload, 0x0d, 4);
+        Util.numberToBytes(nextBar + (int)snapshot.getBarInterval(), payload, 0x15, 4);
 
         Util.numberToBytes((int)Math.round(snapshot.getTempo() * 100), payload, 0x3b, 2);
         payload[0x3d] = (byte)snapshot.getBeatWithinBar();
