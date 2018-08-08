@@ -5,7 +5,6 @@ import org.deepsymmetry.electro.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,11 +33,6 @@ class BeatSender {
     private final Metronome metronome;
 
     /**
-     * Holds the broadcast address of the DJ Link network, which is where beat packets need to be sent.
-     */
-    private final InetAddress broadcastAddress;
-
-    /**
      * Holds the beat, if any, that we just sent, so we know not to send it again if for some reason the thread
      * gets awakened near the start of the same beat.
      */
@@ -58,20 +52,9 @@ class BeatSender {
     private static final int SLEEP_THRESHOLD = 5;
 
     /**
-     * Sends a beat packet when we have determined that it is time to do so.
-     *
-     * @param snapshot the metronome snapshot which determined that a beat was due, so we can properly calculate
-     *                 the future beat/bar information that goes into the packet
-     * @param nextBeatDue the already-calculated timestamp at which the next individual beat will be sent
-     */
-    private void sendBeat(Snapshot snapshot, long nextBeatDue) {
-        // TODO: Actually build and send the packet.
-        lastBeatSent.set(snapshot.getBeat());  // So we know not to re-send it if the thread is awakened right away.
-    }
-
-    /**
      * The loop that is run by the beat sender thread, sending beats at appropriate intervals.
      */
+    @SuppressWarnings("FieldCanBeLocal")
     private final Runnable beatLoop = new Runnable() {
         @Override
         public void run() {
@@ -92,9 +75,9 @@ class BeatSender {
                 final long distanceIntoCurrentBeat = snapshot.getInstant() - currentBeatDue;
                 if (distanceIntoCurrentBeat < BEAT_THRESHOLD &&
                         (lastBeatSent.get() == null || lastBeatSent.get() != snapshot.getBeat())) {
-                    // TODO: Remove this line!
+                    // TODO: Comment out next line!
                     logger.info("Sending beat " + snapshot.getBeat() + ", " + distanceIntoCurrentBeat + " ms into beat.");
-                    sendBeat(snapshot, nextBeatDue);
+                    lastBeatSent.set(VirtualCdj.getInstance().sendBeat());
                 }
 
                 final long sleepMilliseconds = nextBeatDue - System.currentTimeMillis();
@@ -138,11 +121,10 @@ class BeatSender {
      * Create and start the beat sending thread.
      *
      * @param metronome determines when beats need to be sent
-     * @param broadcastAddress the IP broadcast address for the DJ Link network, where beats should be sent
+     *
      */
-    BeatSender(Metronome metronome, InetAddress broadcastAddress) {
+    BeatSender(Metronome metronome) {
         this.metronome = metronome;
-        this.broadcastAddress = broadcastAddress;
         thread = new Thread(beatLoop, "beat-link VirtualCdj beat sender");
         thread.setPriority(Thread.NORM_PRIORITY + 1);
         thread.setDaemon(true);

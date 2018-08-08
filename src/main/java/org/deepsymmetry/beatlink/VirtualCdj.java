@@ -1143,7 +1143,9 @@ public class VirtualCdj
 
     @Override
     public void yieldMasterTo(int deviceNumber) {
-        logger.debug("Received instruction to yield master to device " + deviceNumber);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Received instruction to yield master to device " + deviceNumber);
+        }
         if (isSendingStatus() && getDeviceNumber() != deviceNumber) {
             nextMaster.set(deviceNumber);
         }
@@ -1152,7 +1154,9 @@ public class VirtualCdj
 
     @Override
     public void yieldResponse(int deviceNumber, boolean yielded) {
-        logger.debug("Received yield response of " + yielded + " from device " + deviceNumber);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Received yield response of " + yielded + " from device " + deviceNumber);
+        }
         if (yielded) {
             if (isSendingStatus()) {
                 masterYieldedFrom.set(deviceNumber);
@@ -1232,6 +1236,51 @@ public class VirtualCdj
     private final AtomicReference<BeatSender> beatSender = new AtomicReference<BeatSender>();
 
     /**
+     * The bytes following the device name in a beat packet.
+     */
+    private static final byte[] BEAT_PAYLOAD = { 0x01,
+            0x00, 0x0d, 0x00, 0x3c,  0x01, 0x01, 0x01, 0x01,   0x02, 0x02, 0x02, 0x02,  0x10, 0x10, 0x10, 0x10,
+            0x04, 0x04, 0x04, 0x04,  0x20, 0x20, 0x20, 0x20,   0x08, 0x08, 0x08, 0x08,    -1,   -1,   -1,   -1,
+            -1,   -1,   -1,   -1,    -1,   -1,   -1,   -1,     -1,   -1,   -1,   -1,    -1,   -1,   -1,   -1,
+            -1,   -1,   -1,   -1,  0x00, 0x10, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x0b, 0x00, 0x00, 0x0d};
+
+    /**
+     * Sends a beat packet. Generally this should only be invoked when our {@link BeatSender} has determined that it is
+     * time to do so, but it is public to allow experimentation.
+     *
+     * @return the beat number that was sent
+     */
+    public long sendBeat() {
+        Snapshot snapshot = (playing ? metronome.getSnapshot() : whereStopped);
+        byte[] payload = new byte[BEAT_PAYLOAD.length];
+        System.arraycopy(BEAT_PAYLOAD, 0, payload, 0, BEAT_PAYLOAD.length);
+        payload[0x02] = getDeviceNumber();
+
+        final long now = snapshot.getInstant();
+        final long beat = snapshot.getBeat();
+        Util.numberToBytes((int)(snapshot.getTimeOfBeat(beat + 1) - now), payload, 0x05, 4);
+        Util.numberToBytes((int)(snapshot.getTimeOfBeat(beat + 2) - now), payload, 0x09, 4);
+        Util.numberToBytes((int)(snapshot.getTimeOfBeat(beat + 4) - now), payload, 0x11, 4);
+        Util.numberToBytes((int)(snapshot.getTimeOfBeat(beat + 8) - now), payload, 0x19, 4);
+
+        final long bar = snapshot.getBar();
+        Util.numberToBytes((int)(snapshot.getTimeOfBar(bar + 1) - now), payload, 0x0d, 4);
+        Util.numberToBytes((int)(snapshot.getTimeOfBar(bar + 2) - now), payload, 0x15, 4);
+
+        Util.numberToBytes((int)Math.round(snapshot.getTempo() * 100), payload, 0x3b, 2);
+        payload[0x3d] = (byte)snapshot.getBeatWithinBar();
+        payload[0x40] = getDeviceNumber();
+
+        try {
+            assembleAndSendPacket(Util.PacketType.BEAT, payload, broadcastAddress.get(), BeatFinder.BEAT_PORT);
+        } catch (IOException e) {
+            logger.error("VirtualCdj Failed to send beat packet.", e);
+        }
+
+        return snapshot.getBeat();
+    }
+
+    /**
      * Will hold a non-null value when we are sending our own status packets, which can be used to stop the thread
      * doing so. Most uses of Beat Link will not require this level of activity. However, if you want to be able to
      * take over the tempo master role, and control the tempo and beat alignment of other players, you will need to
@@ -1285,7 +1334,7 @@ public class VirtualCdj
             sender.start();
 
             if (isPlaying()) {  // Start the beat sender too.
-                beatSender.set(new BeatSender(metronome, broadcastAddress.get()));
+                beatSender.set(new BeatSender(metronome));
             }
         } else {  // Stop sending status packets.
             BeatFinder.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
@@ -1343,7 +1392,7 @@ public class VirtualCdj
         if (playing) {
             metronome.jumpToBeat(whereStopped.getBeat());
             if (isSendingStatus()) {  // Need to also start the beat sender.
-                beatSender.set(new BeatSender(metronome, broadcastAddress.get()));
+                beatSender.set(new BeatSender(metronome));
             }
         } else {
             if (beatSender.get() != null) {  // We have a beat sender we need to stop.
@@ -1413,7 +1462,9 @@ public class VirtualCdj
             System.arraycopy(MASTER_HANDOFF_REQUEST_PAYLOAD, 0, payload, 0, MASTER_HANDOFF_REQUEST_PAYLOAD.length);
             payload[2] = getDeviceNumber();
             payload[8] = getDeviceNumber();
-            logger.debug("Sending master yield request to player " + currentMaster);
+            if (logger.isDebugEnabled()) {
+                logger.debug("Sending master yield request to player " + currentMaster);
+            }
             assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_REQUEST, payload, currentMaster.address, BeatFinder.BEAT_PORT);
         } else if (!master.get()) {
             // There is no other master, we can just become it immediately.

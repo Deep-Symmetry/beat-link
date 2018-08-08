@@ -14,6 +14,8 @@ This change log follows the conventions of
 - The mounting and removal of discs is reported to registered media
   mount listeners.
 - The number of tracks on a disc can be discovered.
+- The `VirtualCdj` can send status and beat packets, simulate playing,
+  and become the tempo master.
 - The `VirtualCdj` has new methods allowing you to tell other devices
   to turn sync mode on or off, or to become the tempo master.
 - The `VirtualCdj` has a new method allowing you to tell other players
