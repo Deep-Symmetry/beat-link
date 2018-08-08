@@ -1535,6 +1535,11 @@ public class VirtualCdj
             } else {
                 BeatFinder.getInstance().removeBeatListener(beatListener);
             }
+
+            // Also, if there is a tempo master, and we just got synced, adopt its tempo.
+            if (getTempoMaster() != null) {
+                setTempo(getMasterTempo());
+            }
         }
         synced = sync;
     }
@@ -1585,6 +1590,10 @@ public class VirtualCdj
      * @param bpm the tempo, in beats per minute, that we should report in our status and beat packets
      */
     public void setTempo(double bpm) {
+        if (bpm == 0.0) {
+            throw new IllegalArgumentException("Tempo cannot be zero.");
+        }
+
         final double oldTempo = metronome.getTempo();
         metronome.setTempo(bpm);
         notifyBeatSenderOfChange();
@@ -1752,6 +1761,8 @@ public class VirtualCdj
      * Register any relevant listeners; private to prevent instantiation.
      */
     private VirtualCdj() {
+        masterTempo.set(Double.doubleToLongBits(0.0));  // Note that we have no master tempo yet.
+
         // Arrange to have our status accurately reflect any relevant updates and commands from the mixer.
         BeatFinder.getInstance().addOnAirListener(this);
         BeatFinder.getInstance().addFaderStartListener(this);
