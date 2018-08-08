@@ -1226,6 +1226,12 @@ public class VirtualCdj
     };
 
     /**
+     * Will hold an instance when we are actively sending beats, so we can let it know when the metronome changes,
+     * and when it is time to shut down.
+     */
+    private BeatSender beatSender;
+
+    /**
      * Will hold a non-null value when we are sending our own status packets, which can be used to stop the thread
      * doing so. Most uses of Beat Link will not require this level of activity. However, if you want to be able to
      * take over the tempo master role, and control the tempo and beat alignment of other players, you will need to
@@ -1278,13 +1284,18 @@ public class VirtualCdj
             sender.setDaemon(true);
             sender.start();
 
-            // TODO: Start the beat sending thread if we are playing.
+            if (isPlaying()) {  // Start the beat sender too.
+                beatSender = new BeatSender(metronome, broadcastAddress.get());
+            }
         } else {  // Stop sending status packets.
             BeatFinder.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
 
             sendingStatus.set(false);  // Stop the status sending thread.
-            sendingStatus = null;  // And indicate that we are no longer sending status.
-            // TODO: Shut down the beat sending thread.
+            sendingStatus = null;      // Indicate that we are no longer sending status.
+            if (beatSender != null) {  // And stop the beat sender if we have one.
+                beatSender.shutDown();
+                beatSender = null;
+            }
         }
     }
 
@@ -1331,9 +1342,14 @@ public class VirtualCdj
 
         if (playing) {
             metronome.jumpToBeat(whereStopped.getBeat());
-            // TODO: Start the beat sender
+            if (isSendingStatus()) {  // Need to also start the beat sender.
+                beatSender = new BeatSender(metronome, broadcastAddress.get());
+            }
         } else {
-            // TODO: Stop the beat sender
+            if (beatSender != null) {  // We have a beat sender we need to stop.
+                beatSender.shutDown();
+                beatSender = null;
+            }
             whereStopped = metronome.getSnapshot();
         }
     }
@@ -1661,8 +1677,15 @@ public class VirtualCdj
             sb.append(", broadcastAddress:").append(getBroadcastAddress().getHostAddress());
             sb.append(", latestStatus:").append(getLatestStatus()).append(", masterTempo:").append(getMasterTempo());
             sb.append(", tempoMaster:").append(getTempoMaster());
+            sb.append(", isSendingStatus:").append(isSynced());
+            if (isSendingStatus()) {
+                sb.append(", isSynced:").append(isSynced());
+                sb.append(", isTempoMaster:").append(isTempoMaster());
+                sb.append(", isPlaying:").append((isPlaying()));
+                sb.append(", isOnAir:").append(isOnAir());
+                sb.append(", metronome:").append(metronome);
+            }
         }
-        // TODO: Add new fields related to our ability to send status updates and control tempo?
         return sb.append("]").toString();
     }
 }
