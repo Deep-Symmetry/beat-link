@@ -1229,7 +1229,7 @@ public class VirtualCdj
      * Will hold an instance when we are actively sending beats, so we can let it know when the metronome changes,
      * and when it is time to shut down.
      */
-    private BeatSender beatSender;
+    private final AtomicReference<BeatSender> beatSender = new AtomicReference<BeatSender>();
 
     /**
      * Will hold a non-null value when we are sending our own status packets, which can be used to stop the thread
@@ -1285,16 +1285,16 @@ public class VirtualCdj
             sender.start();
 
             if (isPlaying()) {  // Start the beat sender too.
-                beatSender = new BeatSender(metronome, broadcastAddress.get());
+                beatSender.set(new BeatSender(metronome, broadcastAddress.get()));
             }
         } else {  // Stop sending status packets.
             BeatFinder.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
 
-            sendingStatus.set(false);  // Stop the status sending thread.
-            sendingStatus = null;      // Indicate that we are no longer sending status.
-            if (beatSender != null) {  // And stop the beat sender if we have one.
-                beatSender.shutDown();
-                beatSender = null;
+            sendingStatus.set(false);        // Stop the status sending thread.
+            sendingStatus = null      ;      // Indicate that we are no longer sending status.
+            if (beatSender.get() != null) {  // And stop the beat sender if we have one.
+                beatSender.get().shutDown();
+                beatSender.set(null);
             }
         }
     }
@@ -1343,12 +1343,12 @@ public class VirtualCdj
         if (playing) {
             metronome.jumpToBeat(whereStopped.getBeat());
             if (isSendingStatus()) {  // Need to also start the beat sender.
-                beatSender = new BeatSender(metronome, broadcastAddress.get());
+                beatSender.set(new BeatSender(metronome, broadcastAddress.get()));
             }
         } else {
-            if (beatSender != null) {  // We have a beat sender we need to stop.
-                beatSender.shutDown();
-                beatSender = null;
+            if (beatSender.get() != null) {  // We have a beat sender we need to stop.
+                beatSender.get().shutDown();
+                beatSender.set(null);
             }
             whereStopped = metronome.getSnapshot();
         }
@@ -1495,6 +1495,9 @@ public class VirtualCdj
     public void setTempo(double bpm) {
         final double oldTempo = metronome.getTempo();
         metronome.setTempo(bpm);
+        if (beatSender.get() != null) {
+            beatSender.get().timelineChanged();
+        }
         if (isTempoMaster() && (bpm != oldTempo)) {
             deliverTempoChangedAnnouncement(bpm);
         }
