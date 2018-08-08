@@ -75,8 +75,7 @@ class BeatSender {
                 final long distanceIntoCurrentBeat = snapshot.getInstant() - currentBeatDue;
                 if (distanceIntoCurrentBeat < BEAT_THRESHOLD &&
                         (lastBeatSent.get() == null || lastBeatSent.get() != snapshot.getBeat())) {
-                    // TODO: Comment out next line!
-                    logger.info("Sending beat " + snapshot.getBeat() + ", " + distanceIntoCurrentBeat + " ms into beat.");
+                    //logger.info("Sending beat " + snapshot.getBeat() + ", " + distanceIntoCurrentBeat + " ms into beat.");
                     lastBeatSent.set(VirtualCdj.getInstance().sendBeat());
                 }
 
@@ -104,7 +103,8 @@ class BeatSender {
      */
     void timelineChanged() {
         if (!running.get()) {
-            throw new IllegalStateException("BeatSender has been shut down");
+            logger.warn("BeatSender ignoring timelineChanged() call because it has been shut down.");
+            return;
         }
         thread.interrupt();
     }

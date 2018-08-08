@@ -320,7 +320,11 @@ public class VirtualCdj
     private void setMasterTempo(double newTempo) {
         double oldTempo = Double.longBitsToDouble(masterTempo.getAndSet(Double.doubleToLongBits(newTempo)));
         if ((getTempoMaster() != null) && (Math.abs(newTempo - oldTempo) > getTempoEpsilon())) {
-            // This is a change in tempo, so report it to any registered listeners
+            // This is a change in tempo, so report it to any registered listeners, and update our metronome if we are synced.
+            if (isSynced()) {
+                metronome.setTempo(newTempo);
+                notifyBeatSenderOfChange();
+            }
             deliverTempoChangedAnnouncement(newTempo);
         }
     }
@@ -1236,6 +1240,17 @@ public class VirtualCdj
     private final AtomicReference<BeatSender> beatSender = new AtomicReference<BeatSender>();
 
     /**
+     * Check whether we are currently running a {@link BeatSender}; if we are, notify it that there has been a change
+     * to the metronome timeline, so it needs to wake up and reassess its situation.
+     */
+    private void notifyBeatSenderOfChange() {
+        final BeatSender activeSender = beatSender.get();
+        if (activeSender != null) {
+            activeSender.timelineChanged();
+        }
+    }
+
+    /**
      * The bytes following the device name in a beat packet.
      */
     private static final byte[] BEAT_PAYLOAD = { 0x01,
@@ -1339,10 +1354,11 @@ public class VirtualCdj
         } else {  // Stop sending status packets.
             BeatFinder.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
 
-            sendingStatus.set(false);        // Stop the status sending thread.
-            sendingStatus = null      ;      // Indicate that we are no longer sending status.
-            if (beatSender.get() != null) {  // And stop the beat sender if we have one.
-                beatSender.get().shutDown();
+            sendingStatus.set(false);                          // Stop the status sending thread.
+            sendingStatus = null;                              // Indicate that we are no longer sending status.
+            final BeatSender activeSender = beatSender.get();  // And stop the beat sender if we have one.
+            if (activeSender != null) {
+                activeSender.shutDown();
                 beatSender.set(null);
             }
         }
@@ -1395,8 +1411,9 @@ public class VirtualCdj
                 beatSender.set(new BeatSender(metronome));
             }
         } else {
-            if (beatSender.get() != null) {  // We have a beat sender we need to stop.
-                beatSender.get().shutDown();
+            final BeatSender activeSender = beatSender.get();
+            if (activeSender != null) {  // We have a beat sender we need to stop.
+                activeSender.shutDown();
                 beatSender.set(null);
             }
             whereStopped = metronome.getSnapshot();
@@ -1539,17 +1556,16 @@ public class VirtualCdj
     /**
      * Controls the tempo at which we report ourselves to be playing. Only meaningful if we are sending status packets.
      * If {@link #isSynced()} is {@code true} and we are not the tempo master, any value set by this method will
-     * quickly be overridden by the tempo master.
+     * overridden by the the next tempo master change.
      *
      * @param bpm the tempo, in beats per minute, that we should report in our status and beat packets
      */
     public void setTempo(double bpm) {
         final double oldTempo = metronome.getTempo();
         metronome.setTempo(bpm);
-        if (beatSender.get() != null) {
-            beatSender.get().timelineChanged();
-        }
-        if (isTempoMaster() && (bpm != oldTempo)) {
+        notifyBeatSenderOfChange();
+
+        if (isTempoMaster() && (Math.abs(bpm - oldTempo) > getTempoEpsilon())) {
             deliverTempoChangedAnnouncement(bpm);
         }
     }
