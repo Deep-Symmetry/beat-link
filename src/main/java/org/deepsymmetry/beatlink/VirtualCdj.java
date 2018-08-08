@@ -1348,11 +1348,16 @@ public class VirtualCdj
             sender.setDaemon(true);
             sender.start();
 
-            if (isPlaying()) {  // Start the beat sender too.
+            if (isSynced()) {  // If we are supposed to be synced, we need to respond to beats.
+                BeatFinder.getInstance().addBeatListener(beatListener);
+            }
+
+            if (isPlaying()) {  // Start the beat sender too, if we are supposed to be playing.
                 beatSender.set(new BeatSender(metronome));
             }
-        } else {  // Stop sending status packets.
+        } else {  // Stop sending status packets, and responding to beats if we were synced.
             BeatFinder.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
+            BeatFinder.getInstance().removeBeatListener(beatListener);
 
             sendingStatus.set(false);                          // Stop the status sending thread.
             sendingStatus = null;                              // Indicate that we are no longer sending status.
@@ -1500,6 +1505,18 @@ public class VirtualCdj
     }
 
     /**
+     * Used to respond to beats when we are synced, aligning our metronome.
+     */
+    private final BeatListener beatListener = new BeatListener() {
+        @Override
+        public void newBeat(Beat beat) {
+            if (beat.isTempoMaster()) {
+                metronome.setBeatPhase(0.0);
+            }
+        }
+    };
+
+    /**
      * Indicates whether we are currently staying in sync with the tempo master. Will only be meaningful if we are
      * sending status packets.
      */
@@ -1512,6 +1529,14 @@ public class VirtualCdj
      * @param sync if {@code true}, our status packets will be tempo and beat aligned with the tempo master
      */
     public synchronized void setSynced(boolean sync) {
+        if (synced != sync) {
+            // We are changing sync state, so add or remove our beat listener as appropriate.
+            if (sync && isSendingStatus()) {
+                BeatFinder.getInstance().addBeatListener(beatListener);
+            } else {
+                BeatFinder.getInstance().removeBeatListener(beatListener);
+            }
+        }
         synced = sync;
     }
 
