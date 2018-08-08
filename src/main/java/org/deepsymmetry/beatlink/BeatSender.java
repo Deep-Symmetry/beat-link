@@ -55,7 +55,7 @@ class BeatSender {
      * accurate time. We will also aim our sleep to land this far before the next beat, to try and absorb threading
      * jitter.
      */
-    private static final int SLEEP_THRESHOLD = 2;
+    private static final int SLEEP_THRESHOLD = 5;
 
     /**
      * Sends a beat packet when we have determined that it is time to do so.
@@ -144,6 +144,7 @@ class BeatSender {
         this.metronome = metronome;
         this.broadcastAddress = broadcastAddress;
         thread = new Thread(beatLoop, "beat-link VirtualCdj beat sender");
+        thread.setPriority(Thread.NORM_PRIORITY + 1);
         thread.setDaemon(true);
         thread.start();
     }
