@@ -159,6 +159,19 @@ public class DeviceFinder extends LifecycleParticipant {
     }
 
     /**
+     * Check whether an address is being ignored. (The {@link BeatFinder} will call this so it can filter out the
+     * {@link VirtualCdj}'s beat messages when it is broadcasting them, for example.
+     *
+     * @param address the address to be checked as a candidate to be ignored
+     *
+     * @return {@code true} if packets from the address should be ignored
+     */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public boolean isAddressIgnored(InetAddress address) {
+        return ignoredAddresses.contains(address);
+    }
+
+    /**
      * Start listening for device announcements and keeping track of the DJ Link devices visible on the network.
      * If already listening, has no effect.
      *
@@ -184,7 +197,7 @@ public class DeviceFinder extends LifecycleParticipant {
                             } else {
                                 socket.get().setSoTimeout(1000);  // Check every second to see if a device has vanished
                             }
-                            received = true;
+                            received = !ignoredAddresses.contains(packet.getAddress());
                             socket.get().receive(packet);
                         } catch (SocketTimeoutException ste) {
                             received = false;
@@ -198,7 +211,7 @@ public class DeviceFinder extends LifecycleParticipant {
                             received = false;
                         }
                         try {
-                            if (received && !ignoredAddresses.contains(packet.getAddress()) && (packet.getLength() == 54)) {
+                            if (received && (packet.getLength() == 54)) {
                                 final Util.PacketType kind = Util.validateHeader(packet, ANNOUNCEMENT_PORT);
                                 if (kind == Util.PacketType.DEVICE_KEEP_ALIVE) {
                                     // Looks like the kind of packet we need
