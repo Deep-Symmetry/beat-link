@@ -197,8 +197,8 @@ public class DeviceFinder extends LifecycleParticipant {
                             } else {
                                 socket.get().setSoTimeout(1000);  // Check every second to see if a device has vanished
                             }
-                            received = !ignoredAddresses.contains(packet.getAddress());
                             socket.get().receive(packet);
+                            received = !ignoredAddresses.contains(packet.getAddress());
                         } catch (SocketTimeoutException ste) {
                             received = false;
                         } catch (IOException e) {
