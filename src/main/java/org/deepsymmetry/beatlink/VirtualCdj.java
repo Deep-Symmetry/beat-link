@@ -973,19 +973,19 @@ public class VirtualCdj
      * Assemble and send a packet that performs sync control, turning a device's sync mode on or off, or telling it
      * to become the tempo master.
      *
-     * @param update an update from the device whose sync state is to be set
+     * @param target an update from the device whose sync state is to be set
      * @param command the byte identifying the specific sync command to be sent
      *
      * @throws IOException if there is a problem sending the command to the device
      */
-    private void sendSyncControlCommand(DeviceUpdate update, byte command) throws IOException {
+    private void sendSyncControlCommand(DeviceUpdate target, byte command) throws IOException {
         ensureRunning();
         byte[] payload = new byte[SYNC_CONTROL_PAYLOAD.length];
         System.arraycopy(SYNC_CONTROL_PAYLOAD, 0, payload, 0, SYNC_CONTROL_PAYLOAD.length);
         payload[2] = getDeviceNumber();
         payload[8] = getDeviceNumber();
         payload[12] = command;
-        assembleAndSendPacket(Util.PacketType.SYNC_CONTROL, payload, update.getAddress(), BeatFinder.BEAT_PORT);
+        assembleAndSendPacket(Util.PacketType.SYNC_CONTROL, payload, target.getAddress(), BeatFinder.BEAT_PORT);
     }
 
     /**
@@ -1009,15 +1009,15 @@ public class VirtualCdj
     /**
      * Tell a device to turn sync on or off.
      *
-     * @param update an update from the device whose sync state is to be set
+     * @param target an update from the device whose sync state is to be set
      * @param synced {@code} true if sync should be turned on, else it will be turned off
      *
      * @throws IOException if there is a problem sending the command to the device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      * @throws NullPointerException if {@code update} is {@code null}
      */
-    public void sendSyncModeCommand(DeviceUpdate update, boolean synced) throws IOException {
-        sendSyncControlCommand(update, synced? (byte)0x10 : (byte)0x20);
+    public void sendSyncModeCommand(DeviceUpdate target, boolean synced) throws IOException {
+        sendSyncControlCommand(target, synced? (byte)0x10 : (byte)0x20);
     }
 
     /**
