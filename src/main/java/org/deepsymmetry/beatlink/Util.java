@@ -71,6 +71,16 @@ public class Util {
         CDJ_STATUS(0x0a, "CDJ Status", VirtualCdj.UPDATE_PORT),
 
         /**
+         * A command to load a particular track; usually sent by rekordbox.
+         */
+        LOAD_TRACK_COMMAND(0x19, "Load Track Command", VirtualCdj.UPDATE_PORT),
+
+        /**
+         * A response indicating that the specified track is being loaded.
+         */
+        LOAD_TRACK_ACK(0x1a, "Load Track Acknowledgment", VirtualCdj.UPDATE_PORT),
+
+        /**
          * Used by an incoming tempo master to ask the current tempo master to relinquish that role.
          */
         MASTER_HANDOFF_REQUEST(0x26, "Master Handoff Request", BeatFinder.BEAT_PORT),

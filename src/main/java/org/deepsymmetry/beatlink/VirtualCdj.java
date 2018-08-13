@@ -368,6 +368,10 @@ public class VirtualCdj
                     return null;
                 }
 
+            case LOAD_TRACK_ACK:
+                logger.info("Received track load acknowledgment from player " + packet.getData()[0x21]);
+                return null;
+
             default:
                 logger.warn("Ignoring " + kind.name + " packet sent to update port.");
                 return null;
@@ -1040,14 +1044,14 @@ public class VirtualCdj
     /**
      * Tell a device to become tempo master.
      *
-     * @param update an update from the device that we want to take over the role of tempo master
+     * @param target an update from the device that we want to take over the role of tempo master
      *
      * @throws IOException if there is a problem sending the command to the device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      * @throws NullPointerException if {@code update} is {@code null}
      */
-    public void appointTempoMaster(DeviceUpdate update) throws IOException {
-        sendSyncControlCommand(update,(byte)0x01);
+    public void appointTempoMaster(DeviceUpdate target) throws IOException {
+        sendSyncControlCommand(target, (byte)0x01);
     }
 
     /**
@@ -1119,6 +1123,65 @@ public class VirtualCdj
     @Override
     public void channelsOnAir(Set<Integer> audibleChannels) {
         setOnAir(audibleChannels.contains((int)getDeviceNumber()));
+    }
+
+    /**
+     * The bytes at the end of a load-track command packet.
+     */
+    private final static byte[] LOAD_TRACK_PAYLOAD = { 0x01,
+            0x00, 0x0d, 0x00, 0x34,  0x0d, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x32,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00
+    };
+
+    /**
+     * Send a packet to the target player telling it to load the specified track from the specified source player.
+     *
+     * @param targetPlayer the device number of the player that you want to have load a track
+     * @param rekordboxId the identifier of a track within the source player's rekordbox database
+     * @param sourcePlayer the device number of the player from which the track should be loaded
+     * @param sourceSlot the media slot from which the track should be loaded
+     * @param sourceType the type of track to be loaded
+     *
+     * @throws IOException if there is a problem sending the command
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active or the target device cannot be found
+     */
+    public void sendLoadTrackCommand(int targetPlayer, int rekordboxId,
+                                     int sourcePlayer, CdjStatus.TrackSourceSlot sourceSlot, CdjStatus.TrackType sourceType)
+            throws IOException {
+        final DeviceUpdate update = getLatestStatusFor(targetPlayer);
+        if (update == null) {
+            throw new IllegalArgumentException("Device " + targetPlayer + " not found on network.");
+        }
+        sendLoadTrackCommand(update, rekordboxId, sourcePlayer, sourceSlot, sourceType);
+    }
+
+    /**
+     * Send a packet to the target device telling it to load the specified track from the specified source player.
+     *
+     * @param target an update from the player that you want to have load a track
+     * @param rekordboxId the identifier of a track within the source player's rekordbox database
+     * @param sourcePlayer the device number of the player from which the track should be loaded
+     * @param sourceSlot the media slot from which the track should be loaded
+     * @param sourceType the type of track to be loaded
+     *
+     * @throws IOException if there is a problem sending the command
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     */
+    public void sendLoadTrackCommand(DeviceUpdate target, int rekordboxId,
+                                     int sourcePlayer, CdjStatus.TrackSourceSlot sourceSlot, CdjStatus.TrackType sourceType)
+            throws IOException {
+        ensureRunning();
+        byte[] payload = new byte[LOAD_TRACK_PAYLOAD.length];
+        System.arraycopy(LOAD_TRACK_PAYLOAD, 0, payload, 0, LOAD_TRACK_PAYLOAD.length);
+        payload[0x02] = getDeviceNumber();
+        payload[0x05] = getDeviceNumber();
+        payload[0x09] = (byte)sourcePlayer;
+        payload[0x0a] = sourceSlot.protocolValue;
+        payload[0x0b] = sourceType.protocolValue;
+        Util.numberToBytes(rekordboxId, payload, 0x0d, 4);
+        assembleAndSendPacket(Util.PacketType.LOAD_TRACK_COMMAND, payload, target.getAddress(), UPDATE_PORT);
     }
 
     @Override
