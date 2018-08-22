@@ -705,6 +705,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return true if the sync flag was set
      */
     @SuppressWarnings("WeakerAccess")
+    @Override
     public boolean isSynced() {
         return (packetBytes[STATUS_FLAGS] & SYNCED_FLAG) > 0;
     }

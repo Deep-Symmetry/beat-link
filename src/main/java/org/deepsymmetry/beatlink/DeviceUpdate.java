@@ -129,9 +129,19 @@ public abstract class DeviceUpdate {
      * Is this device reporting itself to be the current tempo master?
      *
      * @return {@code true} if the device that sent this update is the master
-     * @throws  IllegalStateException if the {@link VirtualCdj} is not running.
+     * @throws  IllegalStateException if called with a {@link Beat} and the {@link VirtualCdj} is not running, since
+     *          that is needed to find the latest status update from the device which sent the beat packet.
      */
     public abstract boolean isTempoMaster();
+
+    /**
+     * Is this device reporting itself synced to the current tempo master?
+     *
+     * @return {@code true} if the device that sent this update is synced
+     * @throws  IllegalStateException if called with a {@link Beat} and the {@link VirtualCdj} is not running, since
+     *          that is needed to find the latest status update from the device which sent the beat packet.
+     */
+    public abstract boolean isSynced();
 
     /**
      * If this packet indicates the device in the process of yielding the tempo master role to another player,

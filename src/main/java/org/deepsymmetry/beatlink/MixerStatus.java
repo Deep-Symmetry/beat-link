@@ -105,6 +105,18 @@ public class MixerStatus extends DeviceUpdate {
         return (packetBytes[STATUS_FLAGS] & CdjStatus.MASTER_FLAG) > 0;
     }
 
+    /**
+     * Was the mixer in Sync mode when this update was sent? Unless someone has been sending sync control packets
+     * using a package like Beat Link, this will generally return {@code true}.
+     *
+     * @return true if the sync flag was set
+     */
+    @SuppressWarnings("WeakerAccess")
+    @Override
+    public boolean isSynced() {
+        return (packetBytes[STATUS_FLAGS] & CdjStatus.SYNCED_FLAG) > 0;
+    }
+
     @Override
     public Integer getDeviceMasterIsBeingYieldedTo() {
         if (handingMasterToDevice == 0xff) {

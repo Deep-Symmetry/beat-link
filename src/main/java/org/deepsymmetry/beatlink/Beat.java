@@ -101,12 +101,23 @@ public class Beat extends DeviceUpdate {
      * Was this beat sent by the current tempo master?
      *
      * @return {@code true} if the device that sent this beat is the master
-     * @throws  IllegalStateException if the {@link VirtualCdj} is not running.
+     * @throws  IllegalStateException if the {@link VirtualCdj} is not running
      */
     @Override
     public boolean isTempoMaster() {
         DeviceUpdate master = VirtualCdj.getInstance().getTempoMaster();
         return (master != null) && master.getAddress().equals(address);
+    }
+
+    /**
+     * Was this beat sent by a device that is synced to the tempo master?
+     *
+     * @return {@code true} if the device that sent this beat is synced
+     * @throws  IllegalStateException if the {@link VirtualCdj} is not running
+     */
+    @Override
+    public boolean isSynced() {
+        return VirtualCdj.getInstance().getLatestStatusFor(this).isSynced();
     }
 
     @SuppressWarnings("SameReturnValue")
