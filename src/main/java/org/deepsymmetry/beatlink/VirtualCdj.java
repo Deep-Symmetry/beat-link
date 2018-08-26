@@ -435,7 +435,7 @@ public class VirtualCdj
                 }
             }
         } else {
-            // This update did was not acting as a tempo master; if we thought it should be, update our records.
+            // This update was not acting as a tempo master; if we thought it should be, update our records.
             DeviceUpdate oldMaster = getTempoMaster();
             if (oldMaster != null && oldMaster.getAddress().equals(update.getAddress())) {
                 // This device has resigned master status, and nobody else has claimed it so far
@@ -1410,16 +1410,16 @@ public class VirtualCdj
             sender.setDaemon(true);
             sender.start();
 
-            if (isSynced()) {  // If we are supposed to be synced, we need to respond to beats.
-                BeatFinder.getInstance().addBeatListener(beatListener);
+            if (isSynced()) {  // If we are supposed to be synced, we need to respond to master beats and tempo changes.
+                addMasterListener(masterListener);
             }
 
             if (isPlaying()) {  // Start the beat sender too, if we are supposed to be playing.
                 beatSender.set(new BeatSender(metronome));
             }
-        } else {  // Stop sending status packets, and responding to beats if we were synced.
+        } else {  // Stop sending status packets, and responding to master beats and tempo changes if we were synced.
             BeatFinder.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
-            BeatFinder.getInstance().removeBeatListener(beatListener);
+            removeMasterListener(masterListener);
 
             sendingStatus.set(false);                          // Stop the status sending thread.
             sendingStatus = null;                              // Indicate that we are no longer sending status.
@@ -1578,12 +1578,24 @@ public class VirtualCdj
     }
 
     /**
-     * Used to respond to beats when we are synced, aligning our metronome.
+     * Used to respond to master tempo changes and beats when we are synced, aligning our own metronome.
      */
-    private final BeatListener beatListener = new BeatListener() {
+    private final MasterListener masterListener = new MasterListener() {
+        @Override
+        public void masterChanged(DeviceUpdate update) {
+            // We don’t care about this.
+        }
+
+        @Override
+        public void tempoChanged(double tempo) {
+            if (!isTempoMaster()) {
+                metronome.setTempo(tempo);;
+            }
+        }
+
         @Override
         public void newBeat(Beat beat) {
-            if (beat.isTempoMaster()) {
+            if (!isTempoMaster()) {
                 metronome.setBeatPhase(0.0);
             }
         }
@@ -1603,15 +1615,15 @@ public class VirtualCdj
      */
     public synchronized void setSynced(boolean sync) {
         if (synced != sync) {
-            // We are changing sync state, so add or remove our beat listener as appropriate.
+            // We are changing sync state, so add or remove our master listener as appropriate.
             if (sync && isSendingStatus()) {
-                BeatFinder.getInstance().addBeatListener(beatListener);
+                addMasterListener(masterListener);
             } else {
-                BeatFinder.getInstance().removeBeatListener(beatListener);
+                removeMasterListener(masterListener);
             }
 
             // Also, if there is a tempo master, and we just got synced, adopt its tempo.
-            if (getTempoMaster() != null) {
+            if (!isTempoMaster() && getTempoMaster() != null) {
                 setTempo(getMasterTempo());
             }
         }
