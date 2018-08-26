@@ -1208,6 +1208,13 @@ public class VirtualCdj
         }
     }
 
+    /**
+     * The bytes at the end of a load-track command packet.
+     */
+    private final static byte[] YIELD_ACK_PAYLOAD = { 0x01,
+            0x00, 0x0d, 0x00, 0x08,  0x00, 0x00, 0x00, 0x0d,   0x00, 0x00, 0x00, 0x01
+    };
+
     @Override
     public void yieldMasterTo(int deviceNumber) {
         if (logger.isDebugEnabled()) {
@@ -1215,8 +1222,21 @@ public class VirtualCdj
         }
         if (isSendingStatus() && getDeviceNumber() != deviceNumber) {
             nextMaster.set(deviceNumber);
+            final DeviceUpdate lastStatusFromNewMaster = getLatestStatusFor(deviceNumber);
+            if (lastStatusFromNewMaster == null) {
+                logger.warn("Unable to send master yield response to device " + deviceNumber + ": no status updates have been received from it!");
+            } else {
+                byte[] payload = new byte[YIELD_ACK_PAYLOAD.length];
+                System.arraycopy(YIELD_ACK_PAYLOAD, 0, payload, 0, YIELD_ACK_PAYLOAD.length);
+                payload[0x02] = getDeviceNumber();
+                payload[0x08] = getDeviceNumber();
+                try {
+                    assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_RESPONSE, payload, lastStatusFromNewMaster.getAddress(), UPDATE_PORT);
+                } catch (Exception e) {
+                    logger.error("Problem sending master yield acknowledgment to player " + deviceNumber, e);
+                }
+            }
         }
-        // TODO send yield response!
     }
 
     @Override
