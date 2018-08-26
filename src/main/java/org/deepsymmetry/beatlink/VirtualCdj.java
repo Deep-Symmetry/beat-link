@@ -1502,8 +1502,12 @@ public class VirtualCdj
      *
      * @return the current (or last, if we are stopped) playback state
      */
-    public Snapshot getPlaybackPosition() {
-        return metronome.getSnapshot();
+    public synchronized Snapshot getPlaybackPosition() {
+        if (playing) {
+            return metronome.getSnapshot();
+        } else {
+            return whereStopped;
+        }
     }
 
     /**
