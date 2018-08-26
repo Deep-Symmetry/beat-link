@@ -1220,22 +1220,27 @@ public class VirtualCdj
         if (logger.isDebugEnabled()) {
             logger.debug("Received instruction to yield master to device " + deviceNumber);
         }
-        if (isSendingStatus() && getDeviceNumber() != deviceNumber) {
-            nextMaster.set(deviceNumber);
-            final DeviceUpdate lastStatusFromNewMaster = getLatestStatusFor(deviceNumber);
-            if (lastStatusFromNewMaster == null) {
-                logger.warn("Unable to send master yield response to device " + deviceNumber + ": no status updates have been received from it!");
-            } else {
-                byte[] payload = new byte[YIELD_ACK_PAYLOAD.length];
-                System.arraycopy(YIELD_ACK_PAYLOAD, 0, payload, 0, YIELD_ACK_PAYLOAD.length);
-                payload[0x02] = getDeviceNumber();
-                payload[0x08] = getDeviceNumber();
-                try {
-                    assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_RESPONSE, payload, lastStatusFromNewMaster.getAddress(), UPDATE_PORT);
-                } catch (Exception e) {
-                    logger.error("Problem sending master yield acknowledgment to player " + deviceNumber, e);
+        if (isTempoMaster()) {
+            if (isSendingStatus() && getDeviceNumber() != deviceNumber) {
+                nextMaster.set(deviceNumber);
+                final DeviceUpdate lastStatusFromNewMaster = getLatestStatusFor(deviceNumber);
+                if (lastStatusFromNewMaster == null) {
+                    logger.warn("Unable to send master yield response to device " + deviceNumber + ": no status updates have been received from it!");
+                } else {
+                    byte[] payload = new byte[YIELD_ACK_PAYLOAD.length];
+                    System.arraycopy(YIELD_ACK_PAYLOAD, 0, payload, 0, YIELD_ACK_PAYLOAD.length);
+                    payload[0x02] = getDeviceNumber();
+                    payload[0x08] = getDeviceNumber();
+                    try {
+                        assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_RESPONSE, payload, lastStatusFromNewMaster.getAddress(), UPDATE_PORT);
+                    } catch (Exception e) {
+                        logger.error("Problem sending master yield acknowledgment to player " + deviceNumber, e);
+                    }
                 }
             }
+        } else {
+            logger.warn("Ignoring instruction to yield master to device " + deviceNumber + ": we were not tempo master.");
+
         }
     }
 
@@ -1246,7 +1251,18 @@ public class VirtualCdj
         }
         if (yielded) {
             if (isSendingStatus()) {
-                masterYieldedFrom.set(deviceNumber);
+                if (deviceNumber == requestingMasterRoleFromPlayer.get()) {
+                    requestingMasterRoleFromPlayer.set(0);
+                    masterYieldedFrom.set(deviceNumber);
+                } else {
+                    if (requestingMasterRoleFromPlayer.get() == 0) {
+                        logger.warn("Ignoring master yield response from player " + deviceNumber +
+                                " because we are not trying to become tempo master.");
+                    } else {
+                        logger.warn("Ignoring master yield response from player " + deviceNumber +
+                                " because we asked player " + requestingMasterRoleFromPlayer.get());
+                    }
+                }
             } else {
                 logger.warn("Ignoring master yield response because we are not sending status.");
             }
@@ -1557,6 +1573,12 @@ public class VirtualCdj
             0x00, 0x0d, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0d };
 
     /**
+     * When have started the process of requesting the tempo master role from another player, this gets set to its
+     * device number. Otherwise it has the value {@code 0}.
+     */
+    private final AtomicInteger requestingMasterRoleFromPlayer = new AtomicInteger(0);
+
+    /**
      * Arrange to become the tempo master. Starts a sequence of interactions with the other players that should end
      * up with us in charge of the group tempo and beat alignment.
      *
@@ -1580,9 +1602,11 @@ public class VirtualCdj
             if (logger.isDebugEnabled()) {
                 logger.debug("Sending master yield request to player " + currentMaster);
             }
+            requestingMasterRoleFromPlayer.set(currentMaster.deviceNumber);
             assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_REQUEST, payload, currentMaster.address, BeatFinder.BEAT_PORT);
         } else if (!master.get()) {
             // There is no other master, we can just become it immediately.
+            requestingMasterRoleFromPlayer.set(0);
             setMasterTempo(getTempo());
             master.set(true);
         }
