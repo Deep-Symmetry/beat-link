@@ -1511,13 +1511,20 @@ public class VirtualCdj
     }
 
     /**
-     * Nudge the playback position by the specified number of milliseconds, to support synchronization with an external
-     * clock. Positive values move playback forward in time, while negative values jump back.
+     * <p>Nudge the playback position by the specified number of milliseconds, to support synchronization with an external
+     * clock. Positive values move playback forward in time, while negative values jump back. If we are stopped, this
+     * has no effect.</p>
+     *
+     * <p>If the shift would put us back before beat one, we will jump forward a bar to correct that. It is thus not
+     * safe to jump backwards more than a bar's worth of time.</p>
      *
      * @param ms the number of millisecond to shift the simulated playback position
      */
     public void adjustPlaybackPosition(int ms) {
         metronome.adjustStart(-ms);
+        if (metronome.getBeat() < 1) {
+            metronome.adjustStart(Metronome.beatsToMilliseconds(metronome.getBeatsPerBar(), metronome.getTempo()));
+        }
     }
 
     /**
