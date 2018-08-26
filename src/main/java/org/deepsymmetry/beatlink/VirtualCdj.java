@@ -427,11 +427,12 @@ public class VirtualCdj
                     if (update.deviceNumber != masterYieldedFrom.get()) {
                         logger.warn("Expected player " + masterYieldedFrom.get() + " to yield master to us, but player " +
                                 update.deviceNumber + " did.");
+                    } else {
+                        master.set(true);
+                        masterYieldedFrom.set(0);
+                        setTempoMaster(null);
+                        setMasterTempo(getTempo());
                     }
-                    master.set(true);
-                    masterYieldedFrom.set(0);
-                    setTempoMaster(null);
-                    setMasterTempo(getTempo());
                 }
             }
         } else {
