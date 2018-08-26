@@ -1411,7 +1411,7 @@ public class VirtualCdj
             sender.start();
 
             if (isSynced()) {  // If we are supposed to be synced, we need to respond to master beats and tempo changes.
-                addMasterListener(masterListener);
+                addMasterListener(ourSyncMasterListener);
             }
 
             if (isPlaying()) {  // Start the beat sender too, if we are supposed to be playing.
@@ -1419,7 +1419,7 @@ public class VirtualCdj
             }
         } else {  // Stop sending status packets, and responding to master beats and tempo changes if we were synced.
             BeatFinder.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
-            removeMasterListener(masterListener);
+            removeMasterListener(ourSyncMasterListener);
 
             sendingStatus.set(false);                          // Stop the status sending thread.
             sendingStatus = null;                              // Indicate that we are no longer sending status.
@@ -1580,7 +1580,7 @@ public class VirtualCdj
     /**
      * Used to respond to master tempo changes and beats when we are synced, aligning our own metronome.
      */
-    private final MasterListener masterListener = new MasterListener() {
+    private final MasterListener ourSyncMasterListener = new MasterListener() {
         @Override
         public void masterChanged(DeviceUpdate update) {
             // We don’t care about this.
@@ -1589,7 +1589,7 @@ public class VirtualCdj
         @Override
         public void tempoChanged(double tempo) {
             if (!isTempoMaster()) {
-                metronome.setTempo(tempo);;
+                metronome.setTempo(tempo);
             }
         }
 
@@ -1617,9 +1617,9 @@ public class VirtualCdj
         if (synced != sync) {
             // We are changing sync state, so add or remove our master listener as appropriate.
             if (sync && isSendingStatus()) {
-                addMasterListener(masterListener);
+                addMasterListener(ourSyncMasterListener);
             } else {
-                removeMasterListener(masterListener);
+                removeMasterListener(ourSyncMasterListener);
             }
 
             // Also, if there is a tempo master, and we just got synced, adopt its tempo.
