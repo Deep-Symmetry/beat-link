@@ -421,18 +421,22 @@ public class VirtualCdj
                 setTempoMaster(update);
                 setMasterTempo(update.getEffectiveTempo());
             } else {
-                // This is a yielding master packet. If it is us that is being yielded to, take over master if we
-                // are expecting to, otherwise log a warning.
+                // This is a yielding master packet. If it is us that is being yielded to, take over master.
+                // Log a message if it was unsolicited, and a warning if it's coming from a different player than
+                // we asked.
                 if (packetYieldingTo == getDeviceNumber()) {
                     if (update.deviceNumber != masterYieldedFrom.get()) {
-                        logger.warn("Expected player " + masterYieldedFrom.get() + " to yield master to us, but player " +
-                                update.deviceNumber + " did.");
-                    } else {
-                        master.set(true);
-                        masterYieldedFrom.set(0);
-                        setTempoMaster(null);
-                        setMasterTempo(getTempo());
+                        if (masterYieldedFrom.get() == 0) {
+                            logger.info("Accepting unsolicited Master yield; we must be the only synced device playing.");
+                        } else {
+                            logger.warn("Expected player " + masterYieldedFrom.get() + " to yield master to us, but player " +
+                                    update.deviceNumber + " did.");
+                        }
                     }
+                    master.set(true);
+                    masterYieldedFrom.set(0);
+                    setTempoMaster(null);
+                    setMasterTempo(getTempo());
                 }
             }
         } else {
