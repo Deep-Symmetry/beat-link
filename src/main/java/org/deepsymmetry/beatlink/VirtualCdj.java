@@ -1367,10 +1367,21 @@ public class VirtualCdj
      * Sends a beat packet. Generally this should only be invoked when our {@link BeatSender} has determined that it is
      * time to do so, but it is public to allow experimentation.
      *
-     * @return the beat number that was sent
+     * @return the beat number that was sent, computed from the current (or stopped) playback position
      */
     public long sendBeat() {
-        Snapshot snapshot = (playing ? metronome.getSnapshot() : whereStopped);
+        return sendBeat(playing ? metronome.getSnapshot() : whereStopped);
+    }
+
+    /**
+     * Sends a beat packet. Generally this should only be invoked when our {@link BeatSender} has determined that it is
+     * time to do so, but it is public to allow experimentation.
+     *
+     * @param snapshot the time at which the beat to be sent occurred, for computation of its beat number
+     *
+     * @return the beat number that was sent
+     */
+    public long sendBeat(Snapshot snapshot) {
         byte[] payload = new byte[BEAT_PAYLOAD.length];
         System.arraycopy(BEAT_PAYLOAD, 0, payload, 0, BEAT_PAYLOAD.length);
         payload[0x02] = getDeviceNumber();

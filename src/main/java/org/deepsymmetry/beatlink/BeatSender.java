@@ -76,7 +76,7 @@ class BeatSender {
                 if (distanceIntoCurrentBeat < BEAT_THRESHOLD &&
                         (lastBeatSent.get() == null || lastBeatSent.get() != snapshot.getBeat())) {
                     //logger.info("Sending beat " + snapshot.getBeat() + ", " + distanceIntoCurrentBeat + " ms into beat.");
-                    lastBeatSent.set(VirtualCdj.getInstance().sendBeat());
+                    lastBeatSent.set(VirtualCdj.getInstance().sendBeat(snapshot));
                 }
 
                 final long sleepMilliseconds = nextBeatDue - System.currentTimeMillis();
