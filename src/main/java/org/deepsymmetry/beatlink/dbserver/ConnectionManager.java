@@ -105,9 +105,12 @@ public class ConnectionManager extends LifecycleParticipant {
         if (result == null) {
             // We need to open a new connection.
             final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getInstance().getLatestAnnouncementFrom(targetPlayer);
-            final int dbServerPort = getPlayerDBServerPort(targetPlayer);
-            if (deviceAnnouncement == null || dbServerPort < 0) {
+            if (deviceAnnouncement == null) {
                 throw new IllegalStateException("Player " + targetPlayer + " could not be found " + description);
+            }
+            final int dbServerPort = getPlayerDBServerPort(targetPlayer);
+            if (dbServerPort < 0) {
+                throw new IllegalStateException("Player " + targetPlayer + " does not have a db server " + description);
             }
 
             final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(targetPlayer);

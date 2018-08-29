@@ -33,6 +33,8 @@ This change log follows the conventions of
 
 - Removed a potential source of crashes in the waveform rendering
   code.
+- Improved the clarity of an exception thrown when trying to ask for
+  metadata from a player for which we did not find a db server port.
 
 ### Changed
 
