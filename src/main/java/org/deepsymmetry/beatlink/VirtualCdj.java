@@ -1867,7 +1867,7 @@ public class VirtualCdj
      */
     private Snapshot avoidBeatPacket() {
         Snapshot playState = getPlaybackPosition();
-        while (distanceFromBeat(playState) < BeatSender.BEAT_THRESHOLD) {
+        while (playing.get() && distanceFromBeat(playState) < BeatSender.BEAT_THRESHOLD) {
             try {
                 Thread.sleep(1);
             } catch (Exception e) {
