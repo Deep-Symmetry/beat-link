@@ -42,7 +42,7 @@ class BeatSender {
      * How far into a beat can we find ourselves, in milliseconds, and still consider it timely to send the beat packet
      * (assuming we haven't already sent one for this beat).
      */
-    private static final long BEAT_THRESHOLD = 10;
+    public static final long BEAT_THRESHOLD = 10;
 
     /**
      * If we are this close to the next beat, we will busy-wait rather than sleeping so we can send it at a more

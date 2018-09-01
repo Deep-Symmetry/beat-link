@@ -1370,7 +1370,7 @@ public class VirtualCdj
      * @return the beat number that was sent, computed from the current (or stopped) playback position
      */
     public long sendBeat() {
-        return sendBeat(playing ? metronome.getSnapshot() : whereStopped);
+        return sendBeat(getPlaybackPosition());
     }
 
     /**
@@ -1502,13 +1502,14 @@ public class VirtualCdj
      * Keeps track of our position when we are not playing; this beat gets loaded into the metronome when we start
      * playing, and it will keep time from there. When we stop again, we save the metronome's current beat here.
      */
-    private Snapshot whereStopped = metronome.getSnapshot(metronome.getStartTime());
+    private final AtomicReference<Snapshot> whereStopped =
+            new AtomicReference<Snapshot>(metronome.getSnapshot(metronome.getStartTime()));
 
     /**
      * Indicates whether we should currently pretend to be playing. This will only have an impact when we are sending
      * status and beat packets.
      */
-    private boolean playing = false;
+    private final AtomicBoolean playing = new AtomicBoolean(false);
 
     /**
      * Controls whether we report that we are playing. This will only have an impact when we are sending status and
@@ -1516,16 +1517,16 @@ public class VirtualCdj
      *
      * @param playing {@code true} if we should seem to be playing
      */
-    public synchronized void setPlaying(boolean playing) {
+    public void setPlaying(boolean playing) {
 
-        if (this.playing == playing) {
+        if (this.playing.get() == playing) {
             return;
         }
 
-        this.playing = playing;
+        this.playing.set(playing);
 
         if (playing) {
-            metronome.jumpToBeat(whereStopped.getBeat());
+            metronome.jumpToBeat(whereStopped.get().getBeat());
             if (isSendingStatus()) {  // Need to also start the beat sender.
                 beatSender.set(new BeatSender(metronome));
             }
@@ -1535,7 +1536,7 @@ public class VirtualCdj
                 activeSender.shutDown();
                 beatSender.set(null);
             }
-            whereStopped = metronome.getSnapshot();
+            whereStopped.set(metronome.getSnapshot());
         }
     }
 
@@ -1545,8 +1546,8 @@ public class VirtualCdj
      *
      * @return {@code true} if we are reporting active playback
      */
-    public synchronized boolean isPlaying() {
-        return playing;
+    public boolean isPlaying() {
+        return playing.get();
     }
 
     /**
@@ -1554,11 +1555,11 @@ public class VirtualCdj
      *
      * @return the current (or last, if we are stopped) playback state
      */
-    public synchronized Snapshot getPlaybackPosition() {
-        if (playing) {
+    public Snapshot getPlaybackPosition() {
+        if (playing.get()) {
             return metronome.getSnapshot();
         } else {
-            return whereStopped;
+            return whereStopped.get();
         }
     }
 
@@ -1668,7 +1669,7 @@ public class VirtualCdj
      * Indicates whether we are currently staying in sync with the tempo master. Will only be meaningful if we are
      * sending status packets.
      */
-    private boolean synced = false;
+    private final AtomicBoolean synced = new AtomicBoolean(false);
 
     /**
      * Controls whether we are currently staying in sync with the tempo master. Will only be meaningful if we are
@@ -1677,7 +1678,7 @@ public class VirtualCdj
      * @param sync if {@code true}, our status packets will be tempo and beat aligned with the tempo master
      */
     public synchronized void setSynced(boolean sync) {
-        if (synced != sync) {
+        if (synced.get() != sync) {
             // We are changing sync state, so add or remove our master listener as appropriate.
             if (sync && isSendingStatus()) {
                 addMasterListener(ourSyncMasterListener);
@@ -1690,7 +1691,7 @@ public class VirtualCdj
                 setTempo(getMasterTempo());
             }
         }
-        synced = sync;
+        synced.set(sync);
     }
 
     /**
@@ -1699,15 +1700,15 @@ public class VirtualCdj
      *
      * @return {@code true} if our status packets will be tempo and beat aligned with the tempo master
      */
-    public synchronized boolean isSynced() {
-        return synced;
+    public boolean isSynced() {
+        return synced.get();
     }
 
     /**
      * Indicates whether we believe our channel is currently on the air (audible in the mixer output). Will only
      * be meaningful if we are sending status packets.
      */
-    private boolean onAir = false;
+    private final AtomicBoolean onAir = new AtomicBoolean(false);
 
     /**
      * Change whether we believe our channel is currently on the air (audible in the mixer output). Only meaningful
@@ -1716,8 +1717,8 @@ public class VirtualCdj
      *
      * @param audible {@code true} if we should report ourselves as being on the air in our status packets
      */
-    public synchronized void setOnAir(boolean audible) {
-        onAir = audible;
+    public void setOnAir(boolean audible) {
+        onAir.set(audible);
     }
 
     /**
@@ -1727,8 +1728,8 @@ public class VirtualCdj
      *
      * @return audible {@code true} if we should report ourselves as being on the air in our status packets
      */
-    public synchronized boolean isOnAir() {
-        return onAir;
+    public boolean isOnAir() {
+        return onAir.get();
     }
 
     /**
@@ -1794,10 +1795,10 @@ public class VirtualCdj
             beat = wrapBeat(beat);
         }
 
-        if (playing) {
+        if (playing.get()) {
             metronome.jumpToBeat(beat);
         } else {
-            whereStopped = metronome.getSnapshot(metronome.getTimeOfBeat(beat));
+            whereStopped.set(metronome.getSnapshot(metronome.getTimeOfBeat(beat)));
         }
     }
 
@@ -1853,12 +1854,38 @@ public class VirtualCdj
             0x00, 0x00, 0x00, 0x15, 0x00, 0x00, 0x07, 0x61, 0x00, 0x00, 0x06, 0x2f  // 0x110
     };
 
+    private long distanceFromBeat(Snapshot snapshot) {
+        final double phaseDistance = Math.abs(Metronome.findClosestDelta(snapshot.getBeatPhase()));
+        return (Math.round(phaseDistance * snapshot.getBeatInterval()));
+    }
+
+    /**
+     * Gets the current playback position, then checks if we are within {@link BeatSender#BEAT_THRESHOLD} milliseconds
+     * of a beat, sleeping until that is no longer the case.
+     *
+     * @return the current playback position, potentially after having delayed a bit so that is not too near a beat
+     */
+    private Snapshot avoidBeatPacket() {
+        Snapshot playState = getPlaybackPosition();
+        while (distanceFromBeat(playState) < BeatSender.BEAT_THRESHOLD) {
+            try {
+                Thread.sleep(1);
+            } catch (Exception e) {
+                logger.warn("Interrupted while sleeping to avoid beat packet; ignoring.", e);
+            }
+            playState = getPlaybackPosition();
+        }
+        return playState;
+    }
+
     /**
      * Send a status packet to all devices on the network. Used when we are actively sending status, presumably so we
-     * can be the tempo master.
+     * can be the tempo master. Avoids sending one within {@link BeatSender#BEAT_THRESHOLD} milliseconds of a beat, to
+     * make sure the beat packet announces the new beat before an early status packet confuses matters.
      */
     private synchronized void sendStatus() {
-        Snapshot playState = (playing ? metronome.getSnapshot() : whereStopped);
+        final Snapshot playState = avoidBeatPacket();
+        final boolean playing = this.playing.get();
         byte[] payload = new byte[STATUS_PAYLOAD.length];
         System.arraycopy(STATUS_PAYLOAD, 0, payload, 0, STATUS_PAYLOAD.length);
         payload[0x02] = getDeviceNumber();
@@ -1868,7 +1895,7 @@ public class VirtualCdj
         payload[0x5c] = (byte)(playing ? 3 : 5);        // P1, playing flag
         Util.numberToBytes(syncCounter.get(), payload, 0x65, 4);
         payload[0x6a] = (byte)(0x84 +                   // F, main status bit vector
-                (playing ? 0x40 : 0) + (master.get() ? 0x20 : 0) + (synced ? 0x10 : 0) + (onAir ? 0x08 : 0));
+                (playing ? 0x40 : 0) + (master.get() ? 0x20 : 0) + (synced.get() ? 0x10 : 0) + (onAir.get() ? 0x08 : 0));
         payload[0x6c] = (byte)(playing ? 0x7a : 0x7e);  // P2, playing flag
         Util.numberToBytes((int)Math.round(getTempo() * 100), payload, 0x73, 2);
         payload[0x7e] = (byte)(playing ? 9 : 1);        // P3, playing flag
