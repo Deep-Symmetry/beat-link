@@ -1883,7 +1883,7 @@ public class VirtualCdj
      * can be the tempo master. Avoids sending one within {@link BeatSender#BEAT_THRESHOLD} milliseconds of a beat, to
      * make sure the beat packet announces the new beat before an early status packet confuses matters.
      */
-    private synchronized void sendStatus() {
+    private void sendStatus() {
         final Snapshot playState = avoidBeatPacket();
         final boolean playing = this.playing.get();
         byte[] payload = new byte[STATUS_PAYLOAD.length];
