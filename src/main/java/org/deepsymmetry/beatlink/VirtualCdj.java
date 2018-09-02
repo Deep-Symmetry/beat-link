@@ -1860,14 +1860,14 @@ public class VirtualCdj
     }
 
     /**
-     * Gets the current playback position, then checks if we are within {@link BeatSender#BEAT_THRESHOLD} milliseconds
-     * of a beat, sleeping until that is no longer the case.
+     * Gets the current playback position, then checks if we are within double {@link BeatSender#BEAT_THRESHOLD}
+     * milliseconds of a beat, sleeping until that is no longer the case.
      *
      * @return the current playback position, potentially after having delayed a bit so that is not too near a beat
      */
     private Snapshot avoidBeatPacket() {
         Snapshot playState = getPlaybackPosition();
-        while (playing.get() && distanceFromBeat(playState) < BeatSender.BEAT_THRESHOLD) {
+        while (playing.get() && distanceFromBeat(playState) < (2 * BeatSender.BEAT_THRESHOLD)) {
             try {
                 Thread.sleep(1);
             } catch (Exception e) {
@@ -1880,8 +1880,8 @@ public class VirtualCdj
 
     /**
      * Send a status packet to all devices on the network. Used when we are actively sending status, presumably so we
-     * can be the tempo master. Avoids sending one within {@link BeatSender#BEAT_THRESHOLD} milliseconds of a beat, to
-     * make sure the beat packet announces the new beat before an early status packet confuses matters.
+     * we can be the tempo master. Avoids sending one within twice {@link BeatSender#BEAT_THRESHOLD} milliseconds of
+     * a beat, to make sure the beat packet announces the new beat before an early status packet confuses matters.
      */
     private void sendStatus() {
         final Snapshot playState = avoidBeatPacket();
