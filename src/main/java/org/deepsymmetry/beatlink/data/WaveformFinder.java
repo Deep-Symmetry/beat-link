@@ -668,8 +668,8 @@ public class WaveformFinder extends LifecycleParticipant {
                         try {
                             listener.previewChanged(update);
 
-                        } catch (Exception e) {
-                            logger.warn("Problem delivering waveform preview update to listener", e);
+                        } catch (Throwable t) {
+                            logger.warn("Problem delivering waveform preview update to listener", t);
                         }
                     }
                 }
@@ -693,8 +693,8 @@ public class WaveformFinder extends LifecycleParticipant {
                         try {
                             listener.detailChanged(update);
 
-                        } catch (Exception e) {
-                            logger.warn("Problem delivering waveform detail update to listener", e);
+                        } catch (Throwable t) {
+                            logger.warn("Problem delivering waveform detail update to listener", t);
                         }
                     }
                 }

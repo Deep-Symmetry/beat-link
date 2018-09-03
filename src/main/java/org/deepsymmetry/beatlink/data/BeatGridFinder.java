@@ -400,8 +400,8 @@ public class BeatGridFinder extends LifecycleParticipant {
                 try {
                     listener.beatGridChanged(update);
 
-                } catch (Exception e) {
-                    logger.warn("Problem delivering beat grid update to listener", e);
+                } catch (Throwable t) {
+                    logger.warn("Problem delivering beat grid update to listener", t);
                 }
             }
         }

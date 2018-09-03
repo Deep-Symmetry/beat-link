@@ -474,8 +474,8 @@ public class ArtFinder extends LifecycleParticipant {
                 try {
                     listener.albumArtChanged(update);
 
-                } catch (Exception e) {
-                    logger.warn("Problem delivering album art update to listener", e);
+                } catch (Throwable t) {
+                    logger.warn("Problem delivering album art update to listener", t);
                 }
             }
         }

@@ -233,8 +233,8 @@ public class DeviceFinder extends LifecycleParticipant {
                                 }
                             }
                             expireDevices();
-                        } catch (Exception e) {
-                            logger.warn("Problem processing DeviceAnnouncement packet", e);
+                        } catch (Throwable t) {
+                            logger.warn("Problem processing DeviceAnnouncement packet", t);
                         }
                     }
                 }
@@ -366,8 +366,8 @@ public class DeviceFinder extends LifecycleParticipant {
                 public void run() {
                     try {
                         listener.deviceFound(announcement);
-                    } catch (Exception e) {
-                        logger.warn("Problem delivering device found announcement to listener", e);
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering device found announcement to listener", t);
                     }
                 }
             });
@@ -386,8 +386,8 @@ public class DeviceFinder extends LifecycleParticipant {
                 public void run() {
                     try {
                         listener.deviceLost(announcement);
-                    } catch (Exception e) {
-                        logger.warn("Problem delivering device lost announcement to listener", e);
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering device lost announcement to listener", t);
                     }
                 }
             });

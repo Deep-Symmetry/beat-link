@@ -594,8 +594,8 @@ public class VirtualCdj
                                 processUpdate(update);
                             }
                         }
-                    } catch (Exception e) {
-                        logger.warn("Problem processing device update packet", e);
+                    } catch (Throwable t) {
+                        logger.warn("Problem processing device update packet", t);
                     }
                 }
             }
@@ -679,8 +679,8 @@ public class VirtualCdj
         if (isRunning()) {
             try {
                 setSendingStatus(false);
-            } catch (Exception e) {
-                logger.error("Problem stopping sending status during shutdown", e);
+            } catch (Throwable t) {
+                logger.error("Problem stopping sending status during shutdown", t);
             }
             DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
             socket.get().close();
@@ -703,8 +703,8 @@ public class VirtualCdj
                     broadcastAddress, DeviceFinder.ANNOUNCEMENT_PORT);
             socket.get().send(announcement);
             Thread.sleep(getAnnounceInterval());
-        } catch (Exception e) {
-            logger.warn("Unable to send announcement packet, shutting down", e);
+        } catch (Throwable t) {
+            logger.warn("Unable to send announcement packet, shutting down", t);
             stop();
         }
     }
@@ -849,8 +849,8 @@ public class VirtualCdj
         for (final MasterListener listener : getMasterListeners()) {
             try {
                 listener.masterChanged(update);
-            } catch (Exception e) {
-                logger.warn("Problem delivering master changed announcement to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering master changed announcement to listener", t);
             }
         }
     }
@@ -864,8 +864,8 @@ public class VirtualCdj
         for (final MasterListener listener : getMasterListeners()) {
             try {
                 listener.tempoChanged(tempo);
-            } catch (Exception e) {
-                logger.warn("Problem delivering tempo changed announcement to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering tempo changed announcement to listener", t);
             }
         }
     }
@@ -879,8 +879,8 @@ public class VirtualCdj
         for (final MasterListener listener : getMasterListeners()) {
             try {
                 listener.newBeat(beat);
-            } catch (Exception e) {
-                logger.warn("Problem delivering master beat announcement to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering master beat announcement to listener", t);
             }
         }
     }
@@ -946,8 +946,8 @@ public class VirtualCdj
         for (DeviceUpdateListener listener : getUpdateListeners()) {
             try {
                 listener.received(update);
-            } catch (Exception e) {
-                logger.warn("Problem delivering device update to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering device update to listener", t);
             }
         }
     }
@@ -1203,8 +1203,8 @@ public class VirtualCdj
                 public void run() {
                     try {
                         becomeTempoMaster();
-                    } catch (Exception e) {
-                        logger.error("Problem becoming tempo master in response to sync command packet", e);
+                    } catch (Throwable t) {
+                        logger.error("Problem becoming tempo master in response to sync command packet", t);
                     }
                 }
             }).start();
@@ -1238,8 +1238,8 @@ public class VirtualCdj
                     payload[0x08] = getDeviceNumber();
                     try {
                         assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_RESPONSE, payload, lastStatusFromNewMaster.getAddress(), UPDATE_PORT);
-                    } catch (Exception e) {
-                        logger.error("Problem sending master yield acknowledgment to player " + deviceNumber, e);
+                    } catch (Throwable t) {
+                        logger.error("Problem sending master yield acknowledgment to player " + deviceNumber, t);
                     }
                 }
             }
@@ -1870,7 +1870,7 @@ public class VirtualCdj
         while (playing.get() && distanceFromBeat(playState) < (2 * BeatSender.BEAT_THRESHOLD)) {
             try {
                 Thread.sleep(2);
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
                 logger.warn("Interrupted while sleeping to avoid beat packet; ignoring.", e);
             }
             playState = getPlaybackPosition();

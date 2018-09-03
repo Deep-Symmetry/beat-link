@@ -193,8 +193,8 @@ public class BeatFinder extends LifecycleParticipant {
                                     }
                                 }
                             }
-                        } catch (Exception e) {
-                            logger.warn("Problem processing beat packet", e);
+                        } catch (Throwable t) {
+                            logger.warn("Problem processing beat packet", t);
                         }
                     }
                 }
@@ -278,8 +278,8 @@ public class BeatFinder extends LifecycleParticipant {
         for (final BeatListener listener : getBeatListeners()) {
             try {
                 listener.newBeat(beat);
-            } catch (Exception e) {
-                logger.warn("Problem delivering beat announcement to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering beat announcement to listener", t);
             }
         }
     }
@@ -357,8 +357,8 @@ public class BeatFinder extends LifecycleParticipant {
                         break;
 
                 }
-            } catch (Exception e) {
-                logger.warn("Problem delivering sync command to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering sync command to listener", t);
             }
         }
     }
@@ -423,8 +423,8 @@ public class BeatFinder extends LifecycleParticipant {
         for (final MasterHandoffListener listener : getMasterHandoffListeners()) {
             try {
                 listener.yieldMasterTo(toPlayer);
-            } catch (Exception e) {
-                logger.warn("Problem delivering master yield command to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering master yield command to listener", t);
             }
         }
     }
@@ -439,8 +439,8 @@ public class BeatFinder extends LifecycleParticipant {
         for (final MasterHandoffListener listener : getMasterHandoffListeners()) {
             try {
                 listener.yieldResponse(fromPlayer, yielded);
-            } catch (Exception e) {
-                logger.warn("Problem delivering master yield response to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering master yield response to listener", t);
             }
         }
     }
@@ -505,8 +505,8 @@ public class BeatFinder extends LifecycleParticipant {
         for (final OnAirListener listener : getOnAirListeners()) {
             try {
                 listener.channelsOnAir(audibleChannels);
-            } catch (Exception e) {
-                logger.warn("Problem delivering channels on-air update to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering channels on-air update to listener", t);
             }
         }
     }
@@ -572,8 +572,8 @@ public class BeatFinder extends LifecycleParticipant {
         for (final FaderStartListener listener : getFaderStartListeners()) {
             try {
                 listener.fadersChanged(playersToStart, playersToStop);
-            } catch (Exception e) {
-                logger.warn("Problem delivering fader start command to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering fader start command to listener", t);
             }
         }
     }

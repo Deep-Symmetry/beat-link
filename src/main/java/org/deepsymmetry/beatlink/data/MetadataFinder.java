@@ -1551,8 +1551,8 @@ public class MetadataFinder extends LifecycleParticipant {
                     listener.mediaUnmounted(slot);
                 }
 
-            } catch (Exception e) {
-                logger.warn("Problem delivering mount update to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering mount update to listener", t);
             }
         }
         if (mounted) {
@@ -1626,8 +1626,8 @@ public class MetadataFinder extends LifecycleParticipant {
                 } else {
                     listener.cacheAttached(slot, cache);
                 }
-            } catch (Exception e) {
-                logger.warn("Problem delivering metadata cache update to listener", e);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering metadata cache update to listener", t);
             }
         }
     }
@@ -1696,8 +1696,8 @@ public class MetadataFinder extends LifecycleParticipant {
                 try {
                     listener.metadataChanged(update);
 
-                } catch (Exception e) {
-                    logger.warn("Problem delivering track metadata update to listener", e);
+                } catch (Throwable t) {
+                    logger.warn("Problem delivering track metadata update to listener", t);
                 }
             }
         }

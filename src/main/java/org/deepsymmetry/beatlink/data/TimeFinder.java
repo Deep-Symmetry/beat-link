@@ -344,8 +344,8 @@ public class TimeFinder extends LifecycleParticipant {
                         if (trackPositionListeners.replace(entry.getKey(), entry.getValue(), NO_INFORMATION)) {
                             try {
                                 entry.getKey().movementChanged(null);
-                            } catch (Exception e) {
-                                logger.warn("Problem delivering null movementChanged update", e);
+                            } catch (Throwable t) {
+                                logger.warn("Problem delivering null movementChanged update", t);
                             }
                         }
                     }
@@ -358,8 +358,8 @@ public class TimeFinder extends LifecycleParticipant {
                         if (trackPositionListeners.replace(entry.getKey(), entry.getValue(), update)) {
                             try {
                                 entry.getKey().movementChanged(update);
-                            } catch (Exception e) {
-                                logger.warn("Problem delivering movementChanged update", e);
+                            } catch (Throwable t) {
+                                logger.warn("Problem delivering movementChanged update", t);
                             }
                         }
                     }

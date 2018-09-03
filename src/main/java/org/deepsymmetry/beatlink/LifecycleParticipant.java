@@ -77,8 +77,8 @@ public abstract class LifecycleParticipant {
                         } else {
                             listener.stopped(LifecycleParticipant.this);
                         }
-                    } catch (Exception e) {
-                        logger.warn("Problem delivering lifecycle announcement to listener", e);
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering lifecycle announcement to listener", t);
                     }
                 }
             }
