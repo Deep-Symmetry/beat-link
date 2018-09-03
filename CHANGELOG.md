@@ -35,6 +35,11 @@ This change log follows the conventions of
   code.
 - Improved the clarity of an exception thrown when trying to ask for
   metadata from a player for which we did not find a db server port.
+- Improved protection against problems that can occur when delivering
+  events (status updates, beats, etc.) to registered listeners;
+  previously we were only catching exceptions, but some kinds of
+  problems in the listener classes would lead to other kinds of
+  throwables, which could kill our event delivery loops.
 
 ### Changed
 
