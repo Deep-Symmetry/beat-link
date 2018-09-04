@@ -1577,7 +1577,7 @@ public class VirtualCdj
         if (ms != 0) {
             metronome.adjustStart(-ms);
             if (metronome.getBeat() < 1) {
-                metronome.adjustStart(Metronome.beatsToMilliseconds(metronome.getBeatsPerBar(), metronome.getTempo()));
+                metronome.adjustStart(Math.round(Metronome.beatsToMilliseconds(metronome.getBeatsPerBar(), metronome.getTempo())));
             }
             notifyBeatSenderOfChange();
         }
