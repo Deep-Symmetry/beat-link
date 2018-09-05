@@ -49,7 +49,7 @@ class BeatSender {
      * accurate time. We will also aim our sleep to land this far before the next beat, to try and absorb threading
      * jitter.
      */
-    private static final int SLEEP_THRESHOLD = 5;
+    public static final int SLEEP_THRESHOLD = 5;
 
     /**
      * The loop that is run by the beat sender thread, sending beats at appropriate intervals.

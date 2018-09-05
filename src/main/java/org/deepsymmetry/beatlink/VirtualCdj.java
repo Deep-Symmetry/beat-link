@@ -1854,26 +1854,25 @@ public class VirtualCdj
             0x00, 0x00, 0x00, 0x15, 0x00, 0x00, 0x07, 0x61, 0x00, 0x00, 0x06, 0x2f  // 0x110
     };
 
-    private long distanceFromBeat(Snapshot snapshot) {
-        final double phaseDistance = Math.abs(Metronome.findClosestDelta(snapshot.getBeatPhase()));
-        return (Math.round(phaseDistance * snapshot.getBeatInterval()));
-    }
-
     /**
-     * Gets the current playback position, then checks if we are within double {@link BeatSender#BEAT_THRESHOLD}
-     * milliseconds of a beat, sleeping until that is no longer the case.
+     * Gets the current playback position, then checks if we are within {@link BeatSender#SLEEP_THRESHOLD} ms before
+     * an upcoming beat, or {@link BeatSender#BEAT_THRESHOLD} ms after one, sleeping until that is no longer the case.
      *
      * @return the current playback position, potentially after having delayed a bit so that is not too near a beat
      */
     private Snapshot avoidBeatPacket() {
         Snapshot playState = getPlaybackPosition();
-        while (playing.get() && distanceFromBeat(playState) < (2 * BeatSender.BEAT_THRESHOLD)) {
+        double distance = playState.distanceFromBeat();
+        while (playing.get() &&
+                ((distance < 0.0) && (Math.abs(distance) <= BeatSender.SLEEP_THRESHOLD)) ||
+                ((distance >= 0.0) && (distance <= (BeatSender.BEAT_THRESHOLD + 1)))) {
             try {
                 Thread.sleep(2);
             } catch (InterruptedException e) {
                 logger.warn("Interrupted while sleeping to avoid beat packet; ignoring.", e);
             }
             playState = getPlaybackPosition();
+            distance = playState.distanceFromBeat();
         }
         return playState;
     }
