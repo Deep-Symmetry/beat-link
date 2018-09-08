@@ -740,6 +740,93 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
+     * Ask the connected dbserver about database records whose names contain {@code text}. If {@code count} is not
+     * {@code null}, no more than that many results will be returned, and the value will be set to the total number
+     * of results that were available. Otherwise all results will be returned.
+     *
+     * @param slot the slot in which the database can be found
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details, although it does not seem to have an effect on searches.
+     * @param text the search text used to filter the results
+     * @param count if present, sets an upper limit on the number of results to return, and will get set
+     *              to the actual number that were available
+     *
+     * @return the items that the specified search string; they may be a variety of different types
+     *
+     * @throws IOException if there is a problem communicating
+     * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
+     * @throws TimeoutException if we are unable to lock the client for menu operations
+     */
+    private List<Message> getSearchItems(CdjStatus.TrackSourceSlot slot, int sortOrder, String text,
+                                         AtomicInteger count, Client client)
+            throws IOException, InterruptedException, TimeoutException {
+        if (client.tryLockingForMenuOperations(MENU_TIMEOUT, TimeUnit.SECONDS)) {
+            try {
+                final StringField textField = new StringField(text);
+                Message response = client.menuRequest(Message.KnownType.SEARCH_MENU, Message.MenuIdentifier.MAIN_MENU, slot,
+                        new NumberField(sortOrder), new NumberField(textField.getSize()), textField, NumberField.WORD_0);
+                final int actualCount = (int)response.getMenuResultsCount();
+                if (actualCount == Message.NO_MENU_RESULTS_AVAILABLE || actualCount == 0) {
+                    if (count != null) {
+                        count.set(0);
+                    }
+                    return Collections.emptyList();
+                }
+
+                // Gather the requested number of metadata menu items
+                if (count == null) {
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, CdjStatus.TrackType.REKORDBOX, response);
+                } else {
+                    final int desiredCount = Math.min(count.get(), actualCount);
+                    count.set(actualCount);
+                    if (desiredCount < 1) {
+                        return Collections.emptyList();
+                    }
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, CdjStatus.TrackType.REKORDBOX,
+                            0, desiredCount);
+                }
+            } finally {
+                client.unlockForMenuOperations();
+            }
+        } else {
+            throw new TimeoutException("Unable to lock player for menu operations.");
+        }
+    }
+
+    /**
+     * Ask the specified player for database records whose names contain {@code text}. If {@code count} is not
+     * {@code null}, no more than that many results will be returned, and the value will be set to the total number
+     * of results that were available. Otherwise all results will be returned.
+     *
+     * @param player the player number whose database is to be searched
+     * @param slot the slot in which the database can be found
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details, although it does not seem to have an effect on searches.
+     * @param text the search text used to filter the results
+     * @param count if present, sets an upper limit on the number of results to return, and will get set
+     *              to the actual number that were available
+     *
+     * @return the items that the specified search string; they may be a variety of different types
+     *
+     * @throws Exception if there is a problem performing the search
+     */
+    public List<Message> requestSearchResultsFrom(final int player, final CdjStatus.TrackSourceSlot slot,
+                                                  final int sortOrder, final String text,
+                                                  final AtomicInteger count)
+            throws Exception {
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                return getSearchItems(slot, sortOrder, text.toUpperCase(), count, client);
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(player, task, "performing search");
+    }
+
+    /**
      * Keeps track of the current metadata cached for each player. We cache metadata for any track which is currently
      * on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
