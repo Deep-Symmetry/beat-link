@@ -55,6 +55,8 @@ This change log follows the conventions of
   after logging a warning. If they are too short, we just log the
   warning.
 - More use of ByteBuffers to efficiently assemble and compare packets.
+- The `TRACK_LIST_REQ` message type has been renamed `TRACK_MENU_REQ`
+  to fit in with the large number of other menus that have been added.
 
 ## [0.3.7] - 2018-03-26
 

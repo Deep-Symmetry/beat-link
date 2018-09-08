@@ -530,10 +530,10 @@ public class Client {
             final long batchSize = (Math.min(count - gathered, menuBatchSize.get()));
             final NumberField transaction = assignTransactionNumber();
             final NumberField limit = new NumberField(batchSize);
+            final NumberField total = new NumberField(count);
             final Message request = new Message(transaction,
                     new NumberField(Message.KnownType.RENDER_MENU_REQ.protocolValue, 2),
-                    buildRMST(targetMenu, slot, trackType), new NumberField(offset), limit, NumberField.WORD_0, limit, NumberField.WORD_0);
-            // Based on LinkInfo.tracklist.txt it looks like the last limit should be count instead? But this works!
+                    buildRMST(targetMenu, slot, trackType), new NumberField(offset), limit, NumberField.WORD_0, total, NumberField.WORD_0);
 
             sendMessage(request);
             Message response = Message.read(is);
