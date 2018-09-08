@@ -203,7 +203,7 @@ public class MetadataFinder extends LifecycleParticipant {
         // Send the metadata menu request
         if (client.tryLockingForMenuOperations(MENU_TIMEOUT, TimeUnit.SECONDS)) {
             try {
-                Message response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
+                Message response = client.menuRequest(Message.KnownType.TRACK_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
                         NumberField.WORD_0);
                 final long count = response.getMenuResultsCount();
                 if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
@@ -1383,7 +1383,7 @@ public class MetadataFinder extends LifecycleParticipant {
     private long getTrackCount(CdjStatus.TrackSourceSlot slot, Client client, int playlistId) throws IOException {
         Message response;
         if (playlistId == 0) {  // Form the proper request to render either all tracks or a playlist
-            response = client.menuRequest(Message.KnownType.TRACK_LIST_REQ, Message.MenuIdentifier.MAIN_MENU,
+            response = client.menuRequest(Message.KnownType.TRACK_MENU_REQ, Message.MenuIdentifier.MAIN_MENU,
                     slot, NumberField.WORD_0);
         }
         else {

@@ -26,6 +26,10 @@ This change log follows the conventions of
   rekordbox).
 - The `VirtualCdj` has a new method allowing you to tell players
   whether they are on or off the air in the absence of a DJM mixer.
+- The `Message.KnownType` enum has many new entries describing menu
+  requests we now know how to perform.
+- The `Message.MenuItemType` enum has new entries for the menus that
+  can appear in the root menu response.
 - A new Enum which captures all known packet types, to improve the
   readability and compactness of code that works with them.
 
@@ -40,6 +44,9 @@ This change log follows the conventions of
   previously we were only catching exceptions, but some kinds of
   problems in the listener classes would lead to other kinds of
   throwables, which could kill our event delivery loops.
+- The _count_ parameter is now passed in menu render requests in a way
+  that is more consistent with the way CDJs do it, although this has
+  not seemed to cause any problems.
 
 ### Changed
 

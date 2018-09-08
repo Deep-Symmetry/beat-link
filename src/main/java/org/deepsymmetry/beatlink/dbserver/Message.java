@@ -47,17 +47,99 @@ public class Message {
          */
         ROOT_MENU_REQ    (0x1000, "root menu request", "r:m:s:t", "sort order", "magic constant?"),
         /**
+         * Asks for a list of genres in the specified media slot.
+         */
+        GENRE_MENU_REQ   (0x1001, "genre menu request", "r:m:s:t", "sort order"),
+        /**
          * Asks for a list of artists in the specified media slot.
          */
-        ARTIST_LIST_REQ  (0x1002, "artist list request", "r:m:s:t", "sort order?"),
+        ARTIST_MENU_REQ  (0x1002, "artist menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for a list of albums in the specified media slot.
+         */
+        ALBUM_MENU_REQ   (0x1003, "album menu request", "r:m:s:t", "sort order"),
         /**
          * Asks for a list of all the tracks in the specified media slot.
          */
-        TRACK_LIST_REQ   (0x1004, "track list request", "r:m:s:t", "sort order"),
+        TRACK_MENU_REQ   (0x1004, "track menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for a list of track tempos found in the specified media slot.
+         */
+        BPM_MENU_REQ     (0x1006, "bpm menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for a list of ratings in the specified media slot.
+         */
+        RATING_MENU_REQ  (0x1007, "rating menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for a folder menu, of the raw media filesystem in the specified slot.
+         */
+        FOLDER_MENU_REQ  (0x1011, "folder menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for a list of performance histories found in the specified media slot.
+         */
+        HISTORY_MENU_REQ (0x1012, "history menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for a list of track keys found in the specified media slot.
+         */
+        KEY_MENU_REQ     (0x1014, "key menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for an artist menu for a particular genre in the specified media slot.
+         */
+        ARTIST_MENU_FOR_GENRE_REQ (0x1101, "artist menu for genre request", "r:m:s:t", "sort", "genre ID"),
+        /**
+         * Asks for an album menu for a particular artist in the specified media slot.
+         */
+        ALBUM_MENU_FOR_ARTIST_REQ (0x1102, "album menu for artist request", "r:m:s:t", "sort", "artist ID"),
+        /**
+         * Asks for a track menu for a particular album in the specified media slot.
+         */
+        TRACK_MENU_FOR_ALBUM_REQ (0x1103, "track menu for album request", "r:m:s:t", "sort", "album ID"),
         /**
          * Asks for a playlist or folder by ID.
          */
         PLAYLIST_REQ     (0x1105, "playlist/folder request", "r:m:s:t", "sort order", "playlist/folder ID", "0=playlist, 1=folder"),
+        /**
+         * Asks for a track menu for a particular rating in the specified media slot.
+         */
+        TRACK_MENU_FOR_RATING_REQ (0x1107, "track menu for rating request", "r:m:s:t", "sort", "rating ID"),
+        /**
+         * Asks for a track menu for a particular rating in the specified media slot.
+         */
+        TRACK_MENU_FOR_HISTORY_REQ (0x1112, "track menu for history entry request", "r:m:s:t", "sort", "history ID"),
+        /**
+         * Asks for a key distance menu (showing harmonically compatible keys) for a particular distance
+         * (ranging from 0 to 2) available in the specified media slot.
+         */
+        KEY_DISTANCE_MENU_FOR_KEY (0x1114, "key distance menu for key request", "r:m:s:t", "sort", "key ID"),
+        /**
+         * Asks for an album menu by genre and artist, can specify all artists by passing -1 for artist ID.
+         */
+        ALBUM_MENU_FOR_GENRE_AND_ARTIST (0x1201, "album menu for genre and artist request", "r:m:s:t:", "sort",
+                "genre ID", "artist ID, or -1 for ALL"),
+        /**
+         * Asks for an track menu by BPM and distance, which represents a percentage tolerance by which the BPM
+         * can differ, ranging from 0 to 6.
+         */
+        TRACK_MENU_FOR_BPM_AND_DISTANCE (0x1206, "track menu for BPM and distance request", "r:m:s:t:", "sort",
+                "bpm ID", "distance (+/- %, can range from 0-6)"),
+        /**
+         * Asks for an track menu by key and distance, which represents harmonic compatibility as allowed movement
+         * around the circle of fifths, ranging from 0 to 2.
+         */
+        TRACK_MENU_FOR_KEY_AND_DISTANCE (0x1214, "track menu for key and distance request", "r:m:s:t:", "sort",
+                "key ID", "distance (around circle of fifths)"),
+        /**
+         * Asks to search the database for records matching the specified text (artist, album, track names,
+         * possibly other things). Returns a variety of different menu item types.
+         */
+        SEARCH_MENU      (0x1300, "search by substring request", "r:m:s:t", "sort", "search string byte size",
+                "search string (must be uppercase", "unknown (0)"),
+        /**
+         * Asks for an album menu by genre, artist, and album, can specify all artists and/or albums by passing -1 for
+         * the artist and/or album IDs.
+         */
+        TRACK_MENU_FOR_GENRE_ARTIST_AND_ALBUM (0x1301, "track menu for genre, artist and album request", "r:m:s:t:", "sort",
+                "genre ID", "artist ID, or -1 for ALL", "album ID, or -1 for ALL"),
         /**
          * Asks for the metadata associated with a particular track, by rekordbox ID.
          */
@@ -70,6 +152,7 @@ public class Message {
          * Asks for the preview (summary) waveform data for a track, by rekordbox ID.
          */
         WAVE_PREVIEW_REQ (0x2004, "track waveform preview request", "r:m:s:t", "unknown (4)", "rekordbox id", "unknown (0)"),
+        // 0x2102 seems to ask about track data file information.
         /**
          * Asks for the cue points of a track, by rekordbox ID.
          */
@@ -85,6 +168,7 @@ public class Message {
         /**
          * Asks for the detailed waveform data for a track, by rekordbox ID.
          */
+        // 0x2504 when loading track?!
         WAVE_DETAIL_REQ  (0x2904, "track waveform detail request", "r:m:s:t", "rekordbox id"),
         /**
          * Once a specific type of request has been made and acknowledged, this allows the results to be retrieved,
@@ -320,6 +404,50 @@ public class Message {
          * date added.
          */
         DATE_ADDED (0x002e),
+        /**
+         * The root menu item that takes you to the genre list.
+         */
+        GENRE_MENU (0x0080),
+        /**
+         * The root menu item that takes you to the artist list.
+         */
+        ARTIST_MENU (0x0081),
+        /**
+         * The root menu item that takes you to the artist list.
+         */
+        ALBUM_MENU (0x0082),
+        /**
+         * The root menu item that takes you to the track list.
+         */
+        TRACK_MENU (0x0083),
+        /**
+         * The root menu item that takes you to the playlist hierarchy.
+         */
+        PLAYLIST_MENU (0x0084),
+        /**
+         * The root menu item that takes you to the tempo list.
+         */
+        BPM_MENU (0x0085),
+        /**
+         * The root menu item that takes you to the folder list.
+         */
+        RATING_MENU (0x0086),
+        /**
+         * The root menu item that takes you to the key list.
+         */
+        KEY_MENU (0x008b),
+        /**
+         * The root menu item that takes you to the folder list.
+         */
+        FOLDER_MENU (0x0090),
+        /**
+         * The root menu item that takes you to the search interface.
+         */
+        SEARCH_MENU (0x0091),
+        /**
+         * The root menu item that takes you to the history list.
+         */
+        HISTORY_MENU (0x0095),
         /**
          * Reports the title and album of a track, returned when listing playlists or all tracks sorted by album,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
@@ -663,7 +791,7 @@ public class Message {
          */
         MAIN_MENU  (1),
         /**
-         * The secondary menu which sometimes appears down th right half of the player display.
+         * The secondary menu which sometimes appears down the right half of the player display.
          */
         SUB_MENU   (2),
         /**
