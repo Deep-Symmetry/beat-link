@@ -293,8 +293,8 @@ public class MetadataFinder extends LifecycleParticipant {
      * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}.
      * Pulled into a separate method so it can be used from multiple different client transactions.
      *
-     * @param slot the slot in which the track can be found
-     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 5.10.1 of the
+     * @param slot the slot in which the playlist can be found
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
      *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param playlistOrFolderId the database ID of the desired playlist or folder
@@ -336,7 +336,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param player the player number whose playlist entries are of interest
      * @param slot the slot in which the playlist can be found
-     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 5.10.1 of the
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
      *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param playlistOrFolderId the database ID of the desired playlist or folder
