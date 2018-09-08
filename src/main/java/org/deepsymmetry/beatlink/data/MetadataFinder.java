@@ -153,8 +153,8 @@ public class MetadataFinder extends LifecycleParticipant {
                 }
 
                 // Gather the cue list and all the metadata menu items
-                final CueList cueList = getCueList(track.rekordboxId, track.slot, client);
                 final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, trackType, response);
+                final CueList cueList = getCueList(track.rekordboxId, track.slot, client);
                 return new TrackMetadata(track, trackType, items, cueList);
             } finally {
                 client.unlockForMenuOperations();
