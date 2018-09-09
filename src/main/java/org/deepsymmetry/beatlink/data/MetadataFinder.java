@@ -119,7 +119,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * How many seconds are we willing to wait to lock the database client for menu operations.
      */
-    private final int MENU_TIMEOUT = 20;
+    public static final int MENU_TIMEOUT = 20;
 
     /**
      * Request metadata for a specific track ID, given a connection to a player that has already been set up.
@@ -826,46 +826,6 @@ public class MetadataFinder extends LifecycleParticipant {
         return ConnectionManager.getInstance().invokeWithClientSession(player, task, "performing search");
     }
 
-    /**
-     * Ask the specified player for its top-level menu of menus. This is only believed to work for media slots that
-     * contain a rekordbox database; a different form of message is used for those that do not. We need to figure out
-     * how to tell in advance whether one exists; there seems to be a packet type that causes a player to send some
-     * sort of media-information response that may well be the key.
-     *
-     * @param player the player whose menu is desired
-     * @param slot the slot for which the menu is desired
-     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
-     *                  document</a> for details, although it does not seem to have an effect on searches.
-     *
-     * @return the entries in the top level menu
-     *
-     * @throws Exception if there is a problem obtaining the menu
-     */
-    public List<Message> requestTopMenuFrom(final int player, final CdjStatus.TrackSourceSlot slot,
-                                             final int sortOrder)
-            throws Exception {
-
-
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        Message response = client.menuRequest(Message.KnownType.ROOT_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
-                                new NumberField(sortOrder), new NumberField(0xffffff, 4));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
-                }
-            }
-        };
-
-        return ConnectionManager.getInstance().invokeWithClientSession(player, task, "requesting top menu");
-    }
 
     /**
      * Keeps track of the current metadata cached for each player. We cache metadata for any track which is currently
