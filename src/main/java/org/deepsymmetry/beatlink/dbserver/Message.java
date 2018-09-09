@@ -390,6 +390,10 @@ public class Message {
          */
         COMMENT (0x0023),
         /**
+         * A list of tracks that were performed in a past session.
+         */
+        HISTORY_PLAYLIST (0x0024),
+        /**
          * The artist who originally recorded a track. Also contains an original artist ID, for listing by original
          * artist.
          */
