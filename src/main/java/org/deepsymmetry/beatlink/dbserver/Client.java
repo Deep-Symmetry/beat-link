@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.dbserver;
 
 import org.deepsymmetry.beatlink.CdjStatus;
+import org.deepsymmetry.beatlink.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,6 +9,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -171,13 +173,16 @@ public class Client {
 
     /**
      * Attempt to send the specified field to the dbserver.
-     * This low-level function is available only to the package itself for use in setting up the connection and
-     * sending parts of larger-scale messages.
+     * This low-level function is available only to the package itself for use in setting up the connection. It was
+     * previously also used for sending parts of larger-scale messages, but because that sometimes led to them being
+     * fragmented into multiple network packets, and Windows rekordbox cannot handle that, full message sending no
+     * longer uses this method.
      *
      * @param field the field to be sent
      *
      * @throws IOException if the field cannot be sent
      */
+    @SuppressWarnings("SameParameterValue")
     private void sendField(Field field) throws IOException {
         if (isConnected()) {
             try {
@@ -202,7 +207,8 @@ public class Client {
     }
 
     /**
-     * Sends a message to the dbserver.
+     * Sends a message to the dbserver, first assembling it into a single byte buffer so that it can be sent as
+     * a single packet.
      *
      * @param message the message to be sent
      *
@@ -210,9 +216,17 @@ public class Client {
      */
     private void sendMessage(Message message) throws IOException {
         logger.debug("Sending> {}", message);
+        int totalSize = 0;
         for (Field field : message.fields) {
-            sendField(field);
+            totalSize += field.getBytes().remaining();
         }
+        ByteBuffer combined = ByteBuffer.allocate(totalSize);
+        for (Field field : message.fields) {
+            logger.debug("..sending> {}", field);
+            combined.put(field.getBytes());
+        }
+        combined.flip();
+        Util.writeFully(combined, channel);
     }
 
     /**
