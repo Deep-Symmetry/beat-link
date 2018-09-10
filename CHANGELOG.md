@@ -35,6 +35,10 @@ This change log follows the conventions of
 
 ### Fixed
 
+- Now assembles entire dbserver messages into a buffer to write them to
+  the network as a single operation, avoiding the chance of them being
+  split into multiple packets, because Windows rekordbox can't handle
+  when they are.
 - Removed a potential source of crashes in the waveform rendering
   code.
 - Improved the clarity of an exception thrown when trying to ask for
