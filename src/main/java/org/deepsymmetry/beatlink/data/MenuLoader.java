@@ -205,6 +205,7 @@ public class MenuLoader {
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
      *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
+     * @param artistId  the artist whose album menu is desired
      *
      * @return the entries in the artist album menu
      *
@@ -241,6 +242,7 @@ public class MenuLoader {
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
      *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
+     * @param albumId the album whose track menu is desired
      *
      * @return the entries in the album track menu
      *
