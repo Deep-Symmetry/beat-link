@@ -453,6 +453,10 @@ public class Message {
          */
         HISTORY_MENU (0x0095),
         /**
+         * The menu item that lets you choose all values in a subcategory.
+         */
+        ALL (0x00a0),
+        /**
          * Reports the title and album of a track, returned when listing playlists or all tracks sorted by album,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
