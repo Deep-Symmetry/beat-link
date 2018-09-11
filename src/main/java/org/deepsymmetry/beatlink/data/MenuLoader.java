@@ -65,6 +65,31 @@ public class MenuLoader {
     }
 
     /**
+     * Ask the specified player for a Playlist menu. This boils down to a call to
+     * {@link MetadataFinder#requestPlaylistItemsFrom(int, CdjStatus.TrackSourceSlot, int, int, boolean)} asking for
+     * the playlist folder with ID 0, but it is also made available here since this is likely where people will be
+     * looking for the capability. To get the contents of individual playlists or sub-folders, pass the playlist or
+     * folder ID obtained by calling this to that function.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the playlists and folders in the playlist menu
+     *
+     * @see MetadataFinder#requestPlaylistItemsFrom(int, CdjStatus.TrackSourceSlot, int, int, boolean)
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestPlaylistMenuFrom(final SlotReference slotReference, final int sortOrder)
+            throws Exception {
+
+        return MetadataFinder.getInstance().requestPlaylistItemsFrom(slotReference.player, slotReference.slot, sortOrder,
+                0, true);
+    }
+
+    /**
      * Ask the specified player for a History menu.
      *
      * @param slotReference the player and slot for which the menu is desired
