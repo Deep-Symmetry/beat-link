@@ -587,7 +587,7 @@ public class CdjStatus extends DeviceUpdate {
         }
 
         if (!expectedStatusPacketSizes.contains(packetBytes.length)) {
-            logger.warn("Processing a CDJ Status packet with unexpected length " + packetBytes.length + ".");
+            logger.warn("Processing CDJ Status packets with unexpected lengths " + packetBytes.length + ".");
             expectedStatusPacketSizes.add(packetBytes.length);
         }
         trackSourcePlayer = packetBytes[40];

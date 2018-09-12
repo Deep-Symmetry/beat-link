@@ -1,6 +1,12 @@
 package org.deepsymmetry.beatlink;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.DatagramPacket;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Represents a status update sent by a mixer on a DJ Link network.
@@ -9,6 +15,8 @@ import java.net.DatagramPacket;
  */
 @SuppressWarnings("WeakerAccess")
 public class MixerStatus extends DeviceUpdate {
+
+    private static final Logger logger = LoggerFactory.getLogger(MixerStatus.class);
 
     /**
      * The byte within the status packet which contains useful status information, labeled <i>F</i> in Figure 10 of the
@@ -45,13 +53,42 @@ public class MixerStatus extends DeviceUpdate {
     private final int handingMasterToDevice;
 
     /**
+     * The smallest packet size from which we can be constructed. Anything less than this and we are missing
+     * crucial information.
+     */
+    public static final int MINIMUM_PACKET_SIZE = 0x38;
+
+    /**
+     * Contains the sizes we expect mixer status packets to have so we can log a warning if we get an unusual
+     * one. We will then add the new size to the list so it only gets logged once per run.
+     */
+    private static final Set<Integer> expectedStatusPacketSizes = new HashSet<Integer>(Collections.singletonList(MINIMUM_PACKET_SIZE));
+
+    /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
      *
      * @param packet the beat announcement packet that was received
      */
     @SuppressWarnings("WeakerAccess")
     public MixerStatus(DatagramPacket packet) {
-        super(packet, "Mixer update", 56);
+        super(packet, "Mixer update", packet.getLength());
+
+        if (packetBytes.length < MINIMUM_PACKET_SIZE) {
+            throw new IllegalArgumentException("Unable to create a MixerStatus object, packet too short: we need " + MINIMUM_PACKET_SIZE +
+                    " bytes and were given only " + packetBytes.length);
+        }
+
+        final int payloadLength = (int)Util.bytesToNumber(packetBytes, 0x22, 2);
+        if (packetBytes.length != payloadLength + 0x24) {
+            logger.warn("Received Mixer status packet with reported payload length of " + payloadLength + " and actual payload length of " +
+                    (packetBytes.length - 0x24));
+        }
+
+        if (!expectedStatusPacketSizes.contains(packetBytes.length)) {
+            logger.warn("Processing Mixer Status packets with unexpected lengths " + packetBytes.length + ".");
+            expectedStatusPacketSizes.add(packetBytes.length);
+        }
+
         pitch = (int)Util.bytesToNumber(packetBytes, 0x28, 4);
         bpm = (int)Util.bytesToNumber(packetBytes, 0x2e, 2);
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
