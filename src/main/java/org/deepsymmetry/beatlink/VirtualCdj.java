@@ -357,14 +357,12 @@ public class VirtualCdj
                 }
 
             case CDJ_STATUS:
-                if (length != 208 && length != 212 && length != 284 && length != 292) {
-                    logger.warn("Processing a CDJ Status packet with unexpected length " + length + ".");
-                }
-                if (length >= 208) {
+                if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
                     return new CdjStatus(packet);
 
                 } else {
-                    logger.warn("Ignoring too-short CDJ Status packet.");
+                    logger.warn("Ignoring too-short CDJ Status packet with length " + length + " (we need " + CdjStatus.MINIMUM_PACKET_SIZE +
+                            " bytes).");
                     return null;
                 }
 

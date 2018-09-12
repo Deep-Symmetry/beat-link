@@ -1,9 +1,10 @@
 package org.deepsymmetry.beatlink;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.DatagramPacket;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Represents a status update sent by a CDJ (or perhaps other player) on a DJ Link network.
@@ -12,6 +13,8 @@ import java.util.Map;
  */
 @SuppressWarnings("WeakerAccess")
 public class CdjStatus extends DeviceUpdate {
+
+    private static final Logger logger = LoggerFactory.getLogger(CdjStatus.class);
 
     /**
      * The byte within the status packet which contains useful status information, labeled <i>F</i> in Figure 11 of the
@@ -553,14 +556,39 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
+     * Contains the sizes we expect CDJ status packets to have so we can log a warning if we get an unusual
+     * one. We will then add the new size to the list so it only gets logged once per run.
+     */
+    private static final Set<Integer> expectedStatusPacketSizes = new HashSet<Integer>(Arrays.asList(0xd0, 0xd4, 0x11c, 0x124));
+
+    /**
+     * The smallest packet size from which we can be constructed. Anything less than this and we are missing
+     * crucial information.
+     */
+    public static final int MINIMUM_PACKET_SIZE = 0xcc;
+
+    /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
      *
-     * @param packet the beat announcement packet that was received
+     * @param packet the CDJ status packet that was received
      */
     public CdjStatus(DatagramPacket packet) {
         super(packet, "CDJ status", packet.getLength());
-        if (packetBytes.length != 208 && packetBytes.length != 212 && packetBytes.length != 284 && packetBytes.length != 292) {
-            throw new IllegalArgumentException("CDJ status packet must be 208, 212, 284, or 292 bytes long");
+
+        if (packetBytes.length < MINIMUM_PACKET_SIZE) {
+            throw new IllegalArgumentException("Unable to create a CdjStatus object, packet too short: we need " + MINIMUM_PACKET_SIZE +
+                    " bytes and were given only " + packetBytes.length);
+        }
+
+        final int payloadLength = (int)Util.bytesToNumber(packetBytes, 0x22, 2);
+        if (packetBytes.length != payloadLength + 0x24) {
+            logger.warn("Received CDJ status packet with reported payload length of " + payloadLength + " and actual payload length of " +
+                    (packetBytes.length - 0x24));
+        }
+
+        if (!expectedStatusPacketSizes.contains(packetBytes.length)) {
+            logger.warn("Processing a CDJ Status packet with unexpected length " + packetBytes.length + ".");
+            expectedStatusPacketSizes.add(packetBytes.length);
         }
         trackSourcePlayer = packetBytes[40];
         trackSourceSlot = findTrackSourceSlot();
