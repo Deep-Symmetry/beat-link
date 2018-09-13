@@ -497,7 +497,7 @@ public class MenuLoader {
      * @param count if present, sets an upper limit on the number of results to return, and will get set
      *              to the actual number that were available
      *
-     * @return the items that the specified search string; they may be a variety of different types
+     * @return the items that match the specified search string; they may be a variety of different types
      *
      * @throws IOException if there is a problem communicating
      * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
@@ -519,7 +519,7 @@ public class MenuLoader {
                     return Collections.emptyList();
                 }
 
-                // Gather the requested number of metadata menu items
+                // Gather the requested number of search menu items
                 if (count == null) {
                     return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, CdjStatus.TrackType.REKORDBOX, response);
                 } else {
@@ -565,6 +565,82 @@ public class MenuLoader {
             @Override
             public List<Message> useClient(Client client) throws Exception {
                 return getSearchItems(slot, sortOrder, text.toUpperCase(), count, client);
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(player, task, "performing search");
+    }
+
+
+    /**
+     * Ask the connected dbserver about database records whose names contain {@code text}. If {@code count} is not
+     * {@code null}, no more than that many results will be returned, and the value will be set to the total number
+     * of results that were available. Otherwise all results will be returned.
+     *
+     * @param slot the slot in which the database can be found
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details, although it does not seem to have an effect on searches.
+     * @param text the search text used to filter the results
+     * @param offset the first result desired (the first available result has offset 0)
+     * @param count the number of results to return (if more than the number available, fewer will simply be returned)
+     *
+     * @return the items that match the specified search string; they may be a variety of different types
+     *
+     * @throws IOException if there is a problem communicating
+     * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
+     * @throws TimeoutException if we are unable to lock the client for menu operations
+     */
+    private List<Message> getMoreSearchItems(final CdjStatus.TrackSourceSlot slot, final int sortOrder, final String text,
+                                             final int offset, final int count, final Client client)
+            throws IOException, InterruptedException, TimeoutException {
+        if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+            try {
+                final StringField textField = new StringField(text);
+                Message response = client.menuRequest(Message.KnownType.SEARCH_MENU, Message.MenuIdentifier.MAIN_MENU, slot,
+                        new NumberField(sortOrder), new NumberField(textField.getSize()), textField, NumberField.WORD_0);
+                final int actualCount = (int)response.getMenuResultsCount();
+                if (offset + count > actualCount) {
+                    throw new IllegalArgumentException("Cannot request items past the end of the menu.");
+                }
+
+                // Gather the requested search menu items
+                return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot, CdjStatus.TrackType.REKORDBOX,
+                        offset, count);
+            } finally {
+                client.unlockForMenuOperations();
+            }
+        } else {
+            throw new TimeoutException("Unable to lock player for menu operations.");
+        }
+    }
+
+    /**
+     * Ask the specified player for more database records whose names contain {@code text}. This can be used after
+     * calling {@link #requestSearchResultsFrom(int, CdjStatus.TrackSourceSlot, int, String, AtomicInteger)} to obtain
+     * a partial result and the total count available, to gradually expand the search under direction from the user.
+     *
+     * @param player the player number whose database is to be searched
+     * @param slot the slot in which the database can be found
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details, although it does not seem to have an effect on searches.
+     * @param text the search text used to filter the results
+     * @param offset the first result desired (the first available result has offset 0)
+     * @param count the number of results to return (if more than the number available, fewer will simply be returned)
+     *
+     * @return the items that the specified search string; they may be a variety of different types
+     *
+     * @throws Exception if there is a problem performing the search
+     */
+    public List<Message> requestMoreSearchResultsFrom(final int player, final CdjStatus.TrackSourceSlot slot,
+                                                      final int sortOrder, final String text,
+                                                      final int offset, final int count)
+            throws Exception {
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                return getMoreSearchItems(slot, sortOrder, text.toUpperCase(), offset, count, client);
             }
         };
 
