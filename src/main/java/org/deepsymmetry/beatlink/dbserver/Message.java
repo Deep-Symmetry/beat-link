@@ -107,10 +107,10 @@ public class Message {
          */
         TRACK_MENU_FOR_HISTORY_REQ (0x1112, "track menu for history entry request", "r:m:s:t", "sort", "history ID"),
         /**
-         * Asks for a key distance menu (showing harmonically compatible keys) for a particular distance
-         * (ranging from 0 to 2) available in the specified media slot.
+         * Asks for a key neighbor menu (showing harmonically compatible keys and their distance,
+         * ranging from 0 to 2) available in the specified media slot.
          */
-        KEY_DISTANCE_MENU_FOR_KEY (0x1114, "key distance menu for key request", "r:m:s:t", "sort", "key ID"),
+        NEIGHBOR_MENU_FOR_KEY(0x1114, "neighbor menu for key request", "r:m:s:t", "sort", "key ID"),
         /**
          * Asks for an album menu by genre and artist, can specify all artists by passing -1 for artist ID.
          */
@@ -129,8 +129,8 @@ public class Message {
         TRACK_MENU_FOR_BPM_AND_DISTANCE (0x1206, "track menu for BPM and distance request", "r:m:s:t:", "sort",
                 "bpm ID", "distance (+/- %, can range from 0-6)"),
         /**
-         * Asks for an track menu by key and distance, which represents harmonic compatibility as allowed movement
-         * around the circle of fifths, ranging from 0 to 2.
+         * Asks for an track menu by key and distance (which represents harmonic compatibility as allowed movement
+         * around the circle of fifths), ranging from 0 to 2.
          */
         TRACK_MENU_FOR_KEY_AND_DISTANCE (0x1214, "track menu for key and distance request", "r:m:s:t:", "sort",
                 "key ID", "distance (around circle of fifths)"),
