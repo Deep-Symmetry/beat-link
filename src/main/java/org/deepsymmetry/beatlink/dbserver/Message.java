@@ -120,6 +120,12 @@ public class Message {
          * Asks for an track menu by BPM and distance, which represents a percentage tolerance by which the BPM
          * can differ, ranging from 0 to 6.
          */
+        TRACK_MENU_FOR_ARTIST_AND_ALBUM (0x1202, "track menu for BPM and distance request", "r:m:s:t:", "sort",
+                "artist ID", "album ID, or -1 for ALL"),
+        /**
+         * Asks for an track menu by BPM and distance, which represents a percentage tolerance by which the BPM
+         * can differ, ranging from 0 to 6.
+         */
         TRACK_MENU_FOR_BPM_AND_DISTANCE (0x1206, "track menu for BPM and distance request", "r:m:s:t:", "sort",
                 "bpm ID", "distance (+/- %, can range from 0-6)"),
         /**

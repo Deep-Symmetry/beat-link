@@ -261,6 +261,44 @@ public class MenuLoader {
     }
 
     /**
+     * Ask the specified player for an Artist Album Tracks menu.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     * @param artistId the artist whose album track menu is desired
+     * @param albumId the album whose track menu is desired, or -1 for all albums
+     *
+     * @return the entries in the artist albums menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestArtistAlbumTrackMenuFrom(final SlotReference slotReference, final int sortOrder, final int artistId, final int albumId)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting History menu.");
+                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(artistId), new NumberField(albumId));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting artist album tracks menu");
+    }
+
+    /**
      * Ask the specified player for an Album Track menu.
      *
      * @param slotReference the player and slot for which the menu is desired
