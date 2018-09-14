@@ -159,7 +159,7 @@ public class MenuLoader {
             }
         };
 
-        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting history menu");
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting history playlist");
     }
 
     /**
@@ -220,7 +220,7 @@ public class MenuLoader {
             }
         };
 
-        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting history menu");
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting artist menu");
     }
 
     /**
@@ -257,7 +257,7 @@ public class MenuLoader {
             }
         };
 
-        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting history menu");
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting artist album menu");
     }
 
     /**
@@ -282,7 +282,7 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting History menu.");
+                        logger.debug("Requesting Artist Album Track menu.");
                         Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
                                 slotReference.slot, new NumberField(sortOrder), new NumberField(artistId), new NumberField(albumId));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
@@ -319,7 +319,7 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting Artist Album menu.");
+                        logger.debug("Requesting Album Track menu.");
                         Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_ALBUM_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
                                 new NumberField(sortOrder), new NumberField(albumId));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
@@ -332,7 +332,7 @@ public class MenuLoader {
             }
         };
 
-        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting history menu");
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting album tracks menu");
     }
 
     /**
@@ -355,7 +355,7 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting History menu.");
+                        logger.debug("Requesting Genre menu.");
                         Message response = client.menuRequest(Message.KnownType.GENRE_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
                                 new NumberField(sortOrder));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
@@ -392,7 +392,7 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting History menu.");
+                        logger.debug("Requesting Genre Artist menu.");
                         Message response = client.menuRequest(Message.KnownType.ARTIST_MENU_FOR_GENRE_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
                                 new NumberField(sortOrder), new NumberField(genreId));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
@@ -430,7 +430,7 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting History menu.");
+                        logger.debug("Requesting Genre Artist Album menu.");
                         Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_GENRE_AND_ARTIST, Message.MenuIdentifier.MAIN_MENU,
                                 slotReference.slot, new NumberField(sortOrder), new NumberField(genreId), new NumberField(artistId));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
@@ -470,7 +470,7 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting History menu.");
+                        logger.debug("Requesting Genre Artist Album Track menu.");
                         Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_GENRE_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
                                 slotReference.slot, new NumberField(sortOrder), new NumberField(genreId), new NumberField(artistId), new NumberField(albumId));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
@@ -506,7 +506,7 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting History menu.");
+                        logger.debug("Requesting Album menu.");
                         Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
                                 new NumberField(sortOrder));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
