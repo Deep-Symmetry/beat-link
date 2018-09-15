@@ -634,6 +634,42 @@ public class MenuLoader {
     }
 
     /**
+     * Ask the specified player for a BPM menu.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the entries in the BPM menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestBpmMenuFrom(final SlotReference slotReference, final int sortOrder)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting BPM menu.");
+                        Message response = client.menuRequest(Message.KnownType.BPM_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                new NumberField(sortOrder));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting BPM menu");
+    }
+
+    /**
      * Ask the connected dbserver about database records whose names contain {@code text}. If {@code count} is not
      * {@code null}, no more than that many results will be returned, and the value will be set to the total number
      * of results that were available. Otherwise all results will be returned.
