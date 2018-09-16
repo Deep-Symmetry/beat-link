@@ -379,6 +379,10 @@ public class WaveformPreviewComponent extends JComponent {
      * @return the component x coordinate at which it should be drawn
      */
     private int millisecondsToX(long milliseconds) {
+        long duration = metadata.get().getDuration();
+        if (duration < 1) {  // Don't crash on goofy metadata
+            return 0;
+        }
         long result = milliseconds * 4 / (metadata.get().getDuration() * 10);
         return WAVEFORM_MARGIN + Math.max(0, Math.min(400, (int) result));
     }
