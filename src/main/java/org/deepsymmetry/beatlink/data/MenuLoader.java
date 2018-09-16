@@ -670,6 +670,83 @@ public class MenuLoader {
     }
 
     /**
+     * Ask the specified player for a tempo range menu for a given BPM.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param bpm the tempo whose nearby ranges are desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the entries in the tempo range menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestBpmRangeMenuFrom(final SlotReference slotReference, final int sortOrder, final int bpm)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting key neighbor menu.");
+                        // TODO We seem to be missing the correct message type!
+                        Message response = client.menuRequest(Message.KnownType.BPM_RANGE_REQ, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(bpm));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting tempo range menu");
+    }
+
+    /**
+     * Ask the specified player for tracks whose tempo falls within a specific percentage of a given BPM.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param bpm the tempo that tracks must be close to
+     * @param range the percentage by which the actual tempo may differ for a track to still be returned
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the tracks whose tempo falls within the specified range
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestTracksByBpmRangeFrom(final SlotReference slotReference, final int sortOrder, final int bpm, final int range)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting key neighbor menu.");
+                        // TODO We seem to be missing the correct message type!
+                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_BPM_AND_DISTANCE, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(bpm), new NumberField(range));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting tracks within tempo range menu");
+    }
+
+    /**
      * Ask the specified player for a Rating menu.
      *
      * @param slotReference the player and slot for which the menu is desired
@@ -709,7 +786,7 @@ public class MenuLoader {
      * Ask the specified player for a track menu for a given rating.
      *
      * @param slotReference the player and slot for which the menu is desired
-     * @param rating the desired rating for tracks to be returne
+     * @param rating the desired rating for tracks to be returned
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
      *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details

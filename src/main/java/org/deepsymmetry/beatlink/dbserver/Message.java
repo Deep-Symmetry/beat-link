@@ -99,6 +99,10 @@ public class Message {
          */
         PLAYLIST_REQ     (0x1105, "playlist/folder request", "r:m:s:t", "sort order", "playlist/folder ID", "0=playlist, 1=folder"),
         /**
+         * Asks for a list of tempo ranges around a given tempo.
+         */
+        BPM_RANGE_REQ    (0x1106, "bpm range request", "r:m:s:t", "sort order", "tempo"),
+        /**
          * Asks for a track menu for a particular rating in the specified media slot.
          */
         TRACK_MENU_FOR_RATING_REQ (0x1107, "track menu for rating request", "r:m:s:t", "sort", "rating ID"),
