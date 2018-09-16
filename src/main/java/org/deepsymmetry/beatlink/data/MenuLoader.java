@@ -821,18 +821,20 @@ public class MenuLoader {
 
 
     /**
-     * Ask the specified player for a Folder menu.
+     * Ask the specified player for a Folder menu for exploring its raw filesystem.
+     * This is a request for unanalyzed items, so we do a typed menu request.
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
      *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
+     * @param folderId identifies the folder whose contents should be listed, use -1 to get the root folder
      *
      * @return the entries in the folder menu
      *
      * @throws Exception if there is a problem obtaining the menu
      */
-    public List<Message> requestFolderMenuFrom(final SlotReference slotReference, final int sortOrder)
+    public List<Message> requestFolderMenuFrom(final SlotReference slotReference, final int sortOrder, final int folderId)
             throws Exception {
 
         ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
@@ -841,8 +843,8 @@ public class MenuLoader {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
                         logger.debug("Requesting Key menu.");
-                        Message response = client.menuRequest(Message.KnownType.FOLDER_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
+                        Message response = client.menuRequestTyped(Message.KnownType.FOLDER_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                CdjStatus.TrackType.UNANALYZED, new NumberField(sortOrder), new NumberField(folderId), NumberField.WORD_0);
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
                     } finally {
                         client.unlockForMenuOperations();

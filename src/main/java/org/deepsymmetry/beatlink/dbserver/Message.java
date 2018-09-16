@@ -71,10 +71,6 @@ public class Message {
          */
         RATING_MENU_REQ  (0x1007, "rating menu request", "r:m:s:t", "sort order"),
         /**
-         * Asks for a folder menu, of the raw media filesystem in the specified slot.
-         */
-        FOLDER_MENU_REQ  (0x1011, "folder menu request", "r:m:s:t", "sort order"),
-        /**
          * Asks for a list of performance histories found in the specified media slot.
          */
         HISTORY_MENU_REQ (0x1012, "history menu request", "r:m:s:t", "sort order"),
@@ -162,6 +158,10 @@ public class Message {
          * Asks for the preview (summary) waveform data for a track, by rekordbox ID.
          */
         WAVE_PREVIEW_REQ (0x2004, "track waveform preview request", "r:m:s:t", "unknown (4)", "rekordbox id", "unknown (0)"),
+        /**
+         * Asks for a folder menu, of the raw media filesystem in the specified slot.
+         */
+        FOLDER_MENU_REQ  (0x2006, "folder menu request", "r:m:s:t", "sort order?", "folder id (-1 for root)", "unknown (0)"),
         // 0x2102 seems to ask about track data file information.
         /**
          * Asks for the cue points of a track, by rekordbox ID.
