@@ -38,7 +38,7 @@ import java.util.zip.ZipOutputStream;
  * @author James Elliott
  */
 @SuppressWarnings({"WeakerAccess", "unused"})
-public class MetadataFinder extends LifecycleParticipant {
+public class MetadataFinder extends LifecycleParticipant implements MediaDetailsListener {
 
     private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class);
 
@@ -1507,14 +1507,10 @@ public class MetadataFinder extends LifecycleParticipant {
         return mediaDetails.get(slot);
     }
 
-    // TODO Switch this to a listener interface we register with the Virtual CDJ to get rid of its public exposure.
-    /**
-     * Used by the {@link VirtualCdj} to tell us when it has found details about newly mounted media. If you call
-     * this yourself with bogus information, well, you deserve what you get...
-     *
-     * @param details the information we have learned about the media.
-     */
-    public void recordMediaDetails(MediaDetails details) {
+    // Used by the VirtualCDJ to tell us when it has found details about newly mounted media, in response to the
+    // requests we ask it to send when we see a new mount has occurred.
+    @Override
+    public void detailsAvailable(MediaDetails details) {
         mediaDetails.put(details.slotReference, details);
         if (!mediaMounts.contains(details.slotReference)) {
             logger.warn("Discarding media details for an unmounted media slot:" + details);
@@ -1930,10 +1926,11 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Prevent direct instantiation.
+     * Prevent direct instantiation, and arrange for us to hear about the responses to any media details requests we
+     * ask the Virtual CDJ to make for us.
      */
     private MetadataFinder() {
-        // Nothing to do.
+        VirtualCdj.getInstance().addMediaDetailsListener(this);
     }
 
     @Override

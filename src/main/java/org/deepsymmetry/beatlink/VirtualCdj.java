@@ -376,12 +376,7 @@ public class VirtualCdj
                 return null;
 
             case MEDIA_RESPONSE:
-                try {
-                    // TODO: Move this to a listener set!
-                    MetadataFinder.getInstance().recordMediaDetails(new MediaDetails(packet));
-                } catch (Exception e) {
-                    logger.warn("Problem processing Media response:", e);
-                }
+                deliverMediaDetailsUpdate(new MediaDetails(packet));
                 return null;
 
             default:
@@ -960,6 +955,72 @@ public class VirtualCdj
                 listener.received(update);
             } catch (Throwable t) {
                 logger.warn("Problem delivering device update to listener", t);
+            }
+        }
+    }
+
+    /**
+     * Keeps track of the registered media details listeners.
+     */
+    private final Set<MediaDetailsListener> detailsListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<MediaDetailsListener, Boolean>());
+
+    /**
+     * <p>Adds the specified media details listener to receive detail responses whenever they come in.
+     * If {@code listener} is {@code null} or already present in the list
+     * of registered listeners, no exception is thrown and no action is performed.</p>
+     *
+     * <p>To reduce latency, device updates are delivered to listeners directly on the thread that is receiving them
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.</p>
+     *
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and detail updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the media details listener to add
+     */
+    public void addMediaDetailsListener(MediaDetailsListener listener) {
+        if (listener != null) {
+            detailsListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified media details listener so it no longer receives detail responses when they come in.
+     * If {@code listener} is {@code null} or not present
+     * in the list of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the media details listener to remove
+     */
+    public void removeMediaDetailsListener(MediaDetailsListener listener) {
+        if (listener != null) {
+            detailsListeners.remove(listener);
+        }
+    }
+
+    /**
+     * Get the set of media details listeners that are currently registered.
+     *
+     * @return the currently registered details listeners
+     */
+    public Set<MediaDetailsListener> getMediaDetailsListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Collections.unmodifiableSet(new HashSet<MediaDetailsListener>(detailsListeners));
+    }
+
+    /**
+     * Send a media details response to all registered listeners.
+     *
+     * @param details the response that has just arrived
+     */
+    private void deliverMediaDetailsUpdate(final MediaDetails details) {
+        for (MediaDetailsListener listener : getMediaDetailsListeners()) {
+            try {
+                listener.detailsAvailable(details);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering media details response to listener", t);
             }
         }
     }
