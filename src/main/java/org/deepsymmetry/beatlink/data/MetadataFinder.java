@@ -1452,6 +1452,11 @@ public class MetadataFinder extends LifecycleParticipant {
     private void recordMount(SlotReference slot) {
         if (mediaMounts.add(slot)) {
             deliverMountUpdate(slot, true);
+            try {
+                VirtualCdj.getInstance().sendMediaQuery(slot);
+            } catch (Exception e) {
+                logger.warn("Problem trying to request media details for " + slot, e);
+            }
         }
     }
 
@@ -1462,6 +1467,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param slot the slot in which no media is mounted
      */
     private void removeMount(SlotReference slot) {
+        mediaDetails.remove(slot);
         if (mediaMounts.remove(slot)) {
             deliverMountUpdate(slot, false);
         }
@@ -1475,6 +1481,45 @@ public class MetadataFinder extends LifecycleParticipant {
     public Set<SlotReference> getMountedMediaSlots() {
         // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableSet(new HashSet<SlotReference>(mediaMounts));
+    }
+
+    /**
+     * Keeps track of the media details the Virtual CDJ has been able to find for us about the mounted slots.
+     */
+    private final Map<SlotReference,MediaDetails> mediaDetails = new ConcurrentHashMap<SlotReference, MediaDetails>();
+
+    /**
+     * Get the details we know about all mounted media.
+     *
+     * @return the media details the Virtual CDJ has been able to find for us about the mounted slots.
+     */
+    public Collection<MediaDetails> getMountedMediaDetails() {
+        return Collections.unmodifiableCollection(mediaDetails.values());
+    }
+
+    /**
+     * Look up the details we know about the media mounted in a particular slot
+     *
+     * @param slot the slot whose media is of interest
+     * @return the details, or {@code null} if we don't have any
+     */
+    public MediaDetails getMediaDetailsFor(SlotReference slot) {
+        return mediaDetails.get(slot);
+    }
+
+    // TODO Switch this to a listener interface we register with the Virtual CDJ to get rid of its public exposure.
+    /**
+     * Used by the {@link VirtualCdj} to tell us when it has found details about newly mounted media. If you call
+     * this yourself with bogus information, well, you deserve what you get...
+     *
+     * @param details the information we have learned about the media.
+     */
+    public void recordMediaDetails(MediaDetails details) {
+        mediaDetails.put(details.slotReference, details);
+        if (!mediaMounts.contains(details.slotReference)) {
+            logger.warn("Discarding media details for an unmounted media slot:" + details);
+            mediaDetails.remove(details.slotReference);
+        }
     }
 
     /**
@@ -1897,6 +1942,7 @@ public class MetadataFinder extends LifecycleParticipant {
         sb.append("MetadataFinder[").append("running:").append(isRunning()).append(", passive:").append(isPassive());
         if (isRunning()) {
             sb.append(", loadedTracks:").append(getLoadedTracks()).append(", mountedMediaSlots:").append(getMountedMediaSlots());
+            sb.append(", mountedMediaDetails:").append(getMountedMediaDetails());
             sb.append(", metadataCacheFiles:").append(metadataCacheFiles);
         }
         return sb.append("]").toString();

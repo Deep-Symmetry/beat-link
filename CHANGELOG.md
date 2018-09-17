@@ -13,6 +13,11 @@ This change log follows the conventions of
   discs.
 - The mounting and removal of discs is reported to registered media
   mount listeners.
+- Details about all mounted media slots can be discovered, including
+  the name assigned in rekordbox, creation date, number of rekordbox
+  tracks and playlists (and whether there is a rekordbox database at
+  all, which is needed to correctly request the root menu for that
+  slot), size, and free space.
 - The number of tracks on a disc can be discovered.
 - The `VirtualCdj` can send status and beat packets, simulate playing,
   and become the tempo master.

@@ -60,6 +60,16 @@ public class Util {
         CHANNELS_ON_AIR(0x03, "Channels On Air", BeatFinder.BEAT_PORT),
 
         /**
+         * Used to ask a player for information about the media mounted in a slot.
+         */
+        MEDIA_QUERY(0x05, "Media Query", VirtualCdj.UPDATE_PORT),
+
+        /**
+         * The response sent when a Media Query is received.
+         */
+        MEDIA_RESPONSE(0x06, "Media Response", VirtualCdj.UPDATE_PORT),
+
+        /**
          * Used to report that a device is still present on the DJ Link network.
          */
         DEVICE_KEEP_ALIVE(0x06, "Device Keep-Alive", DeviceFinder.ANNOUNCEMENT_PORT),

@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.CdjStatus;
+import org.deepsymmetry.beatlink.MediaDetails;
 import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,10 +27,9 @@ public class MenuLoader {
     private static final Logger logger = LoggerFactory.getLogger(MenuLoader.class);
 
     /**
-     * Ask the specified player for its top-level menu of menus. This is only believed to work for media slots that
-     * contain a rekordbox database; a different form of message is used for those that do not. We need to figure out
-     * how to tell in advance whether one exists; there seems to be a packet type that causes a player to send some
-     * sort of media-information response that may well be the key.
+     * Ask the specified player for its top-level menu of menus. The {@link MetadataFinder} must be running for us to
+     * know the right kind of message to send, because it depends on whether the slot holds a rekordbox database or not.
+     * If we can't tell (because it's not running), we will just guess that there is one, and perhaps get back nothing.
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
@@ -48,10 +48,12 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting root menu.");
-                        Message response = client.menuRequest(Message.KnownType.ROOT_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder), new NumberField(0xffffff));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                        final MediaDetails details = MetadataFinder.getInstance().getMediaDetailsFor(slotReference);
+                        final CdjStatus.TrackType mediaType = details == null? CdjStatus.TrackType.REKORDBOX : details.mediaType;
+
+                        final Message response = client.menuRequestTyped(Message.KnownType.ROOT_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                mediaType, new NumberField(sortOrder), new NumberField(0xffffff));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, mediaType, response);
                     } finally {
                         client.unlockForMenuOperations();
                     }
@@ -844,8 +846,8 @@ public class MenuLoader {
                     try {
                         logger.debug("Requesting Key menu.");
                         Message response = client.menuRequestTyped(Message.KnownType.FOLDER_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                CdjStatus.TrackType.UNANALYZED, new NumberField(sortOrder), new NumberField(folderId), NumberField.WORD_0);
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                                CdjStatus.TrackType.UNANALYZED, new NumberField(sortOrder), new NumberField(folderId), new NumberField(0xffffff));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.UNANALYZED, response);
                     } finally {
                         client.unlockForMenuOperations();
                     }

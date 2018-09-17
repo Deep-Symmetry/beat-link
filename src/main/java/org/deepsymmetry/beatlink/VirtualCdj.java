@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.deepsymmetry.beatlink.data.MetadataFinder;
+import org.deepsymmetry.beatlink.data.SlotReference;
 import org.deepsymmetry.electro.Metronome;
 import org.deepsymmetry.electro.Snapshot;
 import org.slf4j.Logger;
@@ -368,6 +369,19 @@ public class VirtualCdj
 
             case LOAD_TRACK_ACK:
                 logger.info("Received track load acknowledgment from player " + packet.getData()[0x21]);
+                return null;
+
+            case MEDIA_QUERY:
+                logger.warn("Received a media query packet, we don’t yet support responding to this.");
+                return null;
+
+            case MEDIA_RESPONSE:
+                try {
+                    // TODO: Move this to a listener set!
+                    MetadataFinder.getInstance().recordMediaDetails(new MediaDetails(packet));
+                } catch (Exception e) {
+                    logger.warn("Problem processing Media response:", e);
+                }
                 return null;
 
             default:
@@ -968,6 +982,35 @@ public class VirtualCdj
         packet.setAddress(destination);
         packet.setPort(port);
         socket.get().send(packet);
+    }
+
+    /**
+     * The bytes at the end of a media query packet.
+     */
+    private final static byte[] MEDIA_QUERY_PAYLOAD = { 0x01,
+    0x00, 0x0d, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    /**
+     * Ask a device for information about the media mounted in a particular slot. Will update the
+     * {@link MetadataFinder} when a response is received.
+     *
+     * @param slot the slot holding media we want to know about.
+     *
+     * @throws IOException if there is a problem sending the request.
+     */
+    public void sendMediaQuery(SlotReference slot) throws IOException {
+        final DeviceUpdate update = getLatestStatusFor(slot.player);
+        if (update == null) {
+            throw new IllegalArgumentException("Device for " + slot + " not found on network.");
+        }
+        ensureRunning();
+        byte[] payload = new byte[MEDIA_QUERY_PAYLOAD.length];
+        System.arraycopy(MEDIA_QUERY_PAYLOAD, 0, payload, 0, MEDIA_QUERY_PAYLOAD.length);
+        payload[2] = getDeviceNumber();
+        System.arraycopy(announcementBytes, 44, payload, 5, 4);  // Copy in our IP address.
+        payload[12] = (byte)slot.player;
+        payload[16] = slot.slot.protocolValue;
+        assembleAndSendPacket(Util.PacketType.MEDIA_QUERY, payload, update.getAddress(), UPDATE_PORT);
     }
 
     /**
