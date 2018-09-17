@@ -38,7 +38,7 @@ import java.util.zip.ZipOutputStream;
  * @author James Elliott
  */
 @SuppressWarnings({"WeakerAccess", "unused"})
-public class MetadataFinder extends LifecycleParticipant implements MediaDetailsListener {
+public class MetadataFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class);
 
@@ -1507,17 +1507,6 @@ public class MetadataFinder extends LifecycleParticipant implements MediaDetails
         return mediaDetails.get(slot);
     }
 
-    // Used by the VirtualCDJ to tell us when it has found details about newly mounted media, in response to the
-    // requests we ask it to send when we see a new mount has occurred.
-    @Override
-    public void detailsAvailable(MediaDetails details) {
-        mediaDetails.put(details.slotReference, details);
-        if (!mediaMounts.contains(details.slotReference)) {
-            logger.warn("Discarding media details for an unmounted media slot:" + details);
-            mediaDetails.remove(details.slotReference);
-        }
-    }
-
     /**
      * Keeps track of the registered mount update listeners.
      */
@@ -1930,7 +1919,18 @@ public class MetadataFinder extends LifecycleParticipant implements MediaDetails
      * ask the Virtual CDJ to make for us.
      */
     private MetadataFinder() {
-        VirtualCdj.getInstance().addMediaDetailsListener(this);
+        VirtualCdj.getInstance().addMediaDetailsListener(new MediaDetailsListener() {
+            @Override
+            public void detailsAvailable(MediaDetails details) {
+                mediaDetails.put(details.slotReference, details);
+                if (!mediaMounts.contains(details.slotReference)) {
+                    // We do this after the fact in case the slot was being unmounted at the same time as we were
+                    // responding to the event, so we end up in the correct final state.
+                    logger.warn("Discarding media details reported for an unmounted media slot:" + details);
+                    mediaDetails.remove(details.slotReference);
+                }
+            }
+        });
     }
 
     @Override
