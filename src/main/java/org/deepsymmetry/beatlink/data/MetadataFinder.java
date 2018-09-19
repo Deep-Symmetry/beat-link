@@ -1205,15 +1205,19 @@ public class MetadataFinder extends LifecycleParticipant {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                ConnectionManager.ClientTask<Object> task = new ConnectionManager.ClientTask<Object>() {
-                    @Override
-                    public Object useClient(Client client) throws Exception {
-                        tryAutoAttachingWithConnection(slot, client);
-                        return null;
-                    }
-                };
                 try {
-                    ConnectionManager.getInstance().invokeWithClientSession(slot.player, task, "trying to auto-attach metadata cache");
+                    Thread.sleep(5);  // Give us a chance to find out what type of media is in the new mount.
+                    final MediaDetails details = getMediaDetailsFor(slot);
+                    if (details != null && details.mediaType == CdjStatus.TrackType.REKORDBOX) {
+                        ConnectionManager.ClientTask<Object> task = new ConnectionManager.ClientTask<Object>() {
+                            @Override
+                            public Object useClient(Client client) throws Exception {
+                                tryAutoAttachingWithConnection(slot, client);
+                                return null;
+                            }
+                        };
+                        ConnectionManager.getInstance().invokeWithClientSession(slot.player, task, "trying to auto-attach metadata cache");
+                    }
                 } catch (Exception e) {
                     logger.error("Problem trying to auto-attach metadata cache for slot " + slot, e);
                 }
