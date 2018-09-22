@@ -28,9 +28,7 @@ import org.slf4j.LoggerFactory;
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public class VirtualCdj
-        extends LifecycleParticipant
-        implements OnAirListener, SyncListener, MasterHandoffListener, FaderStartListener {
+public class VirtualCdj extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class);
 
@@ -1227,11 +1225,6 @@ public class VirtualCdj
         assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, getBroadcastAddress(), BeatFinder.BEAT_PORT);
     }
 
-    @Override
-    public void channelsOnAir(Set<Integer> audibleChannels) {
-        setOnAir(audibleChannels.contains((int)getDeviceNumber()));
-    }
-
     /**
      * The bytes at the end of a load-track command packet.
      */
@@ -1291,101 +1284,12 @@ public class VirtualCdj
         assembleAndSendPacket(Util.PacketType.LOAD_TRACK_COMMAND, payload, target.getAddress(), UPDATE_PORT);
     }
 
-    @Override
-    public void setSyncMode(boolean synced) {
-        setSynced(synced);
-    }
-
-    @Override
-    public void becomeMaster() {
-        logger.debug("Received packet telling us to become master.");
-        if (isSendingStatus()) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        becomeTempoMaster();
-                    } catch (Throwable t) {
-                        logger.error("Problem becoming tempo master in response to sync command packet", t);
-                    }
-                }
-            }).start();
-        } else {
-            logger.warn("Ignoring sync command to become tempo master, since we are not sending status packets.");
-        }
-    }
-
     /**
      * The bytes at the end of a load-track command packet.
      */
     private final static byte[] YIELD_ACK_PAYLOAD = { 0x01,
             0x00, 0x0d, 0x00, 0x08,  0x00, 0x00, 0x00, 0x0d,   0x00, 0x00, 0x00, 0x01
     };
-
-    @Override
-    public void yieldMasterTo(int deviceNumber) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Received instruction to yield master to device " + deviceNumber);
-        }
-        if (isTempoMaster()) {
-            if (isSendingStatus() && getDeviceNumber() != deviceNumber) {
-                nextMaster.set(deviceNumber);
-                final DeviceUpdate lastStatusFromNewMaster = getLatestStatusFor(deviceNumber);
-                if (lastStatusFromNewMaster == null) {
-                    logger.warn("Unable to send master yield response to device " + deviceNumber + ": no status updates have been received from it!");
-                } else {
-                    byte[] payload = new byte[YIELD_ACK_PAYLOAD.length];
-                    System.arraycopy(YIELD_ACK_PAYLOAD, 0, payload, 0, YIELD_ACK_PAYLOAD.length);
-                    payload[0x02] = getDeviceNumber();
-                    payload[0x08] = getDeviceNumber();
-                    try {
-                        assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_RESPONSE, payload, lastStatusFromNewMaster.getAddress(), UPDATE_PORT);
-                    } catch (Throwable t) {
-                        logger.error("Problem sending master yield acknowledgment to player " + deviceNumber, t);
-                    }
-                }
-            }
-        } else {
-            logger.warn("Ignoring instruction to yield master to device " + deviceNumber + ": we were not tempo master.");
-
-        }
-    }
-
-    @Override
-    public void yieldResponse(int deviceNumber, boolean yielded) {
-        if (logger.isDebugEnabled()) {
-            logger.debug("Received yield response of " + yielded + " from device " + deviceNumber);
-        }
-        if (yielded) {
-            if (isSendingStatus()) {
-                if (deviceNumber == requestingMasterRoleFromPlayer.get()) {
-                    requestingMasterRoleFromPlayer.set(0);
-                    masterYieldedFrom.set(deviceNumber);
-                } else {
-                    if (requestingMasterRoleFromPlayer.get() == 0) {
-                        logger.warn("Ignoring master yield response from player " + deviceNumber +
-                                " because we are not trying to become tempo master.");
-                    } else {
-                        logger.warn("Ignoring master yield response from player " + deviceNumber +
-                                " because we asked player " + requestingMasterRoleFromPlayer.get());
-                    }
-                }
-            } else {
-                logger.warn("Ignoring master yield response because we are not sending status.");
-            }
-        } else {
-            logger.warn("Ignoring master yield response with unexpected non-yielding value.");
-        }
-    }
-
-    @Override
-    public void fadersChanged(Set<Integer> playersToStart, Set<Integer> playersToStop) {
-        if (playersToStart.contains((int)getDeviceNumber())) {
-            setPlaying(true);
-        } else if (playersToStop.contains((int)getDeviceNumber())) {
-            setPlaying(false);
-        }
-    }
 
     /**
      * The number of milliseconds that we will wait between sending status packets, when we are sending them.
@@ -2041,10 +1945,107 @@ public class VirtualCdj
         masterTempo.set(Double.doubleToLongBits(0.0));  // Note that we have no master tempo yet.
 
         // Arrange to have our status accurately reflect any relevant updates and commands from the mixer.
-        BeatFinder.getInstance().addOnAirListener(this);
-        BeatFinder.getInstance().addFaderStartListener(this);
-        BeatFinder.getInstance().addSyncListener(this);
-        BeatFinder.getInstance().addMasterHandoffListener(this);
+        BeatFinder.getInstance().addOnAirListener(new OnAirListener() {
+            @Override
+            public void channelsOnAir(Set<Integer> audibleChannels) {
+                setOnAir(audibleChannels.contains((int)getDeviceNumber()));
+            }
+        });
+
+        BeatFinder.getInstance().addFaderStartListener(new FaderStartListener() {
+            @Override
+            public void fadersChanged(Set<Integer> playersToStart, Set<Integer> playersToStop) {
+                if (playersToStart.contains((int)getDeviceNumber())) {
+                    setPlaying(true);
+                } else if (playersToStop.contains((int)getDeviceNumber())) {
+                    setPlaying(false);
+                }
+            }
+        });
+
+        BeatFinder.getInstance().addSyncListener(new SyncListener() {
+            @Override
+            public void setSyncMode(boolean synced) {
+                setSynced(synced);
+            }
+
+            @Override
+            public void becomeMaster() {
+                logger.debug("Received packet telling us to become master.");
+                if (isSendingStatus()) {
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                becomeTempoMaster();
+                            } catch (Throwable t) {
+                                logger.error("Problem becoming tempo master in response to sync command packet", t);
+                            }
+                        }
+                    }).start();
+                } else {
+                    logger.warn("Ignoring sync command to become tempo master, since we are not sending status packets.");
+                }
+            }
+        });
+
+        BeatFinder.getInstance().addMasterHandoffListener(new MasterHandoffListener() {
+            @Override
+            public void yieldMasterTo(int deviceNumber) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Received instruction to yield master to device " + deviceNumber);
+                }
+                if (isTempoMaster()) {
+                    if (isSendingStatus() && getDeviceNumber() != deviceNumber) {
+                        nextMaster.set(deviceNumber);
+                        final DeviceUpdate lastStatusFromNewMaster = getLatestStatusFor(deviceNumber);
+                        if (lastStatusFromNewMaster == null) {
+                            logger.warn("Unable to send master yield response to device " + deviceNumber + ": no status updates have been received from it!");
+                        } else {
+                            byte[] payload = new byte[YIELD_ACK_PAYLOAD.length];
+                            System.arraycopy(YIELD_ACK_PAYLOAD, 0, payload, 0, YIELD_ACK_PAYLOAD.length);
+                            payload[0x02] = getDeviceNumber();
+                            payload[0x08] = getDeviceNumber();
+                            try {
+                                assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_RESPONSE, payload, lastStatusFromNewMaster.getAddress(), UPDATE_PORT);
+                            } catch (Throwable t) {
+                                logger.error("Problem sending master yield acknowledgment to player " + deviceNumber, t);
+                            }
+                        }
+                    }
+                } else {
+                    logger.warn("Ignoring instruction to yield master to device " + deviceNumber + ": we were not tempo master.");
+
+                }
+            }
+
+            @Override
+            public void yieldResponse(int deviceNumber, boolean yielded) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Received yield response of " + yielded + " from device " + deviceNumber);
+                }
+                if (yielded) {
+                    if (isSendingStatus()) {
+                        if (deviceNumber == requestingMasterRoleFromPlayer.get()) {
+                            requestingMasterRoleFromPlayer.set(0);
+                            masterYieldedFrom.set(deviceNumber);
+                        } else {
+                            if (requestingMasterRoleFromPlayer.get() == 0) {
+                                logger.warn("Ignoring master yield response from player " + deviceNumber +
+                                        " because we are not trying to become tempo master.");
+                            } else {
+                                logger.warn("Ignoring master yield response from player " + deviceNumber +
+                                        " because we asked player " + requestingMasterRoleFromPlayer.get());
+                            }
+                        }
+                    } else {
+                        logger.warn("Ignoring master yield response because we are not sending status.");
+                    }
+                } else {
+                    logger.warn("Ignoring master yield response with unexpected non-yielding value.");
+                }
+            }
+        });
     }
 
     @Override
