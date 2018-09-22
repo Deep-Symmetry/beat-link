@@ -158,7 +158,7 @@ import org.deepsymmetry.beatlink.VirtualCdj;
 ```
 
 > The Virtual player is normally created using an unused device number
-> in the range 5--15 and the name `beat-link`, and announces its
+> in the range 5&ndash;15 and the name `beat-link`, and announces its
 > presence every second and a half. These values can be changed with
 > [`setDeviceNumber()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setDeviceNumber-byte-),
 > [`setUseStandardPlayerNumber()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setUseStandardPlayerNumber-boolean-),
@@ -231,7 +231,7 @@ As of version 0.4.0, the `VirtualCdj` can be configured to send status
 packets of its own, so that it can take over the role of tempo master,
 and even send beat packets to synchronize other CDJs with a musical
 timeline of your choice. For this to work, it must be using a standard
-player number in the range 1--4, configured before you start it as
+player number in the range 1&ndash;4, configured before you start it as
 described [above](#getting-device-details).
 
 > The only way to be able to use the features that rely on sending
