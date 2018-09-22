@@ -35,6 +35,8 @@ This change log follows the conventions of
   requests we now know how to perform.
 - The `Message.MenuItemType` enum has new entries for the menus that
   can appear in the root menu response.
+- A new class, `MenuLoader`, provides methods for navigating the menu
+  hierarchies served by players.
 - A new Enum which captures all known packet types, to improve the
   readability and compactness of code that works with them.
 
