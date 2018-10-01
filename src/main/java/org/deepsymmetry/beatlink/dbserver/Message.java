@@ -463,6 +463,10 @@ public class Message {
          */
         HISTORY_MENU (0x0095),
         /**
+         * The root menu item that takes you to the hot cue bank list.
+         */
+        HOT_CUE_BANK_MENU (0x0098),
+        /**
          * The menu item that lets you choose all values in a subcategory.
          */
         ALL (0x00a0),
