@@ -775,14 +775,24 @@ public class MetadataFinder extends LifecycleParticipant {
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
-            logger.debug("Currently nothing for MetadataFinder to do when devices appear.");
+            if ((announcement.getNumber() > 0x10) && (announcement.getNumber() < 0x20)) {  // Looks like rekordbox.
+                recordMount(SlotReference.getSlotReference(announcement.getNumber(),
+                        CdjStatus.TrackSourceSlot.COLLECTION));  // Report the rekordbox collection as mounted media.
+            }
         }
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
             clearMetadata(announcement);
-            detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
-            detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
+            if (announcement.getNumber() < 0x10) {  // Looks like a player, clear the whole panoply of caches.
+                removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.CD_SLOT));
+                removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
+                removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
+                detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
+                detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
+            } else if (announcement.getNumber() < 0x20) {  // Looks like rekordbox, clear "mounted" database.
+                removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.COLLECTION));
+            }
         }
     };
 
@@ -1479,10 +1489,14 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * Returns the set of media slots on the network that currently have media mounted in them.
+     * Note that computers running rekordbox are included; their collections are valid media databases to
+     * explore with the {@link MenuLoader}, and they are valid as {@link SlotReference} arguments to tell
+     * players to load tracks from.
      *
-     * @return the slots with media currently available on the network
+     * @return the slots with media currently available on the network, including rekordbox instances
      */
     public Set<SlotReference> getMountedMediaSlots() {
+        // TODO: Why are empty CD slots showing up as mounted in here?
         // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableSet(new HashSet<SlotReference>(mediaMounts));
     }
@@ -1872,6 +1886,11 @@ public class MetadataFinder extends LifecycleParticipant {
             running.set(true);
             queueHandler.start();
             deliverLifecycleAnnouncement(logger, true);
+
+            // If there are already any rekordbox instances on the network, "mount" their collections.
+            for (DeviceAnnouncement existingDevice : DeviceFinder.getInstance().getCurrentDevices()) {
+                announcementListener.deviceFound(existingDevice);
+            }
         }
     }
 

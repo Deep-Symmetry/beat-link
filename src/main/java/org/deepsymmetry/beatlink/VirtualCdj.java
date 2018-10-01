@@ -1058,8 +1058,8 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IOException if there is a problem sending the request.
      */
     public void sendMediaQuery(SlotReference slot) throws IOException {
-        final DeviceUpdate update = getLatestStatusFor(slot.player);
-        if (update == null) {
+        final DeviceAnnouncement announcement = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
+        if (announcement == null) {
             throw new IllegalArgumentException("Device for " + slot + " not found on network.");
         }
         ensureRunning();
@@ -1069,7 +1069,7 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(announcementBytes, 44, payload, 5, 4);  // Copy in our IP address.
         payload[12] = (byte)slot.player;
         payload[16] = slot.slot.protocolValue;
-        assembleAndSendPacket(Util.PacketType.MEDIA_QUERY, payload, update.getAddress(), UPDATE_PORT);
+        assembleAndSendPacket(Util.PacketType.MEDIA_QUERY, payload, announcement.getAddress(), UPDATE_PORT);
     }
 
     /**
