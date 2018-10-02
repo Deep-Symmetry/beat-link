@@ -805,17 +805,30 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * Is disc media absent from this particular CDJ?
+     * Is disc media absent from this particular CDJ? Also returns {@code true} if the CD drive has powered off
+     * from being unused for too long, in which case {@link #isDiscSlotAsleep()} will also return {@code true}.
      *
-     * @return true if there is no disc mounted
+     * @return true if there is no disc mounted or the disc drive has powered off
      */
     public boolean isDiscSlotEmpty() {
-        return (packetBytes[0x37] == 0);
+        return (packetBytes[0x37] == 0) || isDiscSlotAsleep();
+    }
+
+    /**
+     * Has this player's CD drive powered down due to prolonged disuse? When this returns {@code true}, the other
+     * methods asking about the disc slot do not provide reliable values.
+     *
+     * @return true if the disc drive has powered off
+     */
+    public boolean isDiscSlotAsleep() {
+        return (packetBytes[0x37] == 1);
     }
 
     /**
      * How many tracks are on the mounted disc? Audio CDs will reflect the audio track count, while data discs
-     * will generally have one track regardless of how many usable audio files they contain when mounted.
+     * will generally have one track regardless of how many usable audio files they contain when mounted. Also,
+     * if the CD drive has powered off because of an extended period of not being used, this seems to return 1
+     * (you can check for that condition by calling {@link #isDiscSlotAsleep()}.
      *
      * @return the number of tracks found on the mounted disc, or zero if no disc is mounted.
      */

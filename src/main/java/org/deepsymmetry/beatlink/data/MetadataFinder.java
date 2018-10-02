@@ -1496,7 +1496,6 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return the slots with media currently available on the network, including rekordbox instances
      */
     public Set<SlotReference> getMountedMediaSlots() {
-        // TODO: Why are empty CD slots showing up as mounted in here?
         // Make a copy so callers get an immutable snapshot of the current state.
         return Collections.unmodifiableSet(new HashSet<SlotReference>(mediaMounts));
     }
