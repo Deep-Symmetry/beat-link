@@ -692,8 +692,7 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting key neighbor menu.");
-                        // TODO We seem to be missing the correct message type!
+                        logger.debug("Requesting tempo neighbor menu.");
                         Message response = client.menuRequest(Message.KnownType.BPM_RANGE_REQ, Message.MenuIdentifier.MAIN_MENU,
                                 slotReference.slot, new NumberField(sortOrder), new NumberField(bpm));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
@@ -731,8 +730,7 @@ public class MenuLoader {
             public List<Message> useClient(Client client) throws Exception {
                 if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
-                        logger.debug("Requesting key neighbor menu.");
-                        // TODO We seem to be missing the correct message type!
+                        logger.debug("Requesting tempo neighbor menu.");
                         Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_BPM_AND_DISTANCE, Message.MenuIdentifier.MAIN_MENU,
                                 slotReference.slot, new NumberField(sortOrder), new NumberField(bpm), new NumberField(range));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
