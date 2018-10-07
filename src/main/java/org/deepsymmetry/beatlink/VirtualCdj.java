@@ -2060,7 +2060,7 @@ public class VirtualCdj extends LifecycleParticipant {
             sb.append(", broadcastAddress:").append(getBroadcastAddress().getHostAddress());
             sb.append(", latestStatus:").append(getLatestStatus()).append(", masterTempo:").append(getMasterTempo());
             sb.append(", tempoMaster:").append(getTempoMaster());
-            sb.append(", isSendingStatus:").append(isSynced());
+            sb.append(", isSendingStatus:").append(isSendingStatus());
             if (isSendingStatus()) {
                 sb.append(", isSynced:").append(isSynced());
                 sb.append(", isTempoMaster:").append(isTempoMaster());
