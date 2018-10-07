@@ -593,7 +593,7 @@ public class MetadataFinder extends LifecycleParticipant {
         if (track.getArtworkId() != 0 && !artworkAdded.contains(track.getArtworkId())) {
             logger.debug("Adding artwork with ID {}", track.getArtworkId());
             zos.putNextEntry(new ZipEntry(getArtworkEntryName(track.getArtworkId())));
-            final AlbumArt art = ArtFinder.getInstance().getArtwork(track.getArtworkId(), slot, client);
+            final AlbumArt art = ArtFinder.getInstance().getArtwork(track.getArtworkId(), slot, CdjStatus.TrackType.REKORDBOX, client);
             if (art != null) {
                 Util.writeFully(art.getRawBytes(), channel);
                 artworkAdded.add(track.getArtworkId());

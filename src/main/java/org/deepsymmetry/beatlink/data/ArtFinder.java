@@ -272,12 +272,14 @@ public class ArtFinder extends LifecycleParticipant {
      * using cached media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param artReference uniquely identifies the desired album art
+     * @param trackType the kind of track that owns the art
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
      *                      artwork updates will use available caches only
      *
      * @return the album art found, if any
      */
-    private AlbumArt requestArtworkInternal(final DataReference artReference, final boolean failIfPassive) {
+    private AlbumArt requestArtworkInternal(final DataReference artReference, final CdjStatus.TrackType trackType,
+                                            final boolean failIfPassive) {
 
         // First check if we are using cached data for this slot
         ZipFile cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(artReference));
@@ -294,7 +296,7 @@ public class ArtFinder extends LifecycleParticipant {
         ConnectionManager.ClientTask<AlbumArt> task = new ConnectionManager.ClientTask<AlbumArt>() {
             @Override
             public AlbumArt useClient(Client client) throws Exception {
-                return getArtwork(artReference.rekordboxId, SlotReference.getSlotReference(artReference), client);
+                return getArtwork(artReference.rekordboxId, SlotReference.getSlotReference(artReference), trackType, client);
             }
         };
 
@@ -315,16 +317,17 @@ public class ArtFinder extends LifecycleParticipant {
      * cached copy.
      *
      * @param artReference uniquely identifies the desired artwork
+     * @param trackType the kind of track that owns the artwork
      *
      * @return the artwork, if it was found, or {@code null}
      *
      * @throws IllegalStateException if the ArtFinder is not running
      */
-    public AlbumArt requestArtworkFrom(final DataReference artReference) {
+    public AlbumArt requestArtworkFrom(final DataReference artReference, final CdjStatus.TrackType trackType) {
         ensureRunning();
         AlbumArt artwork = findArtInMemoryCaches(artReference);  // First check the in-memory artwork caches.
         if (artwork == null) {
-            artwork = requestArtworkInternal(artReference, false);
+            artwork = requestArtworkInternal(artReference, trackType, false);
         }
         return artwork;
     }
@@ -371,18 +374,19 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @param artworkId identifies the album art to retrieve
      * @param slot the slot identifier from which the associated track was loaded
+     * @param trackType the kind of track that owns the artwork
      * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the track's artwork, or null if none is available
      *
      * @throws IOException if there is a problem communicating with the player
      */
-    AlbumArt getArtwork(int artworkId, SlotReference slot, Client client)
+    AlbumArt getArtwork(int artworkId, SlotReference slot, CdjStatus.TrackType trackType, Client client)
             throws IOException {
 
         // Send the artwork request
         Message response = client.simpleRequest(Message.KnownType.ALBUM_ART_REQ, Message.KnownType.ALBUM_ART,
-                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot), new NumberField((long)artworkId));
+                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot, trackType), new NumberField((long)artworkId));
 
         // Create an image from the response bytes
         return new AlbumArt(new DataReference(slot, artworkId), ((BinaryField)response.arguments.get(3)).getValue());
@@ -513,7 +517,7 @@ public class ArtFinder extends LifecycleParticipant {
                         @Override
                         public void run() {
                             try {
-                                AlbumArt art = requestArtworkInternal(artReference, true);
+                                AlbumArt art = requestArtworkInternal(artReference, update.metadata.trackType, true);
                                 if (art != null) {
                                     updateArt(update, art);
                                 }
