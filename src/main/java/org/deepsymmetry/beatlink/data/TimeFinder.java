@@ -408,10 +408,10 @@ public class TimeFinder extends LifecycleParticipant {
                             updateListenersIfNeeded(update.getDeviceNumber(), newPosition);
                         }
                     }
+                } else {
+                    positions.remove(update.getDeviceNumber());  // We can't say where that player is.
+                    updateListenersIfNeeded(update.getDeviceNumber(), null);
                 }
-            } else {
-                positions.remove(update.getDeviceNumber());  // We can't say where that player is.
-                updateListenersIfNeeded(update.getDeviceNumber(), null);
             }
         }
     };

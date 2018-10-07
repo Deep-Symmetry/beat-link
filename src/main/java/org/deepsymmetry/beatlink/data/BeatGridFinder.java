@@ -414,7 +414,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @param update describes the new metadata we have for a player, if any
      */
     private void handleUpdate(final TrackMetadataUpdate update) {
-        if (update.metadata == null) {
+        if (update.metadata == null || update.metadata.trackType != CdjStatus.TrackType.REKORDBOX) {
             clearDeck(update);
         } else {
             // We can offer beat grid information for this device; check if we've already looked it up.
@@ -437,9 +437,9 @@ public class BeatGridFinder extends LifecycleParticipant {
                         @Override
                         public void run() {
                             try {
-                                BeatGrid preview = requestBeatGridInternal(update.metadata.trackReference, true);
-                                if (preview != null) {
-                                    updateBeatGrid(update, preview);
+                                BeatGrid grid = requestBeatGridInternal(update.metadata.trackReference, true);
+                                if (grid != null && grid.beatCount > 0) {
+                                    updateBeatGrid(update, grid);
                                 }
                             } catch (Exception e) {
                                 logger.warn("Problem requesting beat grid from update" + update, e);
@@ -496,6 +496,8 @@ public class BeatGridFinder extends LifecycleParticipant {
                             handleUpdate(pendingUpdates.take());
                         } catch (InterruptedException e) {
                             // Interrupted due to MetadataFinder shutdown, presumably
+                        } catch (Throwable t) {
+                            logger.error("Problem processing metadata update", t);
                         }
                     }
                 }
