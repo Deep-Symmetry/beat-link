@@ -709,6 +709,8 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param update describes the new metadata we have for a player, if any
      */
     private void handleUpdate(final TrackMetadataUpdate update) {
+        boolean foundInCache = false;
+
         if (update.metadata == null || update.metadata.trackType != CdjStatus.TrackType.REKORDBOX) {
             clearDeck(update);
         } else {
@@ -720,12 +722,13 @@ public class WaveformFinder extends LifecycleParticipant {
                 for (WaveformPreview cached : previewHotCache.values()) {
                     if (cached.dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
                         updatePreview(update, cached);
-                        return;
+                        foundInCache = true;
+                        break;
                     }
                 }
 
-                // Not in the cache so try actually retrieving it.
-                if (activePreviewRequests.add(update.player)) {
+                // If not found in the cache try actually retrieving it.
+                if (!foundInCache && activePreviewRequests.add(update.player)) {
                     clearDeckPreview(update);  // We won't know what it is until our request completes.
                     // We had to make sure we were not already asking for this track.
                     new Thread(new Runnable() {
@@ -745,20 +748,23 @@ public class WaveformFinder extends LifecycleParticipant {
                     }).start();
                 }
             }
+
             // Secondly, the detail.
+            foundInCache = false;
             final WaveformDetail lastDetail = detailHotCache.get(DeckReference.getDeckReference(update.player, 0));
             if (isFindingDetails() && (lastDetail == null || !lastDetail.dataReference.equals(update.metadata.trackReference))) {  // We have something new!
 
-                // First see if we can find the new preview in the hot cache
+                // First see if we can find the new detailed waveform in the hot cache
                 for (WaveformDetail cached : detailHotCache.values()) {
                     if (cached.dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
                         updateDetail(update, cached);
-                        return;
+                        foundInCache = true;
+                        break;
                     }
                 }
 
-                // Not in the cache so try actually retrieving it.
-                if (activeDetailRequests.add(update.player)) {
+                // If not found in the cache try actually retrieving it.
+                if (!foundInCache && activeDetailRequests.add(update.player)) {
                     clearDeckDetail(update);  // We won't know what it is until our request completes.
                     // We had to make sure we were not already asking for this track.
                     new Thread(new Runnable() {
@@ -841,6 +847,8 @@ public class WaveformFinder extends LifecycleParticipant {
                             handleUpdate(pendingUpdates.take());
                         } catch (InterruptedException e) {
                             // Interrupted due to MetadataFinder shutdown, presumably
+                        } catch (Throwable t) {
+                            logger.error("Problem processing metadata update", t);
                         }
                     }
                 }
