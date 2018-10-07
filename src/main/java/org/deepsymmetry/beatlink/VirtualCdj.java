@@ -1811,13 +1811,13 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Used in the process of handing off the tempo master role to another player.
      */
-    private final AtomicInteger syncCounter = new AtomicInteger(0);
+    private final AtomicInteger syncCounter = new AtomicInteger(1);
 
     /**
      * Tracks the largest sync counter we have seen on the network, used in the process of handing off the tempo master
      * role to another player.
      */
-    private final AtomicInteger largestSyncCounter = new AtomicInteger(0);
+    private final AtomicInteger largestSyncCounter = new AtomicInteger(1);
 
     /**
      * Used in the process of handing off the tempo master role to another player. Usually has the value 0xff, meaning
@@ -1870,8 +1870,8 @@ public class VirtualCdj extends LifecycleParticipant {
         Snapshot playState = getPlaybackPosition();
         double distance = playState.distanceFromBeat();
         while (playing.get() &&
-                ((distance < 0.0) && (Math.abs(distance) <= BeatSender.SLEEP_THRESHOLD)) ||
-                ((distance >= 0.0) && (distance <= (BeatSender.BEAT_THRESHOLD + 1)))) {
+                (((distance < 0.0) && (Math.abs(distance) <= BeatSender.SLEEP_THRESHOLD)) ||
+                ((distance >= 0.0) && (distance <= (BeatSender.BEAT_THRESHOLD + 1))))) {
             try {
                 Thread.sleep(2);
             } catch (InterruptedException e) {
