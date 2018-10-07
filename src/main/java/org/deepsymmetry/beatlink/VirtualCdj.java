@@ -397,8 +397,8 @@ public class VirtualCdj extends LifecycleParticipant {
         // Keep track of the largest sync number we see.
         if (update instanceof CdjStatus) {
             int syncNumber = ((CdjStatus)update).getSyncNumber();
-            if (syncNumber > this.syncCounter.get()) {
-                this.syncCounter.set(syncNumber);
+            if (syncNumber > this.largestSyncCounter.get()) {
+                this.largestSyncCounter.set(syncNumber);
             }
         }
 
