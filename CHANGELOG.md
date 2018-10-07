@@ -42,6 +42,9 @@ This change log follows the conventions of
 
 ### Fixed
 
+- Waveform details are properly loaded for tracks that are found on
+  multiple players on the network. This affected time-remaining
+  calculations too.
 - Now assembles entire dbserver messages into a buffer to write them to
   the network as a single operation, avoiding the chance of them being
   split into multiple packets, because Windows rekordbox can't handle
