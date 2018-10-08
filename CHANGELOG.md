@@ -6,6 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [0.4.0] - 2018-10-07
+
 ### Added
 
 - Metadata can now be retrieved for non-rekordbox tracks, including
@@ -358,7 +362,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.3.7...HEAD
+[unreleased]: https://github.com/brunchboy/beat-link/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/brunchboy/beat-link/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/brunchboy/beat-link/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/brunchboy/beat-link/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/brunchboy/beat-link/compare/v0.3.4...v0.3.5
