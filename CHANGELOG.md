@@ -6,7 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Fixed
+
+- When a Nexus player is reporting that it is pre-loading hot cues, we
+  no longer incorrectly consider it to be playing.
 
 ## [0.4.0] - 2018-10-07
 

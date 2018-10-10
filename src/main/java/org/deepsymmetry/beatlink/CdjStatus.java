@@ -718,7 +718,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @SuppressWarnings("WeakerAccess")
     public boolean isPlaying() {
-        if (packetBytes.length == 212) {
+        if (packetBytes.length >= 212) {
             return (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
         } else {
             final PlayState1 state = getPlayState1();
