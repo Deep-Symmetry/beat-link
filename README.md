@@ -1,4 +1,6 @@
 # beat-link
+ <img align="right" width="275" height="250" alt="Beat Link"
+      src="assets/BeatLink-logo-padded-left.png">
 
 A Java library for synchronizing with beats from Pioneer DJ Link
 equipment, and finding out details about the tracks that are playing.
