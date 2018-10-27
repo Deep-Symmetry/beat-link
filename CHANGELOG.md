@@ -6,6 +6,12 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+### Added
+
+- Metadata caches now store the details of the media from which they
+  were created to more easily auto-attach them and survive small
+  changes.
+
 ### Fixed
 
 - When a Nexus player is reporting that it is pre-loading hot cues, we

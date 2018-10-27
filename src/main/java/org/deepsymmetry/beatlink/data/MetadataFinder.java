@@ -386,6 +386,11 @@ public class MetadataFinder extends LifecycleParticipant {
     private static final String CACHE_FORMAT_ENTRY = CACHE_PREFIX + "version";
 
     /**
+     * The file entry whose content will be the details about the source media, if available.
+     */
+    private static final String CACHE_DETAILS_ENTRY = CACHE_PREFIX + "mediaDetails";
+
+    /**
      * The prefix for cache file entries that will store track metadata.
      */
     private static final String CACHE_METADATA_ENTRY_PREFIX = CACHE_PREFIX + "metadata/";
@@ -483,16 +488,11 @@ public class MetadataFinder extends LifecycleParticipant {
             zos = new ZipOutputStream(bos);
             zos.setMethod(ZipOutputStream.DEFLATED);
 
-            // Add a marker so we can recognize this as a metadata archive. I would use the ZipFile comment, but
-            // that is not available until Java 7, and Beat Link is supposed to be backwards compatible with Java 6.
-            // Since we are doing this anyway, we can also provide information about the nature of the cache, and
-            // how many metadata entries it contains, which is useful for auto-attachment.
-            zos.putNextEntry(new ZipEntry(CACHE_FORMAT_ENTRY));
-            String formatEntry = CACHE_FORMAT_IDENTIFIER + ":" + playlistId + ":" + trackListEntries.size();
-            zos.write(formatEntry.getBytes("UTF-8"));
+            addCacheFormatEntry(trackListEntries, playlistId, zos);
+            channel = Channels.newChannel(zos);
+            addCacheDetailsEntry(slot, zos, channel);
 
             // Write the actual metadata entries
-            channel = Channels.newChannel(zos);
             final int totalToCopy = trackListEntries.size();
             TrackMetadata lastTrackAdded = null;
             int tracksCopied = 0;
@@ -554,6 +554,47 @@ public class MetadataFinder extends LifecycleParticipant {
             } catch (Exception e) {
                 logger.error("Problem closing File Output Stream of metadata cache", e);
             }
+        }
+    }
+
+    /**
+     * Add a marker so we can recognize this as a metadata archive. I would use the ZipFile comment, but
+     * that is not available until Java 7, and Beat Link is supposed to be backwards compatible with Java 6.
+     * Since we are doing this anyway, we can also provide information about the nature of the cache, and
+     * how many metadata entries it contains, which is useful for auto-attachment.
+     *
+     * @param trackListEntries the tracks contained in the cache, so we can record the number
+     * @param playlistId the playlist contained in the cache, or 0 if it is all tracks from the media
+     * @param zos the stream to which the ZipFile is being written
+     *
+     * @throws IOException if there is a problem creating the format entry
+     */
+    private void addCacheFormatEntry(List<Message> trackListEntries, int playlistId, ZipOutputStream zos) throws IOException {
+        // Add a marker so we can recognize this as a metadata archive. I would use the ZipFile comment, but
+        // that is not available until Java 7, and Beat Link is supposed to be backwards compatible with Java 6.
+        // Since we are doing this anyway, we can also provide information about the nature of the cache, and
+        // how many metadata entries it contains, which is useful for auto-attachment.
+        zos.putNextEntry(new ZipEntry(CACHE_FORMAT_ENTRY));
+        String formatEntry = CACHE_FORMAT_IDENTIFIER + ":" + playlistId + ":" + trackListEntries.size();
+        zos.write(formatEntry.getBytes("UTF-8"));
+    }
+
+    /**
+     * Record the details of the media being cached, to make it easier to recognize, now that we have access to that
+     * information.
+     *
+     * @param slot the slot from which a metadata cache is being created
+     * @param zos the stream to which the ZipFile is being written
+     * @param channel the low-level channel to which the cache is being written
+     *
+     * @throws IOException if there is a problem writing the media details entry
+     */
+    private void addCacheDetailsEntry(SlotReference slot, ZipOutputStream zos, WritableByteChannel channel) throws IOException {
+        // Record the details of the media being cached, to make it easier to recognize now that we can.
+        MediaDetails details = getMediaDetailsFor(slot);
+        if (details != null) {
+            zos.putNextEntry(new ZipEntry(CACHE_DETAILS_ENTRY));
+            Util.writeFully(details.getRawBytes(), channel);
         }
     }
 
@@ -975,6 +1016,7 @@ public class MetadataFinder extends LifecycleParticipant {
         }
 
         ZipFile newCache = openMetadataCache(cache);
+        // TODO Sanity check that the saved media details match the current media, if available.
         attachMetadataCacheInternal(slot, newCache);
     }
 
@@ -1033,10 +1075,46 @@ public class MetadataFinder extends LifecycleParticipant {
     private String getCacheFormatEntry(ZipFile cache) throws IOException {
         ZipEntry zipEntry = cache.getEntry(CACHE_FORMAT_ENTRY);
         InputStream is = cache.getInputStream(zipEntry);
-        Scanner s = new Scanner(is, "UTF-8").useDelimiter("\\A");
-        String tag = null;
-        if (s.hasNext()) tag = s.next();
-        return tag;
+        try {
+            Scanner s = new Scanner(is, "UTF-8").useDelimiter("\\A");
+            String tag = null;
+            if (s.hasNext()) tag = s.next();
+            return tag;
+        } finally {
+            is.close();
+        }
+    }
+
+    /**
+     * Reports the details about the media from which a metadata cache was created, if available. This will only
+     * return a non-{@code null} value for caches created by Beat Link 0.4.1 or later.
+     *
+     * @param cache the cache file whose media details are desired
+     *
+     * @return the details about the media from which the cache was created or {@code null} if unknown
+     *
+     * @throws IOException if there is a problem reading the file
+     *
+     * @since 0.4.1
+     */
+    public MediaDetails getCacheMediaDetails(ZipFile cache) throws IOException {
+        ZipEntry zipEntry = cache.getEntry(CACHE_DETAILS_ENTRY);
+        if (zipEntry == null) {
+            return null;  // No details available.
+        }
+        InputStream is = cache.getInputStream(zipEntry);
+        try {
+            DataInputStream dis = new DataInputStream(is);
+            try {
+                byte[] detailBytes = new byte[(int)zipEntry.getSize()];
+                dis.readFully(detailBytes);
+                return new MediaDetails(detailBytes, detailBytes.length);
+            } finally {
+                dis.close();
+            }
+        } finally {
+            is.close();
+        }
     }
 
     /**
@@ -1265,6 +1343,8 @@ public class MetadataFinder extends LifecycleParticipant {
                     if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
                         candidates.clear();  // No tracks available to match this set of candidates.
                     }
+
+                    // TODO We can do this much more cleanly if we have MediaDetails in the cache file.
 
                     // Filter out any candidates with the wrong number of tracks.
                     Iterator<ZipFile> candidateIterator = candidates.iterator();
