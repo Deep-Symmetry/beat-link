@@ -98,7 +98,8 @@ public class MediaDetails {
     /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
      *
-     * @param packet the media response packet that was received or cached.
+     * @param packet the media response packet that was received or cached
+     * @param packetLength the number of bytes within the packet which were actually received
      */
     public MediaDetails(byte[] packet, int packetLength) {
         byte[] packetCopy = new byte[packetLength];  // Make a defensive copy

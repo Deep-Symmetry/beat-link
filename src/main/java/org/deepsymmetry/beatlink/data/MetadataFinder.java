@@ -1196,15 +1196,39 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * Add a metadata cache file to the set being automatically attached when matching media is inserted. Will try
-     * to auto-attach the new file to any already-mounted media.
+     * to auto-attach the new file to any already-mounted media. Adding a file that is already present in the set
+     * will have no effect, and if the file being added was created from the same media as any existing file in the
+     * set, the new file will replace the existing one, since only one file can match the media when it mounts.
+     * (Tracking of source media was only added in version 0.4.1.)
      *
      * @param metadataCacheFile the file to be auto-attached when matching media is seen on the network
      *
      * @throws IOException if the specified file cannot be read or is not a valid metadata cache
      */
     public void addAutoAttachCacheFile(File metadataCacheFile) throws IOException {
-        ZipFile opened = openMetadataCache(metadataCacheFile);  // Make sure it is readable and valid
-        opened.close();
+        ZipFile opened = openMetadataCache(metadataCacheFile);  // Make sure it is readable and valid.
+        try {
+            MediaDetails details = getCacheMediaDetails(opened);
+            if (details != null) {  // Remove any auto-attach files created from the same media as the one being added.
+                Iterator<File> iterator = autoAttachCacheFiles.iterator();
+                while (iterator.hasNext()) {
+                    File file = iterator.next();
+                    if (!file.equals(metadataCacheFile)) {
+                        ZipFile existing = openMetadataCache(file);
+                        try {
+                            MediaDetails existingDetails = getCacheMediaDetails(existing);
+                            if (existingDetails != null && existingDetails.hashKey().equals(details.hashKey())) {
+                                iterator.remove();
+                            }
+                        } finally {
+                            existing.close();
+                        }
+                    }
+                }
+            }
+        } finally {
+            opened.close();
+        }
         if (autoAttachCacheFiles.add(metadataCacheFile)) {
             for (SlotReference slot : getMountedMediaSlots()) {
                 tryAutoAttaching(slot);
