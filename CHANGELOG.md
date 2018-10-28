@@ -6,6 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [0.4.1] - 2018-10-28
+
 ### Added
 
 - Metadata caches now store the details of the media from which they
@@ -376,7 +380,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/Deep-Symmetry/beat-link/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/Deep-Symmetry/beat-link/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/Deep-Symmetry/beat-link/compare/v0.3.5...v0.3.6
