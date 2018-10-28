@@ -9,8 +9,8 @@ This change log follows the conventions of
 ### Added
 
 - Metadata caches now store the details of the media from which they
-  were created to more easily auto-attach them and survive small
-  changes.
+  were created to more easily and reliably auto-attach them and
+  survive small changes.
 
 ### Fixed
 

@@ -1272,7 +1272,9 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Set the number of tracks examined when considering auto-attaching a metadata cache file to a newly-mounted
      * media database. The more examined, the more confident we can be in the cache matching the media, but the longer
-     * it will take and the more metadata queries will be required. The smallest legal value is 1.
+     * it will take and the more metadata queries will be required. The smallest legal value is 1. This value is only
+     * used for metadata caches created by versions older than 0.4.1, because they lacked the ability to match by the
+     * details of the media database itself.
      *
      * @param numTracks the number of tracks that will be compared between the cache files and the media in the player
      */
@@ -1286,7 +1288,9 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Get the number of tracks examined when considering auto-attaching a metadata cache file to a newly-mounted
      * media database. The more examined, the more confident we can be in the cache matching the media, but the longer
-     * it will take and the more metadata queries will be required.
+     * it will take and the more metadata queries will be required. This value is only used for metadata caches created
+     * by versions older than 0.4.1, because they lacked the ability to match by the details of the media database
+     * itself.
      *
      * @return  the number of tracks that will be compared between the cache files and the media in the player
      */
@@ -1321,6 +1325,30 @@ public class MetadataFinder extends LifecycleParticipant {
                     Thread.sleep(5);  // Give us a chance to find out what type of media is in the new mount.
                     final MediaDetails details = getMediaDetailsFor(slot);
                     if (details != null && details.mediaType == CdjStatus.TrackType.REKORDBOX) {
+                        // First stage attempt: See if we can match based on stored media details, which is both more reliable and
+                        // less disruptive than trying to sample the player database to compare entries.
+                        boolean attached = false;
+                        for (File file : autoAttachCacheFiles) {
+                            final ZipFile cache = openMetadataCache(file);
+                            try {
+                                final MediaDetails cachedDetails = getCacheMediaDetails(cache);
+                                if (cachedDetails != null && cachedDetails.hashKey().equals(details.hashKey())) {
+                                    // We found a solid match, no need to probe tracks.
+                                    final boolean changed = cachedDetails.hasChanged(details);
+                                    logger.info("Auto-attaching metadata cache " + cache.getName() + " to slot " + slot +
+                                            " based on media details " + (changed? "(changed since created)!" : "(unchanged)."));
+                                    attachMetadataCacheInternal(slot, cache);
+                                    attached = true;
+                                    return;
+                                }
+                            } finally {
+                                if (!attached) {
+                                    cache.close();
+                                }
+                            }
+                        }
+
+                        // Could not match based on media details; fall back to older method based on probing track metadata.
                         ConnectionManager.ClientTask<Object> task = new ConnectionManager.ClientTask<Object>() {
                             @Override
                             public Object useClient(Client client) throws Exception {
