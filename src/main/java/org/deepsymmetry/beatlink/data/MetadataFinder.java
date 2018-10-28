@@ -1016,7 +1016,18 @@ public class MetadataFinder extends LifecycleParticipant {
         }
 
         ZipFile newCache = openMetadataCache(cache);
-        // TODO Sanity check that the saved media details match the current media, if available.
+        final MediaDetails cacheDetails = getCacheMediaDetails(newCache);
+        final MediaDetails slotDetails = getMediaDetailsFor(slot);
+        if (cacheDetails !=  null && slotDetails != null) {
+            if (!slotDetails.hashKey().equals(cacheDetails.hashKey())) {
+                throw new IllegalArgumentException("Cache was created for different media (" + cacheDetails.hashKey() +
+                        ") than is in the slot (" + slotDetails.hashKey() + ").");
+            }
+            if (slotDetails.hasChanged(cacheDetails)) {
+                logger.warn("Media has changed (" + slotDetails + ") since cache was created (" + cacheDetails +
+                        "). Attaching anyway as instructed.");
+            }
+        }
         attachMetadataCacheInternal(slot, newCache);
     }
 
