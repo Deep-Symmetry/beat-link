@@ -166,17 +166,19 @@ public class MediaDetails {
     }
 
     /**
-     * Check whether the media seems to have changed since a saved version of it was used.
+     * Check whether the media seems to have changed since a saved version of it was used. We ignore changes in
+     * free space because those probably just reflect history entries being added.
      *
      * @param originalMedia the media details when information about it was saved
-     * @return true if there have been detectable changes to the media since it was saved
+     *
+     * @return true if there have been detectable significant  changes to the media since it was saved
+     *
      * @throws IllegalArgumentException if the {@link #hashKey()} values of the media detail objects differ
      */
     public boolean hasChanged(MediaDetails originalMedia) {
         if (!hashKey().equals(originalMedia.hashKey())) {
             throw new IllegalArgumentException("Can't compare media details with different hashKey values");
         }
-        return freeSpace == originalMedia.freeSpace && playlistCount == originalMedia.playlistCount &&
-                trackCount == originalMedia.trackCount;
+        return playlistCount != originalMedia.playlistCount || trackCount != originalMedia.trackCount;
     }
 }
