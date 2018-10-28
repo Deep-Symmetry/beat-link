@@ -16,6 +16,11 @@ This change log follows the conventions of
 
 - When a Nexus player is reporting that it is pre-loading hot cues, we
   no longer incorrectly consider it to be playing.
+- When scanning metadata caches to consider them for auto-attachment,
+  we were not closing the ones which failed to match. This was
+  probably eventually being taken care of by the garbage collector and
+  finalizers, but there is no guarantee if or when that would actually
+  happen.
 
 ## [0.4.0] - 2018-10-07
 

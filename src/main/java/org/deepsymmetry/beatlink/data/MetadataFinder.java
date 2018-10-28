@@ -1353,76 +1353,92 @@ public class MetadataFinder extends LifecycleParticipant {
     private void tryAutoAttachingWithConnection(SlotReference slot, Client client) throws IOException, InterruptedException, TimeoutException {
         // Keeps track of the files we might be able to auto-attach, grouped and sorted by the playlist they
         // were created from, where playlist 0 means all tracks.
-        Map<Integer, LinkedList<ZipFile>> candidateGroups = gatherCandidateAttachmentGroups();
+        final Map<Integer, LinkedList<ZipFile>> candidateGroups = gatherCandidateAttachmentGroups();
+        ZipFile match = null;  // We will close any non-matched files from the candidateGroups in our finally clause,
+                               // but we will leave this one open because we are returning it.
+        try {
+            // Set up a menu request to process each group.
+            for (Map.Entry<Integer,LinkedList<ZipFile>> entry : candidateGroups.entrySet()) {
+                final LinkedList<ZipFile> candidates;
+                ArrayList<Integer> tracksToSample;
+                if (client.tryLockingForMenuOperations(MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        final int playlistId = entry.getKey();
+                        candidates = entry.getValue();
+                        final long count = getTrackCount(slot.slot, client, playlistId);
+                        if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
+                            // No tracks available to match this set of candidates.
+                            for (final ZipFile candidate : candidates) {
+                                candidate.close();
+                            }
+                            candidates.clear();
+                        }
 
-        // Set up a menu request to process each group.
-        for (Map.Entry<Integer,LinkedList<ZipFile>> entry : candidateGroups.entrySet()) {
-            final LinkedList<ZipFile> candidates;
-            ArrayList<Integer> tracksToSample;
-            if (client.tryLockingForMenuOperations(MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                try {
-                    final int playlistId = entry.getKey();
-                    candidates = entry.getValue();
-                    final long count = getTrackCount(slot.slot, client, playlistId);
-                    if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
-                        candidates.clear();  // No tracks available to match this set of candidates.
+                        // Filter out any candidates with the wrong number of tracks.
+                        final Iterator<ZipFile> candidateIterator = candidates.iterator();
+                        while (candidateIterator.hasNext()) {
+                            final ZipFile candidate = candidateIterator.next();
+                            if (getCacheTrackCount(candidate) != count) {
+                                candidate.close();
+                                candidateIterator.remove();
+                            }
+                        }
+
+                        // Bail before querying any metadata if we can already rule out all the candidates.
+                        if (candidates.isEmpty()) {
+                            continue;
+                        }
+
+                        // Gather as many track IDs as we are configured to sample, up to the number available
+                        tracksToSample = chooseTrackSample(slot, client, (int) count);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+
+                // Winnow out any auto-attachment candidates that don't match any sampled track
+                for (final int trackId : tracksToSample) {
+                    logger.info("Comparing track " + trackId + " with " + candidates.size() + " metadata cache file(s).");
+
+                    final DataReference reference = new DataReference(slot, trackId);
+                    final TrackMetadata track = queryMetadata(reference, CdjStatus.TrackType.REKORDBOX, client);
+                    if (track == null) {
+                        logger.warn("Unable to retrieve metadata when attempting cache auto-attach for slot {}, giving up", slot);
+                        return;
                     }
 
-                    // TODO We can do this much more cleanly if we have MediaDetails in the cache file.
-
-                    // Filter out any candidates with the wrong number of tracks.
-                    Iterator<ZipFile> candidateIterator = candidates.iterator();
-                    while (candidateIterator.hasNext()) {
-                        final ZipFile candidate = candidateIterator.next();
-                        if (getCacheTrackCount(candidate) != count) {
-                            candidateIterator.remove();
+                    for (int i = candidates.size() - 1; i >= 0; --i) {
+                        final ZipFile candidate = candidates.get(i);
+                        if (!track.equals(getCachedMetadata(candidate, reference))) {
+                            candidate.close();
+                            candidates.remove(i);
                         }
                     }
 
-                    // Bail before querying any metadata if we can already rule out all the candidates.
                     if (candidates.isEmpty()) {
-                        continue;
-                    }
-
-                    // Gather as many track IDs as we are configured to sample, up to the number available
-                    tracksToSample = chooseTrackSample(slot, client, (int) count);
-                } finally {
-                    client.unlockForMenuOperations();
-                }
-            } else {
-                throw new TimeoutException("Unable to lock player for menu operations.");
-            }
-
-            // Winnow out any auto-attachment candidates that don't match any sampled track
-            for (int trackId : tracksToSample) {
-                logger.info("Comparing track " + trackId + " with " + candidates.size() + " metadata cache file(s).");
-
-                DataReference reference = new DataReference(slot, trackId);
-                TrackMetadata track = queryMetadata(reference, CdjStatus.TrackType.REKORDBOX, client);
-                if (track == null) {
-                    logger.warn("Unable to retrieve metadata when attempting cache auto-attach for slot {}, giving up", slot);
-                    return;
-                }
-
-                for (int i = candidates.size() - 1; i >= 0; --i) {
-                    if (!track.equals(getCachedMetadata(candidates.get(i), reference))) {
-                        candidates.remove(i);
+                        break;  // No point sampling more tracks, we have ruled out all candidates in this group.
                     }
                 }
 
                 if (candidates.isEmpty()) {
-                    break;  // No point sampling more tracks, we have ruled out all candidates in this group.
+                    continue;  // This group has failed; move on to the next candidate group, if any.
+                }
+
+                match = candidates.get(0);  // We have found at least one matching cache, use the first.
+                logger.info("Auto-attaching metadata cache " + match.getName() + " to slot " + slot);
+                attachMetadataCacheInternal(slot, match);
+                return;
+            }
+        } finally {  // No matter how we leave this function, close any of the remaining zip files we are not attaching.
+            for (Map.Entry<Integer, LinkedList<ZipFile>> entry : candidateGroups.entrySet()) {
+                for (ZipFile candidate : entry.getValue()) {
+                    if (candidate != match) {
+                        candidate.close();
+                    }
                 }
             }
-
-            if (candidates.isEmpty()) {
-                continue;  // This group has failed; move on to the next candidate group, if any.
-            }
-
-            ZipFile match = candidates.get(0);  // We have found at least one matching cache, use the first.
-            logger.info("Auto-attaching metadata cache " + match.getName() + " to slot " + slot);
-            attachMetadataCacheInternal(slot, match);
-            return;
         }
     }
 
