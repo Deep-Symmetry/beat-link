@@ -126,7 +126,7 @@ public class BeatGrid {
 
     /**
      * Returns the musical count of the specified beat, represented by <i>B<sub>b</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      * A number from 1 to 4, where 1 is the down beat, or the start of a new measure.
      *
      * @param beatNumber the number of the beat of interest, must fall within the range 1..beatCount

@@ -20,7 +20,7 @@ public class MixerStatus extends DeviceUpdate {
 
     /**
      * The byte within the status packet which contains useful status information, labeled <i>F</i> in Figure 10 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     @SuppressWarnings("WeakerAccess")
     public static final int STATUS_FLAGS = 0x27;
@@ -28,7 +28,7 @@ public class MixerStatus extends DeviceUpdate {
     /**
      * The byte within a status packet which indicates that the device is in the process of handing off the tempo
      * master role to anther device, labeled <i>M<sub>h</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      *
      * Normally it holds the value 0xff, but during a tempo master hand-off, it holds
      * the device number of the incoming tempo master, until that device asserts the master state, after which this

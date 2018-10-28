@@ -33,7 +33,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details, although it does not seem to have an effect on the root menu
      *
      * @return the entries in the top level menu
@@ -75,7 +75,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the playlists and folders in the playlist menu
@@ -96,7 +96,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details, although it does not seem to have an effect on the history menu
      *
      * @return the entries in the history menu
@@ -132,7 +132,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the playlist is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param historyId identifies which history session's playlist is desired
      *
@@ -169,7 +169,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the entries in the track menu
@@ -194,7 +194,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the entries in the artist menu
@@ -230,7 +230,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param artistId  the artist whose album menu is desired
      *
@@ -267,7 +267,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param artistId the artist whose album track menu is desired
      * @param albumId the album whose track menu is desired, or -1 for all albums
@@ -305,7 +305,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param albumId the album whose track menu is desired
      *
@@ -342,7 +342,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the entries in the genre menu
@@ -378,7 +378,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param genreId the genre whose artist menu is desired
      *
@@ -415,7 +415,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param genreId the genre whose artist album menu is desired
      * @param artistId the artist whose album menu is desired, or -1 for all artists
@@ -453,7 +453,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param genreId the genre whose artist album track menu is desired
      * @param artistId the artist whose album track menu is desired, or -1 for all artists
@@ -493,7 +493,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the entries in the album menu
@@ -529,7 +529,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the entries in the key menu
@@ -566,7 +566,7 @@ public class MenuLoader {
      * @param slotReference the player and slot for which the menu is desired
      * @param keyId the key whose available compatible keys are desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the entries in the key neighbor menu
@@ -604,7 +604,7 @@ public class MenuLoader {
      * @param keyId the key whose compatible tracks are desired
      * @param distance how far along the circle of fifths are the tracks allowed to be from the specified key
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the matching tracks
@@ -640,7 +640,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the entries in the BPM menu
@@ -677,7 +677,7 @@ public class MenuLoader {
      * @param slotReference the player and slot for which the menu is desired
      * @param bpm the tempo whose nearby ranges are desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the entries in the tempo range menu
@@ -715,7 +715,7 @@ public class MenuLoader {
      * @param bpm the tempo that tracks must be close to
      * @param range the percentage by which the actual tempo may differ for a track to still be returned
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the tracks whose tempo falls within the specified range
@@ -751,7 +751,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the entries in the rating menu
@@ -788,7 +788,7 @@ public class MenuLoader {
      * @param slotReference the player and slot for which the menu is desired
      * @param rating the desired rating for tracks to be returned
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      *
      * @return the matching tracks
@@ -826,7 +826,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param folderId identifies the folder whose contents should be listed, use -1 to get the root folder
      *
@@ -865,7 +865,7 @@ public class MenuLoader {
      *
      * @param slot the slot in which the database can be found
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details, although it does not seem to have an effect on searches.
      * @param text the search text used to filter the results
      * @param count if present, sets an upper limit on the number of results to return, and will get set
@@ -921,7 +921,7 @@ public class MenuLoader {
      * @param player the player number whose database is to be searched
      * @param slot the slot in which the database can be found
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details, although it does not seem to have an effect on searches.
      * @param text the search text used to filter the results
      * @param count if present, sets an upper limit on the number of results to return, and will get set
@@ -953,7 +953,7 @@ public class MenuLoader {
      *
      * @param slot the slot in which the database can be found
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details, although it does not seem to have an effect on searches.
      * @param text the search text used to filter the results
      * @param offset the first result desired (the first available result has offset 0)
@@ -997,7 +997,7 @@ public class MenuLoader {
      * @param player the player number whose database is to be searched
      * @param slot the slot in which the database can be found
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details, although it does not seem to have an effect on searches.
      * @param text the search text used to filter the results
      * @param offset the first result desired (the first available result has offset 0)

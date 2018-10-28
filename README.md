@@ -6,15 +6,15 @@ A Java library for synchronizing with beats from Pioneer DJ Link
 equipment, and finding out details about the tracks that are playing.
 
 See
-[beat-link-trigger](https://github.com/brunchboy/beat-link-trigger#beat-link-trigger) and
-[beat-carabiner](https://github.com/brunchboy/beat-carabiner)
+[beat-link-trigger](https://github.com/Deep-Symmetry/beat-link-trigger#beat-link-trigger) and
+[beat-carabiner](https://github.com/Deep-Symmetry/beat-carabiner)
 for examples of what you can do with this.
 
 [![License](https://img.shields.io/badge/License-Eclipse%20Public%20License%201.0-blue.svg)](#license)
 
 > :construction: beat-link is being worked on very heavily at the
 > moment to incorporate some
-> [amazing new discoveries](https://github.com/brunchboy/dysentery#robust-metadata-understanding).
+> [amazing new discoveries](https://github.com/Deep-Symmetry/dysentery#robust-metadata-understanding).
 > Until that settles down, there may be rapid releases and big changes
 > between releases.
 >
@@ -50,7 +50,7 @@ your class path.
 
 If you want to manually install beat-link, you can download the
 library from the
-[releases](https://github.com/brunchboy/beat-link/releases) page and
+[releases](https://github.com/Deep-Symmetry/beat-link/releases) page and
 put it on your project&rsquo;s class path, along with the
 [`slf4j-api.jar`](http://www.slf4j.org/download.html) and the slf4j
 binding to the logging framework you would like to use.
@@ -460,7 +460,7 @@ Master changed at Sun May 08 20:49:55 CDT 2016: CDJ status: Device 3,
 ## Research
 
 This project is being developed with the help of
-[dysentery](https://github.com/brunchboy/dysentery). Check that out
+[dysentery](https://github.com/Deep-Symmetry/dysentery). Check that out
 for details of the packets and protocol, and for ways you can help
 figure out more.
 

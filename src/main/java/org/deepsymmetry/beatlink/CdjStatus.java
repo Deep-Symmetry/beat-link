@@ -18,7 +18,7 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The byte within the status packet which contains useful status information, labeled <i>F</i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     @SuppressWarnings("WeakerAccess")
     public static final int STATUS_FLAGS = 0x89;
@@ -26,7 +26,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * The byte within a status packet which indicates that the device is in the process of handing off the tempo
      * master role to anther device, labeled <i>M<sub>h</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      *
      * Normally it holds the value 0xff, but during a tempo master hand-off, it holds
      * the device number of the incoming tempo master, until that device asserts the master state, after which this
@@ -36,7 +36,7 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The bit within the status flag that indicates the player is on the air, as illustrated in Figure 12 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      * A player is considered to be on the air when it is connected to a mixer channel that is not faded out.
      * Only Nexus mixers seem to support this capability.
      */
@@ -45,33 +45,33 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The bit within the status flag that indicates the player is synced, as illustrated in Figure 12 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     @SuppressWarnings("WeakerAccess")
     public static final int SYNCED_FLAG = 0x10;
 
     /**
      * The bit within the status flag that indicates the player is the tempo master, as illustrated in Figure 12 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     public static final int MASTER_FLAG = 0x20;
 
     /**
      * The bit within the status flag that indicates the player is playing, as illustrated in Figure 12 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     @SuppressWarnings("WeakerAccess")
     public static final int PLAYING_FLAG = 0x40;
 
     /**
      * The device number of the player from which the track was loaded, if any; labeled <i>P<sub>r</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     private final int trackSourcePlayer;
 
     /**
      * Get the device number of the player from which the track was loaded, if any; labeled <i>P<sub>r</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      *
      * @return the device number from which the current track was loaded
      */
@@ -79,7 +79,7 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The possible values describing from where the track was loaded, labeled <i>S<sub>r</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     public enum TrackSourceSlot {
         /**
@@ -133,13 +133,13 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The slot from which the track was loaded, if any; labeled <i>S<sub>r</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     private final TrackSourceSlot trackSourceSlot;
 
     /**
      * Get the slot from which the track was loaded, if any; labeled <i>S<sub>r</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      *
      * @return the slot from which the current track was loaded
      */
@@ -147,7 +147,7 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The possible values describing the track type, labeled <i>t<sub>r</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     public enum TrackType {
         /**
@@ -199,13 +199,13 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The type of the track that was loaded, if any; labeled <i>t<sub>r</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     private final TrackType trackType;
 
     /**
      * Get the type of the track was loaded, if any; labeled <i>t<sub>r</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      *
      * @return the type of track that is currently loaded
      */
@@ -213,13 +213,13 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The rekordbox ID of the track that was loaded, if any; labeled<i>rekordbox</i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     private final int rekordboxId;
 
     /**
      * Get the rekordbox ID of the track that was loaded, if any; labeled <i>rekordbox</i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      * Will be zero if no track is loaded, and is simply the track number when an ordinary audio CD track has been
      * loaded.
      *
@@ -229,7 +229,7 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The possible values of the first play state found in the packet, labeled <i>P<sub>1</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     @SuppressWarnings("WeakerAccess")
     public enum PlayState1 {
@@ -309,13 +309,13 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The first play state found in the packet, labeled <i>P<sub>1</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     private final PlayState1 playState1;
 
     /**
      * Get the first play state found in the packet, labeled <i>P<sub>1</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      *
      * @return the first play state element
      */
@@ -326,7 +326,7 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The possible values of the second play state found in the packet, labeled <i>P<sub>2</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     public enum PlayState2 {
         /**
@@ -374,13 +374,13 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The second play state found in the packet, labeled <i>P<sub>2</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     private final PlayState2 playState2;
 
     /**
      * Get the second play state found in the packet, labeled <i>P<sub>2</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      *
      * @return the second play state element
      */
@@ -391,7 +391,7 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The possible values of the third play state found in the packet, labeled <i>P<sub>3</sub></i> in Figure 11 of
-     * the <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     public enum PlayState3 {
         /**
@@ -446,13 +446,13 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The third play state found in the packet, labeled <i>P<sub>3</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     private final PlayState3 playState3;
 
     /**
      * Get the third play state found in the packet, labeled <i>P<sub>3</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      *
      * @return the third play state element
      */
@@ -612,7 +612,7 @@ public class CdjStatus extends DeviceUpdate {
      * <p>CDJ update packets actually have four copies of the pitch value which behave slightly differently under
      * different circumstances. This method returns one which seems to provide the most useful information (labeled
      * <i>Pitch<sub>1</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>),
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>),
      * reflecting the effective BPM currently being played when it is combined with the track BPM. To probe the other
      * pitch values that were reported, you can use {@link #getPitch(int)}.</p>
      *
@@ -631,7 +631,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * <p>CDJ update packets contain four copies of the pitch value which behave slightly differently under
      * different circumstances, labeled <i>Pitch<sub>1</sub></i> through <i>Pitch<sub>4</sub></i> in Figure 11 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      * This method returns the one you choose by specifying {@code number}. If all you want is the current effective
      * pitch, you can use {@link #getPitch()}.</p>
      *

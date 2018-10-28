@@ -32,7 +32,7 @@ public class WaveformPreview {
      * Get the raw bytes of the waveform preview data
      *
      * @return the bytes from which the preview can be drawn, as described in Section 5.8 of the
-     * <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     @SuppressWarnings("WeakerAccess")
     public ByteBuffer getData() {

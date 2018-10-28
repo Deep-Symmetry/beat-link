@@ -295,7 +295,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param slot the slot in which the playlist can be found
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param playlistOrFolderId the database ID of the desired playlist or folder
      * @param folder indicates whether we are asking for the contents of a folder or playlist
@@ -337,7 +337,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param player the player number whose playlist entries are of interest
      * @param slot the slot in which the playlist can be found
      * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
-     *                  <a href="https://github.com/brunchboy/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
      *                  document</a> for details
      * @param playlistOrFolderId the database ID of the desired playlist or folder
      * @param folder indicates whether we are asking for the contents of a folder or playlist
