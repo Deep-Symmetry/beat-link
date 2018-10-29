@@ -4,6 +4,7 @@ import org.deepsymmetry.beatlink.CdjStatus;
 import org.deepsymmetry.beatlink.MediaDetails;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.Client;
+import org.deepsymmetry.beatlink.dbserver.ConnectionManager;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.slf4j.Logger;
@@ -14,7 +15,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -219,7 +222,7 @@ public class MetadataCache implements MetadataProvider {
                     }
                 }
 
-                Thread.sleep(MetadataFinder.getInstance().getCachePauseInterval());
+                Thread.sleep(getCachePauseInterval());
             }
         } catch (InterruptedException e) {
             logger.warn("Interrupted while building metadata cache file, aborting", e);
@@ -666,4 +669,372 @@ public class MetadataCache implements MetadataProvider {
         }
         return null;
     }
+
+
+    /*
+     * Methods for creating metadata caches.
+     */
+
+    /**
+     * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
+     * previous contents of the specified file will be replaced.
+     *
+     * @param slot the slot in which the media to be cached can be found
+     * @param playlistId the id of playlist to be cached, or 0 of all tracks should be cached
+     * @param cache the file into which the metadata cache should be written
+     *
+     * @throws Exception if there is a problem communicating with the player or writing the cache file.
+     */
+    public static void createMetadataCache(SlotReference slot, int playlistId, File cache) throws Exception {
+        createMetadataCache(slot, playlistId, cache, null);
+    }
+
+    /**
+     * How long should we pause between requesting metadata entries while building a cache to give the player
+     * a chance to perform its other tasks.
+     */
+    private static final AtomicLong cachePauseInterval = new AtomicLong(50);
+
+    /**
+     * Set how long to pause between requesting metadata entries while building a cache to give the player
+     * a chance to perform its other tasks.
+     *
+     * @param milliseconds the delay to add between each track that gets added to the metadata cache
+     */
+    public static void setCachePauseInterval(long milliseconds) {
+        cachePauseInterval.set(milliseconds);
+    }
+
+    /**
+     * Check how long we pause between requesting metadata entries while building a cache to give the player
+     * a chance to perform its other tasks.
+     *
+     * @return the delay to add between each track that gets added to the metadata cache
+     */
+    public static long getCachePauseInterval() {
+        return cachePauseInterval.get();
+    }
+
+    /**
+     * Creates a metadata cache archive file of all tracks in the specified slot on the specified player. Any
+     * previous contents of the specified file will be replaced. If a non-{@code null} {@code listener} is
+     * supplied, its {@link MetadataCacheCreationListener#cacheCreationContinuing(TrackMetadata, int, int)} method
+     * will be called after each track is added to the cache, allowing it to display progress updates to the user,
+     * and to continue or cancel the process by returning {@code true} or {@code false}.
+     *
+     * Because this takes a huge amount of time relative to CDJ status updates, it can only be performed while
+     * the MetadataFinder is in passive mode.
+     *
+     * @param slot the slot in which the media to be cached can be found
+     * @param playlistId the id of playlist to be cached, or 0 of all tracks should be cached
+     * @param cache the file into which the metadata cache should be written
+     * @param listener will be informed after each track is added to the cache file being created and offered
+     *                 the opportunity to cancel the process
+     *
+     * @throws Exception if there is a problem communicating with the player or writing the cache file
+     */
+    @SuppressWarnings({"SameParameterValue", "WeakerAccess"})
+    public static void createMetadataCache(final SlotReference slot, final int playlistId,
+                                    final File cache, final MetadataCacheCreationListener listener)
+            throws Exception {
+        ConnectionManager.ClientTask<Object> task = new ConnectionManager.ClientTask<Object>() {
+            @Override
+            public Object useClient(Client client) throws Exception {
+                final List<Message> trackList;
+                if (playlistId == 0) {
+                    trackList = MetadataFinder.getInstance().getFullTrackList(slot.slot, client, 0);
+                } else {
+                    trackList = MetadataFinder.getInstance().getPlaylistItems(slot.slot, 0, playlistId, false, client);
+                }
+                MetadataCache.copyTracksToCache(trackList, playlistId, client, slot, cache, listener);
+                return null;
+            }
+        };
+
+        if (cache.exists() && !cache.delete()) {
+            logger.warn("Unable to delete cache file, {}", cache);
+        }
+        ConnectionManager.getInstance().invokeWithClientSession(slot.player, task, "building metadata cache");
+    }
+
+
+    /*
+     * Methods for auto-attaching metadata caches.
+     */
+
+    /**
+     * See if there is an auto-attach cache file that seems to match the media in the specified slot, and if so,
+     * attach it.
+     *
+     * @param slot the player slot that is under consideration for automatic cache attachment
+     */
+    static void tryAutoAttaching(final SlotReference slot) {
+        if (!MetadataFinder.getInstance().getMountedMediaSlots().contains(slot)) {
+            logger.error("Unable to auto-attach cache to empty slot {}", slot);
+            return;
+        }
+        if (MetadataFinder.getInstance().getMetadataCache(slot) != null) {
+            logger.info("Not auto-attaching to slot {}; already has a cache attached.", slot);
+            return;
+        }
+        if (MetadataFinder.getInstance().getAutoAttachCacheFiles().isEmpty()) {
+            logger.debug("No auto-attach files configured.");
+            return;
+        }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Thread.sleep(5);  // Give us a chance to find out what type of media is in the new mount.
+                    final MediaDetails details = MetadataFinder.getInstance().getMediaDetailsFor(slot);
+                    if (details != null && details.mediaType == CdjStatus.TrackType.REKORDBOX) {
+                        // First stage attempt: See if we can match based on stored media details, which is both more reliable and
+                        // less disruptive than trying to sample the player database to compare entries.
+                        boolean attached = false;
+                        for (File file : MetadataFinder.getInstance().getAutoAttachCacheFiles()) {
+                            final MetadataCache cache = new MetadataCache(file);
+                            try {
+                                if (cache.sourceMedia != null && cache.sourceMedia.hashKey().equals(details.hashKey())) {
+                                    // We found a solid match, no need to probe tracks.
+                                    final boolean changed = cache.sourceMedia.hasChanged(details);
+                                    logger.info("Auto-attaching metadata cache " + cache.getName() + " to slot " + slot +
+                                            " based on media details " + (changed? "(changed since created)!" : "(unchanged)."));
+                                    MetadataFinder.getInstance().attachMetadataCacheInternal(slot, cache);
+                                    attached = true;
+                                    return;
+                                }
+                            } finally {
+                                if (!attached) {
+                                    cache.close();
+                                }
+                            }
+                        }
+
+                        // Could not match based on media details; fall back to older method based on probing track metadata.
+                        ConnectionManager.ClientTask<Object> task = new ConnectionManager.ClientTask<Object>() {
+                            @Override
+                            public Object useClient(Client client) throws Exception {
+                                tryAutoAttachingWithConnection(slot, client);
+                                return null;
+                            }
+                        };
+                        ConnectionManager.getInstance().invokeWithClientSession(slot.player, task, "trying to auto-attach metadata cache");
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem trying to auto-attach metadata cache for slot " + slot, e);
+                }
+
+            }
+        }, "Metadata cache file auto-attachment attempt").start();
+    }
+
+    /**
+     * Second stage of the auto-attach process, once we have obtained a connection to the database server for the
+     * media slot we are checking our automatic metadata cache files against. Probes the metadata offered by that
+     * sever to see if it matches any of the available caches, and if so, attaches that cache file.
+     *
+     * @param slot identifies the media slot we are checking for automatic cache matches
+     * @param client the dbserver client that is communicating with the appropriate player
+     *
+     * @throws IOException if there is a communication problem
+     * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
+     * @throws TimeoutException if we are unable to lock the client for menu operations
+     */
+    private static void tryAutoAttachingWithConnection(SlotReference slot, Client client) throws IOException, InterruptedException, TimeoutException {
+        // Keeps track of the files we might be able to auto-attach, grouped and sorted by the playlist they
+        // were created from, where playlist 0 means all tracks.
+        final Map<Integer, LinkedList<MetadataCache>> candidateGroups = gatherCandidateAttachmentGroups();
+        MetadataCache match = null;  // We will close any non-matched files from the candidateGroups in our finally clause,
+        // but we will leave this one open because we are returning it.
+        try {
+            // Set up a menu request to process each group.
+            for (Map.Entry<Integer,LinkedList<MetadataCache>> entry : candidateGroups.entrySet()) {
+                final LinkedList<MetadataCache> candidates;
+                ArrayList<Integer> tracksToSample;
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        final int playlistId = entry.getKey();
+                        candidates = entry.getValue();
+                        final long count = getTrackCount(slot.slot, client, playlistId);
+                        if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
+                            // No tracks available to match this set of candidates.
+                            for (final MetadataCache candidate : candidates) {
+                                candidate.close();
+                            }
+                            candidates.clear();
+                        }
+
+                        // Filter out any candidates with the wrong number of tracks.
+                        final Iterator<MetadataCache> candidateIterator = candidates.iterator();
+                        while (candidateIterator.hasNext()) {
+                            final MetadataCache candidate = candidateIterator.next();
+                            if (candidate.trackCount != count) {
+                                candidate.close();
+                                candidateIterator.remove();
+                            }
+                        }
+
+                        // Bail before querying any metadata if we can already rule out all the candidates.
+                        if (candidates.isEmpty()) {
+                            continue;
+                        }
+
+                        // Gather as many track IDs as we are configured to sample, up to the number available
+                        tracksToSample = chooseTrackSample(slot, client, (int) count);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+
+                // Winnow out any auto-attachment candidates that don't match any sampled track
+                for (final int trackId : tracksToSample) {
+                    logger.info("Comparing track " + trackId + " with " + candidates.size() + " metadata cache file(s).");
+
+                    final DataReference reference = new DataReference(slot, trackId);
+                    final TrackMetadata track = MetadataFinder.getInstance().queryMetadata(reference, CdjStatus.TrackType.REKORDBOX, client);
+                    if (track == null) {
+                        logger.warn("Unable to retrieve metadata when attempting cache auto-attach for slot {}, giving up", slot);
+                        return;
+                    }
+
+                    for (int i = candidates.size() - 1; i >= 0; --i) {
+                        final MetadataCache candidate = candidates.get(i);
+                        if (!track.equals(candidate.getTrackMetadata(null, reference))) {
+                            candidate.close();
+                            candidates.remove(i);
+                        }
+                    }
+
+                    if (candidates.isEmpty()) {
+                        break;  // No point sampling more tracks, we have ruled out all candidates in this group.
+                    }
+                }
+
+                if (candidates.isEmpty()) {
+                    continue;  // This group has failed; move on to the next candidate group, if any.
+                }
+
+                match = candidates.get(0);  // We have found at least one matching cache, use the first.
+                logger.info("Auto-attaching metadata cache " + match.getName() + " to slot " + slot);
+                MetadataFinder.getInstance().attachMetadataCacheInternal(slot, match);
+                return;
+            }
+        } finally {  // No matter how we leave this function, close any of the remaining zip files we are not attaching.
+            for (Map.Entry<Integer, LinkedList<MetadataCache>> entry : candidateGroups.entrySet()) {
+                for (MetadataCache candidate : entry.getValue()) {
+                    if (candidate != match) {
+                        candidate.close();
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Groups all of the metadata cache files that are candidates for auto-attachment to player slots into lists
+     * that are keyed by the playlist ID used to create the cache file. Files that cache all tracks have a playlist
+     * ID of 0.
+     *
+     * @return a map from playlist ID to the caches holding tracks from that playlist
+     */
+    private static Map<Integer, LinkedList<MetadataCache>> gatherCandidateAttachmentGroups() {
+        Map<Integer,LinkedList<MetadataCache>> candidateGroups = new TreeMap<Integer, LinkedList<MetadataCache>>();
+        final Iterator<File> iterator = MetadataFinder.getInstance().getAutoAttachCacheFiles().iterator();
+        while (iterator.hasNext()) {
+            final File file = iterator.next();
+            try {
+                final MetadataCache candidate = new MetadataCache(file);
+                if (candidateGroups.get(candidate.sourcePlaylist) == null) {
+                    candidateGroups.put(candidate.sourcePlaylist, new LinkedList<MetadataCache>());
+                }
+                candidateGroups.get(candidate.sourcePlaylist).add(candidate);
+            } catch (Exception e) {
+                logger.error("Unable to open metadata cache file " + file + ", discarding", e);
+                iterator.remove();
+            }
+        }
+        return candidateGroups;
+    }
+
+    /**
+     * Pick a random sample of tracks to compare against the cache, to see if it matches the attached database. We
+     * will choose whichever is the smaller of the number configured in {@link MetadataFinder#getAutoAttachProbeCount()} or the
+     * total number available in the database or playlist being compared with the cache file.
+     *
+     * @param slot the player slot in which the database we are comparing to our cache is found
+     * @param client the connection to the player for performing database queries to find track IDs
+     * @param count the number of tracks available to sample
+     *
+     * @return the IDs of the tracks we have chosen to compare
+     *
+     * @throws IOException if there is a problem communicating with the player
+     */
+    private static ArrayList<Integer> chooseTrackSample(SlotReference slot, Client client, int count) throws IOException {
+        int tracksLeft = count;
+        int samplesNeeded = Math.min(tracksLeft, MetadataFinder.getInstance().getAutoAttachProbeCount());
+        ArrayList<Integer> tracksToSample = new ArrayList<Integer>(samplesNeeded);
+        int offset = 0;
+        Random random = new Random();
+        while (samplesNeeded > 0) {
+            int rand = random.nextInt(tracksLeft);
+            if (rand < samplesNeeded) {
+                --samplesNeeded;
+                tracksToSample.add(findTrackIdAtOffset(slot, client, offset));
+            }
+            --tracksLeft;
+            ++offset;
+        }
+        return tracksToSample;
+    }
+
+    /**
+     * Find out how many tracks are present in a playlist (or in all tracks, if {@code playlistId} is 0) without
+     * actually retrieving all the entries. This is used in checking whether a metadata cache matches what is found
+     * in a player slot, and to set up the context for sampling a random set of individual tracks for deeper
+     * comparison.
+     *
+     * @param slot the player slot in which the media is located that we would like to compare
+     * @param client the player database connection we can use to perform queries
+     * @param playlistId identifies the playlist we want to know about, or 0 of we are interested in all tracks
+     * @return the number of tracks found in the player database, which is now ready to enumerate them if a positive
+     *         value is returned
+     *
+     * @throws IOException if there is a problem communicating with the database server
+     */
+    private static long getTrackCount(CdjStatus.TrackSourceSlot slot, Client client, int playlistId) throws IOException {
+        Message response;
+        if (playlistId == 0) {  // Form the proper request to render either all tracks or a playlist
+            response = client.menuRequest(Message.KnownType.TRACK_MENU_REQ, Message.MenuIdentifier.MAIN_MENU,
+                    slot, NumberField.WORD_0);
+        }
+        else {
+            response = client.menuRequest(Message.KnownType.PLAYLIST_REQ, Message.MenuIdentifier.MAIN_MENU, slot,
+                    NumberField.WORD_0, new NumberField(playlistId), NumberField.WORD_0);
+        }
+
+        return response.getMenuResultsCount();
+    }
+
+    /**
+     * As part of checking whether a metadata cache can be auto-mounted for a particular media slot, this method
+     * looks up the track at the specified offset within the player's track list, and returns its rekordbox ID.
+     *
+     * @param slot the slot being considered for auto-attaching a metadata cache
+     * @param client the connection to the database server on the player holding that slot
+     * @param offset an index into the list of all tracks present in the slot
+     *
+     * @throws IOException if there is a problem communicating with the player
+     */
+    private static int findTrackIdAtOffset(SlotReference slot, Client client, int offset) throws IOException {
+        Message entry = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slot.slot, CdjStatus.TrackType.REKORDBOX, offset, 1).get(0);
+        if (entry.getMenuItemType() == Message.MenuItemType.UNKNOWN) {
+            logger.warn("Encountered unrecognized track list entry item type: {}", entry);
+        }
+        return (int)((NumberField)entry.arguments.get(1)).getValue();
+    }
+
+
 }

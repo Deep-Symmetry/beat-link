@@ -9,7 +9,7 @@ import java.io.File;
  * the user to cancel it, can implement this interface.</p>
  *
  * The listener object created from that class is then passed to
- * {@link MetadataFinder#createMetadataCache(SlotReference, int, File, MetadataCacheCreationListener)}
+ * {@link MetadataCache#createMetadataCache(SlotReference, int, File, MetadataCacheCreationListener)}
  * in order to be able to display progress during the process of creating the cache file. As each track is added
  * to the cache, {@link #cacheCreationContinuing(TrackMetadata, int, int)} is called, with the most recent track
  * added, the number of tracks that have been added so far, and the total that need to  be added. If it returns
