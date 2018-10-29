@@ -6,7 +6,16 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Changed
+
+> These are breaking API changes. Code that used some cache-related
+> methods will need to be rewritten.
+
+- The handling of metadata cache files has been moved out of the
+  MetadataFinder into a new class focused on this task. It also
+  implements a new interface that can be used by client objects to
+  offer cached metadata to Beat Link (for example track cue lists
+  that group metadata from multiple different media sources).
 
 ## [0.4.1] - 2018-10-28
 

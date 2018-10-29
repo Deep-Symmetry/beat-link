@@ -18,17 +18,17 @@ for examples of what you can do with this.
 > Until that settles down, there may be rapid releases and big changes
 > between releases.
 >
-> :warning: Because beat-link is grew so much for release 0.3.0, it
-> was time to split some classes apart, and even split it into multiple
-> packages, so I also took the opportunity to make some basic changes to
-> the API to position it for future growth and better reliability. This
-> means version 0.3.0 is not API compatible with prior
-> releases, and any code which compiled against an old release will
-> require some rewriting.
+> :warning: Because beat-link grew so much in 0.3.0 (and 0.5.0), it
+> was time to split some classes apart, and even split it into
+> multiple packages, so I also took the opportunity to make some basic
+> changes to the API to position it for future growth and better
+> reliability. This means versions 0.3.0 and (to a lesser extent)
+> 0.5.0 are not API-compatible with prior releases, and any code which
+> compiled against an old release will require some rewriting.
 >
 > :octocat: Since, as far as I know, I am still the only consumer of
 > this API, this seemed like a good time to make these breaking
-> changes.
+> changes. If you are using it and want me to slow down, get in touch!
 
 ## Installing
 

@@ -7,8 +7,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.io.*;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -17,9 +15,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipOutputStream;
 
 /**
  * <p>Watches for new tracks to be loaded on players, and queries the
@@ -92,9 +87,9 @@ public class MetadataFinder extends LifecycleParticipant {
     private TrackMetadata requestMetadataInternal(final DataReference track, final CdjStatus.TrackType trackType,
                                                   final boolean failIfPassive) {
         // First check if we are using cached data for this request
-        ZipFile cache = getMetadataCache(SlotReference.getSlotReference(track));
+        MetadataCache cache = getMetadataCache(SlotReference.getSlotReference(track));
         if (cache != null && trackType == CdjStatus.TrackType.REKORDBOX) {
-            return getCachedMetadata(cache, track);
+            return cache.getTrackMetadata(null, track);
         }
 
         if (passive.get() && failIfPassive) {
@@ -137,7 +132,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
      * @throws TimeoutException if we are unable to lock the client for menu operations
      */
-    private TrackMetadata queryMetadata(final DataReference track, final CdjStatus.TrackType trackType, final Client client)
+    TrackMetadata queryMetadata(final DataReference track, final CdjStatus.TrackType trackType, final Client client)
             throws IOException, InterruptedException, TimeoutException {
 
         // Send the metadata menu request
@@ -174,7 +169,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return the retrieved cue list, or {@code null} if none was available
      * @throws IOException if there is a communication problem
      */
-    private CueList getCueList(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
+    CueList getCueList(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
             throws IOException {
         Message response = client.simpleRequest(Message.KnownType.CUE_LIST_REQ, null,
                 client.buildRMST(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId));
@@ -219,73 +214,6 @@ public class MetadataFinder extends LifecycleParticipant {
         } else {
             throw new TimeoutException("Unable to lock the player for menu operations");
         }
-    }
-
-    /**
-     * Look up track metadata from a cache.
-     *
-     * @param cache the appropriate metadata cache file
-     * @param track identifies the track whose metadata is desired
-     *
-     * @return the cached metadata, including cue list (if available), or {@code null}
-     */
-    public TrackMetadata getCachedMetadata(ZipFile cache, DataReference track) {
-        ZipEntry entry = cache.getEntry(getMetadataEntryName(track.rekordboxId));
-        if (entry != null) {
-            DataInputStream is = null;
-            try {
-                is = new DataInputStream(cache.getInputStream(entry));
-                List<Message> items = new LinkedList<Message>();
-                Message current = Message.read(is);
-                while (current.messageType.getValue() == Message.KnownType.MENU_ITEM.protocolValue) {
-                    items.add(current);
-                    current = Message.read(is);
-                }
-                return new TrackMetadata(track, CdjStatus.TrackType.REKORDBOX, items, getCachedCueList(cache, track.rekordboxId));
-            } catch (IOException e) {
-                logger.error("Problem reading metadata from cache file, returning null", e);
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (Exception e) {
-                        logger.error("Problem closing ZipFile input stream for reading metadata entry", e);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Look up a cue list in a metadata cache.
-     *
-     * @param cache the appropriate metadata cache file
-     * @param rekordboxId the track whose cue list is desired
-     *
-     * @return the cached cue list (if available), or {@code null}
-     */
-    public CueList getCachedCueList(ZipFile cache, int rekordboxId) {
-        ZipEntry entry = cache.getEntry(getCueListEntryName(rekordboxId));
-        if (entry != null) {
-            DataInputStream is = null;
-            try {
-                is = new DataInputStream(cache.getInputStream(entry));
-                Message message = Message.read(is);
-                return new CueList(message);
-            } catch (IOException e) {
-                logger.error("Problem reading cue list from cache file, returning null", e);
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (Exception e) {
-                        logger.error("Problem closing ZipFile input stream for reading cue list", e);
-                    }
-                }
-            }
-        }
-        return null;
     }
 
     /**
@@ -376,62 +304,6 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * The root under which all zip file entries will be created in our cache metadata files.
-     */
-    private static final String CACHE_PREFIX = "BLTMetaCache/";
-
-    /**
-     * The file entry whose content will be the cache format identifier.
-     */
-    private static final String CACHE_FORMAT_ENTRY = CACHE_PREFIX + "version";
-
-    /**
-     * The file entry whose content will be the details about the source media, if available.
-     */
-    private static final String CACHE_DETAILS_ENTRY = CACHE_PREFIX + "mediaDetails";
-
-    /**
-     * The prefix for cache file entries that will store track metadata.
-     */
-    private static final String CACHE_METADATA_ENTRY_PREFIX = CACHE_PREFIX + "metadata/";
-
-    /**
-     * The prefix for cache file entries that will store album art.
-     */
-    private static final String CACHE_ART_ENTRY_PREFIX = CACHE_PREFIX + "artwork/";
-
-    /**
-     * The prefix for cache file entries that will store beat grids.
-     */
-    private static final String CACHE_BEAT_GRID_ENTRY_PREFIX = CACHE_PREFIX + "beatGrid/";
-
-    /**
-     * The prefix for cache file entries that will store beat grids.
-     */
-    private static final String CACHE_CUE_LIST_ENTRY_PREFIX = CACHE_PREFIX + "cueList/";
-
-    /**
-     * The prefix for cache file entries that will store waveform previews.
-     */
-    private static final String CACHE_WAVEFORM_PREVIEW_ENTRY_PREFIX = CACHE_PREFIX + "wavePrev/";
-
-    /**
-     * The prefix for cache file entries that will store waveform previews.
-     */
-    private static final String CACHE_WAVEFORM_DETAIL_ENTRY_PREFIX = CACHE_PREFIX + "waveform/";
-
-    /**
-     * The comment string used to identify a ZIP file as one of our metadata caches.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static final String CACHE_FORMAT_IDENTIFIER = "BeatLink Metadata Cache version 1";
-
-    /**
-     * Used to mark the end of the metadata items in each cache entry, just like when reading from the server.
-     */
-    private static final Message MENU_FOOTER_MESSAGE = new Message(0, Message.KnownType.MENU_FOOTER);
-
-    /**
      * How long should we pause between requesting metadata entries while building a cache to give the player
      * a chance to perform its other tasks.
      */
@@ -455,287 +327,6 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     public long getCachePauseInterval() {
         return cachePauseInterval.get();
-    }
-
-    /**
-     * Finish the process of copying a list of tracks to a metadata cache, once they have been listed. This code
-     * is shared between the implementations that work with the full track list and with playlists.
-     *
-     * @param trackListEntries the list of menu items identifying which tracks need to be copied to the metadata
-     *                         cache
-     * @param playlistId the id of playlist being cached, or 0 of all tracks are being cached
-     * @param client the connection to the dbserver on the player whose metadata is being cached
-     * @param slot the slot in which the media to be cached can be found
-     * @param cache the file into which the metadata cache should be written
-     * @param listener will be informed after each track is added to the cache file being created and offered
-     *                 the opportunity to cancel the process
-     *
-     * @throws IOException if there is a problem communicating with the player or writing the cache file.
-     * @throws TimeoutException if we are unable to lock the client for menu operations
-     */
-    private void copyTracksToCache(List<Message> trackListEntries, int playlistId, Client client, SlotReference slot,
-                                   File cache, MetadataCacheCreationListener listener)
-            throws IOException, TimeoutException {
-        FileOutputStream fos = null;
-        BufferedOutputStream bos = null;
-        ZipOutputStream zos = null;
-        WritableByteChannel channel = null;
-        final Set<Integer> tracksAdded = new HashSet<Integer>();
-        final Set<Integer> artworkAdded = new HashSet<Integer>();
-        try {
-            fos = new FileOutputStream(cache);
-            bos = new BufferedOutputStream(fos);
-            zos = new ZipOutputStream(bos);
-            zos.setMethod(ZipOutputStream.DEFLATED);
-
-            addCacheFormatEntry(trackListEntries, playlistId, zos);
-            channel = Channels.newChannel(zos);
-            addCacheDetailsEntry(slot, zos, channel);
-
-            // Write the actual metadata entries
-            final int totalToCopy = trackListEntries.size();
-            TrackMetadata lastTrackAdded = null;
-            int tracksCopied = 0;
-
-            for (Message entry : trackListEntries) {
-                if (entry.getMenuItemType() == Message.MenuItemType.UNKNOWN) {
-                    logger.warn("Encountered unrecognized track list entry item type: {}", entry);
-                }
-
-                int rekordboxId = (int)((NumberField)entry.arguments.get(1)).getValue();
-                if (!tracksAdded.contains(rekordboxId)) {  // Ignore extra copies of a track present on a playlist.
-                    lastTrackAdded = copyTrackToCache(client, slot, zos, channel, artworkAdded, rekordboxId);
-                    tracksAdded.add(rekordboxId);
-                }
-
-                if (listener != null) {
-                    if (!listener.cacheCreationContinuing(lastTrackAdded, ++tracksCopied, totalToCopy)) {
-                        logger.info("Track metadata cache creation canceled by listener");
-                        if (!cache.delete()) {
-                            logger.warn("Unable to delete metadata cache file, {}", cache);
-                        }
-                        return;
-                    }
-                }
-
-                Thread.sleep(cachePauseInterval.get());
-            }
-        } catch (InterruptedException e) {
-            logger.warn("Interrupted while building metadata cache file, aborting", e);
-            if (!cache.delete()) {
-                logger.warn("Unable to delete metadata cache file, {}", cache);
-            }
-        } finally {
-            try {
-                if (channel != null) {
-                    channel.close();
-                }
-            } catch (Exception e) {
-                logger.error("Problem closing byte channel for writing to metadata cache", e);
-            }
-            try {
-                if (zos != null) {
-                    zos.close();
-                }
-            } catch (Exception e) {
-                logger.error("Problem closing Zip Output Stream of metadata cache", e);
-            }
-            try {
-                if (bos != null) {
-                    bos.close();
-                }
-            } catch (Exception e) {
-                logger.error("Problem closing Buffered Output Stream of metadata cache", e);
-            }
-            try {
-                if (fos != null) {
-                    fos.close();
-                }
-            } catch (Exception e) {
-                logger.error("Problem closing File Output Stream of metadata cache", e);
-            }
-        }
-    }
-
-    /**
-     * Add a marker so we can recognize this as a metadata archive. I would use the ZipFile comment, but
-     * that is not available until Java 7, and Beat Link is supposed to be backwards compatible with Java 6.
-     * Since we are doing this anyway, we can also provide information about the nature of the cache, and
-     * how many metadata entries it contains, which is useful for auto-attachment.
-     *
-     * @param trackListEntries the tracks contained in the cache, so we can record the number
-     * @param playlistId the playlist contained in the cache, or 0 if it is all tracks from the media
-     * @param zos the stream to which the ZipFile is being written
-     *
-     * @throws IOException if there is a problem creating the format entry
-     */
-    private void addCacheFormatEntry(List<Message> trackListEntries, int playlistId, ZipOutputStream zos) throws IOException {
-        // Add a marker so we can recognize this as a metadata archive. I would use the ZipFile comment, but
-        // that is not available until Java 7, and Beat Link is supposed to be backwards compatible with Java 6.
-        // Since we are doing this anyway, we can also provide information about the nature of the cache, and
-        // how many metadata entries it contains, which is useful for auto-attachment.
-        zos.putNextEntry(new ZipEntry(CACHE_FORMAT_ENTRY));
-        String formatEntry = CACHE_FORMAT_IDENTIFIER + ":" + playlistId + ":" + trackListEntries.size();
-        zos.write(formatEntry.getBytes("UTF-8"));
-    }
-
-    /**
-     * Record the details of the media being cached, to make it easier to recognize, now that we have access to that
-     * information.
-     *
-     * @param slot the slot from which a metadata cache is being created
-     * @param zos the stream to which the ZipFile is being written
-     * @param channel the low-level channel to which the cache is being written
-     *
-     * @throws IOException if there is a problem writing the media details entry
-     */
-    private void addCacheDetailsEntry(SlotReference slot, ZipOutputStream zos, WritableByteChannel channel) throws IOException {
-        // Record the details of the media being cached, to make it easier to recognize now that we can.
-        MediaDetails details = getMediaDetailsFor(slot);
-        if (details != null) {
-            zos.putNextEntry(new ZipEntry(CACHE_DETAILS_ENTRY));
-            Util.writeFully(details.getRawBytes(), channel);
-        }
-    }
-
-    /**
-     * Copy a single track's metadata and related objects to a cache file being created.
-     *
-     * @param client the connection to the database server from which the art can be obtained
-     * @param slot the player slot from which the art is being copied
-     * @param zos the stream to which the cache is being written
-     * @param channel the low-level channel to which the cache is being written
-     * @param artworkAdded collects the artwork that has already been added to the cache, to avoid duplicates
-     * @param rekordboxId the database ID of the track to be cached
-     *
-     * @return the track metadata object that was written to the cache, or {@code null} if it could not be found
-     *
-     * @throws IOException if there is a problem communicating with the player or writing to the cache file
-     * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
-     * @throws TimeoutException if we are unable to lock the client for menu operations
-     */
-    private TrackMetadata copyTrackToCache(Client client, SlotReference slot, ZipOutputStream zos,
-                                           WritableByteChannel channel, Set<Integer> artworkAdded, int rekordboxId)
-            throws IOException, TimeoutException, InterruptedException {
-
-        final TrackMetadata track = queryMetadata(new DataReference(slot, rekordboxId), CdjStatus.TrackType.REKORDBOX, client);
-        if (track != null) {
-            logger.debug("Adding metadata with ID {}", track.trackReference.rekordboxId);
-            zos.putNextEntry(new ZipEntry(getMetadataEntryName(track.trackReference.rekordboxId)));
-            for (Message metadataItem : track.rawItems) {
-                metadataItem.write(channel);
-            }
-            MENU_FOOTER_MESSAGE.write(channel);  // So we know to stop reading
-        } else {
-            logger.warn("Unable to retrieve metadata with ID {}", rekordboxId);
-            return null;
-        }
-
-        if (track.getArtworkId() != 0 && !artworkAdded.contains(track.getArtworkId())) {
-            logger.debug("Adding artwork with ID {}", track.getArtworkId());
-            zos.putNextEntry(new ZipEntry(getArtworkEntryName(track.getArtworkId())));
-            final AlbumArt art = ArtFinder.getInstance().getArtwork(track.getArtworkId(), slot, CdjStatus.TrackType.REKORDBOX, client);
-            if (art != null) {
-                Util.writeFully(art.getRawBytes(), channel);
-                artworkAdded.add(track.getArtworkId());
-            }
-        }
-
-        final BeatGrid beatGrid = BeatGridFinder.getInstance().getBeatGrid(rekordboxId, slot, client);
-        if (beatGrid != null) {
-            logger.debug("Adding beat grid with ID {}", rekordboxId);
-            zos.putNextEntry(new ZipEntry(getBeatGridEntryName(rekordboxId)));
-            Util.writeFully(beatGrid.getRawData(), channel);
-        }
-
-        final CueList cueList = getCueList(rekordboxId, slot.slot, client);
-        if (cueList != null) {
-            logger.debug("Adding cue list entry with ID {}", rekordboxId);
-            zos.putNextEntry(new ZipEntry((getCueListEntryName(rekordboxId))));
-            cueList.rawMessage.write(channel);
-        }
-
-        final WaveformPreview preview = WaveformFinder.getInstance().getWaveformPreview(rekordboxId, slot, client);
-        if (preview != null) {
-            logger.debug("Adding waveform preview entry with ID {}", rekordboxId);
-            zos.putNextEntry(new ZipEntry((getWaveformPreviewEntryName(rekordboxId))));
-            preview.rawMessage.write(channel);
-        }
-
-        final WaveformDetail detail = WaveformFinder.getInstance().getWaveformDetail(rekordboxId, slot, client);
-        if (detail != null) {
-            logger.debug("Adding waveform detail entry with ID {}", rekordboxId);
-            zos.putNextEntry(new ZipEntry((getWaveformDetailEntryName(rekordboxId))));
-            detail.rawMessage.write(channel);
-        }
-
-        return track;
-    }
-
-    /**
-     * Names the appropriate zip file entry for caching a track's metadata.
-     *
-     * @param rekordboxId the id of the track being cached or looked up
-     *
-     * @return the name of the entry where that track's metadata should be stored
-     */
-    private String getMetadataEntryName(int rekordboxId) {
-        return CACHE_METADATA_ENTRY_PREFIX + rekordboxId;
-    }
-
-    /**
-     * Names the appropriate zip file entry for caching album art.
-     *
-     * @param artworkId the database ID of the artwork being cached or looked up
-     *
-     * @return the name of entry where that artwork should be stored
-     */
-    String getArtworkEntryName(int artworkId) {
-        return CACHE_ART_ENTRY_PREFIX + artworkId + ".jpg";
-    }
-
-    /**
-     * Names the appropriate zip file entry for caching a track's beat grid.
-     *
-     * @param rekordboxId the id of the track being cached or looked up
-     *
-     * @return the name of the entry where that track's beat grid should be stored
-     */
-    String getBeatGridEntryName(int rekordboxId) {
-        return CACHE_BEAT_GRID_ENTRY_PREFIX + rekordboxId;
-    }
-
-    /**
-     * Names the appropriate zip file entry for caching a track's cue list.
-     *
-     * @param rekordboxId the id of the track being cached or looked up
-     *
-     * @return the name of the entry where that track's cue list should be stored
-     */
-    private String getCueListEntryName(int rekordboxId) {
-        return CACHE_CUE_LIST_ENTRY_PREFIX + rekordboxId;
-    }
-
-    /**
-     * Names the appropriate zip file entry for caching a track's waveform preview.
-     *
-     * @param rekordboxId the id of the track being cached or looked up
-     *
-     * @return the name of the entry where that track's waveform preview should be stored
-     */
-    String getWaveformPreviewEntryName(int rekordboxId) {
-        return CACHE_WAVEFORM_PREVIEW_ENTRY_PREFIX + rekordboxId;
-    }
-
-    /**
-     * Names the appropriate zip file entry for caching a track's waveform detail.
-     *
-     * @param rekordboxId the id of the track being cached or looked up
-     *
-     * @return the name of the entry where that track's waveform detail should be stored
-     */
-    String getWaveformDetailEntryName(int rekordboxId) {
-        return CACHE_WAVEFORM_DETAIL_ENTRY_PREFIX + rekordboxId;
     }
 
     /**
@@ -769,7 +360,7 @@ public class MetadataFinder extends LifecycleParticipant {
                 } else {
                     trackList = getPlaylistItems(slot.slot, 0, playlistId, false, client);
                 }
-                copyTracksToCache(trackList, playlistId, client, slot, cache, listener);
+                MetadataCache.copyTracksToCache(trackList, playlistId, client, slot, cache, listener);
                 return null;
             }
         };
@@ -989,7 +580,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * Keeps track of any metadata caches that have been attached for the slots of players on the network,
      * keyed by slot reference.
      */
-    private final Map<SlotReference, ZipFile> metadataCacheFiles = new ConcurrentHashMap<SlotReference, ZipFile>();
+    private final Map<SlotReference, MetadataCache> metadataCacheFiles = new ConcurrentHashMap<SlotReference, MetadataCache>();
 
     /**
      * Attach a metadata cache file to a particular player media slot, so the cache will be used instead of querying
@@ -999,13 +590,13 @@ public class MetadataFinder extends LifecycleParticipant {
      * If the media is ejected from that player slot, the cache will be detached.
      *
      * @param slot the media slot to which a meta data cache is to be attached
-     * @param cache the metadata cache to be attached
+     * @param file the metadata cache to be attached
      *
      * @throws IOException if there is a problem reading the cache file
      * @throws IllegalArgumentException if an invalid player number or slot is supplied
      * @throws IllegalStateException if the metadata finder is not running
      */
-    public void attachMetadataCache(SlotReference slot, File cache)
+    public void attachMetadataCache(SlotReference slot, File file)
             throws IOException {
         ensureRunning();
         if (slot.player < 1 || slot.player > 4 || DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player) == null) {
@@ -1015,20 +606,19 @@ public class MetadataFinder extends LifecycleParticipant {
             throw new IllegalArgumentException("unable to attach metadata cache for slot " + slot.slot);
         }
 
-        ZipFile newCache = openMetadataCache(cache);
-        final MediaDetails cacheDetails = getCacheMediaDetails(newCache);
+        MetadataCache cache = new MetadataCache(file);
         final MediaDetails slotDetails = getMediaDetailsFor(slot);
-        if (cacheDetails !=  null && slotDetails != null) {
-            if (!slotDetails.hashKey().equals(cacheDetails.hashKey())) {
-                throw new IllegalArgumentException("Cache was created for different media (" + cacheDetails.hashKey() +
+        if (cache.sourceMedia !=  null && slotDetails != null) {
+            if (!slotDetails.hashKey().equals(cache.sourceMedia.hashKey())) {
+                throw new IllegalArgumentException("Cache was created for different media (" + cache.sourceMedia.hashKey() +
                         ") than is in the slot (" + slotDetails.hashKey() + ").");
             }
-            if (slotDetails.hasChanged(cacheDetails)) {
-                logger.warn("Media has changed (" + slotDetails + ") since cache was created (" + cacheDetails +
+            if (slotDetails.hasChanged(cache.sourceMedia)) {
+                logger.warn("Media has changed (" + slotDetails + ") since cache was created (" + cache.sourceMedia +
                         "). Attaching anyway as instructed.");
             }
         }
-        attachMetadataCacheInternal(slot, newCache);
+        attachMetadataCacheInternal(slot, cache);
     }
 
     /**
@@ -1037,8 +627,8 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param slot the slot to which the cache should be attached
      * @param cache the opened, validated metadata cache file
      */
-    private void attachMetadataCacheInternal(SlotReference slot, ZipFile cache) {
-        ZipFile oldCache = metadataCacheFiles.put(slot, cache);
+    private void attachMetadataCacheInternal(SlotReference slot, MetadataCache cache) {
+        MetadataCache oldCache = metadataCacheFiles.put(slot, cache);
         if (oldCache != null) {
             try {
                 oldCache.close();
@@ -1051,144 +641,13 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Open and validate a metadata cache file.
-     *
-     * @param cache the file the user wants to work with
-     *
-     * @return the opened zip file, if it contains a valid cache
-     *
-     * @throws IOException if there is a problem reading the file, or it does not contain a valid metadata cache
-     */
-    public ZipFile openMetadataCache(File cache) throws IOException {
-        ZipFile newCache = new ZipFile(cache, ZipFile.OPEN_READ);
-        String tag = getCacheFormatEntry(newCache);
-        if (tag == null || !tag.startsWith(CACHE_FORMAT_IDENTIFIER)) {
-            try {
-                newCache.close();
-            } catch (Exception e) {
-                logger.error("Problem re-closing newly opened candidate metadata cache", e);
-            }
-            throw new IOException("File does not contain a Beat Link metadata cache: " + cache +
-            " (looking for format identifier \"" + CACHE_FORMAT_IDENTIFIER + "\", found: " + tag);
-        }
-        return newCache;
-    }
-
-    /**
-     * Find and read the cache format entry in a metadata cache file.
-     *
-     * @param cache the cache file whose format entry is desired
-     *
-     * @return the content of the format entry, or {@code null} if none was found
-     *
-     * @throws IOException if there is a problem reading the file
-     */
-    private String getCacheFormatEntry(ZipFile cache) throws IOException {
-        ZipEntry zipEntry = cache.getEntry(CACHE_FORMAT_ENTRY);
-        InputStream is = cache.getInputStream(zipEntry);
-        try {
-            Scanner s = new Scanner(is, "UTF-8").useDelimiter("\\A");
-            String tag = null;
-            if (s.hasNext()) tag = s.next();
-            return tag;
-        } finally {
-            is.close();
-        }
-    }
-
-    /**
-     * Reports the details about the media from which a metadata cache was created, if available. This will only
-     * return a non-{@code null} value for caches created by Beat Link 0.4.1 or later.
-     *
-     * @param cache the cache file whose media details are desired
-     *
-     * @return the details about the media from which the cache was created or {@code null} if unknown
-     *
-     * @throws IOException if there is a problem reading the file
-     *
-     * @since 0.4.1
-     */
-    public MediaDetails getCacheMediaDetails(ZipFile cache) throws IOException {
-        ZipEntry zipEntry = cache.getEntry(CACHE_DETAILS_ENTRY);
-        if (zipEntry == null) {
-            return null;  // No details available.
-        }
-        InputStream is = cache.getInputStream(zipEntry);
-        try {
-            DataInputStream dis = new DataInputStream(is);
-            try {
-                byte[] detailBytes = new byte[(int)zipEntry.getSize()];
-                dis.readFully(detailBytes);
-                return new MediaDetails(detailBytes, detailBytes.length);
-            } finally {
-                dis.close();
-            }
-        } finally {
-            is.close();
-        }
-    }
-
-    /**
-     * Reports the ID of the playlist that was used to create the cache, or 0 of it is an all-tracks cache.
-     *
-     * @param cache the metadata cache whose contents are of interest
-     *
-     * @return 0 if the cache was created using all tracks, or the id of the playlist that it contains otherwise
-     *
-     * @throws IOException if there is a problem reading the cache file
-     */
-    public int getCacheSourcePlaylist(ZipFile cache) throws IOException {
-        String tag = getCacheFormatEntry(cache);
-        return Integer.parseInt(tag.split(":")[1]);
-    }
-
-    /**
-     * Reports the number of tracks contained in a metadata cache.
-     *
-     * @param cache the metadata cache whose contents are of interest
-     *
-     * @return the number of cached track metadata entries
-     *
-     * @throws IOException if there is a problem reading the cache file
-     */
-    public int getCacheTrackCount(ZipFile cache) throws IOException {
-        String tag = getCacheFormatEntry(cache);
-        return Integer.parseInt(tag.split(":")[2]);
-    }
-
-    /**
-     * Returns a list of the rekordbox IDs of the tracks contained in a metadata cache.
-     *
-     * @param cache the metadata cache whose contents are of interest
-     *
-     * @return a list containing the rekordbox ID for each track present in the cache, in the order they appear
-     *
-     * @throws IOException if there is a problem reading the cache file
-     */
-    public List<Integer> getCacheTrackIds(ZipFile cache) throws IOException {
-        ArrayList<Integer> results = new ArrayList<Integer>(getCacheTrackCount(cache));
-        Enumeration<? extends ZipEntry> entries = cache.entries();
-        while (entries.hasMoreElements()) {
-            ZipEntry entry = entries.nextElement();
-            if (entry.getName().startsWith(CACHE_METADATA_ENTRY_PREFIX)) {
-                String idPart = entry.getName().substring(CACHE_METADATA_ENTRY_PREFIX.length());
-                if (idPart.length() > 0) {
-                    results.add(Integer.valueOf(idPart));
-                }
-            }
-        }
-
-        return Collections.unmodifiableList(results);
-    }
-
-    /**
      * Removes any metadata cache file that might have been assigned to a particular player media slot, so metadata
      * will be looked up from the player itself.
      *
      * @param slot the media slot to which a meta data cache is to be attached
      */
     public void detachMetadataCache(SlotReference slot) {
-        ZipFile oldCache = metadataCacheFiles.remove(slot);
+        MetadataCache oldCache = metadataCacheFiles.remove(slot);
         if (oldCache != null) {
             try {
                 oldCache.close();
@@ -1217,18 +676,16 @@ public class MetadataFinder extends LifecycleParticipant {
      * @throws IOException if the specified file cannot be read or is not a valid metadata cache
      */
     public void addAutoAttachCacheFile(File metadataCacheFile) throws IOException {
-        ZipFile opened = openMetadataCache(metadataCacheFile);  // Make sure it is readable and valid.
+        MetadataCache opened = new MetadataCache(metadataCacheFile);  // Make sure it is readable and valid.
         try {
-            MediaDetails details = getCacheMediaDetails(opened);
-            if (details != null) {  // Remove any auto-attach files created from the same media as the one being added.
+            if (opened.sourceMedia != null) {  // Remove any auto-attach files created from the same media as the one being added.
                 Iterator<File> iterator = autoAttachCacheFiles.iterator();
                 while (iterator.hasNext()) {
                     File file = iterator.next();
                     if (!file.equals(metadataCacheFile)) {
-                        ZipFile existing = openMetadataCache(file);
+                        MetadataCache existing = new MetadataCache(file);
                         try {
-                            MediaDetails existingDetails = getCacheMediaDetails(existing);
-                            if (existingDetails != null && existingDetails.hashKey().equals(details.hashKey())) {
+                            if (existing.sourceMedia != null && existing.sourceMedia.hashKey().equals(opened.sourceMedia.hashKey())) {
                                 iterator.remove();
                             }
                         } finally {
@@ -1340,12 +797,11 @@ public class MetadataFinder extends LifecycleParticipant {
                         // less disruptive than trying to sample the player database to compare entries.
                         boolean attached = false;
                         for (File file : autoAttachCacheFiles) {
-                            final ZipFile cache = openMetadataCache(file);
+                            final MetadataCache cache = new MetadataCache(file);
                             try {
-                                final MediaDetails cachedDetails = getCacheMediaDetails(cache);
-                                if (cachedDetails != null && cachedDetails.hashKey().equals(details.hashKey())) {
+                                if (cache.sourceMedia != null && cache.sourceMedia.hashKey().equals(details.hashKey())) {
                                     // We found a solid match, no need to probe tracks.
-                                    final boolean changed = cachedDetails.hasChanged(details);
+                                    final boolean changed = cache.sourceMedia.hasChanged(details);
                                     logger.info("Auto-attaching metadata cache " + cache.getName() + " to slot " + slot +
                                             " based on media details " + (changed? "(changed since created)!" : "(unchanged)."));
                                     attachMetadataCacheInternal(slot, cache);
@@ -1392,13 +848,13 @@ public class MetadataFinder extends LifecycleParticipant {
     private void tryAutoAttachingWithConnection(SlotReference slot, Client client) throws IOException, InterruptedException, TimeoutException {
         // Keeps track of the files we might be able to auto-attach, grouped and sorted by the playlist they
         // were created from, where playlist 0 means all tracks.
-        final Map<Integer, LinkedList<ZipFile>> candidateGroups = gatherCandidateAttachmentGroups();
-        ZipFile match = null;  // We will close any non-matched files from the candidateGroups in our finally clause,
+        final Map<Integer, LinkedList<MetadataCache>> candidateGroups = gatherCandidateAttachmentGroups();
+        MetadataCache match = null;  // We will close any non-matched files from the candidateGroups in our finally clause,
                                // but we will leave this one open because we are returning it.
         try {
             // Set up a menu request to process each group.
-            for (Map.Entry<Integer,LinkedList<ZipFile>> entry : candidateGroups.entrySet()) {
-                final LinkedList<ZipFile> candidates;
+            for (Map.Entry<Integer,LinkedList<MetadataCache>> entry : candidateGroups.entrySet()) {
+                final LinkedList<MetadataCache> candidates;
                 ArrayList<Integer> tracksToSample;
                 if (client.tryLockingForMenuOperations(MENU_TIMEOUT, TimeUnit.SECONDS)) {
                     try {
@@ -1407,17 +863,17 @@ public class MetadataFinder extends LifecycleParticipant {
                         final long count = getTrackCount(slot.slot, client, playlistId);
                         if (count == Message.NO_MENU_RESULTS_AVAILABLE || count == 0) {
                             // No tracks available to match this set of candidates.
-                            for (final ZipFile candidate : candidates) {
+                            for (final MetadataCache candidate : candidates) {
                                 candidate.close();
                             }
                             candidates.clear();
                         }
 
                         // Filter out any candidates with the wrong number of tracks.
-                        final Iterator<ZipFile> candidateIterator = candidates.iterator();
+                        final Iterator<MetadataCache> candidateIterator = candidates.iterator();
                         while (candidateIterator.hasNext()) {
-                            final ZipFile candidate = candidateIterator.next();
-                            if (getCacheTrackCount(candidate) != count) {
+                            final MetadataCache candidate = candidateIterator.next();
+                            if (candidate.trackCount != count) {
                                 candidate.close();
                                 candidateIterator.remove();
                             }
@@ -1449,8 +905,8 @@ public class MetadataFinder extends LifecycleParticipant {
                     }
 
                     for (int i = candidates.size() - 1; i >= 0; --i) {
-                        final ZipFile candidate = candidates.get(i);
-                        if (!track.equals(getCachedMetadata(candidate, reference))) {
+                        final MetadataCache candidate = candidates.get(i);
+                        if (!track.equals(candidate.getTrackMetadata(null, reference))) {
                             candidate.close();
                             candidates.remove(i);
                         }
@@ -1471,8 +927,8 @@ public class MetadataFinder extends LifecycleParticipant {
                 return;
             }
         } finally {  // No matter how we leave this function, close any of the remaining zip files we are not attaching.
-            for (Map.Entry<Integer, LinkedList<ZipFile>> entry : candidateGroups.entrySet()) {
-                for (ZipFile candidate : entry.getValue()) {
+            for (Map.Entry<Integer, LinkedList<MetadataCache>> entry : candidateGroups.entrySet()) {
+                for (MetadataCache candidate : entry.getValue()) {
                     if (candidate != match) {
                         candidate.close();
                     }
@@ -1486,20 +942,19 @@ public class MetadataFinder extends LifecycleParticipant {
      * that are keyed by the playlist ID used to create the cache file. Files that cache all tracks have a playlist
      * ID of 0.
      *
-     * @return a map from playlist ID to the files caching tracks from that playlist
+     * @return a map from playlist ID to the caches holding tracks from that playlist
      */
-    private Map<Integer, LinkedList<ZipFile>> gatherCandidateAttachmentGroups() {
-        Map<Integer,LinkedList<ZipFile>> candidateGroups = new TreeMap<Integer, LinkedList<ZipFile>>();
+    private Map<Integer, LinkedList<MetadataCache>> gatherCandidateAttachmentGroups() {
+        Map<Integer,LinkedList<MetadataCache>> candidateGroups = new TreeMap<Integer, LinkedList<MetadataCache>>();
         final Iterator<File> iterator = autoAttachCacheFiles.iterator();
         while (iterator.hasNext()) {
             final File file = iterator.next();
             try {
-                final ZipFile candidate = openMetadataCache(file);
-                final int playlistId = getCacheSourcePlaylist(candidate);
-                if (candidateGroups.get(playlistId) == null) {
-                    candidateGroups.put(playlistId, new LinkedList<ZipFile>());
+                final MetadataCache candidate = new MetadataCache(file);
+                if (candidateGroups.get(candidate.sourcePlaylist) == null) {
+                    candidateGroups.put(candidate.sourcePlaylist, new LinkedList<MetadataCache>());
                 }
-                candidateGroups.get(playlistId).add(candidate);
+                candidateGroups.get(candidate.sourcePlaylist).add(candidate);
             } catch (Exception e) {
                 logger.error("Unable to open metadata cache file " + file + ", discarding", e);
                 iterator.remove();
@@ -1605,10 +1060,9 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param slot the media slot to which a meta data cache is to be attached
      *
-     * @return the zip file being used as a metadata cache for that player and slot, or {@code null} if no cache
-     *         has been attached
+     * @return the metadata cache for that player and slot, or {@code null} if no cache has been attached
      */
-    public ZipFile getMetadataCache(SlotReference slot) {
+    public MetadataCache getMetadataCache(SlotReference slot) {
         return metadataCacheFiles.get(slot);
     }
 
@@ -1822,9 +1276,9 @@ public class MetadataFinder extends LifecycleParticipant {
      * Send a metadata cache update announcement to all registered listeners.
      *
      * @param slot the media slot whose cache status has changed
-     * @param cache the cache file which has been attached, or, if {@code null}, the previous cache has been detached
+     * @param cache the cache which has been attached, or, if {@code null}, the previous cache has been detached
      */
-    private void deliverCacheUpdate(SlotReference slot, ZipFile cache) {
+    private void deliverCacheUpdate(SlotReference slot, MetadataCache cache) {
         for (final MetadataCacheListener listener : getCacheListeners()) {
             try {
                 if (cache == null) {

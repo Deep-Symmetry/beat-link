@@ -1,19 +1,19 @@
 package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.*;
-import org.deepsymmetry.beatlink.dbserver.*;
+import org.deepsymmetry.beatlink.dbserver.Client;
+import org.deepsymmetry.beatlink.dbserver.ConnectionManager;
+import org.deepsymmetry.beatlink.dbserver.Message;
+import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 /**
  * <p>Watches for new metadata to become available for tracks loaded on players, and queries the
@@ -375,9 +375,9 @@ public class WaveformFinder extends LifecycleParticipant {
     private WaveformPreview requestPreviewInternal(final DataReference trackReference, final boolean failIfPassive) {
 
         // First check if we are using cached data for this slot
-        ZipFile cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
+        MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
         if (cache != null) {
-            return getCachedWaveformPreview(cache, trackReference);
+            return cache.getWaveformPreview(null, trackReference);
         }
 
         if (MetadataFinder.getInstance().isPassive() && failIfPassive) {
@@ -422,38 +422,6 @@ public class WaveformFinder extends LifecycleParticipant {
     }
 
     /**
-     * Look up a waveform preview in a metadata cache.
-     *
-     * @param cache the appropriate metadata cache file
-     * @param dataReference the unique database specification of the desired waveform preview
-     *
-     * @return the cached waveform preview (if available), or {@code null}
-     */
-    @SuppressWarnings("WeakerAccess")
-    public WaveformPreview getCachedWaveformPreview(ZipFile cache, DataReference dataReference) {
-        ZipEntry entry = cache.getEntry(MetadataFinder.getInstance().getWaveformPreviewEntryName(dataReference.rekordboxId));
-        if (entry != null) {
-            DataInputStream is = null;
-            try {
-                is = new DataInputStream(cache.getInputStream(entry));
-                Message message = Message.read(is);
-                return new WaveformPreview(dataReference, message);
-            } catch (IOException e) {
-                logger.error("Problem reading waveform preview from cache file, returning null", e);
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (Exception e) {
-                        logger.error("Problem closing ZipFile input stream for waveform preview", e);
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
      * Requests the waveform preview for a specific track ID, given a connection to a player that has already been
      * set up.
      *
@@ -489,9 +457,9 @@ public class WaveformFinder extends LifecycleParticipant {
     private WaveformDetail requestDetailInternal(final DataReference trackReference, final boolean failIfPassive) {
 
         // First check if we are using cached data for this slot
-        ZipFile cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
+        MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
         if (cache != null) {
-            return getCachedWaveformDetail(cache, trackReference);
+            return cache.getWaveformDetail(null, trackReference);
         }
 
         if (MetadataFinder.getInstance().isPassive() && failIfPassive) {
@@ -533,38 +501,6 @@ public class WaveformFinder extends LifecycleParticipant {
             }
         }
         return requestDetailInternal(dataReference, false);
-    }
-
-    /**
-     * Look up waveform detail in a metadata cache.
-     *
-     * @param cache the appropriate metadata cache file
-     * @param dataReference the unique database specification of the desired waveform detail
-     *
-     * @return the cached waveform detail (if available), or {@code null}
-     */
-    @SuppressWarnings("WeakerAccess")
-    public WaveformDetail getCachedWaveformDetail(ZipFile cache, DataReference dataReference) {
-        ZipEntry entry = cache.getEntry(MetadataFinder.getInstance().getWaveformDetailEntryName(dataReference.rekordboxId));
-        if (entry != null) {
-            DataInputStream is = null;
-            try {
-                is = new DataInputStream(cache.getInputStream(entry));
-                Message message = Message.read(is);
-                return new WaveformDetail(dataReference, message);
-            } catch (IOException e) {
-                logger.error("Problem reading waveform detail from cache file, returning null", e);
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (Exception e) {
-                        logger.error("Problem closing ZipFile input stream for waveform detail", e);
-                    }
-                }
-            }
-        }
-        return null;
     }
 
     /**

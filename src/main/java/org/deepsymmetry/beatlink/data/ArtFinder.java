@@ -7,15 +7,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 /**
  * <p>Watches for new metadata to become available for tracks loaded on players, and queries the
@@ -282,9 +278,13 @@ public class ArtFinder extends LifecycleParticipant {
                                             final boolean failIfPassive) {
 
         // First check if we are using cached data for this slot
-        ZipFile cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(artReference));
+        MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(artReference));
         if (cache != null) {
-            return getCachedArtwork(cache, artReference);
+            final AlbumArt result = cache.getAlbumArt(null, artReference);
+            if (result != null) {
+                artCache.put(artReference, result);
+            }
+            return result;
         }
 
         if (MetadataFinder.getInstance().isPassive() && failIfPassive) {
@@ -330,43 +330,6 @@ public class ArtFinder extends LifecycleParticipant {
             artwork = requestArtworkInternal(artReference, trackType, false);
         }
         return artwork;
-    }
-
-    /**
-     * Look up artwork from a cache file.
-     *
-     * @param cache the appropriate metadata cache file
-     * @param artReference the unique database specification of the desired artwork
-     *
-     * @return the cached album art (if available), or {@code null}
-     *
-     * @throws IllegalStateException if the ArtFinder is not running
-     */
-    public AlbumArt getCachedArtwork(ZipFile cache, DataReference artReference) {
-        ensureRunning();
-        ZipEntry entry = cache.getEntry(MetadataFinder.getInstance().getArtworkEntryName(artReference.rekordboxId));
-        if (entry != null) {
-            DataInputStream is = null;
-            try {
-                is = new DataInputStream(cache.getInputStream(entry));
-                byte[] imageBytes = new byte[(int)entry.getSize()];
-                is.readFully(imageBytes);
-                AlbumArt result = new AlbumArt(artReference, ByteBuffer.wrap(imageBytes).asReadOnlyBuffer());
-                artCache.put(artReference, result);
-                return result;
-            } catch (IOException e) {
-                logger.error("Problem reading artwork from cache file, returning null", e);
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (Exception e) {
-                        logger.error("Problem closing ZipFile input stream for reading artwork entry", e);
-                    }
-                }
-            }
-        }
-        return null;
     }
 
     /**

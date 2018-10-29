@@ -9,15 +9,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 /**
  * <p>Watches for new metadata to become available for tracks loaded on players, and queries the
@@ -232,9 +228,9 @@ public class BeatGridFinder extends LifecycleParticipant {
     private BeatGrid requestBeatGridInternal(final DataReference trackReference, final boolean failIfPassive) {
 
         // First check if we are using cached data for this slot
-        ZipFile cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
+        MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
         if (cache != null) {
-            return getCachedBeatGrid(cache, trackReference);
+            return cache.getBeatGrid(null, trackReference);
         }
 
         if (MetadataFinder.getInstance().isPassive() && failIfPassive) {
@@ -273,39 +269,6 @@ public class BeatGridFinder extends LifecycleParticipant {
             }
         }
         return requestBeatGridInternal(track, false);
-    }
-
-    /**
-     * Look up a beat grid in a metadata cache.
-     *
-     * @param cache the appropriate metadata cache file
-     * @param reference the track whose beat grid is desired
-     *
-     * @return the cached beat grid (if available), or {@code null}
-     */
-    @SuppressWarnings("WeakerAccess")
-    public BeatGrid getCachedBeatGrid(ZipFile cache, DataReference reference) {
-        ZipEntry entry = cache.getEntry(MetadataFinder.getInstance().getBeatGridEntryName(reference.rekordboxId));
-        if (entry != null) {
-            DataInputStream is = null;
-            try {
-                is = new DataInputStream(cache.getInputStream(entry));
-                byte[] gridBytes = new byte[(int)entry.getSize()];
-                is.readFully(gridBytes);
-                return new BeatGrid(reference, ByteBuffer.wrap(gridBytes).asReadOnlyBuffer());
-            } catch (IOException e) {
-                logger.error("Problem reading beat grid from cache file, returning null", e);
-            } finally {
-                if (is != null) {
-                    try {
-                        is.close();
-                    } catch (Exception e) {
-                        logger.error("Problem closing ZipFile input stream for reading beat grid entry", e);
-                    }
-                }
-            }
-        }
-        return null;
     }
 
     /**

@@ -63,6 +63,15 @@ public class DataReference {
         this(slot.player, slot.slot, rekordboxId);
     }
 
+    /**
+     * Extract the slot reference portion of this data reference (discarding the rekordbox ID).
+     *
+     * @return the player and slot from which this data can to be loaded
+     */
+    public SlotReference getSlotReference() {
+        return SlotReference.getSlotReference(this);
+    }
+
     @Override
     public int hashCode() {
         return hash;

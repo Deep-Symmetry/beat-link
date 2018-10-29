@@ -1,13 +1,11 @@
 package org.deepsymmetry.beatlink.data;
 
-import java.util.zip.ZipFile;
-
 /**
  * <p>The listener interface for receiving updates when the set of attached metadata caches changes.</p>
  *
  * <p>Classes that are interested displaying up-to-date information about attached metadata caches can implement this
  * interface, and then pass the implementing instance to {@link MetadataFinder#addCacheListener(MetadataCacheListener)}.
- * Then, when a new metadata cache is attached, {@link #cacheAttached(SlotReference, ZipFile)} will be called,
+ * Then, when a new metadata cache is attached, {@link #cacheAttached(SlotReference, MetadataCache)} will be called,
  * identifying the slot for which a cache is now available, and the cache file itself. When a cache is detached,
  * {@link #cacheDetached(SlotReference)} will be called to report that the cache will no longer be used for that slot.
  * </p>
@@ -32,7 +30,7 @@ public interface MetadataCacheListener {
      * @param slot uniquely identifies a media slot on the network from which metadata can be requested
      * @param cache the cache file which has just been attached to provide metadata for the slot
      */
-    void cacheAttached(SlotReference slot, ZipFile cache);
+    void cacheAttached(SlotReference slot, MetadataCache cache);
 
     /**
      * <p>Invoked whenever a metadata cache is detached, so metadata must be obtained by querying the player.</p>
