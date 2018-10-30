@@ -38,6 +38,73 @@ public class MetadataCache implements MetadataProvider {
     private static final Logger logger = LoggerFactory.getLogger(MetadataCache.class);
 
     /**
+     * The file that contains our cached information.
+     */
+    private final ZipFile zipFile;
+
+
+    /**
+     * Holds the ID of the playlist that was used to create the cache, or 0 of it is an all-tracks cache.
+     */
+    public final int sourcePlaylist;
+
+    /**
+     * Holds the number of tracks contained in the cache.
+     */
+    public final int trackCount;
+
+    /**
+     * Holds information about the media from which this cache was created. Will be present in caches created by
+     * Beat Link version 0.4.1 or later; older caches will result in a {@code null} value.
+     */
+    public final MediaDetails sourceMedia;
+
+    /**
+     * Open the specified ZIP file and prepare to serve its contents as a cache. When you are finished with the cache,
+     * be sure to call its {@link #close()} method to free up system resources.
+     *
+     * @param file the metadata cache file to be served.
+     *
+     * @throws IOException if there is a problem reading the file, or if it does not have the right content
+     */
+    public MetadataCache(File file) throws IOException {
+        zipFile = new ZipFile(file, ZipFile.OPEN_READ);
+        String tag = getCacheFormatEntry();
+        if (tag == null || !tag.startsWith(CACHE_FORMAT_IDENTIFIER)) {
+            try {
+                zipFile.close();
+            } catch (Exception e) {
+                logger.error("Problem re-closing newly opened candidate metadata cache", e);
+            }
+            throw new IOException("File does not contain a Beat Link metadata cache: " + file +
+                    " (looking for format identifier \"" + CACHE_FORMAT_IDENTIFIER + "\", found: " + tag);
+        }
+        String[] pieces = tag.split(":");
+        sourcePlaylist = Integer.parseInt(pieces[1]);
+        trackCount = Integer.parseInt(pieces[2]);
+        sourceMedia = getCacheMediaDetails();
+    }
+
+    /**
+     * Close the cache. This should be called when the cache will no longer be used, to free up file descriptors.
+     * Once this is called, trying to access any cached information will fail with an {@link IOException}.
+     *
+     * @throws IOException if there is a problem closing the cache
+     */
+    public void close() throws IOException {
+        zipFile.close();
+    }
+
+    /**
+     * Get the path name of the file containing the cache.
+     *
+     * @return the path name of the metadata cache file.
+     */
+    public String getName() {
+        return zipFile.getName();
+    }
+
+    /**
      * The comment string used to identify a ZIP file as one of our metadata caches.
      */
     @SuppressWarnings("WeakerAccess")
@@ -158,7 +225,6 @@ public class MetadataCache implements MetadataProvider {
     static String getWaveformDetailEntryName(int rekordboxId) {
         return CACHE_WAVEFORM_DETAIL_ENTRY_PREFIX + rekordboxId;
     }
-
 
     /**
      * Finish the process of copying a list of tracks to a metadata cache, once they have been listed. This code
@@ -374,72 +440,6 @@ public class MetadataCache implements MetadataProvider {
         }
 
         return track;
-    }
-
-    /**
-     * The file that contains our cached information.
-     */
-    private final ZipFile zipFile;
-
-
-    /**
-     * Holds the ID of the playlist that was used to create the cache, or 0 of it is an all-tracks cache.
-     */
-    public final int sourcePlaylist;
-
-    /**
-     * Holds the number of tracks contained in the cache.
-     */
-    public final int trackCount;
-
-    /**
-     * Holds information about the media from which this cache was created. Will be present in caches created by
-     * Beat Link version 0.4.1 or later; older caches will result in a {@code null} value.
-     */
-    public final MediaDetails sourceMedia;
-
-    /**
-     * Open the specified ZIP file and prepare to serve its contents as a cache.
-     *
-     * @param file the metadata cache file to be served.
-     *
-     * @throws IOException if there is a problem reading the file, or if it does not have the right content
-     */
-    public MetadataCache(File file) throws IOException {
-        zipFile = new ZipFile(file, ZipFile.OPEN_READ);
-        String tag = getCacheFormatEntry();
-        if (tag == null || !tag.startsWith(CACHE_FORMAT_IDENTIFIER)) {
-            try {
-                zipFile.close();
-            } catch (Exception e) {
-                logger.error("Problem re-closing newly opened candidate metadata cache", e);
-            }
-            throw new IOException("File does not contain a Beat Link metadata cache: " + file +
-                    " (looking for format identifier \"" + CACHE_FORMAT_IDENTIFIER + "\", found: " + tag);
-        }
-        String[] pieces = tag.split(":");
-        sourcePlaylist = Integer.parseInt(pieces[1]);
-        trackCount = Integer.parseInt(pieces[2]);
-        sourceMedia = getCacheMediaDetails();
-    }
-
-    /**
-     * Close the cache. This should be called when the cache will no longer be used, to free up file descriptors.
-     * Once this is called, trying to access any cached information will fail with an {@link IOException}.
-     *
-     * @throws IOException if there is a problem closing the cache
-     */
-    public void close() throws IOException {
-        zipFile.close();
-    }
-
-    /**
-     * Get the path name of the file containing the cache.
-     *
-     * @return the path name of the metadata cache file.
-     */
-    public String getName() {
-        return zipFile.getName();
     }
 
     /**
