@@ -26,9 +26,11 @@ import java.util.zip.ZipOutputStream;
  * A ZIP-file based cache of all the kinds of track metadata that we need, so we can operate with full functionality
  * even when metadata requests are difficult or impossible because four CDJs are all using the same media.
  *
- * Although this class implements {@link MetadataProvider}, it should not simply be passed to
- * {@link MetadataFinder} because there is all kinds of special handling TODO change to actual link once implemented
- * needed to deal in a backwards-compatible way with older cache files that do not store media details.
+ * Although this class implements {@link MetadataProvider}, it should <em>not</em> be passed to
+ * {@link MetadataFinder#addMetadataProvider(MetadataProvider)} because there is all kinds of special handling
+ * needed to deal in a backwards-compatible way with older cache files that do not store media details. Instead,
+ * use the longstanding {@link MetadataFinder#attachMetadataCache(SlotReference, File)} and
+ * {@link MetadataFinder#addAutoAttachCacheFile(File)} methods to work with metadata cache files.
  *
  * @since 0.5.0
  */
@@ -573,6 +575,7 @@ public class MetadataCache implements MetadataProvider {
         }
         return null;    }
 
+    @SuppressWarnings("unused")
     @Override
     public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
         ZipEntry entry = zipFile.getEntry(getBeatGridEntryName(track.rekordboxId));

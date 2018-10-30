@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * A class that is able to provide metadata for a loaded track without the need to query the source player can
- * implement this interface and register itself with the {@link MetadataFinder}.  TODO link to actual method
+ * implement this interface and register itself with the {@link MetadataFinder#addMetadataProvider(MetadataProvider)}.
  * Examples include cue lists that store their own copies of the metadata. Metadata caches created by Beat Link
  * as ZIP files also implement this interface, but they are treated specially because they existed before it, and
  * for backwards compatibility need to support files that do not know what media they were created from.
@@ -16,7 +16,10 @@ import java.util.List;
 @SuppressWarnings("WeakerAccess")
 public interface MetadataProvider {
     /**
-     * Get the list of media devices for which metadata can be offered by this provider.
+     * Get the list of media devices for which metadata can be offered by this provider. If the provider can
+     * offer metadata for all media, return an empty list, and it will always be consulted. Otherwise, it will
+     * only be consulted for media that were listed in response to this call when it was registered using
+     * {@link MetadataFinder#addMetadataProvider(MetadataProvider)}.
      *
      * @return the media device descriptors for which we have at least one available metadata item.
      */

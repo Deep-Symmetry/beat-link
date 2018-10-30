@@ -1011,6 +1011,203 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
+     * Holds the providers of metadata that client applications register. The keys are the {@link MediaDetails#hashKey()}
+     * values of the media that they reported providing metadata for. Providers that offer metadata for all media are
+     * stored with a key of an empty string.
+     */
+    private final Map<String, Set<MetadataProvider>> metadataProviders = new ConcurrentHashMap<String, Set<MetadataProvider>>();
+
+
+
+    /**
+     * Adds a metadata provider that will be consulted to see if it can provide metadata for newly-loaded tracks before
+     * we try to retrieve it from the players or our cache files. This function will immediately call
+     * {@link MetadataProvider#supportedMedia()} and will only consult the provider for tracks loaded from the media
+     * mentioned in the response. The function is only called once, when initially adding the provider, so if the set
+     * of supported media changes, you will need to remove the provider and re-add it. Providers that can provide
+     * metadata for all media can simply return an empty list of supported media, and they will always be consulted.
+     * Only do this if they truly can always provide metadata, or you will slow down the lookup process by having them
+     * frequently called in vain.
+     *
+     * @param provider the object that can supply metadata about tracks
+     *
+     * @throws IllegalArgumentException if you pass in a {@link MetadataCache}.
+     */
+    public void addMetadataProvider(MetadataProvider provider) {
+        if (provider instanceof MetadataCache) {
+            throw new IllegalArgumentException("Do not register MetadataCache instances using addMetadataProvider(), use attachMetadataCache() or addAutoAttachCacheFile() instead.");
+        }
+        List<MediaDetails> supportedMedia = provider.supportedMedia();
+        if (supportedMedia.isEmpty()) {
+            addMetadataProviderForMedia("", provider);
+        } else {
+            for (MediaDetails details : supportedMedia) {
+                addMetadataProviderForMedia(details.hashKey(), provider);
+            }
+        }
+    }
+
+    /**
+     * Internal method that adds a metadata provider to the set associated with a particular hash key, creating the
+     * set if needed.
+     *
+     * @param key the hashKey identifying the media for which this provider can offer metadata (or the empty string if
+     *            it can offer metadata for all media)
+     * @param provider the metadata provider to be added to the active set
+     */
+    private void addMetadataProviderForMedia(String key, MetadataProvider provider) {
+        if (!metadataProviders.containsKey(key)) {
+            metadataProviders.put(key, Collections.newSetFromMap(new ConcurrentHashMap<MetadataProvider, Boolean>()));
+        }
+        Set<MetadataProvider> providers = metadataProviders.get(key);
+        providers.add(provider);
+    }
+
+    /**
+     * Removes a metadata provider so it will no longer be consulted to provide metadata for tracks loaded from any
+     * media.
+     *
+     * @param provider the metadata provider to remove.
+     */
+    public void removeMetadataProvider(MetadataProvider provider) {
+        for (Set<MetadataProvider> providers : metadataProviders.values()) {
+            providers.remove(provider);
+        }
+    }
+
+    /**
+     * Get the set of metadata providers that can offer metadata for tracks loaded from the specified media.
+     *
+     * @param sourceMedia the media whose metadata providers are desired, or {@code null} to get the set of
+     *                    metadata providers that can offer metadata for all media.
+     *
+     * @return any registered metadata providers that reported themselves as supporting tracks from that media
+     */
+    public Set<MetadataProvider> getMetadataProviders(MediaDetails sourceMedia) {
+        String key = (sourceMedia == null)? "" : sourceMedia.hashKey();
+        Set<MetadataProvider> result = metadataProviders.get(key);
+        if (result == null) {
+            return Collections.emptySet();
+        }
+        return Collections.unmodifiableSet(new HashSet<MetadataProvider>(result));
+    }
+
+    /**
+     * A composite metadata provider that runs all registered metadata providers that are appropriate for a
+     * particular source media, returning the first non-{@code null} result from any of them. This can be used
+     * wherever metadata is needed before moving on to other methods.
+     */
+    final MetadataProvider allMetadataProviders = new MetadataProvider() {
+        @Override
+        public List<MediaDetails> supportedMedia() {
+            return Collections.emptyList();  // We support all media, not that anyone will call this.
+        }
+
+        @Override
+        public TrackMetadata getTrackMetadata(MediaDetails sourceMedia, DataReference track) {
+            for (MetadataProvider provider : getMetadataProviders(sourceMedia)) {
+                TrackMetadata result = provider.getTrackMetadata(sourceMedia, track);
+                if (result != null) {
+                    return result;
+                }
+            }
+            for (MetadataProvider provider : getMetadataProviders(null)) {
+                TrackMetadata result = provider.getTrackMetadata(sourceMedia, track);
+                if (result != null) {
+                    return result;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public AlbumArt getAlbumArt(MediaDetails sourceMedia, DataReference art) {
+            for (MetadataProvider provider : getMetadataProviders(sourceMedia)) {
+                AlbumArt result = provider.getAlbumArt(sourceMedia, art);
+                if (result != null) {
+                    return result;
+                }
+            }
+            for (MetadataProvider provider : getMetadataProviders(null)) {
+                AlbumArt result = provider.getAlbumArt(sourceMedia, art);
+                if (result != null) {
+                    return result;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
+            for (MetadataProvider provider : getMetadataProviders(sourceMedia)) {
+                BeatGrid result = provider.getBeatGrid(sourceMedia, track);
+                if (result != null) {
+                    return result;
+                }
+            }
+            for (MetadataProvider provider : getMetadataProviders(null)) {
+                BeatGrid result = provider.getBeatGrid(sourceMedia, track);
+                if (result != null) {
+                    return result;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public CueList getCueList(MediaDetails sourceMedia, int rekordboxId) {
+            for (MetadataProvider provider : getMetadataProviders(sourceMedia)) {
+                CueList result = provider.getCueList(sourceMedia, rekordboxId);
+                if (result != null) {
+                    return result;
+                }
+            }
+            for (MetadataProvider provider : getMetadataProviders(null)) {
+                CueList result = provider.getCueList(sourceMedia, rekordboxId);
+                if (result != null) {
+                    return result;
+                }
+            }
+            return null;
+
+        }
+
+        @Override
+        public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
+            for (MetadataProvider provider : getMetadataProviders(sourceMedia)) {
+                WaveformPreview result = provider.getWaveformPreview(sourceMedia, track);
+                if (result != null) {
+                    return result;
+                }
+            }
+            for (MetadataProvider provider : getMetadataProviders(null)) {
+                WaveformPreview result = provider.getWaveformPreview(sourceMedia, track);
+                if (result != null) {
+                    return result;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
+            for (MetadataProvider provider : getMetadataProviders(sourceMedia)) {
+                WaveformDetail result = provider.getWaveformDetail(sourceMedia, track);
+                if (result != null) {
+                    return result;
+                }
+            }
+            for (MetadataProvider provider : getMetadataProviders(null)) {
+                WaveformDetail result = provider.getWaveformDetail(sourceMedia, track);
+                if (result != null) {
+                    return result;
+                }
+            }
+            return null;
+        }
+    };
+
+    /**
      * Process an update packet from one of the CDJs. See if it has a valid track loaded; if not, clear any
      * metadata we had stored for that player. If so, see if it is the same track we already know about; if not,
      * request the metadata associated with that track.
