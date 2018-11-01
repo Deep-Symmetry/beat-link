@@ -1,0 +1,54 @@
+= Kaitai Struct Templates
+James Elliott <james@deepsymmetry.org>
+:icons: font
+:toc:
+:experimental:
+:toc-placement: preamble
+:guide-top: README
+
+// Set up support for relative links on GitHub, and give it
+// usable icons for admonitions, w00t! Add more conditions
+// if you need to support other environments and extensions.
+ifdef::env-github[]
+:outfilesuffix: .adoc
+:tip-caption: :bulb:
+:note-caption: :information_source:
+:important-caption: :heavy_exclamation_mark:
+:caution-caption: :fire:
+:warning-caption: :warning:
+endif::env-github[]
+
+The files in this folder are used with the
+http://kaitai.io[Kaitai Struct] compiler to create classes that
+can parse and output binary data strutures in a convenient and
+efficient way. Beat Link uses them to create Java classes, but
+other projects can use them to output code for other languages.
+
+== PDB Database
+
+The folder `pdb` contains the structure definitions needed to
+parse exported rekordbox databases (`export.pdb` files).
+
+NOTE: Huge thanks to https://github.com/flesniak[Fabian Lesniak]
+for figuring out the details of how to interpret these files in
+his https://github.com/flesniak/python-prodj-link[python-prodj-link]
+project.
+
+Building the Java classes from the structure definitions is a little
+awkward right now, although there is a compiler issue open that will
+hopefully make things better. Until then, here are the commands
+needed on a Unix-like system (run these from the top-level project
+folder):
+
+[source,bash]
+----
+kaitai-struct-compiler kaitai/pdb/*.ksy -t java --outdir target \
+  --java-package org.deepsymmetry.beatlink.pdb.generated
+
+rm -r src/main/java/org/deepsymmetry/beatlink/pdb/generated
+
+mv target/src/org/deepsymmetry/beatlink/pdb/generated \
+  src/main/java/org/deepsymmetry/beatlink/pdb
+
+rm -r target/src
+----
