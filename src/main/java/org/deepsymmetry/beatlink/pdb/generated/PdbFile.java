@@ -17,12 +17,30 @@ public class PdbFile extends KaitaiStruct {
 
     public enum PageType {
         TRACKS(0),
-        GENRES(1);
+        GENRES(1),
+        ARTISTS(2),
+        ALBUMS(3),
+        LABELS(4),
+        KEYS(5),
+        COLORS(6),
+        PLAYLISTS(7),
+        PLAYLIST_MAP(8),
+        UNKNOWN_9(9),
+        UNKNOWN_10(10),
+        UNKNOWN_11(11),
+        UNKNOWN_12(12),
+        ARTWORK(13),
+        UNKNOWN_14(14),
+        UNKNOWN_15(15),
+        COLUMNS(16),
+        UNKNOWN_17(17),
+        INKNOWN_18(18),
+        HISTORY(19);
 
         private final long id;
         PageType(long id) { this.id = id; }
         public long id() { return id; }
-        private static final Map<Long, PageType> byId = new HashMap<Long, PageType>(2);
+        private static final Map<Long, PageType> byId = new HashMap<Long, PageType>(20);
         static {
             for (PageType e : PageType.values())
                 byId.put(e.id(), e);
