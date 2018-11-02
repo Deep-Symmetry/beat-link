@@ -236,20 +236,24 @@ public class PdbFile extends KaitaiStruct {
         }
         private void _read() {
             this.empty1 = this._io.ensureFixedContents(new byte[] { 0, 0, 0, 0 });
-            this.index = this._io.readU4le();
+            this.pageIndex = this._io.readU4le();
             this.type = PdbFile.PageType.byId(this._io.readU4le());
-            this.nextIndex = this._io.readU4le();
+            this.nextPage = this._io.readU4le();
         }
         private byte[] empty1;
-        private long index;
+        private long pageIndex;
         private PageType type;
-        private long nextIndex;
+        private long nextPage;
         private PdbFile _root;
         private PdbFile.Page _parent;
         public byte[] empty1() { return empty1; }
-        public long index() { return index; }
+
+        /**
+         * Matches the index we used to look up the page, sanity check?
+         */
+        public long pageIndex() { return pageIndex; }
         public PageType type() { return type; }
-        public long nextIndex() { return nextIndex; }
+        public long nextPage() { return nextPage; }
         public PdbFile _root() { return _root; }
         public PdbFile.Page _parent() { return _parent; }
     }

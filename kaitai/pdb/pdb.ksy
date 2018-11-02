@@ -64,12 +64,13 @@ types:
     seq:
       - id: empty_1
         contents: [0, 0, 0, 0]
-      - id: index
+      - id: page_index
+        doc: Matches the index we used to look up the page, sanity check?
         type: u4
       - id: type
         type: u4
         enum: page_type
-      - id: next_index
+      - id: next_page
         type: u4
 
 enums:
