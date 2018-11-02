@@ -73,14 +73,15 @@ types:
     seq:
       - id: header
         type: page_header
+      - id: heap
+        size: _root.header.len_page - _io.pos
+
     instances:
       num_row_indices:
         value: header.num_entries / 16 + 1
-      footer:
-        pos: '0x1000 - (num_row_indices * 36)'
-        type: page_row_index
-        repeat: expr
-        repeat-expr: num_row_indices
+      row_index_chain:
+        pos: 0x0ffc
+        type: 'row_flags(num_row_indices - 1, 0x0ffc)'
 
   page_header:
     seq:
@@ -129,20 +130,42 @@ types:
         type: u2
         doc: '@flesniak said: "always 0 except 1 for history pages, num entries for strange pages?"'
 
-  page_row_index:
-    seq:
-      - id: entry_offsets
+  row_flags:
+    params:
+      - id: num_remaining
         type: u2
-        repeat: expr
-        repeat-expr: 16
+      - id: base
+        type: u2
+    seq:
       - id: entry_enabled_flags
-        type: b1
-        repeat: expr
-        repeat-expr: 16
+        type: u2
       - id: unknown_flags
-        type: b1
+        type: u2
+    instances:
+      rows:
+        pos: base - 0x20
+        type: row_ref(_index)
         repeat: expr
         repeat-expr: 16
+      next:
+        pos: base - 0x24
+        type: 'row_flags(num_remaining - 1, base - 0x24)'
+        if: num_remaining > 0
+
+  row_ref:
+    params:
+      - id: index
+        type: u2
+    seq:
+      - id: offset
+        type: u2
+    instances:
+      enabled:
+        value: '(((_parent.entry_enabled_flags >> (15 -index)) & 1) != 0 ? true : false)'
+      body:
+        pos: offset + 0x28
+        size-eos: true  # TODO: Make an actual object structure based on page data type.
+        if: enabled
 
 enums:
   page_type:
