@@ -9,7 +9,7 @@ seq:
     type: file_header
   - id: pages
     type: page
-    size: header.page_size
+    size: header.len_page
     repeat: eos
 
 types:
@@ -17,9 +17,9 @@ types:
     seq:
       - id: empty_1
         contents: [0, 0, 0, 0]
-      - id: page_size
+      - id: len_page
         type: u4
-      - id: entry_count
+      - id: num_entries
         type: u4
         doc: |
           Determines the number of file header entries that are present.
@@ -37,9 +37,9 @@ types:
       - id: entries
         type: file_header_entry
         repeat: expr
-        repeat-expr: entry_count
+        repeat-expr: num_entries
       - id: padding
-        size: page_size - _io.pos
+        size: len_page - _io.pos
 
   file_header_entry:
     seq:
@@ -49,24 +49,34 @@ types:
       - id: empty_candidate
         type: u4
       - id: first_page
-        type: u4
+        type: page_ref
         doc: |
           Always points to a strange page, which then links to a real data page.
       - id: last_page
+        type: page_ref
+
+  page_ref:
+    seq:
+      - id: index
         type: u4
+    instances:
+      body:
+        io: _root
+        pos: _root.header.len_page * index
+        size: _root.header.len_page
 
   page:
     seq:
       - id: header
         type: page_header
     instances:
-      footer_array_count:
-        value: header.entry_count / 16 + 1
+      num_row_indices:
+        value: header.num_entries / 16 + 1
       footer:
-        pos: '0x1000 - (footer_array_count * 36)'
-        type: page_entry_index
+        pos: '0x1000 - (num_row_indices * 36)'
+        type: page_row_index
         repeat: expr
-        repeat-expr: footer_array_count
+        repeat-expr: num_row_indices
 
   page_header:
     seq:
@@ -89,7 +99,7 @@ types:
         doc: '@flesniak said: "sequence number (0->1: 8->13, 1->2: 22, 2->3: 27)"'
       - id: unknown_2
         size: 4
-      - id: entry_count
+      - id: num_entries
         type: u1
       - id: unknown_3
         type: u1
@@ -105,17 +115,17 @@ types:
       - id: unknown_5
         type: u2
         doc: '@flesniak said: "(0->1: 2)"'
-      - id: large_entry_count
+      - id: num_entries_large
         type: u2
-        doc: '@flesniak said: "usually <= entry_count except for playlist_map?"'
+        doc: '@flesniak said: "usually <= num_entries except for playlist_map?"'
       - id: unknown_6
         type: u2
         doc: '@flesniak said: "1004 for strange blocks, 0 otherwise"'
       - id: unknown_7
         type: u2
-        doc: '@flesniak said: "always 0 except 1 for history pages, entry count for strange pages?"'
+        doc: '@flesniak said: "always 0 except 1 for history pages, num entries for strange pages?"'
 
-  page_entry_index:
+  page_row_index:
     seq:
       - id: entry_offsets
         type: u2
