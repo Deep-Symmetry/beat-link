@@ -34,7 +34,7 @@ public class PdbFile extends KaitaiStruct {
         UNKNOWN_15(15),
         COLUMNS(16),
         UNKNOWN_17(17),
-        INKNOWN_18(18),
+        UNKNOWN_18(18),
         HISTORY(19);
 
         private final long id;
@@ -64,6 +64,17 @@ public class PdbFile extends KaitaiStruct {
     }
     private void _read() {
         this.header = new FileHeader(this._io, this, _root);
+        this._raw_pages = new ArrayList<byte[]>();
+        this.pages = new ArrayList<Page>();
+        {
+            int i = 0;
+            while (!this._io.isEof()) {
+                this._raw_pages.add(this._io.readBytes(header().pageSize()));
+                KaitaiStream _io__raw_pages = new ByteBufferKaitaiStream(_raw_pages.get(_raw_pages.size() - 1));
+                this.pages.add(new Page(_io__raw_pages, this, _root));
+                i++;
+            }
+        }
     }
     public static class FileHeader extends KaitaiStruct {
         public static FileHeader fromFile(String fileName) throws IOException {
@@ -175,10 +186,81 @@ public class PdbFile extends KaitaiStruct {
         public PdbFile _root() { return _root; }
         public PdbFile.FileHeader _parent() { return _parent; }
     }
+    public static class Page extends KaitaiStruct {
+        public static Page fromFile(String fileName) throws IOException {
+            return new Page(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public Page(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public Page(KaitaiStream _io, PdbFile _parent) {
+            this(_io, _parent, null);
+        }
+
+        public Page(KaitaiStream _io, PdbFile _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.header = new PageHeader(this._io, this, _root);
+        }
+        private PageHeader header;
+        private PdbFile _root;
+        private PdbFile _parent;
+        public PageHeader header() { return header; }
+        public PdbFile _root() { return _root; }
+        public PdbFile _parent() { return _parent; }
+    }
+    public static class PageHeader extends KaitaiStruct {
+        public static PageHeader fromFile(String fileName) throws IOException {
+            return new PageHeader(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public PageHeader(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public PageHeader(KaitaiStream _io, PdbFile.Page _parent) {
+            this(_io, _parent, null);
+        }
+
+        public PageHeader(KaitaiStream _io, PdbFile.Page _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.empty1 = this._io.ensureFixedContents(new byte[] { 0, 0, 0, 0 });
+            this.index = this._io.readU4le();
+            this.type = PdbFile.PageType.byId(this._io.readU4le());
+            this.nextIndex = this._io.readU4le();
+        }
+        private byte[] empty1;
+        private long index;
+        private PageType type;
+        private long nextIndex;
+        private PdbFile _root;
+        private PdbFile.Page _parent;
+        public byte[] empty1() { return empty1; }
+        public long index() { return index; }
+        public PageType type() { return type; }
+        public long nextIndex() { return nextIndex; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.Page _parent() { return _parent; }
+    }
     private FileHeader header;
+    private ArrayList<Page> pages;
     private PdbFile _root;
     private KaitaiStruct _parent;
+    private ArrayList<byte[]> _raw_pages;
     public FileHeader header() { return header; }
+    public ArrayList<Page> pages() { return pages; }
     public PdbFile _root() { return _root; }
     public KaitaiStruct _parent() { return _parent; }
+    public ArrayList<byte[]> _raw_pages() { return _raw_pages; }
 }

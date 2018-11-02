@@ -7,6 +7,10 @@ meta:
 seq:
   - id: header
     type: file_header
+  - id: pages
+    type: page
+    size: header.page_size
+    repeat: eos
 
 types:
   file_header:
@@ -49,6 +53,23 @@ types:
         doc: |
           Always points to a strange page, which then links to a real data page.
       - id: last_page
+        type: u4
+
+  page:
+    seq:
+      - id: header
+        type: page_header
+
+  page_header:
+    seq:
+      - id: empty_1
+        contents: [0, 0, 0, 0]
+      - id: index
+        type: u4
+      - id: type
+        type: u4
+        enum: page_type
+      - id: next_index
         type: u4
 
 enums:
