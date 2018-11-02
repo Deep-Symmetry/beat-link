@@ -7,10 +7,13 @@ meta:
 seq:
   - id: header
     type: file_header
-  - id: pages
-    type: page
-    size: header.len_page
-    repeat: eos
+# Uncomment this if you want to load and parse all the pages in the file so you can
+# randomly scroll through them in the IDE. Don't do that when building the library
+# classes, though, or it will waste a ton of memory in most use patterns:
+#  - id: pages
+#    type: page
+#    size: header.len_page
+#    repeat: eos
 
 types:
   file_header:
@@ -61,9 +64,10 @@ types:
         type: u4
     instances:
       body:
-        io: _root
+        io: _root._io
         pos: _root.header.len_page * index
         size: _root.header.len_page
+        type: page
 
   page:
     seq:
@@ -93,7 +97,7 @@ types:
         doc: |
           Index of the next page containing this type of rows. Points past
           the end of the file if there are no more.
-        type: u4
+        type: page_ref
       - id: unknown_1
         type: u4
         doc: '@flesniak said: "sequence number (0->1: 8->13, 1->2: 22, 2->3: 27)"'
