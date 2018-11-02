@@ -239,11 +239,33 @@ public class PdbFile extends KaitaiStruct {
             this.pageIndex = this._io.readU4le();
             this.type = PdbFile.PageType.byId(this._io.readU4le());
             this.nextPage = this._io.readU4le();
+            this.unknown1 = this._io.readU4le();
+            this.unknown2 = this._io.readBytes(4);
+            this.entryCount = this._io.readU1();
+            this.unknown3 = this._io.readU1();
+            this.unknown4 = this._io.readU2le();
+            this.freeSize = this._io.readU2le();
+            this.usedSize = this._io.readU2le();
+            this.unknown5 = this._io.readU2le();
+            this.largeEntryCount = this._io.readU2le();
+            this.unknown6 = this._io.readU2le();
+            this.unknown7 = this._io.readU2le();
         }
         private byte[] empty1;
         private long pageIndex;
         private PageType type;
         private long nextPage;
+        private long unknown1;
+        private byte[] unknown2;
+        private int entryCount;
+        private int unknown3;
+        private int unknown4;
+        private int freeSize;
+        private int usedSize;
+        private int unknown5;
+        private int largeEntryCount;
+        private int unknown6;
+        private int unknown7;
         private PdbFile _root;
         private PdbFile.Page _parent;
         public byte[] empty1() { return empty1; }
@@ -252,8 +274,60 @@ public class PdbFile extends KaitaiStruct {
          * Matches the index we used to look up the page, sanity check?
          */
         public long pageIndex() { return pageIndex; }
+
+        /**
+         * Identifies the type of information stored in the rows of this page.
+         */
         public PageType type() { return type; }
+
+        /**
+         * Index of the next page containing this type of rows. Points past
+         * the end of the file if there are no more.
+         */
         public long nextPage() { return nextPage; }
+
+        /**
+         * @flesiak said: "sequence number (0->1: 8->13, 1->2: 22, 2->3: 27)"
+         */
+        public long unknown1() { return unknown1; }
+        public byte[] unknown2() { return unknown2; }
+        public int entryCount() { return entryCount; }
+
+        /**
+         * @flesiak said: "a bitmask (1st track: 32)"
+         */
+        public int unknown3() { return unknown3; }
+
+        /**
+         * @flesiak said: "25600 for strange blocks"
+         */
+        public int unknown4() { return unknown4; }
+
+        /**
+         * Unused space, excluding index at end of page.
+         */
+        public int freeSize() { return freeSize; }
+        public int usedSize() { return usedSize; }
+
+        /**
+         * @flesiak said: "(0->1: 2)"
+         */
+        public int unknown5() { return unknown5; }
+
+        /**
+         * @flesiak said: "usually <= entry_count except for playlist_map?"
+         */
+        public int largeEntryCount() { return largeEntryCount; }
+
+        /**
+         * @flesiak said: "1004 for strange blocks, 0 otherwise"
+         */
+        public int unknown6() { return unknown6; }
+
+        /**
+         * @flesiak said: "always 0 except 1 for history pages, entry count for strange pages?"
+         */
+        public int unknown7() { return unknown7; }
         public PdbFile _root() { return _root; }
         public PdbFile.Page _parent() { return _parent; }
     }
