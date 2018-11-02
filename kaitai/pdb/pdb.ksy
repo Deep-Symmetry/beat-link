@@ -62,12 +62,8 @@ types:
     instances:
       footer_array_count:
         value: header.entry_count / 16 + 1
-      footer_size:
-        value: footer_array_count * 36
-      footer_position:
-        value: 0x1000 - footer_size
       footer:
-        pos: footer_position  # This worked when hardcoded to 0xfdc for one copy
+        pos: '0x1000 - (footer_array_count * 36)'
         type: page_entry_index
         repeat: expr
         repeat-expr: footer_array_count
@@ -125,8 +121,11 @@ types:
         type: u2
         repeat: expr
         repeat-expr: 16
-    instances:
-      entry_enabled_flags:
+      - id: entry_enabled_flags
+        type: b1
+        repeat: expr
+        repeat-expr: 16
+      - id: unknown_flags
         type: b1
         repeat: expr
         repeat-expr: 16

@@ -106,28 +106,12 @@ public class PdbFile extends KaitaiStruct {
             this.footerArrayCount = _tmp;
             return this.footerArrayCount;
         }
-        private Integer footerSize;
-        public Integer footerSize() {
-            if (this.footerSize != null)
-                return this.footerSize;
-            int _tmp = (int) ((footerArrayCount() * 36));
-            this.footerSize = _tmp;
-            return this.footerSize;
-        }
-        private Integer footerPosition;
-        public Integer footerPosition() {
-            if (this.footerPosition != null)
-                return this.footerPosition;
-            int _tmp = (int) ((4096 - footerSize()));
-            this.footerPosition = _tmp;
-            return this.footerPosition;
-        }
         private ArrayList<PageEntryIndex> footer;
         public ArrayList<PageEntryIndex> footer() {
             if (this.footer != null)
                 return this.footer;
             long _pos = this._io.pos();
-            this._io.seek(footerPosition());
+            this._io.seek((4096 - (footerArrayCount() * 36)));
             footer = new ArrayList<PageEntryIndex>((int) (footerArrayCount()));
             for (int i = 0; i < footerArrayCount(); i++) {
                 this.footer.add(new PageEntryIndex(this._io, this, _root));
@@ -166,21 +150,23 @@ public class PdbFile extends KaitaiStruct {
             for (int i = 0; i < 16; i++) {
                 this.entryOffsets.add(this._io.readU2le());
             }
-        }
-        private ArrayList<Boolean> entryEnabledFlags;
-        public ArrayList<Boolean> entryEnabledFlags() {
-            if (this.entryEnabledFlags != null)
-                return this.entryEnabledFlags;
             entryEnabledFlags = new ArrayList<Boolean>((int) (16));
             for (int i = 0; i < 16; i++) {
                 this.entryEnabledFlags.add(this._io.readBitsInt(1) != 0);
             }
-            return this.entryEnabledFlags;
+            unknownFlags = new ArrayList<Boolean>((int) (16));
+            for (int i = 0; i < 16; i++) {
+                this.unknownFlags.add(this._io.readBitsInt(1) != 0);
+            }
         }
         private ArrayList<Integer> entryOffsets;
+        private ArrayList<Boolean> entryEnabledFlags;
+        private ArrayList<Boolean> unknownFlags;
         private PdbFile _root;
         private PdbFile.Page _parent;
         public ArrayList<Integer> entryOffsets() { return entryOffsets; }
+        public ArrayList<Boolean> entryEnabledFlags() { return entryEnabledFlags; }
+        public ArrayList<Boolean> unknownFlags() { return unknownFlags; }
         public PdbFile _root() { return _root; }
         public PdbFile.Page _parent() { return _parent; }
     }
