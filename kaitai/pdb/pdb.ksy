@@ -78,17 +78,17 @@ types:
         type: u4
       - id: unknown_1
         type: u4
-        doc: '@flesiak said: "sequence number (0->1: 8->13, 1->2: 22, 2->3: 27)"'
+        doc: '@flesniak said: "sequence number (0->1: 8->13, 1->2: 22, 2->3: 27)"'
       - id: unknown_2
         size: 4
       - id: entry_count
         type: u1
       - id: unknown_3
         type: u1
-        doc: '@flesiak said: "a bitmask (1st track: 32)"'
+        doc: '@flesniak said: "a bitmask (1st track: 32)"'
       - id: unknown_4
         type: u2
-        doc: '@flesiak said: "25600 for strange blocks"'
+        doc: '@flesniak said: "25600 for strange blocks"'
       - id: free_size
         type: u2
         doc: Unused space, excluding index at end of page.
@@ -96,16 +96,16 @@ types:
         type: u2
       - id: unknown_5
         type: u2
-        doc: '@flesiak said: "(0->1: 2)"'
+        doc: '@flesniak said: "(0->1: 2)"'
       - id: large_entry_count
         type: u2
-        doc: '@flesiak said: "usually <= entry_count except for playlist_map?"'
+        doc: '@flesniak said: "usually <= entry_count except for playlist_map?"'
       - id: unknown_6
         type: u2
-        doc: '@flesiak said: "1004 for strange blocks, 0 otherwise"'
+        doc: '@flesniak said: "1004 for strange blocks, 0 otherwise"'
       - id: unknown_7
         type: u2
-        doc: '@flesiak said: "always 0 except 1 for history pages, entry count for strange pages?"'
+        doc: '@flesniak said: "always 0 except 1 for history pages, entry count for strange pages?"'
 
 
 enums:
