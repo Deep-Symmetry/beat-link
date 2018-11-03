@@ -190,33 +190,34 @@ types:
           entries for strange pages?"
 
     instances:
-      num_row_indices:
-        value: num_rows / 16 + 1
-      row_index_chain:
-        type: 'row_flags(num_row_indices - 1, _root.len_page)'
+      num_groups:
+        value: '(num_rows - 1) / 16 + 1'
+        doc: |
+          The number of row groups that are present in the index. Each
+          group can hold up to sixteen rows. All but the final one
+          will hold sixteen rows.
+      row_index:
+        type: 'row_group(_index)'
+        repeat: expr
+        repeat-expr: num_groups
 
-  row_flags:
+  row_group:
     doc: |
-      The root of a group of row indices, which are built backwards
-      from the end of the page. This holds a bit mask where each 1 bit
-      indicates a row that is actually present in the table. It is
-      preceded by up to sixteen two-byte row offsets that link to the
-      rows themselves, by specifying how many bytes beyond the page
-      header the row itself can be found.
+      A group of row indices, which are built backwards from the end
+      of the page. Holds up to sixteen row offsets, along with a bit
+      mask that indicates whether each row is actually present in the
+      table.
     params:
-      - id: num_remaining
+      - id: group_index
         type: u2
         doc: |
-          The number of indices that follow this one (the next one
-          will come immediately before it in the file).
-      - id: base
-        type: u2
-        doc: |
-          The starting point of this group of row indices. Since they
-          are built backwards, this one byte past the end. (The value
-          of `base` for the first `row_flags` structure is the page
-          size.)
+          Identifies which group is being generated. They build backwards
+          from the end of the page.
     instances:
+      base:
+        value: '_root.len_page - (group_index * 0x24)'
+        doc: |
+          The starting point of this group of row indices.
       row_present_flags:
         pos: base - 4
         type: u2
@@ -227,13 +228,11 @@ types:
           second bit corresponds to the row whose offset precedes
           that, and so on.
       rows:
-        pos: base - 0x24
         type: row_ref(_index)
         repeat: expr
-        repeat-expr: 16
-      next:
-        type: 'row_flags(num_remaining - 1, base - 0x24)'
-        if: num_remaining > 0
+        repeat-expr: '(group_index < (_parent.num_groups - 1)) ? 16 : ((_parent.num_rows - 1) % 16 + 1)'
+        doc: |
+          The row offsets in this group.
 
   row_ref:
     doc: |
@@ -243,21 +242,21 @@ types:
       lazily loaded, unless it is not present, in which case there is
       no content to be loaded.
     params:
-      - id: index
+      - id: row_index
         type: u2
         doc: |
           Identifies which row within the row index this reference
           came from, so the correct flag can be checked for the row
-          presence.
-    seq:
-      - id: ofs_row
+          presence and the correct row offset can be found.
+    instances:
+      ofs_row:
+        pos: '_parent.base - (6 + (2 * row_index))'
         type: u2
         doc: |
           The offset of the start of the row (in bytes past the end of
           the page header).
-    instances:
       present:
-        value: '(((_parent.row_present_flags >> (15 -index)) & 1) != 0 ? true : false)'
+        value: '(((_parent.row_present_flags >> row_index) & 1) != 0 ? true : false)'
         doc: |
           Indicates whether the row index considers this row to be
           present in the table. Will be `false` if the row has been
