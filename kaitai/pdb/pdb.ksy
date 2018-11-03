@@ -268,11 +268,107 @@ types:
         -webide-parse-mode: eager
       body:
         pos: ofs_row + 0x28
-        size-eos: true  # TODO: Make an actual object structure based on page data type.
+        type:
+          switch-on: _parent._parent.type
+          cases:
+            'page_type::artists': artist_row
         if: present
         doc: |
           The actual content of the row, as long as it is present.
-    -webide-representation: 'present={present}'
+        -webide-parse-mode: eager
+    -webide-representation: 'present={present} {body.name.body.text}'
+
+  artist_row:
+    doc: |
+      A row that holds an artist name and ID.
+    seq:
+      - id: magic
+        contents: [0x60, 0x00]
+      - id: index_shift
+        type: u2
+        doc: TODO name from @flesniak, but what does it mean?
+      - id: id
+        doc: |
+          The unique identifier by which this artist can be requested
+          and linked from other rows (such as tracks).
+        type: u4
+      - type: u1
+        doc: |
+          @flesniak says: "alwayx 0x03, maybe an unindexed empty string"
+      - id: ofs_name
+        type: u1
+        doc: |
+          The location of the variable-length name string, relative to
+          the start of this row.
+    instances:
+      name:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_name
+        -webide-parse-mode: eager
+
+  device_sql_string:
+    doc: |
+      A variable length string which can be stored in a variety of
+      different encodings. TODO: May need to skip leading zeros before
+      the length byte.
+    seq:
+      - id: length_and_kind
+        type: u1
+        doc: |
+          Mangled length of an ordinary ASCII string if odd, or a flag
+          indicating another encoding with a longer length value to
+          follow.
+      - id: body
+        type:
+          switch-on: length_and_kind
+          cases:
+            '0x40': device_sql_long_ascii
+            '0x90': device_sql_long_utf16be
+            _: device_sql_short_ascii(length_and_kind)
+        -webide-parse-mode: eager
+
+  device_sql_short_ascii:
+    doc: |
+      An ASCII-encoded string up to 127 bytes long.
+    params:
+      - id: mangled_length
+        type: u1
+        doc: |
+          Contains the actual length, incremented, doubled, and
+          incremented again. Go figure.
+    seq:
+      - id: text
+        type: str
+        size: length
+        encoding: ascii
+    instances:
+      length:
+        value: '((mangled_length - 1) / 2) - 1'
+
+  device_sql_long_ascii:
+    doc: |
+      An ASCII-encoded string preceded by a two-byte length field.
+    seq:
+      - id: length
+        type: u2
+        doc: Contains the length of the string.
+      - id: text
+        type: str
+        size: length
+        encoding: ascii
+
+  device_sql_long_utf16be:
+    doc: |
+      A UTF-16BE-encoded string preceded by a two-byte length field.
+    seq:
+      - id: length
+        type: u2
+        doc: |
+          Contains the length of the string in bytes, including two trailing nulls.
+      - id: text
+        type: str
+        size: length - 4
+        encoding: utf-16be
 
 enums:
   page_type:
