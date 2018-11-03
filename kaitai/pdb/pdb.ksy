@@ -80,39 +80,63 @@ seq:
     type: table
     repeat: expr
     repeat-expr: num_tables
+    doc: |
+      Describes and links to the tables present in the database.
 
 types:
   table:
+    doc: |
+      Each table is a linked list of pages containing rows of a single
+      type. This header describes the nature of the table and links to
+      its pages by index.
     seq:
       - id: type
         type: u4
         enum: page_type
+        doc: |
+          Identifies the kind of rows that are found in this table.
       - id: empty_candidate
         type: u4
       - id: first_page
         type: page_ref
         doc: |
-          Always points to a strange page, which then links to a real data page.
+          Links to the chain of pages making up that table. The first
+          page seems to always contain similar garbage patterns and
+          zero rows, but the next page it links to contains the start
+          of the meaningful data rows.
       - id: last_page
         type: page_ref
 
   page_ref:
+    doc: |
+      An index which points to a table page (its offset can be found
+      by multiplying the index by the `page_len` value in the file
+      header). This type allows the linked page to be lazy loaded.
     seq:
       - id: index
         type: u4
+        doc: |
+          Identifies the desired page number.
     instances:
       body:
+        doc: |
+          When referenced, loads the specified page and parses its
+          contents appropriately for the type of data it contains.
         io: _root._io
         pos: _root.len_page * index
         size: _root.len_page
         type: page
 
   page:
+    doc: |
+      A table page, consisting of a short header describing the
+      content of the page and linking to the next page, followed by a
+      heap in which row data is found. At the end of the page there is
+      an index which locates all rows present in the heap via their
+      offsets past the end of the page header.
     seq:
       - id: header
         type: page_header
-      - id: heap
-        size: _root.len_page - _io.pos
 
     instances:
       num_row_indices:
