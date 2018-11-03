@@ -193,8 +193,7 @@ types:
       num_row_indices:
         value: num_rows / 16 + 1
       row_index_chain:
-        pos: '_root.len_page - 4'
-        type: 'row_flags(num_row_indices - 1, _root.len_page - 4)'
+        type: 'row_flags(num_row_indices - 1, _root.len_page)'
 
   row_flags:
     doc: |
@@ -207,11 +206,19 @@ types:
     params:
       - id: num_remaining
         type: u2
-        doc: TODO I think this can be reworked using arrays and different parameters!
+        doc: |
+          The number of indices that follow this one (the next one
+          will come immediately before it in the file).
       - id: base
         type: u2
-    seq:
-      - id: row_present_flags
+        doc: |
+          The starting point of this group of row indices. Since they
+          are built backwards, this one byte past the end. (The value
+          of `base` for the first `row_flags` structure is the page
+          size.)
+    instances:
+      row_present_flags:
+        pos: base - 4
         type: u2
         doc: |
           Each bit specifies whether a particular row is present. The
@@ -219,15 +226,12 @@ types:
           whose offset immediately precedes these flag bits. The
           second bit corresponds to the row whose offset precedes
           that, and so on.
-      - type: u2
-    instances:
       rows:
-        pos: base - 0x20
+        pos: base - 0x24
         type: row_ref(_index)
         repeat: expr
         repeat-expr: 16
       next:
-        pos: base - 0x24
         type: 'row_flags(num_remaining - 1, base - 0x24)'
         if: num_remaining > 0
 
