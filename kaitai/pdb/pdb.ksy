@@ -273,6 +273,7 @@ types:
           cases:
             'page_type::albums': album_row
             'page_type::artists': artist_row
+            'page_type::artwork': artwork_row
         if: present
         doc: |
           The actual content of the row, as long as it is present.
@@ -341,6 +342,23 @@ types:
         pos: _parent.ofs_row + 0x28 + ofs_name
         -webide-parse-mode: eager
 
+  artwork_row:
+    doc: |
+      A row that holds the path to an album art image file and the
+      associated artwork ID.
+    seq:
+      - id: id
+        doc: |
+          The unique identifier by which this art can be requested
+          and linked from other rows (such as tracks).
+        type: u4
+      - id: path
+        type: device_sql_string
+        doc: |
+          The variable-length file path string at which the art file
+          can be found.
+    -webide-representation: '{path.body.text}'
+
   device_sql_string:
     doc: |
       A variable length string which can be stored in a variety of
@@ -357,10 +375,11 @@ types:
         type:
           switch-on: length_and_kind
           cases:
-            '0x40': device_sql_long_ascii
-            '0x90': device_sql_long_utf16be
+            0x40: device_sql_long_ascii
+            0x90: device_sql_long_utf16be
             _: device_sql_short_ascii(length_and_kind)
         -webide-parse-mode: eager
+    -webide-representation: '{body.text}'
 
   device_sql_short_ascii:
     doc: |

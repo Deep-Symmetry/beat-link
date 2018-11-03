@@ -555,6 +555,53 @@ public class PdbFile extends KaitaiStruct {
     }
 
     /**
+     * A row that holds the path to an album art image file and the
+     * associated artwork ID.
+     */
+    public static class ArtworkRow extends KaitaiStruct {
+        public static ArtworkRow fromFile(String fileName) throws IOException {
+            return new ArtworkRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public ArtworkRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public ArtworkRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public ArtworkRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.id = this._io.readU4le();
+            this.path = new DeviceSqlString(this._io, this, _root);
+        }
+        private long id;
+        private DeviceSqlString path;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+
+        /**
+         * The unique identifier by which this art can be requested
+         * and linked from other rows (such as tracks).
+         */
+        public long id() { return id; }
+
+        /**
+         * The variable-length file path string at which the art file
+         * can be found.
+         */
+        public DeviceSqlString path() { return path; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
+    }
+
+    /**
      * An ASCII-encoded string preceded by a two-byte length field.
      * TODO May need to skip a byte after the length!
      *      Have not found any test data.
@@ -896,6 +943,10 @@ public class PdbFile extends KaitaiStruct {
                 }
                 case ARTISTS: {
                     this.body = new ArtistRow(this._io, this, _root);
+                    break;
+                }
+                case ARTWORK: {
+                    this.body = new ArtworkRow(this._io, this, _root);
                     break;
                 }
                 }
