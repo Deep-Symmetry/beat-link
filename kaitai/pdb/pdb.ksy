@@ -135,50 +135,59 @@ types:
       an index which locates all rows present in the heap via their
       offsets past the end of the page header.
     seq:
-      - id: empty_1
-        contents: [0, 0, 0, 0]
+      - contents: [0, 0, 0, 0]
       - id: page_index
         doc: Matches the index we used to look up the page, sanity check?
         type: u4
       - id: type
         type: u4
         enum: page_type
-        doc: Identifies the type of information stored in the rows of this page.
+        doc: |
+          Identifies the type of information stored in the rows of this page.
       - id: next_page
         doc: |
           Index of the next page containing this type of rows. Points past
           the end of the file if there are no more.
         type: page_ref
-      - id: unknown_1
-        type: u4
-        doc: '@flesniak said: "sequence number (0->1: 8->13, 1->2: 22, 2->3: 27)"'
-      - id: unknown_2
-        size: 4
+      - type: u4
+        doc: |
+          @flesniak said: "sequence number (0->1: 8->13, 1->2: 22, 2->3: 27)"
+      - size: 4
       - id: num_rows
         type: u1
-      - id: unknown_3
-        type: u1
-        doc: '@flesniak said: "a bitmask (1st track: 32)"'
-      - id: unknown_4
-        type: u2
-        doc: '@flesniak said: "25600 for strange blocks"'
+        doc: |
+          The number of rows on this page (controls the number of row
+          index entries there are, but some of those may not be marked
+          as present in the table due to deletion).
+      - type: u1
+        doc: |
+          @flesniak said: "a bitmask (1st track: 32)"
+      - type: u2
+        doc: |
+          @flesniak said: "25600 for strange blocks"
       - id: free_size
         type: u2
-        doc: Unused space, excluding index at end of page.
+        doc: |
+          Unused space (in bytes) in the page heap, excluding the row
+          index at end of page.
       - id: used_size
         type: u2
-      - id: unknown_5
-        type: u2
-        doc: '@flesniak said: "(0->1: 2)"'
+        doc: |
+          The number of bytes that are in use in the page heap.
+      - type: u2
+        doc: |
+          @flesniak said: "(0->1: 2)"
       - id: num_rows_large
         type: u2
-        doc: '@flesniak said: "usually <= num_rows except for playlist_map?"'
-      - id: unknown_6
-        type: u2
-        doc: '@flesniak said: "1004 for strange blocks, 0 otherwise"'
-      - id: unknown_7
-        type: u2
-        doc: '@flesniak said: "always 0 except 1 for history pages, num entries for strange pages?"'
+        doc: |
+          @flesniak said: "usually <= num_rows except for playlist_map?"
+      - type: u2
+        doc: |
+          @flesniak said: "1004 for strange blocks, 0 otherwise"
+      - type: u2
+        doc: |
+          @flesniak said: "always 0 except 1 for history pages, num
+          entries for strange pages?"
 
     instances:
       num_row_indices:
