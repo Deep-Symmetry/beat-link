@@ -197,16 +197,29 @@ types:
         type: 'row_flags(num_row_indices - 1, _root.len_page - 4)'
 
   row_flags:
+    doc: |
+      The root of a group of row indices, which are built backwards
+      from the end of the page. This holds a bit mask where each 1 bit
+      indicates a row that is actually present in the table. It is
+      preceded by up to sixteen two-byte row offsets that link to the
+      rows themselves, by specifying how many bytes beyond the page
+      header the row itself can be found.
     params:
       - id: num_remaining
         type: u2
+        doc: TODO I think this can be reworked using arrays and different parameters!
       - id: base
         type: u2
     seq:
-      - id: entry_enabled_flags
+      - id: row_present_flags
         type: u2
-      - id: unknown_flags
-        type: u2
+        doc: |
+          Each bit specifies whether a particular row is present. The
+          low order bit corresponds to the first row in this index,
+          whose offset immediately precedes these flag bits. The
+          second bit corresponds to the row whose offset precedes
+          that, and so on.
+      - type: u2
     instances:
       rows:
         pos: base - 0x20
@@ -219,51 +232,78 @@ types:
         if: num_remaining > 0
 
   row_ref:
+    doc: |
+      An offset which points to a row in the table, whose actual
+      presence is controlled by one of the bits in
+      `row_present_flags`. This instance allows the row itself to be
+      lazily loaded, unless it is not present, in which case there is
+      no content to be loaded.
     params:
       - id: index
         type: u2
+        doc: |
+          Identifies which row within the row index this reference
+          came from, so the correct flag can be checked for the row
+          presence.
     seq:
       - id: ofs_row
         type: u2
+        doc: |
+          The offset of the start of the row (in bytes past the end of
+          the page header).
     instances:
-      enabled:
-        value: '(((_parent.entry_enabled_flags >> (15 -index)) & 1) != 0 ? true : false)'
+      present:
+        value: '(((_parent.row_present_flags >> (15 -index)) & 1) != 0 ? true : false)'
+        doc: |
+          Indicates whether the row index considers this row to be
+          present in the table. Will be `false` if the row has been
+          deleted.
       body:
         pos: ofs_row + 0x28
         size-eos: true  # TODO: Make an actual object structure based on page data type.
-        if: enabled
+        if: present
+        doc: |
+          The actual content of the row, as long as it is present.
 
 enums:
   page_type:
     0:
       id: tracks
       doc: |
-        Holds records describing tracks, such as their title, artist,
+        Holds rows describing tracks, such as their title, artist,
         genre, artwork ID, playing time, etc.
     1:
       id: genres
-      doc: Holds records naming musical genres, for reference by tracks and searching.
+      doc: |
+        Holds rows naming musical genres, for reference by tracks and searching.
     2:
       id: artists
-      doc: Holds records naming artists, for reference by tracks and searching.
+      doc: |
+        Holds rows naming artists, for reference by tracks and searching.
     3:
       id: albums
-      doc: Holds records naming albums, for reference by tracks and searching.
+      doc: |
+        Holds rows naming albums, for reference by tracks and searching.
     4:
       id: labels
-      doc: Holds records naming music labels, for reference by tracks and searching.
+      doc: |
+        Holds rows naming music labels, for reference by tracks and searching.
     5:
       id: keys
-      doc: Holds records naming musical keys, for reference by tracks and searching.
+      doc: |
+        Holds rows naming musical keys, for reference by tracks and searching.
     6:
       id: colors
-      doc: Holds records naming color labels, for reference  by tracks and searching.
+      doc: |
+        Holds rows naming color labels, for reference  by tracks and searching.
     7:
       id: playlists
-      doc: Holds records containing playlists.
+      doc: |
+        Holds rows containing playlists.
     8:
       id: playlist_map
-      doc: TODO figure out and explain
+      doc: |
+        TODO figure out and explain
     9:
       id: unknown_9
     10:
@@ -274,18 +314,21 @@ enums:
       id: unknown_12
     13:
       id: artwork
-      doc: Holds records pointing to album artwork images.
+      doc: |
+        Holds rows pointing to album artwork images.
     14:
       id: unknown_14
     15:
       id: unknown_15
     16:
       id: columns
-      doc: TODO figure out and explain
+      doc: |
+        TODO figure out and explain
     17:
       id: unknown_17
     18:
       id: unknown_18
     19:
       id: history
-      doc: Holds records listing tracks played in performance sessions.
+      doc: |
+        Holds rows listing tracks played in performance sessions.
