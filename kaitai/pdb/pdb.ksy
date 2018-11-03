@@ -106,6 +106,7 @@ types:
           of the meaningful data rows.
       - id: last_page
         type: page_ref
+    -webide-representation: '{type}'
 
   page_ref:
     doc: |
@@ -264,12 +265,14 @@ types:
           Indicates whether the row index considers this row to be
           present in the table. Will be `false` if the row has been
           deleted.
+        -webide-parse-mode: eager
       body:
         pos: ofs_row + 0x28
         size-eos: true  # TODO: Make an actual object structure based on page data type.
         if: present
         doc: |
           The actual content of the row, as long as it is present.
+    -webide-representation: 'present={present}'
 
 enums:
   page_type:
