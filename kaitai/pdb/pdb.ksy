@@ -196,10 +196,13 @@ types:
           The number of row groups that are present in the index. Each
           group can hold up to sixteen rows. All but the final one
           will hold sixteen rows.
-      row_index:
+      row_groups:
         type: 'row_group(_index)'
         repeat: expr
         repeat-expr: num_groups
+        doc: |
+          The actual row groups making up the row index. Each group
+          can hold up to sixteen rows.
 
   row_group:
     doc: |
