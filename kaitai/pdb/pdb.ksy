@@ -22,7 +22,7 @@ types:
         contents: [0, 0, 0, 0]
       - id: len_page
         type: u4
-      - id: num_entries
+      - id: num_tables
         type: u4
         doc: |
           Determines the number of file header entries that are present.
@@ -40,7 +40,7 @@ types:
       - id: entries
         type: file_header_entry
         repeat: expr
-        repeat-expr: num_entries
+        repeat-expr: num_tables
       - id: padding
         size: len_page - _io.pos
 
@@ -78,10 +78,10 @@ types:
 
     instances:
       num_row_indices:
-        value: header.num_entries / 16 + 1
+        value: header.num_rows / 16 + 1
       row_index_chain:
-        pos: 0x0ffc
-        type: 'row_flags(num_row_indices - 1, 0x0ffc)'
+        pos: '_root.header.len_page - 4'
+        type: 'row_flags(num_row_indices - 1, _root.header.len_page - 4)'
 
   page_header:
     seq:
@@ -104,7 +104,7 @@ types:
         doc: '@flesniak said: "sequence number (0->1: 8->13, 1->2: 22, 2->3: 27)"'
       - id: unknown_2
         size: 4
-      - id: num_entries
+      - id: num_rows
         type: u1
       - id: unknown_3
         type: u1
@@ -120,9 +120,9 @@ types:
       - id: unknown_5
         type: u2
         doc: '@flesniak said: "(0->1: 2)"'
-      - id: num_entries_large
+      - id: num_rows_large
         type: u2
-        doc: '@flesniak said: "usually <= num_entries except for playlist_map?"'
+        doc: '@flesniak said: "usually <= num_rows except for playlist_map?"'
       - id: unknown_6
         type: u2
         doc: '@flesniak said: "1004 for strange blocks, 0 otherwise"'
