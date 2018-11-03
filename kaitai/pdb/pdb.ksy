@@ -271,12 +271,47 @@ types:
         type:
           switch-on: _parent._parent.type
           cases:
+            'page_type::albums': album_row
             'page_type::artists': artist_row
         if: present
         doc: |
           The actual content of the row, as long as it is present.
         -webide-parse-mode: eager
     -webide-representation: 'present={present} {body.name.body.text}'
+
+  album_row:
+    doc: |
+      A row that holds an artist name and ID.
+    seq:
+      - id: magic
+        contents: [0x80, 0x00]
+      - id: index_shift
+        type: u2
+        doc: TODO name from @flesniak, but what does it mean?
+      - type: u4
+      - id: artist_id
+        doc: |
+          Identifies the artist associated with the album.
+        type: u4
+      - id: id
+        doc: |
+          The unique identifier by which this album can be requested
+          and linked from other rows (such as tracks).
+        type: u4
+      - type: u4
+      - type: u1
+        doc: |
+          @flesniak says: "alwayx 0x03, maybe an unindexed empty string"
+      - id: ofs_name
+        type: u1
+        doc: |
+          The location of the variable-length name string, relative to
+          the start of this row.
+    instances:
+      name:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_name
+        -webide-parse-mode: eager
 
   artist_row:
     doc: |
@@ -348,6 +383,8 @@ types:
   device_sql_long_ascii:
     doc: |
       An ASCII-encoded string preceded by a two-byte length field.
+      TODO May need to skip a byte after the length!
+           Have not found any test data.
     seq:
       - id: length
         type: u2

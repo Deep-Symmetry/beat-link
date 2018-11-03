@@ -132,11 +132,11 @@ public class PdbFile extends KaitaiStruct {
             this(_io, null, null);
         }
 
-        public DeviceSqlString(KaitaiStream _io, PdbFile.ArtistRow _parent) {
+        public DeviceSqlString(KaitaiStream _io, KaitaiStruct _parent) {
             this(_io, _parent, null);
         }
 
-        public DeviceSqlString(KaitaiStream _io, PdbFile.ArtistRow _parent, PdbFile _root) {
+        public DeviceSqlString(KaitaiStream _io, KaitaiStruct _parent, PdbFile _root) {
             super(_io);
             this._parent = _parent;
             this._root = _root;
@@ -162,7 +162,7 @@ public class PdbFile extends KaitaiStruct {
         private int lengthAndKind;
         private KaitaiStruct body;
         private PdbFile _root;
-        private PdbFile.ArtistRow _parent;
+        private KaitaiStruct _parent;
 
         /**
          * Mangled length of an ordinary ASCII string if odd, or a flag
@@ -172,7 +172,7 @@ public class PdbFile extends KaitaiStruct {
         public int lengthAndKind() { return lengthAndKind; }
         public KaitaiStruct body() { return body; }
         public PdbFile _root() { return _root; }
-        public PdbFile.ArtistRow _parent() { return _parent; }
+        public KaitaiStruct _parent() { return _parent; }
     }
 
     /**
@@ -219,6 +219,92 @@ public class PdbFile extends KaitaiStruct {
         public int mangledLength() { return mangledLength; }
         public PdbFile _root() { return _root; }
         public PdbFile.DeviceSqlString _parent() { return _parent; }
+    }
+
+    /**
+     * A row that holds an artist name and ID.
+     */
+    public static class AlbumRow extends KaitaiStruct {
+        public static AlbumRow fromFile(String fileName) throws IOException {
+            return new AlbumRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public AlbumRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public AlbumRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public AlbumRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.magic = this._io.ensureFixedContents(new byte[] { -128, 0 });
+            this.indexShift = this._io.readU2le();
+            this._unnamed2 = this._io.readU4le();
+            this.artistId = this._io.readU4le();
+            this.id = this._io.readU4le();
+            this._unnamed5 = this._io.readU4le();
+            this._unnamed6 = this._io.readU1();
+            this.ofsName = this._io.readU1();
+        }
+        private DeviceSqlString name;
+        public DeviceSqlString name() {
+            if (this.name != null)
+                return this.name;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsName()));
+            this.name = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.name;
+        }
+        private byte[] magic;
+        private int indexShift;
+        private long _unnamed2;
+        private long artistId;
+        private long id;
+        private long _unnamed5;
+        private int _unnamed6;
+        private int ofsName;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+        public byte[] magic() { return magic; }
+
+        /**
+         * TODO name from @flesniak, but what does it mean?
+         */
+        public int indexShift() { return indexShift; }
+        public long _unnamed2() { return _unnamed2; }
+
+        /**
+         * Identifies the artist associated with the album.
+         */
+        public long artistId() { return artistId; }
+
+        /**
+         * The unique identifier by which this album can be requested
+         * and linked from other rows (such as tracks).
+         */
+        public long id() { return id; }
+        public long _unnamed5() { return _unnamed5; }
+
+        /**
+         * @flesniak says: "alwayx 0x03, maybe an unindexed empty string"
+         */
+        public int _unnamed6() { return _unnamed6; }
+
+        /**
+         * The location of the variable-length name string, relative to
+         * the start of this row.
+         */
+        public int ofsName() { return ofsName; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
     }
 
     /**
@@ -470,6 +556,8 @@ public class PdbFile extends KaitaiStruct {
 
     /**
      * An ASCII-encoded string preceded by a two-byte length field.
+     * TODO May need to skip a byte after the length!
+     *      Have not found any test data.
      */
     public static class DeviceSqlLongAscii extends KaitaiStruct {
         public static DeviceSqlLongAscii fromFile(String fileName) throws IOException {
@@ -664,7 +752,7 @@ public class PdbFile extends KaitaiStruct {
         }
         private void _read() {
             this.length = this._io.readU2le();
-            this.text = new String(this._io.readBytes(length()), Charset.forName("utf-16be"));
+            this.text = new String(this._io.readBytes((length() - 4)), Charset.forName("utf-16be"));
         }
         private int length;
         private String text;
@@ -672,7 +760,7 @@ public class PdbFile extends KaitaiStruct {
         private PdbFile.DeviceSqlString _parent;
 
         /**
-         * Contains the length of the string.
+         * Contains the length of the string in bytes, including two trailing nulls.
          */
         public int length() { return length; }
         public String text() { return text; }
@@ -790,18 +878,22 @@ public class PdbFile extends KaitaiStruct {
             this.present = _tmp;
             return this.present;
         }
-        private ArtistRow body;
+        private KaitaiStruct body;
 
         /**
          * The actual content of the row, as long as it is present.
          */
-        public ArtistRow body() {
+        public KaitaiStruct body() {
             if (this.body != null)
                 return this.body;
             if (present()) {
                 long _pos = this._io.pos();
                 this._io.seek((ofsRow() + 40));
                 switch (_parent()._parent().type()) {
+                case ALBUMS: {
+                    this.body = new AlbumRow(this._io, this, _root);
+                    break;
+                }
                 case ARTISTS: {
                     this.body = new ArtistRow(this._io, this, _root);
                     break;
