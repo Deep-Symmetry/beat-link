@@ -135,18 +135,6 @@ types:
       an index which locates all rows present in the heap via their
       offsets past the end of the page header.
     seq:
-      - id: header
-        type: page_header
-
-    instances:
-      num_row_indices:
-        value: header.num_rows / 16 + 1
-      row_index_chain:
-        pos: '_root.len_page - 4'
-        type: 'row_flags(num_row_indices - 1, _root.len_page - 4)'
-
-  page_header:
-    seq:
       - id: empty_1
         contents: [0, 0, 0, 0]
       - id: page_index
@@ -191,6 +179,13 @@ types:
       - id: unknown_7
         type: u2
         doc: '@flesniak said: "always 0 except 1 for history pages, num entries for strange pages?"'
+
+    instances:
+      num_row_indices:
+        value: num_rows / 16 + 1
+      row_index_chain:
+        pos: '_root.len_page - 4'
+        type: 'row_flags(num_row_indices - 1, _root.len_page - 4)'
 
   row_flags:
     params:
