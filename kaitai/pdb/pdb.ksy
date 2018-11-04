@@ -160,12 +160,15 @@ types:
         doc: |
           @flesniak said: "sequence number (0->1: 8->13, 1->2: 22, 2->3: 27)"
       - size: 4
-      - id: num_rows
+      - id: num_rows_small
         type: u1
         doc: |
-          The number of rows on this page (controls the number of row
-          index entries there are, but some of those may not be marked
-          as present in the table due to deletion).
+          Holds the value used for `num_rows` (see below) unless
+          `num_rows_large` is larger (but not equal to `0x1fff`). This
+          seems like some strange mechanism to deal with the fact that
+          lots of tiny entries, such as are found in the
+          `playlist_entries` table, are too big to count with a single
+          byte. But why not just always use `num_rows_large`, then?
       - type: u1
         doc: |
           @flesniak said: "a bitmask (1st track: 32)"
@@ -187,7 +190,14 @@ types:
       - id: num_rows_large
         type: u2
         doc: |
-          @flesniak said: "usually <= num_rows except for playlist_map?"
+          Holds the value used for `num_rows` (see below) when that is
+          too large to fit into `num_rows_small`, and that situation
+          seems to be indicated when this value is larger than
+          `num_rows_small`, but not equal to `0x1fff`. This seems like
+          some strange mechanism to deal with the fact that lots of
+          tiny entries, such as are found in the `playlist_entries`
+          table, are too big to count with a single byte. But why not
+          just always use this value, then?
       - type: u2
         doc: |
           @flesniak said: "1004 for strange blocks, 0 otherwise"
@@ -195,8 +205,15 @@ types:
         doc: |
           @flesniak said: "always 0 except 1 for history pages, num
           entries for strange pages?"
-
     instances:
+      num_rows:
+        value: |
+          (num_rows_large > num_rows_small) and (num_rows_large != 0x1fff) ? num_rows_large : num_rows_small
+        doc: |
+          The number of rows on this page (controls the number of row
+          index entries there are, but some of those may not be marked
+          as present in the table due to deletion).
+        -webide-parse-mode: eager
       num_groups:
         value: '(num_rows - 1) / 16 + 1'
         doc: |
@@ -285,7 +302,8 @@ types:
             'page_type::genres': genre_row
             'page_type::keys': key_row
             'page_type::labels': label_row
-            'page_type::playlists': playlist_row
+            'page_type::playlist_tree': playlist_tree_row
+            'page_type::playlist_entries': playlist_entry_row
         if: present
         doc: |
           The actual content of the row, as long as it is present.
@@ -433,7 +451,7 @@ types:
         doc: |
           The variable-length string naming the label.
 
-  playlist_row:
+  playlist_tree_row:
     doc: |
       A row that holds a playlist name, ID, indication of whether it
       is an ordinary playlist or a folder of other playlists, a link
@@ -442,8 +460,8 @@ types:
       - id: parent_id
         type: u4
         doc: |
-          The ID of the `playlist_row` in which this one can be found,
-          or `0` if this playlist exists at the root level.
+          The ID of the `playlist_tree_row` in which this one can be
+          found, or `0` if this playlist exists at the root level.
       - size: 4
       - id: sort_order
         type: u4
@@ -467,6 +485,23 @@ types:
       is_folder:
         value: raw_is_folder != 0
         -webide-parse-mode: eager
+
+  playlist_entry_row:
+    doc: |
+      A row that associates a track with a position in a playlist.
+    seq:
+      - id: entry_index
+        type: u4
+        doc: |
+          The position within the playlist represented by this entry.
+      - id: track_id
+        type: u4
+        doc: |
+          The track found at this position in the playlist.
+      - id: playlist_id
+        type: u4
+        doc: |
+          The playlist to which this entry belongs.
 
   device_sql_string:
     doc: |
@@ -567,13 +602,15 @@ enums:
       doc: |
         Holds rows naming color labels, for reference  by tracks and searching.
     7:
-      id: playlists
+      id: playlist_tree
       doc: |
-        Holds rows containing playlists.
+        Holds rows that describe the hierarchical tree structure of
+        available playlists and folders grouping them.
     8:
-      id: playlist_map
+      id: playlist_entries
       doc: |
-        TODO figure out and explain
+        Holds rows that enumerate the tracks found in playlists and
+        the playlists they belong to.
     9:
       id: unknown_9
     10:

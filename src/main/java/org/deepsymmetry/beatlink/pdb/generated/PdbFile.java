@@ -65,8 +65,8 @@ public class PdbFile extends KaitaiStruct {
         LABELS(4),
         KEYS(5),
         COLORS(6),
-        PLAYLISTS(7),
-        PLAYLIST_MAP(8),
+        PLAYLIST_TREE(7),
+        PLAYLIST_ENTRIES(8),
         UNKNOWN_9(9),
         UNKNOWN_10(10),
         UNKNOWN_11(11),
@@ -173,6 +173,87 @@ public class PdbFile extends KaitaiStruct {
         public KaitaiStruct body() { return body; }
         public PdbFile _root() { return _root; }
         public KaitaiStruct _parent() { return _parent; }
+    }
+
+    /**
+     * A row that holds a playlist name, ID, indication of whether it
+     * is an ordinary playlist or a folder of other playlists, a link
+     * to its parent folder, and its sort order.
+     */
+    public static class PlaylistTreeRow extends KaitaiStruct {
+        public static PlaylistTreeRow fromFile(String fileName) throws IOException {
+            return new PlaylistTreeRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public PlaylistTreeRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public PlaylistTreeRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public PlaylistTreeRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.parentId = this._io.readU4le();
+            this._unnamed1 = this._io.readBytes(4);
+            this.sortOrder = this._io.readU4le();
+            this.id = this._io.readU4le();
+            this.rawIsFolder = this._io.readU4le();
+            this.name = new DeviceSqlString(this._io, this, _root);
+        }
+        private Boolean isFolder;
+        public Boolean isFolder() {
+            if (this.isFolder != null)
+                return this.isFolder;
+            boolean _tmp = (boolean) (rawIsFolder() != 0);
+            this.isFolder = _tmp;
+            return this.isFolder;
+        }
+        private long parentId;
+        private byte[] _unnamed1;
+        private long sortOrder;
+        private long id;
+        private long rawIsFolder;
+        private DeviceSqlString name;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+
+        /**
+         * The ID of the `playlist_tree_row` in which this one can be
+         * found, or `0` if this playlist exists at the root level.
+         */
+        public long parentId() { return parentId; }
+        public byte[] _unnamed1() { return _unnamed1; }
+
+        /**
+         * The order in which the entries of this playlist are sorted.
+         */
+        public long sortOrder() { return sortOrder; }
+
+        /**
+         * The unique identifier by which this playlist can be requested
+         * and linked from other rows (such as tracks).
+         */
+        public long id() { return id; }
+
+        /**
+         * Has a non-zero value if this is actually a folder rather
+         * than a playlist.
+         */
+        public long rawIsFolder() { return rawIsFolder; }
+
+        /**
+         * The variable-length string naming the playlist.
+         */
+        public DeviceSqlString name() { return name; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
     }
 
     /**
@@ -391,7 +472,7 @@ public class PdbFile extends KaitaiStruct {
             this.nextPage = new PageRef(this._io, this, _root);
             this._unnamed4 = this._io.readU4le();
             this._unnamed5 = this._io.readBytes(4);
-            this.numRows = this._io.readU1();
+            this.numRowsSmall = this._io.readU1();
             this._unnamed7 = this._io.readU1();
             this._unnamed8 = this._io.readU2le();
             this.freeSize = this._io.readU2le();
@@ -400,6 +481,20 @@ public class PdbFile extends KaitaiStruct {
             this.numRowsLarge = this._io.readU2le();
             this._unnamed13 = this._io.readU2le();
             this._unnamed14 = this._io.readU2le();
+        }
+        private Integer numRows;
+
+        /**
+         * The number of rows on this page (controls the number of row
+         * index entries there are, but some of those may not be marked
+         * as present in the table due to deletion).
+         */
+        public Integer numRows() {
+            if (this.numRows != null)
+                return this.numRows;
+            int _tmp = (int) (( ((numRowsLarge() > numRowsSmall()) && (numRowsLarge() != 8191))  ? numRowsLarge() : numRowsSmall()));
+            this.numRows = _tmp;
+            return this.numRows;
         }
         private Integer numGroups;
 
@@ -436,7 +531,7 @@ public class PdbFile extends KaitaiStruct {
         private PageRef nextPage;
         private long _unnamed4;
         private byte[] _unnamed5;
-        private int numRows;
+        private int numRowsSmall;
         private int _unnamed7;
         private int _unnamed8;
         private int freeSize;
@@ -472,11 +567,14 @@ public class PdbFile extends KaitaiStruct {
         public byte[] _unnamed5() { return _unnamed5; }
 
         /**
-         * The number of rows on this page (controls the number of row
-         * index entries there are, but some of those may not be marked
-         * as present in the table due to deletion).
+         * Holds the value used for `num_rows` (see below) unless
+         * `num_rows_large` is larger (but not equal to `0x1fff`). This
+         * seems like some strange mechanism to deal with the fact that
+         * lots of tiny entries, such as are found in the
+         * `playlist_entries` table, are too big to count with a single
+         * byte. But why not just always use `num_rows_large`, then?
          */
-        public int numRows() { return numRows; }
+        public int numRowsSmall() { return numRowsSmall; }
 
         /**
          * @flesniak said: "a bitmask (1st track: 32)"
@@ -505,7 +603,14 @@ public class PdbFile extends KaitaiStruct {
         public int _unnamed11() { return _unnamed11; }
 
         /**
-         * @flesniak said: "usually <= num_rows except for playlist_map?"
+         * Holds the value used for `num_rows` (see below) when that is
+         * too large to fit into `num_rows_small`, and that situation
+         * seems to be indicated when this value is larger than
+         * `num_rows_small`, but not equal to `0x1fff`. This seems like
+         * some strange mechanism to deal with the fact that lots of
+         * tiny entries, such as are found in the `playlist_entries`
+         * table, are too big to count with a single byte. But why not
+         * just always use this value, then?
          */
         public int numRowsLarge() { return numRowsLarge; }
 
@@ -964,6 +1069,57 @@ public class PdbFile extends KaitaiStruct {
     }
 
     /**
+     * A row that associates a track with a position in a playlist.
+     */
+    public static class PlaylistEntryRow extends KaitaiStruct {
+        public static PlaylistEntryRow fromFile(String fileName) throws IOException {
+            return new PlaylistEntryRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public PlaylistEntryRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public PlaylistEntryRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public PlaylistEntryRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.entryIndex = this._io.readU4le();
+            this.trackId = this._io.readU4le();
+            this.playlistId = this._io.readU4le();
+        }
+        private long entryIndex;
+        private long trackId;
+        private long playlistId;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+
+        /**
+         * The position within the playlist represented by this entry.
+         */
+        public long entryIndex() { return entryIndex; }
+
+        /**
+         * The track found at this position in the playlist.
+         */
+        public long trackId() { return trackId; }
+
+        /**
+         * The playlist to which this entry belongs.
+         */
+        public long playlistId() { return playlistId; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
+    }
+
+    /**
      * A row that holds a label name and the associated ID.
      */
     public static class LabelRow extends KaitaiStruct {
@@ -1002,87 +1158,6 @@ public class PdbFile extends KaitaiStruct {
 
         /**
          * The variable-length string naming the label.
-         */
-        public DeviceSqlString name() { return name; }
-        public PdbFile _root() { return _root; }
-        public PdbFile.RowRef _parent() { return _parent; }
-    }
-
-    /**
-     * A row that holds a playlist name, ID, indication of whether it
-     * is an ordinary playlist or a folder of other playlists, a link
-     * to its parent folder, and its sort order.
-     */
-    public static class PlaylistRow extends KaitaiStruct {
-        public static PlaylistRow fromFile(String fileName) throws IOException {
-            return new PlaylistRow(new ByteBufferKaitaiStream(fileName));
-        }
-
-        public PlaylistRow(KaitaiStream _io) {
-            this(_io, null, null);
-        }
-
-        public PlaylistRow(KaitaiStream _io, PdbFile.RowRef _parent) {
-            this(_io, _parent, null);
-        }
-
-        public PlaylistRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
-            super(_io);
-            this._parent = _parent;
-            this._root = _root;
-            _read();
-        }
-        private void _read() {
-            this.parentId = this._io.readU4le();
-            this._unnamed1 = this._io.readBytes(4);
-            this.sortOrder = this._io.readU4le();
-            this.id = this._io.readU4le();
-            this.rawIsFolder = this._io.readU4le();
-            this.name = new DeviceSqlString(this._io, this, _root);
-        }
-        private Boolean isFolder;
-        public Boolean isFolder() {
-            if (this.isFolder != null)
-                return this.isFolder;
-            boolean _tmp = (boolean) (rawIsFolder() != 0);
-            this.isFolder = _tmp;
-            return this.isFolder;
-        }
-        private long parentId;
-        private byte[] _unnamed1;
-        private long sortOrder;
-        private long id;
-        private long rawIsFolder;
-        private DeviceSqlString name;
-        private PdbFile _root;
-        private PdbFile.RowRef _parent;
-
-        /**
-         * The ID of the `playlist_row` in which this one can be found,
-         * or `0` if this playlist exists at the root level.
-         */
-        public long parentId() { return parentId; }
-        public byte[] _unnamed1() { return _unnamed1; }
-
-        /**
-         * The order in which the entries of this playlist are sorted.
-         */
-        public long sortOrder() { return sortOrder; }
-
-        /**
-         * The unique identifier by which this playlist can be requested
-         * and linked from other rows (such as tracks).
-         */
-        public long id() { return id; }
-
-        /**
-         * Has a non-zero value if this is actually a folder rather
-         * than a playlist.
-         */
-        public long rawIsFolder() { return rawIsFolder; }
-
-        /**
-         * The variable-length string naming the playlist.
          */
         public DeviceSqlString name() { return name; }
         public PdbFile _root() { return _root; }
@@ -1227,6 +1302,14 @@ public class PdbFile extends KaitaiStruct {
                     this.body = new GenreRow(this._io, this, _root);
                     break;
                 }
+                case PLAYLIST_ENTRIES: {
+                    this.body = new PlaylistEntryRow(this._io, this, _root);
+                    break;
+                }
+                case PLAYLIST_TREE: {
+                    this.body = new PlaylistTreeRow(this._io, this, _root);
+                    break;
+                }
                 case LABELS: {
                     this.body = new LabelRow(this._io, this, _root);
                     break;
@@ -1245,10 +1328,6 @@ public class PdbFile extends KaitaiStruct {
                 }
                 case ARTWORK: {
                     this.body = new ArtworkRow(this._io, this, _root);
-                    break;
-                }
-                case PLAYLISTS: {
-                    this.body = new PlaylistRow(this._io, this, _root);
                     break;
                 }
                 }
