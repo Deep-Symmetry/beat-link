@@ -964,6 +964,132 @@ public class PdbFile extends KaitaiStruct {
     }
 
     /**
+     * A row that holds a label name and the associated ID.
+     */
+    public static class LabelRow extends KaitaiStruct {
+        public static LabelRow fromFile(String fileName) throws IOException {
+            return new LabelRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public LabelRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public LabelRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public LabelRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.id = this._io.readU4le();
+            this.name = new DeviceSqlString(this._io, this, _root);
+        }
+        private long id;
+        private DeviceSqlString name;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+
+        /**
+         * The unique identifier by which this label can be requested
+         * and linked from other rows (such as tracks).
+         */
+        public long id() { return id; }
+
+        /**
+         * The variable-length string naming the label.
+         */
+        public DeviceSqlString name() { return name; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
+    }
+
+    /**
+     * A row that holds a playlist name, ID, indication of whether it
+     * is an ordinary playlist or a folder of other playlists, a link
+     * to its parent folder, and its sort order.
+     */
+    public static class PlaylistRow extends KaitaiStruct {
+        public static PlaylistRow fromFile(String fileName) throws IOException {
+            return new PlaylistRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public PlaylistRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public PlaylistRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public PlaylistRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.parentId = this._io.readU4le();
+            this._unnamed1 = this._io.readBytes(4);
+            this.sortOrder = this._io.readU4le();
+            this.id = this._io.readU4le();
+            this.rawIsFolder = this._io.readU4le();
+            this.name = new DeviceSqlString(this._io, this, _root);
+        }
+        private Boolean isFolder;
+        public Boolean isFolder() {
+            if (this.isFolder != null)
+                return this.isFolder;
+            boolean _tmp = (boolean) (rawIsFolder() != 0);
+            this.isFolder = _tmp;
+            return this.isFolder;
+        }
+        private long parentId;
+        private byte[] _unnamed1;
+        private long sortOrder;
+        private long id;
+        private long rawIsFolder;
+        private DeviceSqlString name;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+
+        /**
+         * The ID of the `playlist_row` in which this one can be found,
+         * or `0` if this playlist exists at the root level.
+         */
+        public long parentId() { return parentId; }
+        public byte[] _unnamed1() { return _unnamed1; }
+
+        /**
+         * The order in which the entries of this playlist are sorted.
+         */
+        public long sortOrder() { return sortOrder; }
+
+        /**
+         * The unique identifier by which this playlist can be requested
+         * and linked from other rows (such as tracks).
+         */
+        public long id() { return id; }
+
+        /**
+         * Has a non-zero value if this is actually a folder rather
+         * than a playlist.
+         */
+        public long rawIsFolder() { return rawIsFolder; }
+
+        /**
+         * The variable-length string naming the playlist.
+         */
+        public DeviceSqlString name() { return name; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
+    }
+
+    /**
      * Each table is a linked list of pages containing rows of a single
      * type. This header describes the nature of the table and links to
      * its pages by index.
@@ -1101,6 +1227,10 @@ public class PdbFile extends KaitaiStruct {
                     this.body = new GenreRow(this._io, this, _root);
                     break;
                 }
+                case LABELS: {
+                    this.body = new LabelRow(this._io, this, _root);
+                    break;
+                }
                 case ALBUMS: {
                     this.body = new AlbumRow(this._io, this, _root);
                     break;
@@ -1115,6 +1245,10 @@ public class PdbFile extends KaitaiStruct {
                 }
                 case ARTWORK: {
                     this.body = new ArtworkRow(this._io, this, _root);
+                    break;
+                }
+                case PLAYLISTS: {
+                    this.body = new PlaylistRow(this._io, this, _root);
                     break;
                 }
                 }

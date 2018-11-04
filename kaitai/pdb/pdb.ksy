@@ -284,6 +284,8 @@ types:
             'page_type::colors': color_row
             'page_type::genres': genre_row
             'page_type::keys': key_row
+            'page_type::labels': label_row
+            'page_type::playlists': playlist_row
         if: present
         doc: |
           The actual content of the row, as long as it is present.
@@ -301,14 +303,14 @@ types:
         doc: TODO name from @flesniak, but what does it mean?
       - type: u4
       - id: artist_id
+        type: u4
         doc: |
           Identifies the artist associated with the album.
-        type: u4
       - id: id
+        type: u4
         doc: |
           The unique identifier by which this album can be requested
           and linked from other rows (such as tracks).
-        type: u4
       - type: u4
       - type: u1
         doc: |
@@ -334,10 +336,10 @@ types:
         type: u2
         doc: TODO name from @flesniak, but what does it mean?
       - id: id
+        type: u4
         doc: |
           The unique identifier by which this artist can be requested
           and linked from other rows (such as tracks).
-        type: u4
       - type: u1
         doc: |
           @flesniak says: "alwayx 0x03, maybe an unindexed empty string"
@@ -358,10 +360,10 @@ types:
       associated artwork ID.
     seq:
       - id: id
+        type: u4
         doc: |
           The unique identifier by which this art can be requested
           and linked from other rows (such as tracks).
-        type: u4
       - id: path
         type: device_sql_string
         doc: |
@@ -375,10 +377,10 @@ types:
     seq:
       - size: 5
       - id: id
+        type: u2
         doc: |
           The unique identifier by which this color can be requested
           and linked from other rows (such as tracks).
-        type: u2
       - type: u1
       - id: name
         type: device_sql_string
@@ -390,10 +392,10 @@ types:
       A row that holds a genre name and the associated ID.
     seq:
       - id: id
+        type: u4
         doc: |
           The unique identifier by which this genre can be requested
           and linked from other rows (such as tracks).
-        type: u4
       - id: name
         type: device_sql_string
         doc: |
@@ -404,18 +406,67 @@ types:
       A row that holds a musical key and the associated ID.
     seq:
       - id: id
+        type: u4
         doc: |
           The unique identifier by which this key can be requested
           and linked from other rows (such as tracks).
-        type: u4
       - id: id2
+        type: u4
         doc: |
           Seems to be a second copy of the ID?
-        type: u4
       - id: name
         type: device_sql_string
         doc: |
           The variable-length string naming the key.
+
+  label_row:
+    doc: |
+      A row that holds a label name and the associated ID.
+    seq:
+      - id: id
+        type: u4
+        doc: |
+          The unique identifier by which this label can be requested
+          and linked from other rows (such as tracks).
+      - id: name
+        type: device_sql_string
+        doc: |
+          The variable-length string naming the label.
+
+  playlist_row:
+    doc: |
+      A row that holds a playlist name, ID, indication of whether it
+      is an ordinary playlist or a folder of other playlists, a link
+      to its parent folder, and its sort order.
+    seq:
+      - id: parent_id
+        type: u4
+        doc: |
+          The ID of the `playlist_row` in which this one can be found,
+          or `0` if this playlist exists at the root level.
+      - size: 4
+      - id: sort_order
+        type: u4
+        doc: |
+          The order in which the entries of this playlist are sorted.
+      - id: id
+        type: u4
+        doc: |
+          The unique identifier by which this playlist can be requested
+          and linked from other rows (such as tracks).
+      - id: raw_is_folder
+        type: u4
+        doc: |
+          Has a non-zero value if this is actually a folder rather
+          than a playlist.
+      - id: name
+        type: device_sql_string
+        doc: |
+          The variable-length string naming the playlist.
+    instances:
+      is_folder:
+        value: raw_is_folder != 0
+        -webide-parse-mode: eager
 
   device_sql_string:
     doc: |
