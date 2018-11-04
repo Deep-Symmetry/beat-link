@@ -94,7 +94,7 @@ And, of course there is the track analysis data:
 
 == ANLZ Data
 
-Each track in a rekordbox database also has a `USBANZnnnn.DAT` file
+Each track in a rekordbox database also has a `ANLZnnnn.DAT` file
 associated with it, containing the beat grid, an index allowing rapid
 seeking to any time in variable-bitrate audio files, the waveforms,
 memory cues and loop points.
