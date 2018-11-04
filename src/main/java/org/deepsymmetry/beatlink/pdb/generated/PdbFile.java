@@ -176,6 +176,57 @@ public class PdbFile extends KaitaiStruct {
     }
 
     /**
+     * A row that holds a color name and the associated ID.
+     */
+    public static class ColorRow extends KaitaiStruct {
+        public static ColorRow fromFile(String fileName) throws IOException {
+            return new ColorRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public ColorRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public ColorRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public ColorRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this._unnamed0 = this._io.readBytes(5);
+            this.id = this._io.readU2le();
+            this._unnamed2 = this._io.readU1();
+            this.name = new DeviceSqlString(this._io, this, _root);
+        }
+        private byte[] _unnamed0;
+        private int id;
+        private int _unnamed2;
+        private DeviceSqlString name;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+        public byte[] _unnamed0() { return _unnamed0; }
+
+        /**
+         * The unique identifier by which this color can be requested
+         * and linked from other rows (such as tracks).
+         */
+        public int id() { return id; }
+        public int _unnamed2() { return _unnamed2; }
+
+        /**
+         * The variable-length string naming the color.
+         */
+        public DeviceSqlString name() { return name; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
+    }
+
+    /**
      * An ASCII-encoded string up to 127 bytes long.
      */
     public static class DeviceSqlShortAscii extends KaitaiStruct {
@@ -947,6 +998,10 @@ public class PdbFile extends KaitaiStruct {
                 }
                 case ARTWORK: {
                     this.body = new ArtworkRow(this._io, this, _root);
+                    break;
+                }
+                case COLORS: {
+                    this.body = new ColorRow(this._io, this, _root);
                     break;
                 }
                 }

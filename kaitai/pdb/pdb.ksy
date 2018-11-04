@@ -274,11 +274,12 @@ types:
             'page_type::albums': album_row
             'page_type::artists': artist_row
             'page_type::artwork': artwork_row
+            'page_type::colors': color_row
         if: present
         doc: |
           The actual content of the row, as long as it is present.
         -webide-parse-mode: eager
-    -webide-representation: 'present={present} {body.name.body.text}'
+    -webide-representation: 'present={present} {body.name.body.text} ({body.id})'
 
   album_row:
     doc: |
@@ -358,6 +359,22 @@ types:
           The variable-length file path string at which the art file
           can be found.
     -webide-representation: '{path.body.text}'
+
+  color_row:
+    doc: |
+      A row that holds a color name and the associated ID.
+    seq:
+      - size: 5
+      - id: id
+        doc: |
+          The unique identifier by which this color can be requested
+          and linked from other rows (such as tracks).
+        type: u2
+      - type: u1
+      - id: name
+        type: device_sql_string
+        doc: |
+          The variable-length string naming the color.
 
   device_sql_string:
     doc: |
