@@ -35,6 +35,31 @@ https://github.com/flesniak/python-prodj-link[python-prodj-link]
 project and https://github.com/GreyCat[Mikhail Yakshin] for helping me
 quickly learn the more subtle aspects of Kaitai Struct.
 
+=== Exploring the Analysis
+
+One of the amazingly cool things about Kaitai Struct is that you can
+use its https://ide.kaitai.io/#[Web IDE] to see how the structure
+definitions work and visually explore the contents of files you are
+analyzing. This also means you can look inside your own `.pdb` files
+and check my work, or get a better understanding of how to use the
+generated parsers. To do that, simply upload the `.pdb` file you want
+to examine to the Web IDE (it doesn't actually go to the web, it just
+gets put in your local browser storage), then also upload my `pdb.ksy`
+file, and the Web IDE will parse the exported database, letting you
+explore the structures in the tree view, and see the corresponding raw
+bytes in the hex viewer.
+
+TIP: You can find the `export.pdb` file on a media stick prepared by
+rekordbox inside the `PIONEER` folder, which may be invisible in the
+Finder, but you can open it using Terminal commands if you have to. To
+download my `pdb.ksy`, click on its link at the top of this page, then
+click on the `Raw` button in the header above the first line of the
+listing, then tell your browser to save it to disk. Be sure to keep
+the `.ksy` extension. Then you can upload it to the Kaitai Struct Web
+IDE.
+
+=== Updating the Java Code
+
 Building the Java classes from the structure definitions is a little
 awkward right now, although there is a compiler issue open that will
 hopefully make things better. Until then, here are the commands
