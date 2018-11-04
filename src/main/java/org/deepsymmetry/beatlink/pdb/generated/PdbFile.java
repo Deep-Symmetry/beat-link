@@ -606,6 +606,51 @@ public class PdbFile extends KaitaiStruct {
     }
 
     /**
+     * A row that holds a genre name and the associated ID.
+     */
+    public static class GenreRow extends KaitaiStruct {
+        public static GenreRow fromFile(String fileName) throws IOException {
+            return new GenreRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public GenreRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public GenreRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public GenreRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.id = this._io.readU4le();
+            this.name = new DeviceSqlString(this._io, this, _root);
+        }
+        private long id;
+        private DeviceSqlString name;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+
+        /**
+         * The unique identifier by which this genre can be requested
+         * and linked from other rows (such as tracks).
+         */
+        public long id() { return id; }
+
+        /**
+         * The variable-length string naming the genre.
+         */
+        public DeviceSqlString name() { return name; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
+    }
+
+    /**
      * A row that holds the path to an album art image file and the
      * associated artwork ID.
      */
@@ -867,6 +912,58 @@ public class PdbFile extends KaitaiStruct {
     }
 
     /**
+     * A row that holds a musical key and the associated ID.
+     */
+    public static class KeyRow extends KaitaiStruct {
+        public static KeyRow fromFile(String fileName) throws IOException {
+            return new KeyRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public KeyRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public KeyRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public KeyRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.id = this._io.readU4le();
+            this.id2 = this._io.readU4le();
+            this.name = new DeviceSqlString(this._io, this, _root);
+        }
+        private long id;
+        private long id2;
+        private DeviceSqlString name;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+
+        /**
+         * The unique identifier by which this key can be requested
+         * and linked from other rows (such as tracks).
+         */
+        public long id() { return id; }
+
+        /**
+         * Seems to be a second copy of the ID?
+         */
+        public long id2() { return id2; }
+
+        /**
+         * The variable-length string naming the key.
+         */
+        public DeviceSqlString name() { return name; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
+    }
+
+    /**
      * Each table is a linked list of pages containing rows of a single
      * type. This header describes the nature of the table and links to
      * its pages by index.
@@ -916,6 +1013,14 @@ public class PdbFile extends KaitaiStruct {
          * of the meaningful data rows.
          */
         public PageRef firstPage() { return firstPage; }
+
+        /**
+         * Holds the index of the last page that makes up this table.
+         * When following the linked list of pages of the table, you
+         * either need to stop when you reach this page, or when you
+         * notice that the `next_page` link you followed took you to a
+         * page of a different `type`.
+         */
         public PageRef lastPage() { return lastPage; }
         public PdbFile _root() { return _root; }
         public PdbFile _parent() { return _parent; }
@@ -988,8 +1093,20 @@ public class PdbFile extends KaitaiStruct {
                 long _pos = this._io.pos();
                 this._io.seek((ofsRow() + 40));
                 switch (_parent()._parent().type()) {
+                case KEYS: {
+                    this.body = new KeyRow(this._io, this, _root);
+                    break;
+                }
+                case GENRES: {
+                    this.body = new GenreRow(this._io, this, _root);
+                    break;
+                }
                 case ALBUMS: {
                     this.body = new AlbumRow(this._io, this, _root);
+                    break;
+                }
+                case COLORS: {
+                    this.body = new ColorRow(this._io, this, _root);
                     break;
                 }
                 case ARTISTS: {
@@ -998,10 +1115,6 @@ public class PdbFile extends KaitaiStruct {
                 }
                 case ARTWORK: {
                     this.body = new ArtworkRow(this._io, this, _root);
-                    break;
-                }
-                case COLORS: {
-                    this.body = new ColorRow(this._io, this, _root);
                     break;
                 }
                 }

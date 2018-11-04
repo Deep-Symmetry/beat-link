@@ -106,6 +106,12 @@ types:
           of the meaningful data rows.
       - id: last_page
         type: page_ref
+        doc: |
+          Holds the index of the last page that makes up this table.
+          When following the linked list of pages of the table, you
+          either need to stop when you reach this page, or when you
+          notice that the `next_page` link you followed took you to a
+          page of a different `type`.
     -webide-representation: '{type}'
 
   page_ref:
@@ -231,6 +237,7 @@ types:
           whose offset immediately precedes these flag bits. The
           second bit corresponds to the row whose offset precedes
           that, and so on.
+        -webide-parse-mode: eager
       rows:
         type: row_ref(_index)
         repeat: expr
@@ -275,6 +282,8 @@ types:
             'page_type::artists': artist_row
             'page_type::artwork': artwork_row
             'page_type::colors': color_row
+            'page_type::genres': genre_row
+            'page_type::keys': key_row
         if: present
         doc: |
           The actual content of the row, as long as it is present.
@@ -375,6 +384,38 @@ types:
         type: device_sql_string
         doc: |
           The variable-length string naming the color.
+
+  genre_row:
+    doc: |
+      A row that holds a genre name and the associated ID.
+    seq:
+      - id: id
+        doc: |
+          The unique identifier by which this genre can be requested
+          and linked from other rows (such as tracks).
+        type: u4
+      - id: name
+        type: device_sql_string
+        doc: |
+          The variable-length string naming the genre.
+
+  key_row:
+    doc: |
+      A row that holds a musical key and the associated ID.
+    seq:
+      - id: id
+        doc: |
+          The unique identifier by which this key can be requested
+          and linked from other rows (such as tracks).
+        type: u4
+      - id: id2
+        doc: |
+          Seems to be a second copy of the ID?
+        type: u4
+      - id: name
+        type: device_sql_string
+        doc: |
+          The variable-length string naming the key.
 
   device_sql_string:
     doc: |
