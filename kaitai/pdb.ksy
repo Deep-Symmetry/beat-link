@@ -304,6 +304,7 @@ types:
             'page_type::labels': label_row
             'page_type::playlist_tree': playlist_tree_row
             'page_type::playlist_entries': playlist_entry_row
+            'page_type::tracks': track_row
         if: present
         doc: |
           The actual content of the row, as long as it is present.
@@ -312,7 +313,7 @@ types:
 
   album_row:
     doc: |
-      A row that holds an artist name and ID.
+      A row that holds an album name and ID.
     seq:
       - id: magic
         contents: [0x80, 0x00]
@@ -342,6 +343,8 @@ types:
       name:
         type: device_sql_string
         pos: _parent.ofs_row + 0x28 + ofs_name
+        doc: |
+          The name of this album.
         -webide-parse-mode: eager
 
   artist_row:
@@ -370,6 +373,8 @@ types:
       name:
         type: device_sql_string
         pos: _parent.ofs_row + 0x28 + ofs_name
+        doc: |
+          The name of this artist.
         -webide-parse-mode: eager
 
   artwork_row:
@@ -503,11 +508,253 @@ types:
         doc: |
           The playlist to which this entry belongs.
 
+  track_row:
+    doc: |
+      A row that describes a track that can be played, with many
+      details about the music, and links to other tables like artists,
+      albums, keys, etc.
+    seq:
+      - id: magic
+        contents: [0x24, 0x00]
+      - id: index_shift
+        type: u2
+        doc: TODO name from @flesniak, but what does it mean?
+      - id: bitmask
+        type: u4
+        doc: TODO what do the bits mean?
+      - id: sample_rate
+        type: u4
+        doc: |
+          Playback sample rate of the audio file.
+      - id: composer_id
+        type: u4
+        doc: |
+          References a row in the artist table if the composer is
+          known.
+      - id: file_size
+        type: u4
+        doc: |
+          The length of the audio file, in bytes.
+      - type: u4
+        doc: |
+          Some ID? Purpose as yet unknown.
+      - type: u2
+        doc: |
+          From @flesniak: "always 19048?"
+      - type: u2
+        doc: |
+          From @flesniak: "always 30967?"
+      - id: artwork_id
+        type: u4
+        doc: |
+          References a row in the artwork table if there is album art.
+      - id: key_id
+        type: u4
+        doc: |
+          References a row in the keys table if the track has a known
+          main musical key.
+      - id: original_artist_id
+        type: u4
+        doc: |
+          References a row in the artwork table if this is a cover
+          performance and the original artist is known.
+      - id: label_id
+        type: u4
+        doc: |
+          References a row in the labels table if the track has a
+          known record label.
+      - id: remixer_id
+        type: u4
+        doc: |
+          References a row in the artists table if the track has a
+          known remixer.
+      - id: bitrate
+        type: u4
+        doc: |
+          Playback bit rate of the audio file.
+      - id: track_number
+        type: u4
+        doc: |
+          The position of the track within an album.
+      - id: tempo
+        type: u4
+        doc: |
+          The tempo at the start of the track in beats per minute,
+          multiplied by 100.
+      - id: genre_id
+        type: u4
+        doc: |
+          References a row in the genres table if the track has a
+          known musical genre.
+      - id: album_id
+        type: u4
+        doc: |
+          References a row in the albums table if the track has a
+          known album.
+      - id: artist_id
+        type: u4
+        doc: |
+          References a row in the artists table if the track has a
+          known performer.
+      - id: id
+        type: u4
+        doc: |
+          The id by which this track can be looked up; players will
+          report this value in their status packets when they are
+          playing the track.
+      - id: disc_number
+        type: u2
+        doc: |
+          The number of the disc on which this track is found, if it
+          is known to be part of a multi-disc album.
+      - id: play_count
+        type: u2
+        doc: |
+          The number of times this track has been played.
+      - id: year
+        type: u2
+        doc: |
+          The year in which this track was released.
+      - id: sample_depth
+        type: u2
+        doc: |
+          The number of bits per sample of the audio file.
+      - id: duration
+        type: u2
+        doc: |
+          The length, in seconds, of the track when played at normal
+          speed.
+      - type: u2
+        doc: |
+          From @flesniak: "always 41?"
+      - id: color_id
+        type: u1
+        doc: |
+          References a row in the colors table if the track has been
+          assigned a color.
+      - id: rating
+        type: u1
+        doc: |
+          The number of stars to display for the track, 0 to 5.
+      - type: u2
+        doc: |
+          From @flesniak: "always 1?"
+      - type: u2
+        doc: |
+          From @flesniak: "alternating 2 or 3"
+      - id: ofs_string_1
+        type: u2
+        doc: |
+          The location, relative to the start of this row, of a
+          variable-length string with unknown purpose (has always been
+          empty).
+      - id: ofs_texter
+        type: u2
+        doc: |
+          The location, relative to the start of this row, of a
+          variable-length string. @flesniak called "texter", for
+          reasons unclear to me.
+      - id: ofs_string_2
+        type: u2
+        doc: |
+          The location, relative to the start of this row, of a
+          variable-length string with unknown purpose. @flesniak
+          said "thought tracknumber -> wrong!"
+      - id: ofs_string_3
+        type: u2
+        doc: |
+          The location, relative to the start of this row, of a
+          variable-length string with unknown purpose. @flesniak said
+          "strange strings, often zero length, sometimes low binary
+          values 0x01/0x02 as content"
+      - id: ofs_string_4
+        type: u2
+        doc: |
+          The location, relative to the start of this row, of a
+          variable-length string with unknown purpose. @flesniak said
+          "strange strings, often zero length, sometimes low binary
+          values 0x01/0x02 as content"
+      - id: ofs_message
+        type: u2
+        doc: |
+          The location, relative to the start of this row, of a
+          variable-length string. @flesniak called "message", for
+          reasons unclear to me.
+      - id: ofs_unknown_switch
+        type: u2
+        doc: |
+          The location, relative to the start of this row, of a
+          variable-length string whose value is either empty or "ON".
+      - id: ofs_autoload_hotcues
+        type: u2
+        doc: |
+          The location, relative to the start of this row, of a
+          variable-length string whose value is either empty or "ON",
+          and which apparently for some insane reason is used, rather
+          than a single bit somewhere, to control whether hot-cues are
+          auto-loaded for the track.
+    instances:
+      string_1:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_string_1
+        doc: |
+          A string of unknown purpose, which has so far only been
+          empty.
+        -webide-parse-mode: eager
+      texter:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_texter
+        doc: |
+          A string of unknown purpose, which @flesnik named.
+        -webide-parse-mode: eager
+      string_2:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_string_2
+        doc: |
+          A string of unknown purpose; @flesniak said "thought
+          tracknumber -> wrong!"
+      string_3:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_string_3
+        doc: |
+          A string of unknown purpose; @flesniak said "strange
+          strings, often zero length, sometimes low binary values
+          0x01/0x02 as content"
+      string_4:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_string_4
+        doc: |
+          A string of unknown purpose; @flesniak said "strange
+          strings, often zero length, sometimes low binary values
+          0x01/0x02 as content"
+        -webide-parse-mode: eager
+      message:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_message
+        doc: |
+          A string of unknown purpose, which @flesnik named.
+        -webide-parse-mode: eager
+      unknown_switch:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_unknown_switch
+        doc: |
+          A string of unknown purpose, whose value is always either
+          empty or "ON".
+        -webide-parse-mode: eager
+      autoload_hotcues:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_autoload_hotcues
+        doc: |
+          A string whose value is always either empty or "ON", and
+          which apparently for some insane reason is used, rather than
+          a single bit somewhere, to control whether hot-cues are
+          auto-loaded for the track.
+        -webide-parse-mode: eager
+
   device_sql_string:
     doc: |
       A variable length string which can be stored in a variety of
-      different encodings. TODO: May need to skip leading zeros before
-      the length byte.
+      different encodings.
     seq:
       - id: length_and_kind
         type: u1
@@ -539,9 +786,14 @@ types:
         type: str
         size: length
         encoding: ascii
+        doc: |
+          The content of the string.
     instances:
       length:
         value: '((mangled_length - 1) / 2) - 1'
+        doc: |
+          The un-mangled length of the string, in bytes.
+        -webide-parse-mode: eager
 
   device_sql_long_ascii:
     doc: |
@@ -551,11 +803,14 @@ types:
     seq:
       - id: length
         type: u2
-        doc: Contains the length of the string.
+        doc: |
+          Contains the length of the string in bytes.
       - id: text
         type: str
         size: length
         encoding: ascii
+        doc: |
+          The content of the string.
 
   device_sql_long_utf16be:
     doc: |
@@ -569,6 +824,8 @@ types:
         type: str
         size: length - 4
         encoding: utf-16be
+        doc: |
+          The content of the string.
 
 enums:
   page_type:
