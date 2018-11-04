@@ -26,13 +26,14 @@ other projects can use them to output code for other languages.
 
 == PDB Database
 
-The folder `pdb` contains the structure definitions needed to
-parse exported rekordbox databases (`export.pdb` files).
+The file `pdb.ksy` contains the structure definitions needed to parse
+exported rekordbox databases (`export.pdb` files).
 
-NOTE: Huge thanks to https://github.com/flesniak[Fabian Lesniak]
-for figuring out the details of how to interpret these files in
-his https://github.com/flesniak/python-prodj-link[python-prodj-link]
-project.
+NOTE: Huge thanks to https://github.com/flesniak[Fabian Lesniak] for
+figuring out the details of how to interpret these files in his
+https://github.com/flesniak/python-prodj-link[python-prodj-link]
+project and https://github.com/GreyCat[Mikhail Yakshin] for helping me
+quickly learn the more subtle aspects of Kaitai Struct.
 
 Building the Java classes from the structure definitions is a little
 awkward right now, although there is a compiler issue open that will
@@ -42,7 +43,7 @@ folder):
 
 [source,bash]
 ----
-kaitai-struct-compiler kaitai/pdb/*.ksy -t java --outdir target \
+kaitai-struct-compiler kaitai/pdb.ksy -t java --outdir target \
   --java-package org.deepsymmetry.beatlink.pdb.generated
 
 rm -r src/main/java/org/deepsymmetry/beatlink/pdb/generated
