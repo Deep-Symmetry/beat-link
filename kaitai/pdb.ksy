@@ -309,7 +309,7 @@ types:
         doc: |
           The actual content of the row, as long as it is present.
         -webide-parse-mode: eager
-    -webide-representation: 'present={present} {body.name.body.text} ({body.id})'
+    -webide-representation: '{body.name.body.text}{body.title.body.text} ({body.id})'
 
   album_row:
     doc: |
@@ -642,87 +642,43 @@ types:
       - type: u2
         doc: |
           From @flesniak: "alternating 2 or 3"
-      - id: ofs_string_1
+      - id: ofs_strings
         type: u2
+        repeat: expr
+        repeat-expr: 21
         doc: |
           The location, relative to the start of this row, of a
-          variable-length string with unknown purpose (has always been
-          empty).
-      - id: ofs_texter
-        type: u2
-        doc: |
-          The location, relative to the start of this row, of a
-          variable-length string. @flesniak called "texter", for
-          reasons unclear to me.
-      - id: ofs_string_2
-        type: u2
-        doc: |
-          The location, relative to the start of this row, of a
-          variable-length string with unknown purpose. @flesniak
-          said "thought tracknumber -> wrong!"
-      - id: ofs_string_3
-        type: u2
-        doc: |
-          The location, relative to the start of this row, of a
-          variable-length string with unknown purpose. @flesniak said
-          "strange strings, often zero length, sometimes low binary
-          values 0x01/0x02 as content"
-      - id: ofs_string_4
-        type: u2
-        doc: |
-          The location, relative to the start of this row, of a
-          variable-length string with unknown purpose. @flesniak said
-          "strange strings, often zero length, sometimes low binary
-          values 0x01/0x02 as content"
-      - id: ofs_message
-        type: u2
-        doc: |
-          The location, relative to the start of this row, of a
-          variable-length string. @flesniak called "message", for
-          reasons unclear to me.
-      - id: ofs_unknown_switch
-        type: u2
-        doc: |
-          The location, relative to the start of this row, of a
-          variable-length string whose value is either empty or "ON".
-      - id: ofs_autoload_hotcues
-        type: u2
-        doc: |
-          The location, relative to the start of this row, of a
-          variable-length string whose value is either empty or "ON",
-          and which apparently for some insane reason is used, rather
-          than a single bit somewhere, to control whether hot-cues are
-          auto-loaded for the track.
+          variety of variable-length strings.
     instances:
-      string_1:
+      unknown_string_1:
         type: device_sql_string
-        pos: _parent.ofs_row + 0x28 + ofs_string_1
+        pos: _parent.ofs_row + 0x28 + ofs_strings[0]
         doc: |
           A string of unknown purpose, which has so far only been
           empty.
         -webide-parse-mode: eager
       texter:
         type: device_sql_string
-        pos: _parent.ofs_row + 0x28 + ofs_texter
+        pos: _parent.ofs_row + 0x28 + ofs_strings[1]
         doc: |
           A string of unknown purpose, which @flesnik named.
         -webide-parse-mode: eager
-      string_2:
+      unknown_string_2:
         type: device_sql_string
-        pos: _parent.ofs_row + 0x28 + ofs_string_2
+        pos: _parent.ofs_row + 0x28 + ofs_strings[2]
         doc: |
           A string of unknown purpose; @flesniak said "thought
           tracknumber -> wrong!"
-      string_3:
+      unknown_string_3:
         type: device_sql_string
-        pos: _parent.ofs_row + 0x28 + ofs_string_3
+        pos: _parent.ofs_row + 0x28 + ofs_strings[3]
         doc: |
           A string of unknown purpose; @flesniak said "strange
           strings, often zero length, sometimes low binary values
           0x01/0x02 as content"
-      string_4:
+      unknown_string_4:
         type: device_sql_string
-        pos: _parent.ofs_row + 0x28 + ofs_string_4
+        pos: _parent.ofs_row + 0x28 + ofs_strings[4]
         doc: |
           A string of unknown purpose; @flesniak said "strange
           strings, often zero length, sometimes low binary values
@@ -730,25 +686,106 @@ types:
         -webide-parse-mode: eager
       message:
         type: device_sql_string
-        pos: _parent.ofs_row + 0x28 + ofs_message
+        pos: _parent.ofs_row + 0x28 + ofs_strings[5]
         doc: |
           A string of unknown purpose, which @flesnik named.
         -webide-parse-mode: eager
       unknown_switch:
         type: device_sql_string
-        pos: _parent.ofs_row + 0x28 + ofs_unknown_switch
+        pos: _parent.ofs_row + 0x28 + ofs_strings[6]
         doc: |
           A string of unknown purpose, whose value is always either
           empty or "ON".
         -webide-parse-mode: eager
       autoload_hotcues:
         type: device_sql_string
-        pos: _parent.ofs_row + 0x28 + ofs_autoload_hotcues
+        pos: _parent.ofs_row + 0x28 + ofs_strings[7]
         doc: |
           A string whose value is always either empty or "ON", and
           which apparently for some insane reason is used, rather than
           a single bit somewhere, to control whether hot-cues are
           auto-loaded for the track.
+        -webide-parse-mode: eager
+      unknown_string_5:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[8]
+        doc: |
+          A string of unknown purpose.
+        -webide-parse-mode: eager
+      unknown_string_6:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[9]
+        doc: |
+          A string of unknown purpose, usually empty.
+        -webide-parse-mode: eager
+      date_added:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[10]
+        doc: |
+          A string containing the date this track was added to the collection.
+        -webide-parse-mode: eager
+      release_date:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[11]
+        doc: |
+          A string containing the date this track was released, if known.
+        -webide-parse-mode: eager
+      mix_name:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[12]
+        doc: |
+          A string naming the remix of the track, if known.
+        -webide-parse-mode: eager
+      unknown_string_7:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[13]
+        doc: |
+          A string of unknown purpose, usually empty.
+        -webide-parse-mode: eager
+      analyze_path:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[14]
+        doc: |
+          The file path of the track analysis, which allows rapid
+          seeking to particular times in variable bit-rate files,
+          jumping to particular beats, visual waveform previews, and
+          stores cue points and loops.
+        -webide-parse-mode: eager
+      analyze_date:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[15]
+        doc: |
+          A string containing the date this track was analyzed by rekordbox.
+        -webide-parse-mode: eager
+      comment:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[16]
+        doc: |
+          The comment assigned to the track by the DJ, if any.
+        -webide-parse-mode: eager
+      title:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[17]
+        doc: |
+          The title of the track.
+        -webide-parse-mode: eager
+      unknown_string_8:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[18]
+        doc: |
+          A string of unknown purpose, usually empty.
+        -webide-parse-mode: eager
+      filename:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[19]
+        doc: |
+          The file name of the track audio file.
+        -webide-parse-mode: eager
+      file_path:
+        type: device_sql_string
+        pos: _parent.ofs_row + 0x28 + ofs_strings[20]
+        doc: |
+          The file path of the track audio file.
         -webide-parse-mode: eager
 
   device_sql_string:

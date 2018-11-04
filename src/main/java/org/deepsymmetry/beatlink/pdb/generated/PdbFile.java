@@ -120,8 +120,7 @@ public class PdbFile extends KaitaiStruct {
 
     /**
      * A variable length string which can be stored in a variety of
-     * different encodings. TODO: May need to skip leading zeros before
-     * the length byte.
+     * different encodings.
      */
     public static class DeviceSqlString extends KaitaiStruct {
         public static DeviceSqlString fromFile(String fileName) throws IOException {
@@ -331,6 +330,10 @@ public class PdbFile extends KaitaiStruct {
             this.text = new String(this._io.readBytes(length()), Charset.forName("ascii"));
         }
         private Integer length;
+
+        /**
+         * The un-mangled length of the string, in bytes.
+         */
         public Integer length() {
             if (this.length != null)
                 return this.length;
@@ -342,6 +345,10 @@ public class PdbFile extends KaitaiStruct {
         private int mangledLength;
         private PdbFile _root;
         private PdbFile.DeviceSqlString _parent;
+
+        /**
+         * The content of the string.
+         */
         public String text() { return text; }
 
         /**
@@ -354,7 +361,7 @@ public class PdbFile extends KaitaiStruct {
     }
 
     /**
-     * A row that holds an artist name and ID.
+     * A row that holds an album name and ID.
      */
     public static class AlbumRow extends KaitaiStruct {
         public static AlbumRow fromFile(String fileName) throws IOException {
@@ -386,6 +393,10 @@ public class PdbFile extends KaitaiStruct {
             this.ofsName = this._io.readU1();
         }
         private DeviceSqlString name;
+
+        /**
+         * The name of this album.
+         */
         public DeviceSqlString name() {
             if (this.name != null)
                 return this.name;
@@ -836,9 +847,13 @@ public class PdbFile extends KaitaiStruct {
         private PdbFile.DeviceSqlString _parent;
 
         /**
-         * Contains the length of the string.
+         * Contains the length of the string in bytes.
          */
         public int length() { return length; }
+
+        /**
+         * The content of the string.
+         */
         public String text() { return text; }
         public PdbFile _root() { return _root; }
         public PdbFile.DeviceSqlString _parent() { return _parent; }
@@ -874,6 +889,10 @@ public class PdbFile extends KaitaiStruct {
             this.ofsName = this._io.readU1();
         }
         private DeviceSqlString name;
+
+        /**
+         * The name of this artist.
+         */
         public DeviceSqlString name() {
             if (this.name != null)
                 return this.name;
@@ -1011,9 +1030,590 @@ public class PdbFile extends KaitaiStruct {
          * Contains the length of the string in bytes, including two trailing nulls.
          */
         public int length() { return length; }
+
+        /**
+         * The content of the string.
+         */
         public String text() { return text; }
         public PdbFile _root() { return _root; }
         public PdbFile.DeviceSqlString _parent() { return _parent; }
+    }
+
+    /**
+     * A row that describes a track that can be played, with many
+     * details about the music, and links to other tables like artists,
+     * albums, keys, etc.
+     */
+    public static class TrackRow extends KaitaiStruct {
+        public static TrackRow fromFile(String fileName) throws IOException {
+            return new TrackRow(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public TrackRow(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public TrackRow(KaitaiStream _io, PdbFile.RowRef _parent) {
+            this(_io, _parent, null);
+        }
+
+        public TrackRow(KaitaiStream _io, PdbFile.RowRef _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.magic = this._io.ensureFixedContents(new byte[] { 36, 0 });
+            this.indexShift = this._io.readU2le();
+            this.bitmask = this._io.readU4le();
+            this.sampleRate = this._io.readU4le();
+            this.composerId = this._io.readU4le();
+            this.fileSize = this._io.readU4le();
+            this._unnamed6 = this._io.readU4le();
+            this._unnamed7 = this._io.readU2le();
+            this._unnamed8 = this._io.readU2le();
+            this.artworkId = this._io.readU4le();
+            this.keyId = this._io.readU4le();
+            this.originalArtistId = this._io.readU4le();
+            this.labelId = this._io.readU4le();
+            this.remixerId = this._io.readU4le();
+            this.bitrate = this._io.readU4le();
+            this.trackNumber = this._io.readU4le();
+            this.tempo = this._io.readU4le();
+            this.genreId = this._io.readU4le();
+            this.albumId = this._io.readU4le();
+            this.artistId = this._io.readU4le();
+            this.id = this._io.readU4le();
+            this.discNumber = this._io.readU2le();
+            this.playCount = this._io.readU2le();
+            this.year = this._io.readU2le();
+            this.sampleDepth = this._io.readU2le();
+            this.duration = this._io.readU2le();
+            this._unnamed26 = this._io.readU2le();
+            this.colorId = this._io.readU1();
+            this.rating = this._io.readU1();
+            this._unnamed29 = this._io.readU2le();
+            this._unnamed30 = this._io.readU2le();
+            ofsStrings = new ArrayList<Integer>((int) (21));
+            for (int i = 0; i < 21; i++) {
+                this.ofsStrings.add(this._io.readU2le());
+            }
+        }
+        private DeviceSqlString unknownString8;
+
+        /**
+         * A string of unknown purpose, usually empty.
+         */
+        public DeviceSqlString unknownString8() {
+            if (this.unknownString8 != null)
+                return this.unknownString8;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 18)));
+            this.unknownString8 = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.unknownString8;
+        }
+        private DeviceSqlString unknownString6;
+
+        /**
+         * A string of unknown purpose, usually empty.
+         */
+        public DeviceSqlString unknownString6() {
+            if (this.unknownString6 != null)
+                return this.unknownString6;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 9)));
+            this.unknownString6 = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.unknownString6;
+        }
+        private DeviceSqlString analyzeDate;
+
+        /**
+         * A string containing the date this track was analyzed by rekordbox.
+         */
+        public DeviceSqlString analyzeDate() {
+            if (this.analyzeDate != null)
+                return this.analyzeDate;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 15)));
+            this.analyzeDate = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.analyzeDate;
+        }
+        private DeviceSqlString filePath;
+
+        /**
+         * The file path of the track audio file.
+         */
+        public DeviceSqlString filePath() {
+            if (this.filePath != null)
+                return this.filePath;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 20)));
+            this.filePath = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.filePath;
+        }
+        private DeviceSqlString autoloadHotcues;
+
+        /**
+         * A string whose value is always either empty or "ON", and
+         * which apparently for some insane reason is used, rather than
+         * a single bit somewhere, to control whether hot-cues are
+         * auto-loaded for the track.
+         */
+        public DeviceSqlString autoloadHotcues() {
+            if (this.autoloadHotcues != null)
+                return this.autoloadHotcues;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 7)));
+            this.autoloadHotcues = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.autoloadHotcues;
+        }
+        private DeviceSqlString dateAdded;
+
+        /**
+         * A string containing the date this track was added to the collection.
+         */
+        public DeviceSqlString dateAdded() {
+            if (this.dateAdded != null)
+                return this.dateAdded;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 10)));
+            this.dateAdded = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.dateAdded;
+        }
+        private DeviceSqlString unknownString3;
+
+        /**
+         * A string of unknown purpose; @flesniak said "strange
+         * strings, often zero length, sometimes low binary values
+         * 0x01/0x02 as content"
+         */
+        public DeviceSqlString unknownString3() {
+            if (this.unknownString3 != null)
+                return this.unknownString3;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 3)));
+            this.unknownString3 = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.unknownString3;
+        }
+        private DeviceSqlString texter;
+
+        /**
+         * A string of unknown purpose, which @flesnik named.
+         */
+        public DeviceSqlString texter() {
+            if (this.texter != null)
+                return this.texter;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 1)));
+            this.texter = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.texter;
+        }
+        private DeviceSqlString mixName;
+
+        /**
+         * A string naming the remix of the track, if known.
+         */
+        public DeviceSqlString mixName() {
+            if (this.mixName != null)
+                return this.mixName;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 12)));
+            this.mixName = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.mixName;
+        }
+        private DeviceSqlString unknownString5;
+
+        /**
+         * A string of unknown purpose.
+         */
+        public DeviceSqlString unknownString5() {
+            if (this.unknownString5 != null)
+                return this.unknownString5;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 8)));
+            this.unknownString5 = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.unknownString5;
+        }
+        private DeviceSqlString unknownString4;
+
+        /**
+         * A string of unknown purpose; @flesniak said "strange
+         * strings, often zero length, sometimes low binary values
+         * 0x01/0x02 as content"
+         */
+        public DeviceSqlString unknownString4() {
+            if (this.unknownString4 != null)
+                return this.unknownString4;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 4)));
+            this.unknownString4 = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.unknownString4;
+        }
+        private DeviceSqlString message;
+
+        /**
+         * A string of unknown purpose, which @flesnik named.
+         */
+        public DeviceSqlString message() {
+            if (this.message != null)
+                return this.message;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 5)));
+            this.message = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.message;
+        }
+        private DeviceSqlString unknownString2;
+
+        /**
+         * A string of unknown purpose; @flesniak said "thought
+         * tracknumber -> wrong!"
+         */
+        public DeviceSqlString unknownString2() {
+            if (this.unknownString2 != null)
+                return this.unknownString2;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 2)));
+            this.unknownString2 = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.unknownString2;
+        }
+        private DeviceSqlString unknownString1;
+
+        /**
+         * A string of unknown purpose, which has so far only been
+         * empty.
+         */
+        public DeviceSqlString unknownString1() {
+            if (this.unknownString1 != null)
+                return this.unknownString1;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 0)));
+            this.unknownString1 = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.unknownString1;
+        }
+        private DeviceSqlString unknownString7;
+
+        /**
+         * A string of unknown purpose, usually empty.
+         */
+        public DeviceSqlString unknownString7() {
+            if (this.unknownString7 != null)
+                return this.unknownString7;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 13)));
+            this.unknownString7 = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.unknownString7;
+        }
+        private DeviceSqlString unknownSwitch;
+
+        /**
+         * A string of unknown purpose, whose value is always either
+         * empty or "ON".
+         */
+        public DeviceSqlString unknownSwitch() {
+            if (this.unknownSwitch != null)
+                return this.unknownSwitch;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 6)));
+            this.unknownSwitch = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.unknownSwitch;
+        }
+        private DeviceSqlString filename;
+
+        /**
+         * The file name of the track audio file.
+         */
+        public DeviceSqlString filename() {
+            if (this.filename != null)
+                return this.filename;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 19)));
+            this.filename = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.filename;
+        }
+        private DeviceSqlString analyzePath;
+
+        /**
+         * The file path of the track analysis, which allows rapid
+         * seeking to particular times in variable bit-rate files,
+         * jumping to particular beats, visual waveform previews, and
+         * stores cue points and loops.
+         */
+        public DeviceSqlString analyzePath() {
+            if (this.analyzePath != null)
+                return this.analyzePath;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 14)));
+            this.analyzePath = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.analyzePath;
+        }
+        private DeviceSqlString comment;
+
+        /**
+         * The comment assigned to the track by the DJ, if any.
+         */
+        public DeviceSqlString comment() {
+            if (this.comment != null)
+                return this.comment;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 16)));
+            this.comment = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.comment;
+        }
+        private DeviceSqlString releaseDate;
+
+        /**
+         * A string containing the date this track was released, if known.
+         */
+        public DeviceSqlString releaseDate() {
+            if (this.releaseDate != null)
+                return this.releaseDate;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 11)));
+            this.releaseDate = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.releaseDate;
+        }
+        private DeviceSqlString title;
+
+        /**
+         * The title of the track.
+         */
+        public DeviceSqlString title() {
+            if (this.title != null)
+                return this.title;
+            long _pos = this._io.pos();
+            this._io.seek(((_parent().ofsRow() + 40) + ofsStrings().get((int) 17)));
+            this.title = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.title;
+        }
+        private byte[] magic;
+        private int indexShift;
+        private long bitmask;
+        private long sampleRate;
+        private long composerId;
+        private long fileSize;
+        private long _unnamed6;
+        private int _unnamed7;
+        private int _unnamed8;
+        private long artworkId;
+        private long keyId;
+        private long originalArtistId;
+        private long labelId;
+        private long remixerId;
+        private long bitrate;
+        private long trackNumber;
+        private long tempo;
+        private long genreId;
+        private long albumId;
+        private long artistId;
+        private long id;
+        private int discNumber;
+        private int playCount;
+        private int year;
+        private int sampleDepth;
+        private int duration;
+        private int _unnamed26;
+        private int colorId;
+        private int rating;
+        private int _unnamed29;
+        private int _unnamed30;
+        private ArrayList<Integer> ofsStrings;
+        private PdbFile _root;
+        private PdbFile.RowRef _parent;
+        public byte[] magic() { return magic; }
+
+        /**
+         * TODO name from @flesniak, but what does it mean?
+         */
+        public int indexShift() { return indexShift; }
+
+        /**
+         * TODO what do the bits mean?
+         */
+        public long bitmask() { return bitmask; }
+
+        /**
+         * Playback sample rate of the audio file.
+         */
+        public long sampleRate() { return sampleRate; }
+
+        /**
+         * References a row in the artist table if the composer is
+         * known.
+         */
+        public long composerId() { return composerId; }
+
+        /**
+         * The length of the audio file, in bytes.
+         */
+        public long fileSize() { return fileSize; }
+
+        /**
+         * Some ID? Purpose as yet unknown.
+         */
+        public long _unnamed6() { return _unnamed6; }
+
+        /**
+         * From @flesniak: "always 19048?"
+         */
+        public int _unnamed7() { return _unnamed7; }
+
+        /**
+         * From @flesniak: "always 30967?"
+         */
+        public int _unnamed8() { return _unnamed8; }
+
+        /**
+         * References a row in the artwork table if there is album art.
+         */
+        public long artworkId() { return artworkId; }
+
+        /**
+         * References a row in the keys table if the track has a known
+         * main musical key.
+         */
+        public long keyId() { return keyId; }
+
+        /**
+         * References a row in the artwork table if this is a cover
+         * performance and the original artist is known.
+         */
+        public long originalArtistId() { return originalArtistId; }
+
+        /**
+         * References a row in the labels table if the track has a
+         * known record label.
+         */
+        public long labelId() { return labelId; }
+
+        /**
+         * References a row in the artists table if the track has a
+         * known remixer.
+         */
+        public long remixerId() { return remixerId; }
+
+        /**
+         * Playback bit rate of the audio file.
+         */
+        public long bitrate() { return bitrate; }
+
+        /**
+         * The position of the track within an album.
+         */
+        public long trackNumber() { return trackNumber; }
+
+        /**
+         * The tempo at the start of the track in beats per minute,
+         * multiplied by 100.
+         */
+        public long tempo() { return tempo; }
+
+        /**
+         * References a row in the genres table if the track has a
+         * known musical genre.
+         */
+        public long genreId() { return genreId; }
+
+        /**
+         * References a row in the albums table if the track has a
+         * known album.
+         */
+        public long albumId() { return albumId; }
+
+        /**
+         * References a row in the artists table if the track has a
+         * known performer.
+         */
+        public long artistId() { return artistId; }
+
+        /**
+         * The id by which this track can be looked up; players will
+         * report this value in their status packets when they are
+         * playing the track.
+         */
+        public long id() { return id; }
+
+        /**
+         * The number of the disc on which this track is found, if it
+         * is known to be part of a multi-disc album.
+         */
+        public int discNumber() { return discNumber; }
+
+        /**
+         * The number of times this track has been played.
+         */
+        public int playCount() { return playCount; }
+
+        /**
+         * The year in which this track was released.
+         */
+        public int year() { return year; }
+
+        /**
+         * The number of bits per sample of the audio file.
+         */
+        public int sampleDepth() { return sampleDepth; }
+
+        /**
+         * The length, in seconds, of the track when played at normal
+         * speed.
+         */
+        public int duration() { return duration; }
+
+        /**
+         * From @flesniak: "always 41?"
+         */
+        public int _unnamed26() { return _unnamed26; }
+
+        /**
+         * References a row in the colors table if the track has been
+         * assigned a color.
+         */
+        public int colorId() { return colorId; }
+
+        /**
+         * The number of stars to display for the track, 0 to 5.
+         */
+        public int rating() { return rating; }
+
+        /**
+         * From @flesniak: "always 1?"
+         */
+        public int _unnamed29() { return _unnamed29; }
+
+        /**
+         * From @flesniak: "alternating 2 or 3"
+         */
+        public int _unnamed30() { return _unnamed30; }
+
+        /**
+         * The location, relative to the start of this row, of a
+         * variety of variable-length strings.
+         */
+        public ArrayList<Integer> ofsStrings() { return ofsStrings; }
+        public PdbFile _root() { return _root; }
+        public PdbFile.RowRef _parent() { return _parent; }
     }
 
     /**
@@ -1304,6 +1904,10 @@ public class PdbFile extends KaitaiStruct {
                 }
                 case PLAYLIST_ENTRIES: {
                     this.body = new PlaylistEntryRow(this._io, this, _root);
+                    break;
+                }
+                case TRACKS: {
+                    this.body = new TrackRow(this._io, this, _root);
                     break;
                 }
                 case PLAYLIST_TREE: {
