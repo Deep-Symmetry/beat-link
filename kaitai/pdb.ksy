@@ -701,12 +701,14 @@ types:
         doc: |
           A string of unknown purpose, which @flesnik named.
         -webide-parse-mode: eager
-      unknown_switch:
+      public:
         type: device_sql_string
         pos: _parent.row_base + ofs_strings[6]
         doc: |
-          A string of unknown purpose, whose value is always either
-          empty or "ON".
+          A string whose value is always either empty or "ON", and
+          which apparently for some insane reason is used, rather than
+          a single bit somewhere, to control whether the track
+          information is visible on Kuvo.
         -webide-parse-mode: eager
       autoload_hotcues:
         type: device_sql_string
