@@ -327,7 +327,9 @@ public class PdbFile extends KaitaiStruct {
             _read();
         }
         private void _read() {
-            this.text = new String(this._io.readBytes(length()), Charset.forName("ascii"));
+            if ( ((KaitaiStream.mod(mangledLength(), 2) > 0) && (length() >= 0)) ) {
+                this.text = new String(this._io.readBytes(length()), Charset.forName("ascii"));
+            }
         }
         private Integer length;
 

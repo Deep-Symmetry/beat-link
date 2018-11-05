@@ -836,6 +836,7 @@ types:
         type: str
         size: length
         encoding: ascii
+        if: '(mangled_length % 2 > 0) and (length >= 0)'  # Skip invalid strings
         doc: |
           The content of the string.
     instances:
