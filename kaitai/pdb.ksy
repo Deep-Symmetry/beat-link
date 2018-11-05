@@ -206,11 +206,14 @@ types:
           @flesniak said: "always 0 except 1 for history pages, num
           entries for strange pages?"
       - id: heap
+        type: dummy_for_io
         size-eos: true
-        if: heap_pos < 0  # never true, but stores pos
+        doc: |
+          The bulk of the page is used as a heap in which rows and
+          variable-length strings are allocated. Rows are pointed to
+          by the row index which grows backwards from the end of the
+          page, and strings are pointed to by rows.
     instances:
-      heap_pos:
-        value: _io.pos
       num_rows:
         value: |
           (num_rows_large > num_rows_small) and (num_rows_large != 0x1fff) ? num_rows_large : num_rows_small
@@ -232,6 +235,12 @@ types:
         doc: |
           The actual row groups making up the row index. Each group
           can hold up to sixteen rows.
+
+  dummy_for_io:
+    doc: |
+      An empty object because there are no fixed-location values to be
+      accessed, but we want to create an `io` object for relative
+      positioning of instances in the body.
 
   row_group:
     doc: |
@@ -288,12 +297,6 @@ types:
         doc: |
           The offset of the start of the row (in bytes past the end of
           the page header).
-      row_base:
-        value: ofs_row + _parent._parent.heap_pos
-        doc: |
-          The location of this row relative to the start of the page.
-          A variety of pointers (such as all device_sql_string values)
-          are calculated with respect to this position.
       present:
         value: '(((_parent.row_present_flags >> row_index) & 1) != 0 ? true : false)'
         doc: |
@@ -302,7 +305,9 @@ types:
           deleted.
         -webide-parse-mode: eager
       body:
-        pos: row_base
+        io: _parent._parent.heap._io
+        pos: ofs_row
+        size-eos: true
         type:
           switch-on: _parent._parent.type
           cases:
@@ -353,7 +358,7 @@ types:
     instances:
       name:
         type: device_sql_string
-        pos: _parent.row_base + ofs_name
+        pos: ofs_name
         doc: |
           The name of this album.
         -webide-parse-mode: eager
@@ -383,7 +388,7 @@ types:
     instances:
       name:
         type: device_sql_string
-        pos: _parent.row_base + ofs_name
+        pos: ofs_name
         doc: |
           The name of this artist.
         -webide-parse-mode: eager
@@ -663,33 +668,33 @@ types:
     instances:
       unknown_string_1:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[0]
+        pos: ofs_strings[0]
         doc: |
           A string of unknown purpose, which has so far only been
           empty.
         -webide-parse-mode: eager
       texter:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[1]
+        pos: ofs_strings[1]
         doc: |
           A string of unknown purpose, which @flesnik named.
         -webide-parse-mode: eager
       unknown_string_2:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[2]
+        pos: ofs_strings[2]
         doc: |
           A string of unknown purpose; @flesniak said "thought
           tracknumber -> wrong!"
       unknown_string_3:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[3]
+        pos: ofs_strings[3]
         doc: |
           A string of unknown purpose; @flesniak said "strange
           strings, often zero length, sometimes low binary values
           0x01/0x02 as content"
       unknown_string_4:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[4]
+        pos: ofs_strings[4]
         doc: |
           A string of unknown purpose; @flesniak said "strange
           strings, often zero length, sometimes low binary values
@@ -697,13 +702,13 @@ types:
         -webide-parse-mode: eager
       message:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[5]
+        pos: ofs_strings[5]
         doc: |
           A string of unknown purpose, which @flesnik named.
         -webide-parse-mode: eager
       public:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[6]
+        pos: ofs_strings[6]
         doc: |
           A string whose value is always either empty or "ON", and
           which apparently for some insane reason is used, rather than
@@ -712,7 +717,7 @@ types:
         -webide-parse-mode: eager
       autoload_hotcues:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[7]
+        pos: ofs_strings[7]
         doc: |
           A string whose value is always either empty or "ON", and
           which apparently for some insane reason is used, rather than
@@ -721,43 +726,43 @@ types:
         -webide-parse-mode: eager
       unknown_string_5:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[8]
+        pos: ofs_strings[8]
         doc: |
           A string of unknown purpose.
         -webide-parse-mode: eager
       unknown_string_6:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[9]
+        pos: ofs_strings[9]
         doc: |
           A string of unknown purpose, usually empty.
         -webide-parse-mode: eager
       date_added:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[10]
+        pos: ofs_strings[10]
         doc: |
           A string containing the date this track was added to the collection.
         -webide-parse-mode: eager
       release_date:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[11]
+        pos: ofs_strings[11]
         doc: |
           A string containing the date this track was released, if known.
         -webide-parse-mode: eager
       mix_name:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[12]
+        pos: ofs_strings[12]
         doc: |
           A string naming the remix of the track, if known.
         -webide-parse-mode: eager
       unknown_string_7:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[13]
+        pos: ofs_strings[13]
         doc: |
           A string of unknown purpose, usually empty.
         -webide-parse-mode: eager
       analyze_path:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[14]
+        pos: ofs_strings[14]
         doc: |
           The file path of the track analysis, which allows rapid
           seeking to particular times in variable bit-rate files,
@@ -766,37 +771,37 @@ types:
         -webide-parse-mode: eager
       analyze_date:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[15]
+        pos: ofs_strings[15]
         doc: |
           A string containing the date this track was analyzed by rekordbox.
         -webide-parse-mode: eager
       comment:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[16]
+        pos: ofs_strings[16]
         doc: |
           The comment assigned to the track by the DJ, if any.
         -webide-parse-mode: eager
       title:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[17]
+        pos: ofs_strings[17]
         doc: |
           The title of the track.
         -webide-parse-mode: eager
       unknown_string_8:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[18]
+        pos: ofs_strings[18]
         doc: |
           A string of unknown purpose, usually empty.
         -webide-parse-mode: eager
       filename:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[19]
+        pos: ofs_strings[19]
         doc: |
           The file name of the track audio file.
         -webide-parse-mode: eager
       file_path:
         type: device_sql_string
-        pos: _parent.row_base + ofs_strings[20]
+        pos: ofs_strings[20]
         doc: |
           The file path of the track audio file.
         -webide-parse-mode: eager

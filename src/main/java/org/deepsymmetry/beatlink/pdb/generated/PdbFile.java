@@ -401,7 +401,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.name != null)
                 return this.name;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsName()));
+            this._io.seek(ofsName());
             this.name = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.name;
@@ -492,17 +492,9 @@ public class PdbFile extends KaitaiStruct {
             this.numRowsLarge = this._io.readU2le();
             this._unnamed13 = this._io.readU2le();
             this._unnamed14 = this._io.readU2le();
-            if (heapPos() < 0) {
-                this.heap = this._io.readBytesFull();
-            }
-        }
-        private Integer heapPos;
-        public Integer heapPos() {
-            if (this.heapPos != null)
-                return this.heapPos;
-            int _tmp = (int) (_io().pos());
-            this.heapPos = _tmp;
-            return this.heapPos;
+            this._raw_heap = this._io.readBytesFull();
+            KaitaiStream _io__raw_heap = new ByteBufferKaitaiStream(_raw_heap);
+            this.heap = new DummyForIo(_io__raw_heap, this, _root);
         }
         private Integer numRows;
 
@@ -562,9 +554,10 @@ public class PdbFile extends KaitaiStruct {
         private int numRowsLarge;
         private int _unnamed13;
         private int _unnamed14;
-        private byte[] heap;
+        private DummyForIo heap;
         private PdbFile _root;
         private PdbFile.PageRef _parent;
+        private byte[] _raw_heap;
         public byte[] _unnamed0() { return _unnamed0; }
 
         /**
@@ -647,9 +640,17 @@ public class PdbFile extends KaitaiStruct {
          * entries for strange pages?"
          */
         public int _unnamed14() { return _unnamed14; }
-        public byte[] heap() { return heap; }
+
+        /**
+         * The bulk of the page is used as a heap in which rows and
+         * variable-length strings are allocated. Rows are pointed to
+         * by the row index which grows backwards from the end of the
+         * page, and strings are pointed to by rows.
+         */
+        public DummyForIo heap() { return heap; }
         public PdbFile _root() { return _root; }
         public PdbFile.PageRef _parent() { return _parent; }
+        public byte[] _raw_heap() { return _raw_heap; }
     }
 
     /**
@@ -777,6 +778,38 @@ public class PdbFile extends KaitaiStruct {
         public DeviceSqlString name() { return name; }
         public PdbFile _root() { return _root; }
         public PdbFile.RowRef _parent() { return _parent; }
+    }
+
+    /**
+     * An empty object because there are no fixed-location values to be
+     * accessed, but we want to create an `io` object for relative
+     * positioning of instances in the body.
+     */
+    public static class DummyForIo extends KaitaiStruct {
+        public static DummyForIo fromFile(String fileName) throws IOException {
+            return new DummyForIo(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public DummyForIo(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public DummyForIo(KaitaiStream _io, PdbFile.Page _parent) {
+            this(_io, _parent, null);
+        }
+
+        public DummyForIo(KaitaiStream _io, PdbFile.Page _parent, PdbFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+        }
+        private PdbFile _root;
+        private PdbFile.Page _parent;
+        public PdbFile _root() { return _root; }
+        public PdbFile.Page _parent() { return _parent; }
     }
 
     /**
@@ -910,7 +943,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.name != null)
                 return this.name;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsName()));
+            this._io.seek(ofsName());
             this.name = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.name;
@@ -1122,7 +1155,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.unknownString8 != null)
                 return this.unknownString8;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 18)));
+            this._io.seek(ofsStrings().get((int) 18));
             this.unknownString8 = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.unknownString8;
@@ -1136,7 +1169,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.unknownString6 != null)
                 return this.unknownString6;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 9)));
+            this._io.seek(ofsStrings().get((int) 9));
             this.unknownString6 = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.unknownString6;
@@ -1150,7 +1183,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.analyzeDate != null)
                 return this.analyzeDate;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 15)));
+            this._io.seek(ofsStrings().get((int) 15));
             this.analyzeDate = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.analyzeDate;
@@ -1164,7 +1197,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.filePath != null)
                 return this.filePath;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 20)));
+            this._io.seek(ofsStrings().get((int) 20));
             this.filePath = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.filePath;
@@ -1181,7 +1214,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.autoloadHotcues != null)
                 return this.autoloadHotcues;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 7)));
+            this._io.seek(ofsStrings().get((int) 7));
             this.autoloadHotcues = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.autoloadHotcues;
@@ -1195,7 +1228,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.dateAdded != null)
                 return this.dateAdded;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 10)));
+            this._io.seek(ofsStrings().get((int) 10));
             this.dateAdded = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.dateAdded;
@@ -1212,7 +1245,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.public != null)
                 return this.public;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 6)));
+            this._io.seek(ofsStrings().get((int) 6));
             this.public = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.public;
@@ -1228,7 +1261,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.unknownString3 != null)
                 return this.unknownString3;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 3)));
+            this._io.seek(ofsStrings().get((int) 3));
             this.unknownString3 = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.unknownString3;
@@ -1242,7 +1275,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.texter != null)
                 return this.texter;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 1)));
+            this._io.seek(ofsStrings().get((int) 1));
             this.texter = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.texter;
@@ -1256,7 +1289,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.mixName != null)
                 return this.mixName;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 12)));
+            this._io.seek(ofsStrings().get((int) 12));
             this.mixName = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.mixName;
@@ -1270,7 +1303,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.unknownString5 != null)
                 return this.unknownString5;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 8)));
+            this._io.seek(ofsStrings().get((int) 8));
             this.unknownString5 = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.unknownString5;
@@ -1286,7 +1319,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.unknownString4 != null)
                 return this.unknownString4;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 4)));
+            this._io.seek(ofsStrings().get((int) 4));
             this.unknownString4 = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.unknownString4;
@@ -1300,7 +1333,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.message != null)
                 return this.message;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 5)));
+            this._io.seek(ofsStrings().get((int) 5));
             this.message = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.message;
@@ -1315,7 +1348,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.unknownString2 != null)
                 return this.unknownString2;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 2)));
+            this._io.seek(ofsStrings().get((int) 2));
             this.unknownString2 = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.unknownString2;
@@ -1330,7 +1363,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.unknownString1 != null)
                 return this.unknownString1;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 0)));
+            this._io.seek(ofsStrings().get((int) 0));
             this.unknownString1 = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.unknownString1;
@@ -1344,7 +1377,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.unknownString7 != null)
                 return this.unknownString7;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 13)));
+            this._io.seek(ofsStrings().get((int) 13));
             this.unknownString7 = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.unknownString7;
@@ -1358,7 +1391,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.filename != null)
                 return this.filename;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 19)));
+            this._io.seek(ofsStrings().get((int) 19));
             this.filename = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.filename;
@@ -1375,7 +1408,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.analyzePath != null)
                 return this.analyzePath;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 14)));
+            this._io.seek(ofsStrings().get((int) 14));
             this.analyzePath = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.analyzePath;
@@ -1389,7 +1422,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.comment != null)
                 return this.comment;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 16)));
+            this._io.seek(ofsStrings().get((int) 16));
             this.comment = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.comment;
@@ -1403,7 +1436,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.releaseDate != null)
                 return this.releaseDate;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 11)));
+            this._io.seek(ofsStrings().get((int) 11));
             this.releaseDate = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.releaseDate;
@@ -1417,7 +1450,7 @@ public class PdbFile extends KaitaiStruct {
             if (this.title != null)
                 return this.title;
             long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 17)));
+            this._io.seek(ofsStrings().get((int) 17));
             this.title = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.title;
@@ -1883,20 +1916,6 @@ public class PdbFile extends KaitaiStruct {
             this._io.seek(_pos);
             return this.ofsRow;
         }
-        private Integer rowBase;
-
-        /**
-         * The location of this row relative to the start of the page.
-         * A variety of pointers (such as all device_sql_string values)
-         * are calculated with respect to this position.
-         */
-        public Integer rowBase() {
-            if (this.rowBase != null)
-                return this.rowBase;
-            int _tmp = (int) ((ofsRow() + _parent()._parent().heapPos()));
-            this.rowBase = _tmp;
-            return this.rowBase;
-        }
         private Boolean present;
 
         /**
@@ -1911,66 +1930,92 @@ public class PdbFile extends KaitaiStruct {
             this.present = _tmp;
             return this.present;
         }
-        private KaitaiStruct body;
+        private Object body;
 
         /**
          * The actual content of the row, as long as it is present.
          */
-        public KaitaiStruct body() {
+        public Object body() {
             if (this.body != null)
                 return this.body;
             if (present()) {
-                long _pos = this._io.pos();
-                this._io.seek(rowBase());
+                KaitaiStream io = _parent()._parent().heap()._io();
+                long _pos = io.pos();
+                io.seek(ofsRow());
                 switch (_parent()._parent().type()) {
                 case KEYS: {
-                    this.body = new KeyRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new KeyRow(_io__raw_body, this, _root);
                     break;
                 }
                 case GENRES: {
-                    this.body = new GenreRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new GenreRow(_io__raw_body, this, _root);
                     break;
                 }
                 case PLAYLIST_ENTRIES: {
-                    this.body = new PlaylistEntryRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new PlaylistEntryRow(_io__raw_body, this, _root);
                     break;
                 }
                 case TRACKS: {
-                    this.body = new TrackRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new TrackRow(_io__raw_body, this, _root);
                     break;
                 }
                 case PLAYLIST_TREE: {
-                    this.body = new PlaylistTreeRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new PlaylistTreeRow(_io__raw_body, this, _root);
                     break;
                 }
                 case LABELS: {
-                    this.body = new LabelRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new LabelRow(_io__raw_body, this, _root);
                     break;
                 }
                 case ALBUMS: {
-                    this.body = new AlbumRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new AlbumRow(_io__raw_body, this, _root);
                     break;
                 }
                 case COLORS: {
-                    this.body = new ColorRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new ColorRow(_io__raw_body, this, _root);
                     break;
                 }
                 case ARTISTS: {
-                    this.body = new ArtistRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new ArtistRow(_io__raw_body, this, _root);
                     break;
                 }
                 case ARTWORK: {
-                    this.body = new ArtworkRow(this._io, this, _root);
+                    this._raw_body = io.readBytesFull();
+                    KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                    this.body = new ArtworkRow(_io__raw_body, this, _root);
+                    break;
+                }
+                default: {
+                    this.body = io.readBytesFull();
                     break;
                 }
                 }
-                this._io.seek(_pos);
+                io.seek(_pos);
             }
             return this.body;
         }
         private int rowIndex;
         private PdbFile _root;
         private PdbFile.RowGroup _parent;
+        private byte[] _raw_body;
 
         /**
          * Identifies which row within the row index this reference
@@ -1980,6 +2025,7 @@ public class PdbFile extends KaitaiStruct {
         public int rowIndex() { return rowIndex; }
         public PdbFile _root() { return _root; }
         public PdbFile.RowGroup _parent() { return _parent; }
+        public byte[] _raw_body() { return _raw_body; }
     }
     private byte[] _unnamed0;
     private long lenPage;
