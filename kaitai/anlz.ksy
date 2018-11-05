@@ -53,29 +53,76 @@ types:
       - id: fourcc
         type: u4
         enum: section_tags
+        doc: |
+          A tag value indicating what kind of section this is.
       - id: len_header
         type: u4
+        doc: |
+          The size, in bytes, of the header portion of the tag.
       - id: len_tag
         type: u4
-      - id: len_path
-        type: u4
-        if: 'fourcc == section_tags::path'
-      - size: len_header - 12
-        if: 'len_header > 12 and fourcc != section_tags::path'
+        doc: |
+          The size, in bytes, of this entire tag, counting the header.
       - id: body
-        size: len_tag - len_header
+        size: len_tag - 12
         type:
           switch-on: fourcc
           cases:
             'section_tags::path': path_tag
+            'section_tags::beat_grid': beat_grid_tag
+    -webide-representation: '{fourcc}'
+
+
+  beat_grid_tag:
+    doc: |
+      Holds a list of all the beats found within the track, recording
+      their bar position, the time at which they occur, and the tempo
+      at that point.
+    seq:
+      - type: u4
+      - type: u4  # @flesniak says this is always 0x80000
+      - id: len_beats
+        type: u4
+        doc: |
+          The number of beat entries which follow.
+      - id: beats
+        type: beat_grid_beat
+        repeat: expr
+        repeat-expr: len_beats
+        doc: The entries of the beat grid.
+
+  beat_grid_beat:
+    doc: |
+      Describes an individual beat in a beat grid.
+    seq:
+      - id: beat_number
+        type: u2
+        doc: |
+          The position of the beat within its musical bar, where beat 1
+          is the down beat.
+      - id: tempo
+        type: u2
+        doc: |
+          The tempo at the time of this beat, in beats per minute,
+          multiplied by 100.
+      - id: time
+        type: u4
+        doc: |
+          The time, in milliseconds, at which this beat occurs when
+          the track is played at normal (100%) pitch.
 
   path_tag:
+    doc: |
+      Stores the file path of the audio file to which this analysis
+      applies.
     seq:
+      - id: len_path
+        type: u4
       - id: path
         type: str
-        size: _parent.len_path - 2
+        size: len_path - 2
         encoding: utf-16be
-        if: _parent.len_path > 1
+        if: len_path > 1
 
 enums:
     section_tags:
