@@ -701,7 +701,7 @@ types:
         doc: |
           A string of unknown purpose, which @flesnik named.
         -webide-parse-mode: eager
-      public:
+      kuvo_public:
         type: device_sql_string
         pos: _parent.row_base + ofs_strings[6]
         doc: |

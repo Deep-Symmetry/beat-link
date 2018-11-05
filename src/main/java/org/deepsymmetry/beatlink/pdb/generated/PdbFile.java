@@ -1200,23 +1200,6 @@ public class PdbFile extends KaitaiStruct {
             this._io.seek(_pos);
             return this.dateAdded;
         }
-        private DeviceSqlString public;
-
-        /**
-         * A string whose value is always either empty or "ON", and
-         * which apparently for some insane reason is used, rather than
-         * a single bit somewhere, to control whether the track
-         * information is visible on Kuvo.
-         */
-        public DeviceSqlString public() {
-            if (this.public != null)
-                return this.public;
-            long _pos = this._io.pos();
-            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 6)));
-            this.public = new DeviceSqlString(this._io, this, _root);
-            this._io.seek(_pos);
-            return this.public;
-        }
         private DeviceSqlString unknownString3;
 
         /**
@@ -1246,6 +1229,23 @@ public class PdbFile extends KaitaiStruct {
             this.texter = new DeviceSqlString(this._io, this, _root);
             this._io.seek(_pos);
             return this.texter;
+        }
+        private DeviceSqlString kuvoPublic;
+
+        /**
+         * A string whose value is always either empty or "ON", and
+         * which apparently for some insane reason is used, rather than
+         * a single bit somewhere, to control whether the track
+         * information is visible on Kuvo.
+         */
+        public DeviceSqlString kuvoPublic() {
+            if (this.kuvoPublic != null)
+                return this.kuvoPublic;
+            long _pos = this._io.pos();
+            this._io.seek((_parent().rowBase() + ofsStrings().get((int) 6)));
+            this.kuvoPublic = new DeviceSqlString(this._io, this, _root);
+            this._io.seek(_pos);
+            return this.kuvoPublic;
         }
         private DeviceSqlString mixName;
 
