@@ -33,7 +33,11 @@ NOTE: Huge thanks to https://github.com/flesniak[Fabian Lesniak] for
 figuring out the details of how to interpret these files in his
 https://github.com/flesniak/python-prodj-link[python-prodj-link]
 project and https://github.com/GreyCat[Mikhail Yakshin] for helping me
-quickly learn the more subtle aspects of Kaitai Struct.
+quickly learn the more subtle aspects of Kaitai Struct. And this was
+all started by a question [Evan
+Purkhiser](https://reverseengineering.stackexchange.com/users/4599/evan-purkhiser)
+posted on [Stack
+Exchange](https://reverseengineering.stackexchange.com/questions/4311/help-reversing-a-edb-database-file-for-pioneers-rekordbox-software).
 
 === Exploring the Analysis
 
