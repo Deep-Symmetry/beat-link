@@ -14,7 +14,7 @@ for examples of what you can do with this.
 
 > :construction: beat-link is being worked on very heavily at the
 > moment to incorporate some
-> [amazing new discoveries](https://github.com/Deep-Symmetry/dysentery#robust-metadata-understanding).
+> [amazing new discoveries](https://github.com/Deep-Symmetry/crate-digger).
 > Until that settles down, there may be rapid releases and big changes
 > between releases.
 >
