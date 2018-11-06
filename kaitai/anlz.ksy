@@ -68,6 +68,7 @@ types:
         type:
           switch-on: fourcc
           cases:
+            'section_tags::cues': cue_tag
             'section_tags::path': path_tag
             'section_tags::beat_grid': beat_grid_tag
             'section_tags::vbr': vbr_tag
@@ -113,6 +114,75 @@ types:
         doc: |
           The time, in milliseconds, at which this beat occurs when
           the track is played at normal (100%) pitch.
+
+  cue_tag:
+    doc: |
+      Stores either a list of ordinary memory cues and loop points, or
+      a list of hot cues and loop points.
+    seq:
+      - id: type
+        type: u4
+        enum: cue_list_type
+        doc: |
+          Identifies whether this tag stors ordinary or hot cues.
+      - id: len_cues
+        type: u4
+        doc: |
+          The length of the cue list.
+      - id: memory_count
+        type: u4
+        doc: |
+          Unsure what this means.
+      - id: cues
+        type: cue_entry
+        repeat: expr
+        repeat-expr: len_cues
+
+  cue_entry:
+    doc: |
+      A cue list entry. Can either represent a memory cue or a loop.
+    seq:
+      - contents: "PCPT"
+      - id: len_header
+        type: u4
+      - id: len_entry
+        type: u4
+      - id: hot_cue
+        type: u4
+        doc: |
+          If zero, this is an ordinary memory cue, otherwise this a
+          hot cue with the specified number.
+      - id: status
+        type: u4
+        enum: cue_entry_status
+        doc: |
+          If zero, this entry should be ignored.
+      - type: u4  # Seems to always be 0x10000
+      - id: order_first
+        type: u2
+        doc: |
+          @flesniak says: "0xffff for first cue, 0,1,3 for next"
+      - id: order_last
+        type: u2
+        doc: |
+          @flesniak says: "1,2,3 for first, second, third cue, 0xffff for last"
+      - id: type
+        type: u1
+        enum: cue_entry_type
+        doc: |
+          Indicates whether this is a memory cue or a loop.
+      - size: 3  # seems to always be 1000
+      - id: time
+        type: u4
+        doc: |
+          The position, in milliseconds, at which the cue point lies
+          in the track.
+      - id: loop_time
+        type: u4
+        doc: |
+          The position, in milliseconds, at which the player loops
+          back to the cue time if this is a loop.
+      - size: 16
 
   path_tag:
     doc: |
@@ -163,3 +233,15 @@ enums:
       0x5051545a: beat_grid     # PQTZ
       0x50574156: wave_preview  # PWAV
       0x50575632: wave_tiny     # PWV2
+
+    cue_list_type:
+      0: memory_cues
+      1: hot_cues
+
+    cue_entry_type:
+      1: memory_cue
+      2: loop
+
+    cue_entry_status:
+      0: disabled
+      1: enabled
