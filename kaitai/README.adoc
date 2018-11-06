@@ -18,92 +18,11 @@ ifdef::env-github[]
 :warning-caption: :warning:
 endif::env-github[]
 
-The files in this folder are used with the
-http://kaitai.io[Kaitai Struct] compiler to create classes that
-can parse and output binary data strutures in a convenient and
-efficient way. Beat Link uses them to create Java classes, but
-other projects can use them to output code for other languages.
+If you are looking for the Kaitai Struct Templates that are going to
+be used by Beat Link to parse rekordbox media exports, they have been
+moved to their https://github.com/Deep-Symmetry/crate-digger[own
+project].
 
-== PDB Database
-
-The file `pdb.ksy` contains the structure definitions needed to parse
-exported rekordbox databases (`export.pdb` files).
-
-NOTE: Huge thanks to https://github.com/flesniak[Fabian Lesniak] for
-figuring out the details of how to interpret these files in his
-https://github.com/flesniak/python-prodj-link[python-prodj-link]
-project and https://github.com/GreyCat[Mikhail Yakshin] for helping me
-quickly learn the more subtle aspects of Kaitai Struct. And this was
-all started by a question
-https://reverseengineering.stackexchange.com/users/4599/evan-purkhiser[Evan
-Purkhiser] posted on
-https://reverseengineering.stackexchange.com/questions/4311/help-reversing-a-edb-database-file-for-pioneers-rekordbox-software[Stack
-Exchange].
-
-
-=== Exploring the Analysis
-
-One of the amazingly cool things about Kaitai Struct is that you can
-use its https://ide.kaitai.io/#[Web IDE] to see how the structure
-definitions work and visually explore the contents of files you are
-analyzing. This also means you can look inside your own `.pdb` files
-and check my work, or get a better understanding of how to use the
-generated parsers. To do that, simply upload the `.pdb` file you want
-to examine to the Web IDE (it doesn't actually go to the web, it just
-gets put in your local browser storage), then also upload my `pdb.ksy`
-file, and the Web IDE will parse the exported database, letting you
-explore the structures in the tree view, and see the corresponding raw
-bytes in the hex viewer.
-
-TIP: You can find the `export.pdb` file on a media stick prepared by
-rekordbox inside the `PIONEER` folder, which may be invisible in the
-Finder, but you can open it using Terminal commands if you have to. To
-download my `pdb.ksy`, click on its link at the top of this page, then
-click on the `Raw` button in the header above the first line of the
-listing, then tell your browser to save it to disk. Be sure to keep
-the `.ksy` extension. Then you can upload it to the Kaitai Struct Web
-IDE.
-
-=== Updating the Java Code
-
-Building the Java classes from the structure definitions is a little
-awkward right now, although there is a compiler issue open that will
-hopefully make things better. Until then, here are the commands
-needed on a Unix-like system (run these from the top-level project
-folder):
-
-[source,bash]
-----
-kaitai-struct-compiler kaitai/pdb.ksy -t java --outdir target \
-  --java-package org.deepsymmetry.beatlink.pdb.generated
-
-rm -r src/main/java/org/deepsymmetry/beatlink/pdb/generated
-
-mv target/src/org/deepsymmetry/beatlink/pdb/generated \
-  src/main/java/org/deepsymmetry/beatlink/pdb
-
-rm -r target/src
-----
-
-=== Unfinished Tasks
-
-There are still more tables to be figured out. `Columns` looks like
-the list of things that can be searched by, so perhaps it will hold
-some clues for how to find and use the index tables, which must exist
-because it would be horribly slow for the players to do a linear scan
-through the main sparse tables whenever they wanted a record.
-
-If we could figure out how to use the indices ourselves, we could
-avoid having to load the whole file and index it ourselves.
-
-And, of course there is the track analysis data:
-
-== ANLZ Data
-
-Each track in a rekordbox database also has `ANLZnnnn.DAT` and
-`ANLZnnn.EXT` files associated with it, containing the beat grid, an
-index allowing rapid seeking to any time in variable-bitrate audio
-files, the waveforms, memory cues and loop points.
-
-The structure definitions for these files need to be ported to Kaitai
-Struct. This is being worked on in the file `anlz.ksy`.
+This folder will be going away shortly, but is here for a few days to
+help interested people find where the templates have moved. Please
+update your bookmarks!
