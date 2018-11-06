@@ -56,6 +56,11 @@
             <version>0.1.3</version>
         </dependency>
         <dependency>
+            <groupId>org.deepsymmetry</groupId>
+            <artifactId>crate-digger</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4jVersion}</version>
@@ -76,11 +81,6 @@
             <groupId>com.googlecode.concurrentlinkedhashmap</groupId>
             <artifactId>concurrentlinkedhashmap-lru</artifactId>
             <version>1.4.2</version>
-        </dependency>
-        <dependency>
-            <groupId>io.kaitai</groupId>
-            <artifactId>kaitai-struct-runtime</artifactId>
-            <version>0.8</version>
         </dependency>
     </dependencies>
 
