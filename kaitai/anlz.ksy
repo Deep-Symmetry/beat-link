@@ -70,6 +70,9 @@ types:
           cases:
             'section_tags::path': path_tag
             'section_tags::beat_grid': beat_grid_tag
+            'section_tags::vbr': vbr_tag
+            'section_tags::wave_preview': wave_preview_tag
+            'section_tags::wave_tiny': wave_preview_tag
     -webide-representation: '{fourcc}'
 
 
@@ -124,6 +127,34 @@ types:
         encoding: utf-16be
         if: len_path > 1
 
+  vbr_tag:
+    doc: |
+      Stores an index allowing rapid seeking to particular times
+      within a variable-bitrate audio file.
+    seq:
+      - type: u4
+      - id: index
+        type: u4
+        repeat: expr
+        repeat-expr: 400
+
+  wave_preview_tag:
+    doc: |
+      Stores a waveform preview image suitable for display long the
+      bottom of a loaded track.
+    seq:
+      - id: len_preview
+        type: u4
+        doc: |
+          The length, in bytes, of the preview data itself. This is
+          slightly redundant because it can be computed from the
+          length of the tag.
+      - type: u4  # This seems to always have the value 0x10000
+      - id: data
+        size: len_preview
+        doc: |
+          The actual bytes of the waveform preview.
+
 enums:
     section_tags:
       0x50434f42: cues          # PCOB
@@ -131,4 +162,4 @@ enums:
       0x50564252: vbr           # PVBR
       0x5051545a: beat_grid     # PQTZ
       0x50574156: wave_preview  # PWAV
-      0x50575632: wave_scroll   # PWV2
+      0x50575632: wave_tiny     # PWV2

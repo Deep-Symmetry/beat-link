@@ -39,7 +39,7 @@ public class AnlzFile extends KaitaiStruct {
         BEAT_GRID(1347507290),
         VBR(1347830354),
         WAVE_PREVIEW(1347895638),
-        WAVE_SCROLL(1347900978);
+        WAVE_TINY(1347900978);
 
         private final long id;
         SectionTags(long id) { this.id = id; }
@@ -82,78 +82,92 @@ public class AnlzFile extends KaitaiStruct {
     }
 
     /**
-     * A type-tagged file section, identified by a four-byte magic
-     * sequence, with a header specifying its length, and whose payload
-     * is determined by the type tag.
+     * Stores the file path of the audio file to which this analysis
+     * applies.
      */
-    public static class TaggedSection extends KaitaiStruct {
-        public static TaggedSection fromFile(String fileName) throws IOException {
-            return new TaggedSection(new ByteBufferKaitaiStream(fileName));
+    public static class PathTag extends KaitaiStruct {
+        public static PathTag fromFile(String fileName) throws IOException {
+            return new PathTag(new ByteBufferKaitaiStream(fileName));
         }
 
-        public TaggedSection(KaitaiStream _io) {
+        public PathTag(KaitaiStream _io) {
             this(_io, null, null);
         }
 
-        public TaggedSection(KaitaiStream _io, AnlzFile _parent) {
+        public PathTag(KaitaiStream _io, AnlzFile.TaggedSection _parent) {
             this(_io, _parent, null);
         }
 
-        public TaggedSection(KaitaiStream _io, AnlzFile _parent, AnlzFile _root) {
+        public PathTag(KaitaiStream _io, AnlzFile.TaggedSection _parent, AnlzFile _root) {
             super(_io);
             this._parent = _parent;
             this._root = _root;
             _read();
         }
         private void _read() {
-            this.fourcc = AnlzFile.SectionTags.byId(this._io.readU4be());
-            this.lenHeader = this._io.readU4be();
-            this.lenTag = this._io.readU4be();
-            switch (fourcc()) {
-            case PATH: {
-                this._raw_body = this._io.readBytes((lenTag() - 12));
-                KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
-                this.body = new PathTag(_io__raw_body, this, _root);
-                break;
-            }
-            case BEAT_GRID: {
-                this._raw_body = this._io.readBytes((lenTag() - 12));
-                KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
-                this.body = new BeatGridTag(_io__raw_body, this, _root);
-                break;
-            }
-            default: {
-                this.body = this._io.readBytes((lenTag() - 12));
-                break;
-            }
+            this.lenPath = this._io.readU4be();
+            if (lenPath() > 1) {
+                this.path = new String(this._io.readBytes((lenPath() - 2)), Charset.forName("utf-16be"));
             }
         }
-        private SectionTags fourcc;
-        private long lenHeader;
-        private long lenTag;
-        private Object body;
+        private long lenPath;
+        private String path;
         private AnlzFile _root;
-        private AnlzFile _parent;
-        private byte[] _raw_body;
-
-        /**
-         * A tag value indicating what kind of section this is.
-         */
-        public SectionTags fourcc() { return fourcc; }
-
-        /**
-         * The size, in bytes, of the header portion of the tag.
-         */
-        public long lenHeader() { return lenHeader; }
-
-        /**
-         * The size, in bytes, of this entire tag, counting the header.
-         */
-        public long lenTag() { return lenTag; }
-        public Object body() { return body; }
+        private AnlzFile.TaggedSection _parent;
+        public long lenPath() { return lenPath; }
+        public String path() { return path; }
         public AnlzFile _root() { return _root; }
-        public AnlzFile _parent() { return _parent; }
-        public byte[] _raw_body() { return _raw_body; }
+        public AnlzFile.TaggedSection _parent() { return _parent; }
+    }
+
+    /**
+     * Stores a waveform preview image suitable for display long the
+     * bottom of a loaded track.
+     */
+    public static class WavePreviewTag extends KaitaiStruct {
+        public static WavePreviewTag fromFile(String fileName) throws IOException {
+            return new WavePreviewTag(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public WavePreviewTag(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public WavePreviewTag(KaitaiStream _io, AnlzFile.TaggedSection _parent) {
+            this(_io, _parent, null);
+        }
+
+        public WavePreviewTag(KaitaiStream _io, AnlzFile.TaggedSection _parent, AnlzFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this.lenPreview = this._io.readU4be();
+            this._unnamed1 = this._io.readU4be();
+            this.data = this._io.readBytes(lenPreview());
+        }
+        private long lenPreview;
+        private long _unnamed1;
+        private byte[] data;
+        private AnlzFile _root;
+        private AnlzFile.TaggedSection _parent;
+
+        /**
+         * The length, in bytes, of the preview data itself. This is
+         * slightly redundant because it can be computed from the
+         * length of the tag.
+         */
+        public long lenPreview() { return lenPreview; }
+        public long _unnamed1() { return _unnamed1; }
+
+        /**
+         * The actual bytes of the waveform preview.
+         */
+        public byte[] data() { return data; }
+        public AnlzFile _root() { return _root; }
+        public AnlzFile.TaggedSection _parent() { return _parent; }
     }
 
     /**
@@ -207,6 +221,46 @@ public class AnlzFile extends KaitaiStruct {
          * The entries of the beat grid.
          */
         public ArrayList<BeatGridBeat> beats() { return beats; }
+        public AnlzFile _root() { return _root; }
+        public AnlzFile.TaggedSection _parent() { return _parent; }
+    }
+
+    /**
+     * Stores an index allowing rapid seeking to particular times
+     * within a variable-bitrate audio file.
+     */
+    public static class VbrTag extends KaitaiStruct {
+        public static VbrTag fromFile(String fileName) throws IOException {
+            return new VbrTag(new ByteBufferKaitaiStream(fileName));
+        }
+
+        public VbrTag(KaitaiStream _io) {
+            this(_io, null, null);
+        }
+
+        public VbrTag(KaitaiStream _io, AnlzFile.TaggedSection _parent) {
+            this(_io, _parent, null);
+        }
+
+        public VbrTag(KaitaiStream _io, AnlzFile.TaggedSection _parent, AnlzFile _root) {
+            super(_io);
+            this._parent = _parent;
+            this._root = _root;
+            _read();
+        }
+        private void _read() {
+            this._unnamed0 = this._io.readU4be();
+            index = new ArrayList<Long>((int) (400));
+            for (int i = 0; i < 400; i++) {
+                this.index.add(this._io.readU4be());
+            }
+        }
+        private long _unnamed0;
+        private ArrayList<Long> index;
+        private AnlzFile _root;
+        private AnlzFile.TaggedSection _parent;
+        public long _unnamed0() { return _unnamed0; }
+        public ArrayList<Long> index() { return index; }
         public AnlzFile _root() { return _root; }
         public AnlzFile.TaggedSection _parent() { return _parent; }
     }
@@ -266,42 +320,96 @@ public class AnlzFile extends KaitaiStruct {
     }
 
     /**
-     * Stores the file path of the audio file to which this analysis
-     * applies.
+     * A type-tagged file section, identified by a four-byte magic
+     * sequence, with a header specifying its length, and whose payload
+     * is determined by the type tag.
      */
-    public static class PathTag extends KaitaiStruct {
-        public static PathTag fromFile(String fileName) throws IOException {
-            return new PathTag(new ByteBufferKaitaiStream(fileName));
+    public static class TaggedSection extends KaitaiStruct {
+        public static TaggedSection fromFile(String fileName) throws IOException {
+            return new TaggedSection(new ByteBufferKaitaiStream(fileName));
         }
 
-        public PathTag(KaitaiStream _io) {
+        public TaggedSection(KaitaiStream _io) {
             this(_io, null, null);
         }
 
-        public PathTag(KaitaiStream _io, AnlzFile.TaggedSection _parent) {
+        public TaggedSection(KaitaiStream _io, AnlzFile _parent) {
             this(_io, _parent, null);
         }
 
-        public PathTag(KaitaiStream _io, AnlzFile.TaggedSection _parent, AnlzFile _root) {
+        public TaggedSection(KaitaiStream _io, AnlzFile _parent, AnlzFile _root) {
             super(_io);
             this._parent = _parent;
             this._root = _root;
             _read();
         }
         private void _read() {
-            this.lenPath = this._io.readU4be();
-            if (lenPath() > 1) {
-                this.path = new String(this._io.readBytes((lenPath() - 2)), Charset.forName("utf-16be"));
+            this.fourcc = AnlzFile.SectionTags.byId(this._io.readU4be());
+            this.lenHeader = this._io.readU4be();
+            this.lenTag = this._io.readU4be();
+            switch (fourcc()) {
+            case WAVE_PREVIEW: {
+                this._raw_body = this._io.readBytes((lenTag() - 12));
+                KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                this.body = new WavePreviewTag(_io__raw_body, this, _root);
+                break;
+            }
+            case PATH: {
+                this._raw_body = this._io.readBytes((lenTag() - 12));
+                KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                this.body = new PathTag(_io__raw_body, this, _root);
+                break;
+            }
+            case VBR: {
+                this._raw_body = this._io.readBytes((lenTag() - 12));
+                KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                this.body = new VbrTag(_io__raw_body, this, _root);
+                break;
+            }
+            case BEAT_GRID: {
+                this._raw_body = this._io.readBytes((lenTag() - 12));
+                KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                this.body = new BeatGridTag(_io__raw_body, this, _root);
+                break;
+            }
+            case WAVE_TINY: {
+                this._raw_body = this._io.readBytes((lenTag() - 12));
+                KaitaiStream _io__raw_body = new ByteBufferKaitaiStream(_raw_body);
+                this.body = new WavePreviewTag(_io__raw_body, this, _root);
+                break;
+            }
+            default: {
+                this.body = this._io.readBytes((lenTag() - 12));
+                break;
+            }
             }
         }
-        private long lenPath;
-        private String path;
+        private SectionTags fourcc;
+        private long lenHeader;
+        private long lenTag;
+        private Object body;
         private AnlzFile _root;
-        private AnlzFile.TaggedSection _parent;
-        public long lenPath() { return lenPath; }
-        public String path() { return path; }
+        private AnlzFile _parent;
+        private byte[] _raw_body;
+
+        /**
+         * A tag value indicating what kind of section this is.
+         */
+        public SectionTags fourcc() { return fourcc; }
+
+        /**
+         * The size, in bytes, of the header portion of the tag.
+         */
+        public long lenHeader() { return lenHeader; }
+
+        /**
+         * The size, in bytes, of this entire tag, counting the header.
+         */
+        public long lenTag() { return lenTag; }
+        public Object body() { return body; }
         public AnlzFile _root() { return _root; }
-        public AnlzFile.TaggedSection _parent() { return _parent; }
+        public AnlzFile _parent() { return _parent; }
+        public byte[] _raw_body() { return _raw_body; }
     }
     private byte[] _unnamed0;
     private long lenHeader;
