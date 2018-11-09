@@ -48,10 +48,18 @@ to integrate it with whatever Java logging framework your project is
 using, so you will need to include the appropriate slf4j binding on
 your class path.
 
+It also uses the Deep Symmetry projects
+[electro](https://github.com/Deep-Symmetry/electro) (to synchronize
+with the Ableton Link timeline) and
+[crate-digger](https://github.com/Deep-Symmetry/crate-digger) (to
+download and parse rekordbox database files from players).
+
 If you want to manually install beat-link, you can download the
 library from the
 [releases](https://github.com/Deep-Symmetry/beat-link/releases) page and
-put it on your project&rsquo;s class path, along with the
+put it on your project&rsquo;s class path, along with
+[electro](https://github.com/Deep-Symmetry/electro/releases),
+[crate-digger](https://github.com/Deep-Symmetry/crate-digger/releases),
 [`slf4j-api.jar`](http://www.slf4j.org/download.html) and the slf4j
 binding to the logging framework you would like to use.
 
@@ -59,7 +67,8 @@ You will also need
 [ConcurrentLinkedHashmap](https://github.com/ben-manes/concurrentlinkedhashmap)
 for maintaining album art caches, and
 [Remote Tea](https://sourceforge.net/projects/remotetea/), so Maven
- is your easiest bet.
+is by far your easiest bet, because it will take care of _all_ these
+libraries for you.
 
 ## Usage
 
@@ -485,19 +494,6 @@ time to explore.
 > If enough people jump on board, we may even be able to get a newer
 > CDJ to experiment with, although that's an unlikely stretch goal.
 > :grinning:
-
-## Building the source
-
-In addition to the the dependencies mentioned in
-[Installing](#installing) you need to run the the `jrpcgen` tool
-(which is another part of the Remote Tea project) for generating Java
-classes to implement the ONC RPC specifications found in `src/main/rpc`.
-(These are used for communicating with the NFS servers in CDJs.) The
-Maven project does this automatically using a `jrpcgen` plugin.
-
-So even though it used to be somewhat practical to download and build
-everything by hand, realistically today Maven is the only realistic
-approach.
 
 ## License
 

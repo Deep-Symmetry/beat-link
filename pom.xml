@@ -61,11 +61,6 @@
             <version>0.1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <groupId>org.acplt.remotetea</groupId>
-            <artifactId>remotetea-oncrpc</artifactId>
-            <version>1.1.4</version>
-        </dependency>
-        <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4jVersion}</version>
@@ -239,51 +234,6 @@
                         <goals>
                             <goal>check</goal>
                         </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.acplt.remotetea</groupId>
-                <artifactId>remotetea-maven-plugin</artifactId>
-                <version>1.1.4</version>
-                <executions>
-                    <execution>
-                        <id>jrpcgen</id>
-                        <goals>
-                            <goal>client</goal>
-                        </goals>
-                        <configuration>
-                            <xFile>src/main/rpc/nfs.x</xFile>
-                            <destDir>${project.build.directory}/generated-sources</destDir>
-                            <packageName>org.deepsymmetry.beatlink.rpc</packageName>
-                            <!-- Force the creation of the destination directory
-                                 if it does not already exist at generation time. -->
-                            <createDir>true</createDir>
-                            <!-- Uncomment the following line to create
-                                 an RPC server listening only on TCP. -->
-                            <!-- <serverTcpOnly>true</serverTcpOnly> -->
-                            <!-- Uncomment the following line to create
-                                 an RPC server listening only on UDP. -->
-                            <!-- <serverUdpOnly>true</serverUdpOnly> -->
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.0.0</version>
-                <executions>
-                    <execution>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>${project.build.directory}/generated-sources</source>
-                            </sources>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
