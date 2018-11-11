@@ -36,12 +36,12 @@ Once you have something working you’d like to share, you can open a
 [pull request][pulls].
 
 Or if you simply have an idea, or something that you wish worked
-differently, feel free to open an [Issue][issues] if it seems like
+differently, feel free to open an [issue][issues] if it seems like
 nobody already has.
 
 ## Maintainers
 
-Beat Link is primarily maintained by @brunchboy
+Beat Link is primarily maintained by [@brunchboy][brunchboy].
 
 [contributions-released]: https://help.github.com/articles/github-terms-of-service/#6-contributions-under-repository-license
 [covenant]: http://contributor-covenant.org/
@@ -50,6 +50,7 @@ Beat Link is primarily maintained by @brunchboy
 [switch]: https://smile.amazon.com/gp/product/B00HGLVZLY/
 [pulls]: https://github.com/Deep-Symmetry/beat-link/pulls
 [issues]: https://github.com/Deep-Symmetry/beat-link/issues
+[brunchboy]: https://github.com/brunchboy
 
 ## License
 
