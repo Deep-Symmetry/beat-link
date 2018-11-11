@@ -50,3 +50,15 @@ Beat Link is primarily maintained by @brunchboy
 [switch]: https://smile.amazon.com/gp/product/B00HGLVZLY/
 [pr]: https://github.com/Deep-Symmetry/beat-link/pulls
 [issues]: https://github.com/Deep-Symmetry/beat-link/issues
+
+## License
+
+<img align="right" alt="Deep Symmetry" src="assets/DS-logo-bw-200-padded-left.png">
+
+Copyright © 2016&ndash;2018 [Deep Symmetry, LLC](http://deepsymmetry.org)
+
+Distributed under the
+[Eclipse Public License 1.0](http://opensource.org/licenses/eclipse-1.0.php).
+By using this software in any fashion, you are agreeing to be bound by
+the terms of this license. You must not remove this notice, or any
+other, from this software.

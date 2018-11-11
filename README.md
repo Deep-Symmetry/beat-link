@@ -495,6 +495,12 @@ time to explore.
 > CDJ to experiment with, although that's an unlikely stretch goal.
 > :grinning:
 
+### Contributing in Other Ways
+
+If you have ideas, discoveries, or even code you’d like to share,
+that’s fantastic! Please take a look at the
+[guidelines](CONTRIBUTING.md) and get in touch!
+
 ## License
 
 <img align="right" alt="Deep Symmetry" src="assets/DS-logo-bw-200-padded-left.png">
