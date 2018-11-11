@@ -48,7 +48,7 @@ Beat Link is primarily maintained by @brunchboy
 [maven]: https://maven.apache.org
 [idea]: https://www.jetbrains.com/idea/
 [switch]: https://smile.amazon.com/gp/product/B00HGLVZLY/
-[pr]: https://github.com/Deep-Symmetry/beat-link/pulls
+[pulls]: https://github.com/Deep-Symmetry/beat-link/pulls
 [issues]: https://github.com/Deep-Symmetry/beat-link/issues
 
 ## License
