@@ -501,7 +501,7 @@ If you have ideas, discoveries, or even code you’d like to share,
 that’s fantastic! Please take a look at the
 [guidelines](CONTRIBUTING.md) and get in touch!
 
-## License
+## Licenses
 
 <img align="right" alt="Deep Symmetry" src="assets/DS-logo-bw-200-padded-left.png">
 
@@ -511,4 +511,16 @@ Distributed under the
 [Eclipse Public License 1.0](http://opensource.org/licenses/eclipse-1.0.php).
 By using this software in any fashion, you are agreeing to be bound by
 the terms of this license. You must not remove this notice, or any
-other, from this software.
+other, from this software.  A copy of the license can be found in
+ [LICENSE](LICENSE) within this project.
+
+### Library Licenses
+
+[Remote Tea](https://sourceforge.net/projects/remotetea/),
+used for communicating with the NFSv2 servers on players,
+is licensed under the [GNU Library General
+Public License, version 2](https://opensource.org/licenses/LGPL-2.0).
+
+The [Kaitai Struct](http://kaitai.io) Java runtime, used for parsing
+rekordbox exports and media analysis files, is licensed under the
+[MIT License](https://opensource.org/licenses/MIT).
