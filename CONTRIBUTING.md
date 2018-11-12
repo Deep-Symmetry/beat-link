@@ -16,7 +16,7 @@ By participating, you are expected to uphold this code.
 
 Before you can start contributing to Beat Link, you'll need to set up
 your environment first. Fork and clone the repo and install
-[Maven][mavem] to install the project dependencies and manage builds.
+[Maven][maven] to install the project dependencies and manage builds.
 We find [IntelliJ IDEA][idea] (even the free Community Edition) an
 incredibly productive environment for Java work, but use whatever IDE
 or editor works best for you (we always have [GNU Emacs][emacs] open
@@ -43,15 +43,6 @@ nobody already has.
 
 Beat Link is primarily maintained by [@brunchboy][brunchboy].
 
-[contributions-released]: https://help.github.com/articles/github-terms-of-service/#6-contributions-under-repository-license
-[covenant]: http://contributor-covenant.org/
-[maven]: https://maven.apache.org
-[idea]: https://www.jetbrains.com/idea/
-[switch]: https://smile.amazon.com/gp/product/B00HGLVZLY/
-[pulls]: https://github.com/Deep-Symmetry/beat-link/pulls
-[issues]: https://github.com/Deep-Symmetry/beat-link/issues
-[brunchboy]: https://github.com/brunchboy
-
 ## License
 
 <img align="right" alt="Deep Symmetry" src="assets/DS-logo-bw-200-padded-left.png">
@@ -63,3 +54,13 @@ Distributed under the
 By using this software in any fashion, you are agreeing to be bound by
 the terms of this license. You must not remove this notice, or any
 other, from this software.
+
+[contributions-released]: https://help.github.com/articles/github-terms-of-service/#6-contributions-under-repository-license
+[covenant]: http://contributor-covenant.org/
+[maven]: https://maven.apache.org
+[idea]: https://www.jetbrains.com/idea/
+[emacs]: https://www.gnu.org/software/emacs/
+[switch]: https://smile.amazon.com/gp/product/B00HGLVZLY/
+[pulls]: https://github.com/Deep-Symmetry/beat-link/pulls
+[issues]: https://github.com/Deep-Symmetry/beat-link/issues
+[brunchboy]: https://github.com/brunchboy
