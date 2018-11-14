@@ -307,6 +307,9 @@ public class Util {
      * @return true if both addresses share the same network bits
      */
     public static boolean sameNetwork(int prefixLength, InetAddress address1, InetAddress address2) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("Comparing address " + address1.getHostAddress() + " with " + address2.getHostAddress() + ", prefixLength=" + prefixLength);
+        }
         long prefixMask = 0xffffffffL & (-1 << (32 - prefixLength));
         return (addressToLong(address1) & prefixMask) == (addressToLong(address2) & prefixMask);
     }

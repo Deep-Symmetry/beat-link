@@ -554,6 +554,9 @@ public class VirtualCdj extends LifecycleParticipant {
             return false;
         }
 
+        logger.info("Found matching network interface " + matchedInterface.getDisplayName() + " (" +
+                matchedInterface.getName() + "), will use address " + matchedAddress);
+
         if (getDeviceNumber() == 0) {
             if (!selfAssignDeviceNumber()) {
                 return false;
