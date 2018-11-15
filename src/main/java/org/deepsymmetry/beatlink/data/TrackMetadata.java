@@ -4,6 +4,8 @@ import org.deepsymmetry.beatlink.CdjStatus;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.deepsymmetry.beatlink.dbserver.StringField;
+import org.deepsymmetry.cratedigger.Database;
+import org.deepsymmetry.cratedigger.pdb.PdbFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +13,7 @@ import java.awt.*;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * Represents rekordbox metadata (title, artist, etc.) about tracks loaded into players on a DJ Link network.
@@ -35,10 +38,21 @@ public class TrackMetadata {
     /**
      * The raw dbserver messages containing the metadata when it was read over the network.
      * Can be used to analyze fields that have not yet been reliably understood,
-     * and is also used for storing the metadata in a cache file.
+     * and is also used for storing the metadata in a cache file. Will be {@code null} if
+     * the metadata was constructed from a {@link org.deepsymmetry.cratedigger.pdb.PdbFile.TrackRow}.
+     *
+     * @see #rawRow
      */
     @SuppressWarnings("WeakerAccess")
     public final List<Message> rawItems;
+
+    /**
+     * The raw row within a rekordbox database export from which this metadata was created,
+     * if any. Will be {@code null} if it was read from a dbserver metadata response.
+     *
+     * @see #rawItems
+     */
+    public final PdbFile.TrackRow rawRow;
 
     /**
      * The album on which the track was released.
@@ -133,13 +147,27 @@ public class TrackMetadata {
     }
 
     /**
-     * Creates a color item that represents a color field found for a track.
+     * Creates a color item that represents a color field found for a track based on a dbserver message.
      *
      * @param menuItem the rendered menu item containing the color metadata field
+     *
      * @return the color metadata field
      */
     private ColorItem buildColorItem(Message menuItem) {
-        int colorId = (int) ((NumberField) menuItem.arguments.get(1)).getValue();
+        final int colorId = (int) ((NumberField) menuItem.arguments.get(1)).getValue();
+        final String label = ((StringField) menuItem.arguments.get(3)).getValue();
+        return buildColorItem(colorId, label);
+    }
+
+    /**
+     * Creates a color item that represents a color field fond for a track.
+     *
+     * @param colorId the key of the color as found in the database
+     * @param label the corresponding color label as found in the database (or sent in the dbserver message)
+     *
+     * @return the color metadata field
+     */
+    private ColorItem buildColorItem(int colorId, String label) {
         Color color;
         String colorName;
         switch (colorId) {
@@ -183,7 +211,57 @@ public class TrackMetadata {
                 color = new Color(0, 0, 0, 0);
                 colorName = "Unknown Color";
         }
-        return new ColorItem(colorId, ((StringField) menuItem.arguments.get(3)).getValue(), color, colorName);
+        return new ColorItem(colorId, label, color, colorName);
+    }
+
+    /**
+     * Constructor for when reading from a rekordbox export file. Finds the desired track in the exported
+     * database, along with all of the related records, and sets all the interpreted fields based on the parsed
+     * database structures.
+     *
+     * @param reference the unique track reference for which track metadata is desired
+     * @param database the database from which the row was loaded, in order to find related rows
+     * @param cueList the cues associated with the track, if any
+     *
+     * @throws NoSuchElementException if the specified track is not found in the database
+     */
+    public TrackMetadata(DataReference reference, Database database, CueList cueList) {  // TODO no need to be public when done testing!
+        rawItems = null;  // We did not create this from a dbserver response.
+        rawRow = database.findTrack(reference.rekordboxId);
+        if (rawRow == null) {
+            throw new NoSuchElementException("Track " + reference.rekordboxId + " not found in PDB file.");
+        }
+        trackReference = reference;
+        trackType = CdjStatus.TrackType.REKORDBOX;  // These are the only kind of tracks in a rekordbox database.
+        this.cueList = cueList;
+
+        title = Database.getText(rawRow.title());
+
+        // Look up the track artist, if there is one.
+        PdbFile.ArtistRow artistRow = database.findArtist(rawRow.artistId());
+        if (artistRow != null) {
+            artist = new SearchableItem((int)artistRow.id(), Database.getText(artistRow.name()));
+        }
+
+        // Look up the original artist, if there is one.
+        artistRow = database.findArtist(rawRow.originalArtistId());
+        if (artistRow != null) {
+            originalArtist = new SearchableItem((int)artistRow.id(), Database.getText(artistRow.name()));
+        }
+
+        // Look up the remixer, if there is one.
+        artistRow = database.findArtist(rawRow.originalArtistId());
+        if (artistRow != null) {
+            remixer = new SearchableItem((int)artistRow.id(), Database.getText(artistRow.name()));
+        }
+
+        // Associate the track color, if there is one.
+        PdbFile.ColorRow colorRow = database.findColor(rawRow.colorId());
+        if (colorRow != null) {
+            color = buildColorItem(rawRow.colorId(), Database.getText(colorRow.name()));
+        } else {
+            color = buildColorItem(rawRow.colorId(), "");  // For backwards compatibility with "No Color".
+        }
     }
 
     /**
@@ -196,6 +274,7 @@ public class TrackMetadata {
      * @param cueList the cues associated with the track, if any
      */
     TrackMetadata(DataReference reference, CdjStatus.TrackType trackType, List<Message> items, CueList cueList) {
+        rawRow = null;  // We did not create this from a PDB file.
         trackReference = reference;
         this.trackType = trackType;
         this.cueList = cueList;

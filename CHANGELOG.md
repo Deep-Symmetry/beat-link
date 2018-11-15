@@ -8,14 +8,20 @@ This change log follows the conventions of
 
 ### Changed
 
-> These are breaking API changes. Code that used some cache-related
-> methods will need to be rewritten.
+> :warning: These are breaking API changes. Code that used some
+> cache-related methods will need to be rewritten.
 
 - The handling of metadata cache files has been moved out of the
   MetadataFinder into a new class focused on this task. It also
   implements a new interface that can be used by client objects to
   offer cached metadata to Beat Link (for example track cue lists
   that group metadata from multiple different media sources).
+
+### Added
+
+- When going online, the `VirtualCdj` now reports information about
+  the chosen network interface to help with troubleshooting problematic
+  network environments.
 
 ## [0.4.1] - 2018-10-28
 
