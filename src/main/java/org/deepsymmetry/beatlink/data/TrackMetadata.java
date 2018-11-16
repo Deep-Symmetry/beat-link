@@ -72,7 +72,7 @@ public class TrackMetadata {
     /**
      * The comment assigned to the track.
      */
-    private SearchableItem comment;
+    private String comment;
 
     /**
      * The date the track was added to the collection.
@@ -314,7 +314,7 @@ public class TrackMetadata {
                     break;
 
                 case COMMENT:
-                    comment = buildSearchableItem(item);
+                    comment = ((StringField) item.arguments.get(3)).getValue();
                     break;
 
                 case KEY:

@@ -16,6 +16,8 @@ This change log follows the conventions of
   implements a new interface that can be used by client objects to
   offer cached metadata to Beat Link (for example track cue lists
   that group metadata from multiple different media sources).
+- Track comments are just plain strings, not searchable items, so
+  the API has been changed to reflect this.
 
 ### Added
 
