@@ -33,6 +33,7 @@ public class TrackMetadata {
     /**
      * The type of track described by this metadata.
      */
+    @SuppressWarnings("WeakerAccess")
     public final CdjStatus.TrackType trackType;
 
     /**
@@ -52,6 +53,7 @@ public class TrackMetadata {
      *
      * @see #rawItems
      */
+    @SuppressWarnings("WeakerAccess")
     public final PdbFile.TrackRow rawRow;
 
     /**
@@ -227,7 +229,7 @@ public class TrackMetadata {
      */
     public TrackMetadata(DataReference reference, Database database, CueList cueList) {  // TODO no need to be public when done testing!
         rawItems = null;  // We did not create this from a dbserver response.
-        rawRow = database.findTrack(reference.rekordboxId);
+        rawRow = database.trackIndex.get((long)reference.rekordboxId);
         if (rawRow == null) {
             throw new NoSuchElementException("Track " + reference.rekordboxId + " not found in PDB file.");
         }
@@ -238,30 +240,56 @@ public class TrackMetadata {
         title = Database.getText(rawRow.title());
 
         // Look up the track artist, if there is one.
-        PdbFile.ArtistRow artistRow = database.findArtist(rawRow.artistId());
+        PdbFile.ArtistRow artistRow = database.artistIndex.get(rawRow.artistId());
         if (artistRow != null) {
             artist = new SearchableItem((int)artistRow.id(), Database.getText(artistRow.name()));
         }
 
         // Look up the original artist, if there is one.
-        artistRow = database.findArtist(rawRow.originalArtistId());
+        artistRow = database.artistIndex.get(rawRow.originalArtistId());
         if (artistRow != null) {
             originalArtist = new SearchableItem((int)artistRow.id(), Database.getText(artistRow.name()));
         }
 
         // Look up the remixer, if there is one.
-        artistRow = database.findArtist(rawRow.originalArtistId());
+        artistRow = database.artistIndex.get(rawRow.originalArtistId());
         if (artistRow != null) {
             remixer = new SearchableItem((int)artistRow.id(), Database.getText(artistRow.name()));
         }
 
+        // Look up the album, if there is one.
+        PdbFile.AlbumRow albumRow = database.albumIndex.get(rawRow.albumId());
+        if (albumRow !=  null) {
+            album = new SearchableItem((int)albumRow.id(), Database.getText(albumRow.name()));
+        }
+
+        // Look up the label, if there is one.
+        PdbFile.LabelRow labelRow = database.labelIndex.get(rawRow.labelId());
+        if (labelRow != null) {
+            label = new SearchableItem((int)labelRow.id(), Database.getText(labelRow.name()));
+        }
+
+        duration = rawRow.duration();
+        tempo = (int)rawRow.tempo();
+        comment = Database.getText(rawRow.comment());
+
+        // Look up the musical key, if there is one.
+        PdbFile.KeyRow keyRow = database.musicalKeyIndex.get(rawRow.keyId());
+        if (keyRow != null) {
+            key = new SearchableItem((int)keyRow.id(), Database.getText(keyRow.name()));
+        }
+
+        rating = rawRow.rating();
+
         // Associate the track color, if there is one.
-        PdbFile.ColorRow colorRow = database.findColor(rawRow.colorId());
+        PdbFile.ColorRow colorRow = database.colorIndex.get((long)rawRow.colorId());
         if (colorRow != null) {
             color = buildColorItem(rawRow.colorId(), Database.getText(colorRow.name()));
         } else {
             color = buildColorItem(rawRow.colorId(), "");  // For backwards compatibility with "No Color".
         }
+
+        dateAdded = Database.getText(rawRow.dateAdded());
     }
 
     /**
@@ -280,77 +308,87 @@ public class TrackMetadata {
         this.cueList = cueList;
         rawItems = Collections.unmodifiableList(new LinkedList<Message>(items));
         for (Message item : items) {
-            switch (item.getMenuItemType()) {
-                case TRACK_TITLE:
-                    title = ((StringField) item.arguments.get(3)).getValue();
-                    artworkId = (int) ((NumberField) item.arguments.get(8)).getValue();
-                    break;
+            parseMetadataItem(item);
+        }
+    }
 
-                case ARTIST:
-                    artist = buildSearchableItem(item);
-                    break;
+    /**
+     * Processes one of the menu responses that jointly constitute the track metadata, updating our
+     * fields accordingly.
+     *
+     * @param item the menu response to be considered
+     */
+    private void parseMetadataItem(Message item) {
+        switch (item.getMenuItemType()) {
+            case TRACK_TITLE:
+                title = ((StringField) item.arguments.get(3)).getValue();
+                artworkId = (int) ((NumberField) item.arguments.get(8)).getValue();
+                break;
 
-                case ORIGINAL_ARTIST:
-                    originalArtist = buildSearchableItem(item);
-                    break;
+            case ARTIST:
+                artist = buildSearchableItem(item);
+                break;
 
-                case REMIXER:
-                    remixer = buildSearchableItem(item);
+            case ORIGINAL_ARTIST:
+                originalArtist = buildSearchableItem(item);
+                break;
 
-                case ALBUM_TITLE:
-                    album = buildSearchableItem(item);
-                    break;
+            case REMIXER:
+                remixer = buildSearchableItem(item);
 
-                case LABEL:
-                    label = buildSearchableItem(item);
-                    break;
+            case ALBUM_TITLE:
+                album = buildSearchableItem(item);
+                break;
 
-                case DURATION:
-                    duration = (int) ((NumberField) item.arguments.get(1)).getValue();
-                    break;
+            case LABEL:
+                label = buildSearchableItem(item);
+                break;
 
-                case TEMPO:
-                    tempo = (int) ((NumberField) item.arguments.get(1)).getValue();
-                    break;
+            case DURATION:
+                duration = (int) ((NumberField) item.arguments.get(1)).getValue();
+                break;
 
-                case COMMENT:
-                    comment = ((StringField) item.arguments.get(3)).getValue();
-                    break;
+            case TEMPO:
+                tempo = (int) ((NumberField) item.arguments.get(1)).getValue();
+                break;
 
-                case KEY:
-                    key = buildSearchableItem(item);
-                    break;
+            case COMMENT:
+                comment = ((StringField) item.arguments.get(3)).getValue();
+                break;
 
-                case RATING:
-                    rating = (int) ((NumberField)item.arguments.get(1)).getValue();
-                    break;
+            case KEY:
+                key = buildSearchableItem(item);
+                break;
 
-                case COLOR_NONE:
-                case COLOR_AQUA:
-                case COLOR_BLUE:
-                case COLOR_GREEN:
-                case COLOR_ORANGE:
-                case COLOR_PINK:
-                case COLOR_PURPLE:
-                case COLOR_RED:
-                case COLOR_YELLOW:
-                    color = buildColorItem(item);
-                    break;
+            case RATING:
+                rating = (int) ((NumberField)item.arguments.get(1)).getValue();
+                break;
 
-                case GENRE:
-                    genre = buildSearchableItem(item);
-                    break;
+            case COLOR_NONE:
+            case COLOR_AQUA:
+            case COLOR_BLUE:
+            case COLOR_GREEN:
+            case COLOR_ORANGE:
+            case COLOR_PINK:
+            case COLOR_PURPLE:
+            case COLOR_RED:
+            case COLOR_YELLOW:
+                color = buildColorItem(item);
+                break;
 
-                case DATE_ADDED:
-                    dateAdded = ((StringField) item.arguments.get(3)).getValue();
-                    break;
+            case GENRE:
+                genre = buildSearchableItem(item);
+                break;
 
-                case UNANALYZED_UNKNOWN:  // Don't yet know what to do with this.
-                    break;
+            case DATE_ADDED:
+                dateAdded = ((StringField) item.arguments.get(3)).getValue();
+                break;
 
-                default:
-                    logger.warn("Ignoring track metadata item with unknown type: {}", item);
-            }
+            case UNANALYZED_UNKNOWN:  // Don't yet know what to do with this.
+                break;
+
+            default:
+                logger.warn("Ignoring track metadata item with unknown type: {}", item);
         }
     }
 

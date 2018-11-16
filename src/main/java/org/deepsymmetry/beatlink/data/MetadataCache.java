@@ -552,7 +552,7 @@ public class MetadataCache implements MetadataProvider {
         return null;    }
 
     @Override
-    public AlbumArt getAlbumArt(MediaDetails sourceMedia, DataReference art) {
+    public AlbumArt getAlbumArt(@SuppressWarnings("unused") MediaDetails sourceMedia, DataReference art) {
         ZipEntry entry = zipFile.getEntry(getArtworkEntryName(art.rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
@@ -602,7 +602,7 @@ public class MetadataCache implements MetadataProvider {
     }
 
     @Override
-    public CueList getCueList(MediaDetails sourceMedia, int rekordboxId) {
+    public CueList getCueList(@SuppressWarnings("unused") MediaDetails sourceMedia, int rekordboxId) {
         ZipEntry entry = zipFile.getEntry(getCueListEntryName(rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
@@ -625,6 +625,7 @@ public class MetadataCache implements MetadataProvider {
         return null;
     }
 
+    @SuppressWarnings("unused")
     @Override
     public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
         ZipEntry entry = zipFile.getEntry(getWaveformPreviewEntryName(track.rekordboxId));
@@ -650,7 +651,7 @@ public class MetadataCache implements MetadataProvider {
     }
 
     @Override
-    public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
+    public WaveformDetail getWaveformDetail(@SuppressWarnings("unused") MediaDetails sourceMedia, DataReference track) {
         ZipEntry entry = zipFile.getEntry(getWaveformDetailEntryName(track.rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
@@ -741,6 +742,7 @@ public class MetadataCache implements MetadataProvider {
                                     final File cache, final MetadataCacheCreationListener listener)
             throws Exception {
         ConnectionManager.ClientTask<Object> task = new ConnectionManager.ClientTask<Object>() {
+            @SuppressWarnings("SameReturnValue")
             @Override
             public Object useClient(Client client) throws Exception {
                 final List<Message> trackList;
