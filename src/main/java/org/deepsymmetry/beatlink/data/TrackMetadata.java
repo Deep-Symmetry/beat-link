@@ -77,7 +77,7 @@ public class TrackMetadata {
     /**
      * The date the track was added to the collection.
      */
-    private SearchableItem dateAdded;
+    private String dateAdded;
 
     /**
      * The length, in seconds, of the track, when played at 100% pitch.
@@ -342,7 +342,7 @@ public class TrackMetadata {
                     break;
 
                 case DATE_ADDED:
-                    dateAdded = buildSearchableItem(item);
+                    dateAdded = ((StringField) item.arguments.get(3)).getValue();
                     break;
 
                 case UNANALYZED_UNKNOWN:  // Don't yet know what to do with this.
@@ -396,7 +396,7 @@ public class TrackMetadata {
      *
      * @return the track comment
      */
-    public SearchableItem getComment() {
+    public String getComment() {
         return comment;
     }
 
@@ -467,7 +467,7 @@ public class TrackMetadata {
      *
      * @return the date the track was added to the collection, in the form "YYYY-MM-DD"
      */
-    public SearchableItem getDateAdded() {
+    public String getDateAdded() {
         return dateAdded;
     }
 
