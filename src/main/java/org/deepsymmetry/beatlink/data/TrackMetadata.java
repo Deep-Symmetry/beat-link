@@ -229,7 +229,7 @@ public class TrackMetadata {
      */
     public TrackMetadata(DataReference reference, Database database, CueList cueList) {  // TODO no need to be public when done testing!
         rawItems = null;  // We did not create this from a dbserver response.
-        rawRow = database.trackIndex.get((long)reference.rekordboxId);
+        rawRow = database.trackIndex.get((long) reference.rekordboxId);
         if (rawRow == null) {
             throw new NoSuchElementException("Track " + reference.rekordboxId + " not found in PDB file.");
         }
@@ -238,35 +238,36 @@ public class TrackMetadata {
         this.cueList = cueList;
 
         title = Database.getText(rawRow.title());
+        artworkId = (int)rawRow.artworkId();
 
         // Look up the track artist, if there is one.
         PdbFile.ArtistRow artistRow = database.artistIndex.get(rawRow.artistId());
         if (artistRow != null) {
-            artist = new SearchableItem((int)artistRow.id(), Database.getText(artistRow.name()));
+            artist = new SearchableItem((int) artistRow.id(), Database.getText(artistRow.name()));
         }
 
         // Look up the original artist, if there is one.
         artistRow = database.artistIndex.get(rawRow.originalArtistId());
         if (artistRow != null) {
-            originalArtist = new SearchableItem((int)artistRow.id(), Database.getText(artistRow.name()));
+            originalArtist = new SearchableItem((int) artistRow.id(), Database.getText(artistRow.name()));
         }
 
         // Look up the remixer, if there is one.
         artistRow = database.artistIndex.get(rawRow.originalArtistId());
         if (artistRow != null) {
-            remixer = new SearchableItem((int)artistRow.id(), Database.getText(artistRow.name()));
+            remixer = new SearchableItem((int) artistRow.id(), Database.getText(artistRow.name()));
         }
 
         // Look up the album, if there is one.
         PdbFile.AlbumRow albumRow = database.albumIndex.get(rawRow.albumId());
         if (albumRow !=  null) {
-            album = new SearchableItem((int)albumRow.id(), Database.getText(albumRow.name()));
+            album = new SearchableItem((int) albumRow.id(), Database.getText(albumRow.name()));
         }
 
         // Look up the label, if there is one.
         PdbFile.LabelRow labelRow = database.labelIndex.get(rawRow.labelId());
         if (labelRow != null) {
-            label = new SearchableItem((int)labelRow.id(), Database.getText(labelRow.name()));
+            label = new SearchableItem((int) labelRow.id(), Database.getText(labelRow.name()));
         }
 
         duration = rawRow.duration();
@@ -276,7 +277,7 @@ public class TrackMetadata {
         // Look up the musical key, if there is one.
         PdbFile.KeyRow keyRow = database.musicalKeyIndex.get(rawRow.keyId());
         if (keyRow != null) {
-            key = new SearchableItem((int)keyRow.id(), Database.getText(keyRow.name()));
+            key = new SearchableItem((int) keyRow.id(), Database.getText(keyRow.name()));
         }
 
         rating = rawRow.rating();
@@ -287,6 +288,12 @@ public class TrackMetadata {
             color = buildColorItem(rawRow.colorId(), Database.getText(colorRow.name()));
         } else {
             color = buildColorItem(rawRow.colorId(), "");  // For backwards compatibility with "No Color".
+        }
+
+        // Look up the genre, if there is one.
+        PdbFile.GenreRow genreRow = database.genreIndex.get(rawRow.genreId());
+        if (genreRow != null) {
+            genre = new SearchableItem((int) genreRow.id(), Database.getText((genreRow.name())));
         }
 
         dateAdded = Database.getText(rawRow.dateAdded());
