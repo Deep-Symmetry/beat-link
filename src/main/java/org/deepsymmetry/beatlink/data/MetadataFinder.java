@@ -89,16 +89,27 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     private TrackMetadata requestMetadataInternal(final DataReference track, final CdjStatus.TrackType trackType,
                                                   final boolean failIfPassive) {
-        // First check if we are using cached data for this request
+        // First check if we are using cached data for this request.
         MetadataCache cache = getMetadataCache(SlotReference.getSlotReference(track));
         if (cache != null && trackType == CdjStatus.TrackType.REKORDBOX) {
             return cache.getTrackMetadata(null, track);
         }
 
+        // Then see if any registered metadata providers can offer it for us.
+        final MediaDetails sourceDetails = getMediaDetailsFor(track.getSlotReference());
+        if (sourceDetails != null) {
+            final TrackMetadata provided = allMetadataProviders.getTrackMetadata(sourceDetails, track);
+            if (provided != null) {
+                return provided;
+            }
+        }
+
+        // At this point, unless we are allowed to actively request the data, we are done.
         if (passive.get() && failIfPassive) {
             return null;
         }
 
+        // Use the dbserver protocol implementation to request the metadata.
         ConnectionManager.ClientTask<TrackMetadata> task = new ConnectionManager.ClientTask<TrackMetadata>() {
             @Override
             public TrackMetadata useClient(Client client) throws Exception {
@@ -120,7 +131,7 @@ public class MetadataFinder extends LifecycleParticipant {
     public static final int MENU_TIMEOUT = 20;
 
     /**
-     * Request metadata for a specific track ID, given a connection to a player that has already been set up.
+     * Request metadata for a specific track ID, given a dbserver connection to a player that has already been set up.
      * Separated into its own method so it could be used multiple times with the same connection when gathering
      * all track metadata.
      *
@@ -163,7 +174,8 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Requests the cue list for a specific track ID, given a connection to a player that has already been set up.
+     * Requests the cue list for a specific track ID, given a dbserver connection to a player that has already
+     * been set up.
      *
      * @param rekordboxId the track of interest
      * @param slot identifies the media slot we are querying
@@ -184,8 +196,8 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Request the list of all tracks in the specified slot, given a connection to a player that has already been
-     * set up.
+     * Request the list of all tracks in the specified slot, given a dbserver connection to a player that has already
+     * been set up.
      *
      * @param slot identifies the media slot we are querying
      * @param client the dbserver client that is communicating with the appropriate player
@@ -262,7 +274,7 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Ask the specified player for the playlist entries of the specified playlist (if {@code folder} is {@code false},
+     * Ask the specified player's dbserver for the playlist entries of the specified playlist (if {@code folder} is {@code false},
      * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}.
      *
      * @param player the player number whose playlist entries are of interest
@@ -720,12 +732,16 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * Records that there is media mounted in a particular media player slot, updating listeners if this is a change.
+     * Also send a query to the player requesting details about the media mounted in that slot, if we don't already
+     * have that information.
      *
      * @param slot the slot in which media is mounted
      */
     private void recordMount(SlotReference slot) {
         if (mediaMounts.add(slot)) {
             deliverMountUpdate(slot, true);
+        }
+        if (!mediaDetails.containsKey(slot)) {
             try {
                 VirtualCdj.getInstance().sendMediaQuery(slot);
             } catch (Exception e) {
