@@ -249,7 +249,7 @@ public class CrateDigger {
                 if (file.canRead()) {
                     return AnlzFile.fromFile(file.getAbsolutePath());  // We have already downloaded it.
                 }
-                file.deleteOnExit();  // Prepare to download it
+                file.deleteOnExit();  // Prepare to download it.
                 fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
                 return AnlzFile.fromFile((file.getAbsolutePath()));
             } else {
@@ -294,6 +294,31 @@ public class CrateDigger {
 
         @Override
         public AlbumArt getAlbumArt(MediaDetails sourceMedia, DataReference art) {
+            File file = null;
+            Database database = findDatabase(art);
+            if (database != null) {
+                try {
+                    PdbFile.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
+                    if (artworkRow != null) {
+                        file = new File(downloadDirectory, slotPrefix(art.getSlotReference()) +
+                                "art-" + art.rekordboxId);
+                        if (file.canRead()) {
+                            return new AlbumArt(art, file);
+                        }
+                        file.deleteOnExit();  // Prepare to download it.
+                        fetchFile(art.getSlotReference(), Database.getText(artworkRow.path()), file);
+                        return new AlbumArt(art, file);
+                    } else {
+                        logger.warn("Unable to find artwork " + art + " in database " + database);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Problem fetching artwork " + art + " from database " + database, e);
+                    if (file != null) {
+                        //noinspection ResultOfMethodCallIgnored
+                        file.delete();
+                    }
+                }
+            }
             return null;
         }
 

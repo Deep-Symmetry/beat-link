@@ -277,7 +277,7 @@ public class ArtFinder extends LifecycleParticipant {
     private AlbumArt requestArtworkInternal(final DataReference artReference, final CdjStatus.TrackType trackType,
                                             final boolean failIfPassive) {
 
-        // First check if we are using cached data for this slot
+        // First check if we are using cached data for this slot.
         MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(artReference));
         if (cache != null) {
             final AlbumArt result = cache.getAlbumArt(null, artReference);
@@ -287,12 +287,21 @@ public class ArtFinder extends LifecycleParticipant {
             return result;
         }
 
+        // Then see if any registered metadata providers can offer it for us.
+        final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(artReference.getSlotReference());
+        if (sourceDetails != null) {
+            final AlbumArt provided = MetadataFinder.getInstance().allMetadataProviders.getAlbumArt(sourceDetails, artReference);
+            if (provided != null) {
+                return provided;
+            }
+        }
+
+        // At this point, unless we are allowed to actively request the data, we are done.
         if (MetadataFinder.getInstance().isPassive() && failIfPassive) {
-            // We are not allowed to perform actual requests in passive mode.
             return null;
         }
 
-        // We have to actually request the art.
+        // We have to actually request the art using the dbserver protocol.
         ConnectionManager.ClientTask<AlbumArt> task = new ConnectionManager.ClientTask<AlbumArt>() {
             @Override
             public AlbumArt useClient(Client client) throws Exception {

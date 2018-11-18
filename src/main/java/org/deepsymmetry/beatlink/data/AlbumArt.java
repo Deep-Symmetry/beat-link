@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 
 /**
@@ -36,6 +38,7 @@ public class AlbumArt {
      *
      * @return the bytes that make up the album art
      */
+    @SuppressWarnings("WeakerAccess")
     public ByteBuffer getRawBytes() {
         rawBytes.rewind();
         return rawBytes.slice();
@@ -57,6 +60,22 @@ public class AlbumArt {
             logger.error("Weird! Caught exception creating image from artwork bytes", e);
             return null;
         }
+    }
+
+    /**
+     * Constructor used with a file downloaded via NFS by Crate Digger.
+     *
+     * @param artReference the unique database reference that was used to request this artwork
+     * @param file the file of image data as loaded from the player
+     *
+     * @throws IOException if there is a problem reading the file
+     */
+    AlbumArt(DataReference artReference, File file) throws IOException {
+        this.artReference = artReference;
+        RandomAccessFile raf = new RandomAccessFile(file, "r");
+        byte[] bytes = new byte[(int)raf.length()];
+        raf.readFully(bytes);
+        rawBytes = ByteBuffer.wrap(bytes);
     }
 
     /**
