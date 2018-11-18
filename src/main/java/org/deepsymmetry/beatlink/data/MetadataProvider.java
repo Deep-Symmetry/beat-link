@@ -69,11 +69,11 @@ public interface MetadataProvider {
      *
      * @param sourceMedia the media to which the track belongs, for use by providers which store metadata from multiple
      *                    sources
-     * @param rekordboxId identifies the track whose cue list is desired
+     * @param track identifies the track whose cue list is desired
      *
      * @return the cue list corresponding to that track, or {@code null} if we don't have one to offer
      */
-    CueList getCueList(MediaDetails sourceMedia, int rekordboxId);
+    CueList getCueList(MediaDetails sourceMedia, DataReference track);
 
     /**
      * Get the waveform preview for a particular track, if it is available.

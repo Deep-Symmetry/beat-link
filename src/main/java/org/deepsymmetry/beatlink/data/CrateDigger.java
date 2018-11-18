@@ -279,12 +279,7 @@ public class CrateDigger {
             Database database = findDatabase(track);
             if (database != null) {
                 try {
-                    CueList cueList = null;
-                    AnlzFile file = findTrackAnalysis(track, database);
-                    if (file != null) {
-                        cueList = new CueList(file);
-                    }
-                    return new TrackMetadata(track, database, cueList);
+                    return new TrackMetadata(track, database, getCueList(sourceMedia, track));
                 } catch (Exception e) {
                     logger.error("Problem fetching metadata for track " + track + " from database " + database, e);
                 }
@@ -328,12 +323,34 @@ public class CrateDigger {
         }
 
         @Override
-        public CueList getCueList(MediaDetails sourceMedia, int rekordboxId) {
+        public CueList getCueList(MediaDetails sourceMedia, DataReference track) {
+            Database database = findDatabase(track);
+            if (database != null) {
+                try {
+                    AnlzFile file = findTrackAnalysis(track, database);
+                    if (file != null) {
+                        return new CueList(file);
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching cue list for track " + track + " from database " + database, e);
+                }
+            }
             return null;
         }
 
         @Override
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
+            Database database = findDatabase(track);
+            if (database != null) {
+                try {
+                    AnlzFile file = findTrackAnalysis(track, database);
+                    if (file != null) {
+                        return new WaveformPreview(track, file);
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching waveform preview for track " + track + " from database " + database, e);
+                }
+            }
             return null;
         }
 

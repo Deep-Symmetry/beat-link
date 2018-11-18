@@ -2,6 +2,7 @@ package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
+import org.deepsymmetry.cratedigger.pdb.AnlzFile;
 
 import javax.swing.*;
 import java.nio.ByteBuffer;
@@ -22,11 +23,18 @@ public class WaveformPreview {
     public final DataReference dataReference;
 
     /**
-     * The message holding the preview as it was read over the network. This can be used to analyze fields
-     * that have not yet been reliably understood, and is also used for storing the cue list in a cache file.
+     * The message holding the preview as it was read over the network, if it came from the dbserver.
+     * This can be used to analyze fields that have not yet been reliably understood, and is also used for storing
+     * the cue list in a cache file.
      */
     @SuppressWarnings("WeakerAccess")
     public final Message rawMessage;
+
+    /**
+     * The results of expanding the data we received from the player's NFS server if this preview was retrieved
+     * by Crate Digger rather than from the dbserver.
+     */
+    private final ByteBuffer expandedData;
 
     /**
      * Get the raw bytes of the waveform preview data
@@ -36,7 +44,11 @@ public class WaveformPreview {
      */
     @SuppressWarnings("WeakerAccess")
     public ByteBuffer getData() {
-        return ((BinaryField) rawMessage.arguments.get(3)).getValue();
+        if (rawMessage != null) {
+            return ((BinaryField) rawMessage.arguments.get(3)).getValue();
+        }
+        expandedData.rewind();
+        return expandedData.slice();
     }
 
 
@@ -63,9 +75,39 @@ public class WaveformPreview {
      * @param message the response that contains the preview
      */
     @SuppressWarnings("WeakerAccess")
-    public WaveformPreview(DataReference reference, Message message) {
+    WaveformPreview(DataReference reference, Message message) {
         dataReference = reference;
         rawMessage = message;
+        expandedData = null;
+    }
+
+    /**
+     * Constructor when received from Crate Digger.
+     *
+     * @param reference the unique database reference that was used to request this waveform preview
+     * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
+     */
+    WaveformPreview(DataReference reference, AnlzFile anlzFile) {
+        dataReference = reference;
+        rawMessage = null;
+        ByteBuffer found = null;
+        for (AnlzFile.TaggedSection section : anlzFile.sections()) {
+            if (section.body() instanceof AnlzFile.WavePreviewTag) {
+                AnlzFile.WavePreviewTag tag = (AnlzFile.WavePreviewTag) section.body();
+                byte[] tagBytes = tag.data();
+                byte[] bytes = new byte[tagBytes.length * 2];
+                for (int i = 0; i < tagBytes.length; i++) {
+                    bytes[i * 2] = (byte)(tagBytes[i] & 0x1f);
+                    bytes[(i * 2) + 1] = (byte)((tagBytes[i] >> 5) & 7);
+                }
+                found = ByteBuffer.wrap(bytes);
+                break;
+            }
+        }
+        expandedData = found;
+        if (expandedData == null) {
+            throw new IllegalStateException("Could not construct WaveformPreview, missing from ANLZ file " + anlzFile);
+        }
     }
 
     @Override

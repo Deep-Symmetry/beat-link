@@ -536,7 +536,7 @@ public class MetadataCache implements MetadataProvider {
                     items.add(current);
                     current = Message.read(is);
                 }
-                return new TrackMetadata(track, CdjStatus.TrackType.REKORDBOX, items, getCueList(sourceMedia, track.rekordboxId));
+                return new TrackMetadata(track, CdjStatus.TrackType.REKORDBOX, items, getCueList(sourceMedia, track));
             } catch (IOException e) {
                 logger.error("Problem reading metadata from cache file, returning null", e);
             } finally {
@@ -602,8 +602,8 @@ public class MetadataCache implements MetadataProvider {
     }
 
     @Override
-    public CueList getCueList(@SuppressWarnings("unused") MediaDetails sourceMedia, int rekordboxId) {
-        ZipEntry entry = zipFile.getEntry(getCueListEntryName(rekordboxId));
+    public CueList getCueList(@SuppressWarnings("unused") MediaDetails sourceMedia, DataReference track) {
+        ZipEntry entry = zipFile.getEntry(getCueListEntryName(track.rekordboxId));
         if (entry != null) {
             DataInputStream is = null;
             try {

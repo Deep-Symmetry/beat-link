@@ -1171,15 +1171,15 @@ public class MetadataFinder extends LifecycleParticipant {
         }
 
         @Override
-        public CueList getCueList(MediaDetails sourceMedia, int rekordboxId) {
+        public CueList getCueList(MediaDetails sourceMedia, DataReference track) {
             for (MetadataProvider provider : getMetadataProviders(sourceMedia)) {
-                CueList result = provider.getCueList(sourceMedia, rekordboxId);
+                CueList result = provider.getCueList(sourceMedia, track);
                 if (result != null) {
                     return result;
                 }
             }
             for (MetadataProvider provider : getMetadataProviders(null)) {
-                CueList result = provider.getCueList(sourceMedia, rekordboxId);
+                CueList result = provider.getCueList(sourceMedia, track);
                 if (result != null) {
                     return result;
                 }

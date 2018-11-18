@@ -380,12 +380,21 @@ public class WaveformFinder extends LifecycleParticipant {
             return cache.getWaveformPreview(null, trackReference);
         }
 
+        // Then see if any registered metadata providers can offer it for us.
+        final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
+        if (sourceDetails !=  null) {
+            final WaveformPreview provided = MetadataFinder.getInstance().allMetadataProviders.getWaveformPreview(sourceDetails, trackReference);
+            if (provided != null) {
+                return provided;
+            }
+        }
+
+        // At this point, unless we are allowed to actively request the data, we are done.
         if (MetadataFinder.getInstance().isPassive() && failIfPassive) {
-            // We are not allowed to perform actual requests in passive mode.
             return null;
         }
 
-        // We have to actually request the preview.
+        // We have to actually request the preview using the dbserver protocol.
         ConnectionManager.ClientTask<WaveformPreview> task = new ConnectionManager.ClientTask<WaveformPreview>() {
             @Override
             public WaveformPreview useClient(Client client) throws Exception {
