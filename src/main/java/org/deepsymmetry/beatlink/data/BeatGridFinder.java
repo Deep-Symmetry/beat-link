@@ -233,12 +233,21 @@ public class BeatGridFinder extends LifecycleParticipant {
             return cache.getBeatGrid(null, trackReference);
         }
 
+        // Then see if any registered metadata providers can offer it to us.
+        final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
+        if (sourceDetails !=  null) {
+            final BeatGrid provided = MetadataFinder.getInstance().allMetadataProviders.getBeatGrid(sourceDetails, trackReference);
+            if (provided != null) {
+                return provided;
+            }
+        }
+
+        // At this point, unless we are allowed to actively request the data, we are done.
         if (MetadataFinder.getInstance().isPassive() && failIfPassive) {
-            // We are not allowed to perform actual requests in passive mode.
             return null;
         }
 
-        // We have to actually request the preview.
+        // We have to actually request the preview using the dbserver protocol.
         ConnectionManager.ClientTask<BeatGrid> task = new ConnectionManager.ClientTask<BeatGrid>() {
             @Override
             public BeatGrid useClient(Client client) throws Exception {

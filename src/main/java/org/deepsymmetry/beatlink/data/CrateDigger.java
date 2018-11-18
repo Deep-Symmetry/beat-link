@@ -319,6 +319,17 @@ public class CrateDigger {
 
         @Override
         public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
+            Database database = findDatabase(track);
+            if (database != null) {
+                try {
+                    AnlzFile file = findTrackAnalysis(track, database);
+                    if (file != null) {
+                        return new BeatGrid(track, file);
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching beat grid for track " + track + " from database " + database, e);
+                }
+            }
             return null;
         }
 

@@ -3,6 +3,7 @@ package org.deepsymmetry.beatlink.data;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
+import org.deepsymmetry.cratedigger.pdb.AnlzFile;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -29,6 +30,7 @@ public class BeatGrid {
     /**
      * Get the raw bytes of the beat grid as it was read over the network. This can be used to analyze fields
      * that have not yet been reliably understood, and is also used for storing the beat grid in a cache file.
+     * This is not available when the beat grid was loaded by Crate Digger.
      *
      * @return the bytes that make up the beat grid
      */
@@ -85,6 +87,42 @@ public class BeatGrid {
             beatWithinBarValues[beatNumber] = Util.unsign(gridBytes[base]);
             // For some reason, unlike nearly every other number in the protocol, beat timings are little-endian
             timeWithinTrackValues[beatNumber] = Util.bytesToNumberLittleEndian(gridBytes, base + 4, 4);
+        }
+    }
+
+    /**
+     * Helper function to find the beat grid section in a rekordbox track analysis file.
+     *
+     * @param anlzFile the file that was downloaded from the player
+     *
+     * @return the section containing the beat grid
+     */
+    private AnlzFile.BeatGridTag findTag(AnlzFile anlzFile) {
+        for (AnlzFile.TaggedSection section : anlzFile.sections()) {
+            if (section.body() instanceof AnlzFile.BeatGridTag) {
+                return (AnlzFile.BeatGridTag) section.body();
+            }
+        }
+        throw new IllegalArgumentException("No beat grid found inside analysis file " + anlzFile);
+    }
+
+    /**
+     * Constructor for  when fetched from Crate Digger.
+     *
+     * @param reference the unique database reference that was used to request this waveform detail
+     * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
+     */
+    public BeatGrid(DataReference reference, AnlzFile anlzFile) {
+        dataReference = reference;
+        rawData = null;
+        AnlzFile.BeatGridTag tag = findTag(anlzFile);
+        beatCount = (int)tag.lenBeats();
+        beatWithinBarValues = new int[beatCount];
+        timeWithinTrackValues = new long[beatCount];
+        for (int beatNumber = 0; beatNumber < beatCount; beatNumber++) {
+            AnlzFile.BeatGridBeat beat = tag.beats().get(beatNumber);
+            beatWithinBarValues[beatNumber] = beat.beatNumber();
+            timeWithinTrackValues[beatNumber] = beat.time();
         }
     }
 
