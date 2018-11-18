@@ -368,7 +368,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param waveBytes the bytes encoding the waveform heights and colors
      */
     private int totalSegments(ByteBuffer waveBytes) {
-        return waveBytes.remaining() - WaveformDetail.LEADING_JUNK_BYTES;
+        return waveBytes.remaining() - waveform.get().leadingJunkBytes;
     }
 
     /**
@@ -385,7 +385,7 @@ public class WaveformDetailComponent extends JComponent {
         final int scale = this.scale.get();
         int sum = 0;
         for (int i = segment; (i < segment + scale) && (i < totalSegments(waveBytes)); i++) {
-            sum += waveBytes.get(i + WaveformDetail.LEADING_JUNK_BYTES) & 0x1f;
+            sum += waveBytes.get(i + waveform.get().leadingJunkBytes) & 0x1f;
         }
         return sum / scale;
     }
@@ -404,7 +404,7 @@ public class WaveformDetailComponent extends JComponent {
         final int scale = this.scale.get();
         int sum = 0;
         for (int i = segment; (i < segment + scale) && (i < totalSegments(waveBytes)); i++) {
-            sum += (waveBytes.get(i + WaveformDetail.LEADING_JUNK_BYTES) & 0xe0) >> 5;
+            sum += (waveBytes.get(i + waveform.get().leadingJunkBytes) & 0xe0) >> 5;
         }
         return COLOR_MAP[sum / scale];
     }

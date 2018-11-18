@@ -100,7 +100,7 @@ public class WaveformPreview {
                     bytes[i * 2] = (byte)(tagBytes[i] & 0x1f);
                     bytes[(i * 2) + 1] = (byte)((tagBytes[i] >> 5) & 7);
                 }
-                found = ByteBuffer.wrap(bytes);
+                found = ByteBuffer.wrap(bytes).asReadOnlyBuffer();
                 break;
             }
         }

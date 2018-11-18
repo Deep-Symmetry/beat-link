@@ -223,7 +223,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
      *                      beat grid updates will use available caches only
      *
-     * @return the waveform preview found, if any
+     * @return the beat grid found, if any
      */
     private BeatGrid requestBeatGridInternal(final DataReference trackReference, final boolean failIfPassive) {
 
@@ -247,7 +247,7 @@ public class BeatGridFinder extends LifecycleParticipant {
             return null;
         }
 
-        // We have to actually request the preview using the dbserver protocol.
+        // We have to actually request the beat grid using the dbserver protocol.
         ConnectionManager.ClientTask<BeatGrid> task = new ConnectionManager.ClientTask<BeatGrid>() {
             @Override
             public BeatGrid useClient(Client client) throws Exception {

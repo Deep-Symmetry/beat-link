@@ -3,6 +3,7 @@ package org.deepsymmetry.beatlink.data;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
+import org.deepsymmetry.cratedigger.pdb.AnlzFile;
 
 import javax.swing.*;
 import java.nio.ByteBuffer;
@@ -16,10 +17,11 @@ import java.nio.ByteBuffer;
  */
 public class WaveformDetail {
     /**
-     * The number of bytes at the start of the waveform data which do not seem to be valid or used.
+     * The number of bytes at the start of the waveform data which do not seem to be valid or used when it is served
+     * by the dbserver protocol. They are not present when the ANLZ.EXT file is loaded directly by Crate Digger.
      */
     @SuppressWarnings("WeakerAccess")
-    public static final int LEADING_JUNK_BYTES = 19;
+    public static final int LEADING_DBSERVER_JUNK_BYTES = 19;
 
     /**
      * The unique identifier that was used to request this waveform detail.
@@ -30,9 +32,23 @@ public class WaveformDetail {
     /**
      * The message holding the detail as it was read over the network. This can be used to analyze fields
      * that have not yet been reliably understood, and is also used for storing the cue list in a cache file.
+     * This will be null if the data was obtained from Crate Digger.
      */
     @SuppressWarnings("WeakerAccess")
     public final Message rawMessage;
+
+    /**
+     * The parsed structure holding the detail as it was extracted from the extended analysis file, regardless of
+     * how it was obtained.
+     */
+    private final ByteBuffer detailBuffer;
+
+    /**
+     * How many leading junk bytes are present in the waveform data. This value will depend on how the data was
+     * obtained.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public final int leadingJunkBytes;
 
     /**
      * Get the raw bytes of the waveform detail data
@@ -42,7 +58,8 @@ public class WaveformDetail {
      */
     @SuppressWarnings("WeakerAccess")
     public ByteBuffer getData() {
-        return ((BinaryField) rawMessage.arguments.get(3)).getValue();
+        detailBuffer.rewind();
+        return detailBuffer.slice();
     }
 
     /**
@@ -52,7 +69,7 @@ public class WaveformDetail {
      */
     @SuppressWarnings("WeakerAccess")
     public int getFrameCount() {
-        return getData().remaining() - LEADING_JUNK_BYTES;
+        return getData().remaining() - leadingJunkBytes;
     }
 
     /**
@@ -92,6 +109,32 @@ public class WaveformDetail {
     public WaveformDetail(DataReference reference, Message message) {
         dataReference = reference;
         rawMessage = message;
+        detailBuffer = ((BinaryField) rawMessage.arguments.get(3)).getValue();
+        leadingJunkBytes = LEADING_DBSERVER_JUNK_BYTES;
+    }
+
+    /**
+     * Constructor when received from Crate Digger.
+     *
+     * @param reference the unique database reference that was used to request this waveform preview
+     * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
+     */
+    WaveformDetail(DataReference reference, AnlzFile anlzFile) {
+        dataReference = reference;
+        rawMessage = null;
+        ByteBuffer found = null;
+        for (AnlzFile.TaggedSection section : anlzFile.sections()) {
+            if (section.body() instanceof AnlzFile.WaveScrollTag) {
+                AnlzFile.WaveScrollTag tag = (AnlzFile.WaveScrollTag) section.body();
+                found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
+                break;
+            }
+        }
+        detailBuffer = found;
+        if (detailBuffer == null) {
+            throw new IllegalStateException("Could not construct WaveformDetail, missing from ANLZ file " + anlzFile);
+        }
+        leadingJunkBytes = 0;
     }
 
     @Override

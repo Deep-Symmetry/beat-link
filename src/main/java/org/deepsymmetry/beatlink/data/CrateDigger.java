@@ -266,6 +266,43 @@ public class CrateDigger {
     }
 
     /**
+     * Find the extended analysis file for the specified track, downloading it from the player if we have not already done so.
+     *
+     * @param track the track whose extended analysis file is desired
+     * @param database the parsed database export from which the analysis path can be determined
+     *
+     * @return the file containing the track analysis
+     */
+    private AnlzFile findExtendedAnalysis(DataReference track, Database database) {
+        File file = null;
+        try {
+            PdbFile.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
+            if (trackRow != null) {
+                file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
+                        "track-" + track.rekordboxId + "-anlz.ext");
+                if (file.canRead()) {
+                    return AnlzFile.fromFile(file.getAbsolutePath());  // We have already downloaded it.
+                }
+                file.deleteOnExit();  // Prepare to download it.
+                final String analyzePath = Database.getText(trackRow.analyzePath());
+                final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
+
+                fetchFile(track.getSlotReference(), extendedPath, file);
+                return AnlzFile.fromFile((file.getAbsolutePath()));
+            } else {
+                logger.warn("Unable to find track " + track + " in database " + database);
+            }
+        } catch (Exception e) {
+            logger.error("Problem fetching extended analysis file for track " + track + " from database " + database, e);
+            if (file != null) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+            }
+        }
+        return null;
+    }
+
+    /**
      * This is the mechanism by which we offer metadata to the {@link MetadataProvider} while we are running.
      */
     private final MetadataProvider metadataProvider = new MetadataProvider() {
@@ -296,7 +333,7 @@ public class CrateDigger {
                     PdbFile.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
                     if (artworkRow != null) {
                         file = new File(downloadDirectory, slotPrefix(art.getSlotReference()) +
-                                "art-" + art.rekordboxId);
+                                "art-" + art.rekordboxId + ".jpg");
                         if (file.canRead()) {
                             return new AlbumArt(art, file);
                         }
@@ -367,6 +404,17 @@ public class CrateDigger {
 
         @Override
         public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
+            Database database = findDatabase(track);
+            if (database != null) {
+                try {
+                    AnlzFile file = findExtendedAnalysis(track, database);
+                    if (file != null) {
+                        return new WaveformDetail(track, file);
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching waveform preview for track " + track + " from database " + database, e);
+                }
+            }
             return null;
         }
     };
