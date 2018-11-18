@@ -3,11 +3,15 @@ package org.deepsymmetry.beatlink.data;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.cratedigger.Database;
 import org.deepsymmetry.cratedigger.FileFetcher;
+import org.deepsymmetry.cratedigger.pdb.AnlzFile;
+import org.deepsymmetry.cratedigger.pdb.PdbFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -94,6 +98,16 @@ public class CrateDigger {
                     //noinspection ResultOfMethodCallIgnored
                     database.sourceFile.delete();
                 }
+                final String prefix = slotPrefix(slot);
+                File[] files = downloadDirectory.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        if (file.getName().startsWith(prefix)) {
+                            //noinspection ResultOfMethodCallIgnored
+                            file.delete();
+                        }
+                    }
+                }
             } else {
                 logger.info("Ignoring unmount from player that we can't find, must have left network.");
             }
@@ -141,6 +155,37 @@ public class CrateDigger {
     }
 
     /**
+     * Helper method to call the {@link FileFetcher} with the right arguments to get a file for a particular slot. Also
+     * arranges for the file to be deleted when we are shutting down in case we fail to clean it up ourselves.
+     *
+     * @param slot the slot from which a file is desired
+     * @param path the path to the file within the slot's mounted filesystem
+     * @param destination where to write the file contents
+     *
+     * @throws IOException if there is a problem fetching the file
+     */
+    private void fetchFile(SlotReference slot, String path, File destination) throws IOException {
+        destination.deleteOnExit();
+        final DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
+        if (player == null) {
+            throw new IOException("Cannot fetch file from player that is not found on the network; slot: " + slot);
+        }
+        FileFetcher.getInstance().fetch(player.getAddress(), mountPath(slot.slot), path, destination);
+    }
+
+    /**
+     * Format the filename prefix that will be used to store files downloaded from a particular player slot.
+     * This allows them all to be cleaned up when that slot is unmounted or the player goes away.
+     *
+     * @param slotReference the slot from which files are being downloaded
+     *
+     * @return the prefix with which the names of all files downloaded from that slot will start
+     */
+    private String slotPrefix(SlotReference slotReference) {
+        return "player-" + slotReference.player + "-slot-" + slotReference.slot.protocolValue + "-";
+    }
+
+    /**
      * Whenever we learn media details about a newly-mounted media slot, if it is rekordbox media, start the process
      * of fetching and parsing the database so we can offer metadata for that slot.
      */
@@ -155,15 +200,8 @@ public class CrateDigger {
                     public void run() {
                         File file = null;
                         try {
-                            final DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(details.slotReference.player);
-                            if (player == null) {
-                                throw new IllegalStateException("Cannot fetch rekordbox database from player that is not found on the network; details: " +
-                                        details);
-                            }
-                            file = File.createTempFile("beat-link-", ".pdb");
-                            file.deleteOnExit();
-                            FileFetcher.getInstance().fetch(player.getAddress(), mountPath(details.slotReference.slot),
-                                    "PIONEER/rekordbox/export.pdb", file);
+                            file = new File(downloadDirectory, slotPrefix(details.slotReference) + "export.pdb");
+                            fetchFile(details.slotReference, "PIONEER/rekordbox/export.pdb", file);
                             databases.put(details.slotReference, new Database(file));
                         } catch (Throwable t) {
                             logger.error("Problem fetching rekordbox database for media " + details +
@@ -178,6 +216,105 @@ public class CrateDigger {
                     }
                 }).start();
             }
+        }
+    };
+
+    /**
+     * Find the database we have downloaded and parsed that can provide information about the supplied data
+     * reference, if any.
+     *
+     * @param reference identifies the location from which data is desired
+     *
+     * @return the appropriate rekordbox extract to start from in finding that data, if we have one
+     */
+    private Database findDatabase(DataReference reference) {
+        return databases.get(reference.getSlotReference());
+    }
+
+    /**
+     * Find the analysis file for the specified track, downloading it from the player if we have not already done so.
+     *
+     * @param track the track whose analysis file is desired
+     * @param database the parsed database export from which the analysis path can be determined
+     *
+     * @return the file containing the track analysis
+     */
+    private AnlzFile findTrackAnalysis(DataReference track, Database database) {
+        File file = null;
+        try {
+            PdbFile.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
+            if (trackRow != null) {
+                file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
+                        "track-" + track.rekordboxId + "-anlz.dat");
+                if (file.canRead()) {
+                    return AnlzFile.fromFile(file.getAbsolutePath());  // We have already downloaded it.
+                }
+                file.deleteOnExit();  // Prepare to download it
+                fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
+                return AnlzFile.fromFile((file.getAbsolutePath()));
+            } else {
+                logger.warn("Unable to find track " + track + " in database " + database);
+            }
+        } catch (Exception e) {
+            logger.error("Problem fetching analysis file for track " + track + " from database " + database, e);
+            if (file != null) {
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * This is the mechanism by which we offer metadata to the {@link MetadataProvider} while we are running.
+     */
+    private final MetadataProvider metadataProvider = new MetadataProvider() {
+        @Override
+        public List<MediaDetails> supportedMedia() {
+            return null;  // We can potentially answer any query.
+        }
+
+        @Override
+        public TrackMetadata getTrackMetadata(MediaDetails sourceMedia, DataReference track) {
+            Database database = findDatabase(track);
+            if (database != null) {
+                try {
+                    CueList cueList = null;
+                    AnlzFile file = findTrackAnalysis(track, database);
+                    if (file != null) {
+                        cueList = new CueList(file);
+                    }
+                    return new TrackMetadata(track, database, cueList);
+                } catch (Exception e) {
+                    logger.error("Problem fetching metadata for track " + track + " from database " + database, e);
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public AlbumArt getAlbumArt(MediaDetails sourceMedia, DataReference art) {
+            return null;
+        }
+
+        @Override
+        public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
+            return null;
+        }
+
+        @Override
+        public CueList getCueList(MediaDetails sourceMedia, int rekordboxId) {
+            return null;
+        }
+
+        @Override
+        public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
+            return null;
+        }
+
+        @Override
+        public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
+            return null;
         }
     };
 
@@ -198,6 +335,7 @@ public class CrateDigger {
             for (MediaDetails details : MetadataFinder.getInstance().getMountedMediaDetails()) {
                 mediaDetailsListener.detailsAvailable(details);
             }
+            MetadataFinder.getInstance().addMetadataProvider(metadataProvider);
         }
     }
 
@@ -208,6 +346,7 @@ public class CrateDigger {
     public synchronized void stop() {
         if (isRunning()) {
             running.set(false);
+            MetadataFinder.getInstance().removeMetadataProvider(metadataProvider);
             for (Database database : databases.values()) {
                 //noinspection ResultOfMethodCallIgnored
                 database.sourceFile.delete();
@@ -231,13 +370,44 @@ public class CrateDigger {
     }
 
     /**
-     * Prevent direct instantiation, and register the listeners that hook us into the streams of information we need.
+     * The folder into which database exports and track analysis files will be downloaded.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public final File downloadDirectory;
+
+    /**
+     * The number of variations on the file name we will attempt when creating our temporary directory.
+     */
+    private static final int TEMP_DIR_ATTEMPTS = 1000;
+
+    /**
+     * Create the directory into which we can download (and reuse) database exports and track analysis files.
+     *
+     * @return the created temporary directory.
+     */
+    private File createDownloadDirectory() {
+        File baseDir = new File(System.getProperty("java.io.tmpdir"));
+        String baseName = "bl-" + System.currentTimeMillis() + "-";
+
+        for (int counter = 0; counter < TEMP_DIR_ATTEMPTS; counter++) {
+            File tempDir = new File(baseDir, baseName + counter);
+            if (tempDir.mkdir()) {
+                return tempDir;
+            }
+        }
+        throw new IllegalStateException("Failed to create download directory within " + TEMP_DIR_ATTEMPTS + " attempts.");
+    }
+
+    /**
+     * Prevent direct instantiation, create a temporary directory for our file downloads,
+     * and register the listeners that hook us into the streams of information we need.
      */
     private CrateDigger() {
         MetadataFinder.getInstance().addLifecycleListener(lifecycleListener);
         MetadataFinder.getInstance().addMountListener(mountListener);
         DeviceFinder.getInstance().addDeviceAnnouncementListener(deviceListener);
         VirtualCdj.getInstance().addMediaDetailsListener(mediaDetailsListener);
+        downloadDirectory = createDownloadDirectory();
     }
 
     @Override
@@ -246,6 +416,7 @@ public class CrateDigger {
         sb.append("MetadataFinder[").append("running: ").append(isRunning());
         if (isRunning()) {
             sb.append(", databases mounted: ").append(databases.size());
+            sb.append(", download directory: ").append(downloadDirectory.getAbsolutePath());
         }
         return sb.append("]").toString();
     }

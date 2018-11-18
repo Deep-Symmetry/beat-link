@@ -227,7 +227,7 @@ public class TrackMetadata {
      *
      * @throws NoSuchElementException if the specified track is not found in the database
      */
-    public TrackMetadata(DataReference reference, Database database, CueList cueList) {  // TODO no need to be public when done testing!
+    TrackMetadata(DataReference reference, Database database, CueList cueList) {
         rawItems = null;  // We did not create this from a dbserver response.
         rawRow = database.trackIndex.get((long) reference.rekordboxId);
         if (rawRow == null) {

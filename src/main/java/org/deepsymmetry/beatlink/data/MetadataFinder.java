@@ -1054,7 +1054,7 @@ public class MetadataFinder extends LifecycleParticipant {
             throw new IllegalArgumentException("Do not register MetadataCache instances using addMetadataProvider(), use attachMetadataCache() or addAutoAttachCacheFile() instead.");
         }
         List<MediaDetails> supportedMedia = provider.supportedMedia();
-        if (supportedMedia.isEmpty()) {
+        if (supportedMedia == null || supportedMedia.isEmpty()) {
             addMetadataProviderForMedia("", provider);
         } else {
             for (MediaDetails details : supportedMedia) {

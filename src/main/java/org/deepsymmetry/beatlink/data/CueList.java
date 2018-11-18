@@ -4,6 +4,7 @@ import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
+import org.deepsymmetry.cratedigger.pdb.AnlzFile;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,6 +18,7 @@ import java.util.List;
  */
 @SuppressWarnings("WeakerAccess")
 public class CueList {
+
     /**
      * The message holding the cue list information as it was read over the network. This can be used to analyze fields
      * that have not yet been reliably understood, and is also used for storing the cue list in a cache file.
@@ -164,6 +166,31 @@ public class CueList {
      */
     @SuppressWarnings("WeakerAccess")
     public final List<Entry> entries;
+
+    /**
+     * Constructor for when reading from a rekordbox track analysis file. Finds the cues sections and
+     * translates them into the objects Beat Link uses to represent them.
+     *
+     * @param anlzFile the recordbox analysis file corresponding to that track
+     */
+    public CueList(AnlzFile anlzFile) {
+        rawMessage = null;  // We did not create this from a dbserver response.
+        List<Entry> mutableEntries = new ArrayList<Entry>();
+        for (AnlzFile.TaggedSection section : anlzFile.sections()) {
+            if (section.body() instanceof AnlzFile.CueTag) {
+                AnlzFile.CueTag tag = (AnlzFile.CueTag) section.body();
+                for (AnlzFile.CueEntry cueEntry : tag.cues()) {  // TODO: Need to figure out how to identify deleted entries to ignore.
+                    if (cueEntry.type() == AnlzFile.CueEntryType.LOOP) {
+                        mutableEntries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
+                                Util.timeToHalfFrame(cueEntry.loopTime())));
+                    } else {
+                        mutableEntries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time())));
+                    }
+                }
+            }
+        }
+        entries = Collections.unmodifiableList(mutableEntries);
+    }
 
     /**
      * Constructor when reading from the network or a cache file.
