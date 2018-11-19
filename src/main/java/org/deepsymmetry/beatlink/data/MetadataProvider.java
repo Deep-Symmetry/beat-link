@@ -11,8 +11,6 @@ import java.util.List;
  * as ZIP files also implement this interface, but they are treated specially because they existed before it, and
  * for backwards compatibility need to support files that do not know what media they were created from.
  *
- * TODO: Reassess whether this is needed any longer given the more-reliable NFS-based metadata approach.
- *
  * @since 0.5.0
  */
 @SuppressWarnings("WeakerAccess")
