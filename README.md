@@ -308,42 +308,46 @@ import org.deepsymmetry.beatlink.data.MetadataFinder;
     MetadataFinder.getInstance().start();
 ```
 
-> The safest way to successfully retrieve metadata is to configure the
-> `VirtualCdj` to use a device number in the range 1 to 4, like an
-> actual CDJ, using
+> :warning: The only way to reliably retrieve metadata using the
+> `MetadataFinder` on its own is to configure the `VirtualCdj` to use
+> a device number in the range 1 to 4, like an actual CDJ, using
 > `VirtualCdj.getInstance().setUseStandardPlayerNumber()` as described
 > [above](#getting-device-details). You can only do that if you are
 > using fewer than 4 CDJs, because you need to use a number that is
 > not being used by any actual CDJ. If you are using 4 actual CDJs,
 > you will need to leave the `VirtualCdj` using its default number of
-> 5, but that means the `MetadataFinder` will need to "borrow" one of
-> the actual CDJ device numbers when it is requesting metadata. If
-> three of the CDJs have loaded tracks from a media slot on the
-> fourth, then there will be no device numbers available for use, and
-> the metadata request will not even be attempted. Even if they have
-> not, there is no way for beat-link to know if the DJ is using Link
-> Info in a way that causes the metadata request to fail, or worse,
-> causes one of the CDJs to get confused and stop working quite right.
-> So if you want to work with metadata, to be safe, reserve a physical
-> player number from 1 to 4 for the exclusive use of beat-link, or
-> have all the CDJs load tracks from rekordbox, rather than from each
-> other.
+> 5, but that means the `MetadataFinder` will often be unable to talk
+> to the `dbserver` ports on the players.
 >
-> Alternately, you can tell the `MetadataFinder` to create a cache file
-> of the metadata from a media slot when you have a convenient moment,
-> and then have it use that cache file during a busy show when the
-> players would have a hard time responding to queries.
+> As of version 0.5.0, we finally have a good solution to this
+> problem, which is to start up the `CrateDigger` class, which uses a
+> completely separate mechanism for obtaining metadata, by downloading
+> the entire rekordbox database export and track analysis files from
+> the NFSv2 server that is also running in the players. The NFSv2
+> server is stateless, does not care what player number we are using,
+> and can be used no matter how many players are on the network. So,
+> in addition to the above code, also do this:
 
-Once the `MetadataFinder` is running, you can access all the metadata
-for currently-loaded tracks by calling
+```java
+import org.deepsymmetry.beatlink.data.CrateDigger;
+
+// ...
+
+    CrateDigger.getInstance().start();
+```
+
+Once the `MetadataFinder`and `CrateDigger` are running, you can access
+all the metadata for currently-loaded tracks by calling
 [`MetadataFinder.getInstance().getLoadedTracks()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLoadedTracks--),
-which returns a `Map` from deck references (player numbers and
-hot cue numbers) to
+which returns a `Map` from deck references (player numbers and hot cue
+numbers) to
 [`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
-objects describing the track currently loaded in that player slot. You can
-also call [`MetadataFinder.getLatestMetadataFor(int player)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLatestMetadataFor-int-)
-to find the metadata for the track loaded in the playback deck of the specified player. See
-the [`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
+objects describing the track currently loaded in that player slot. You
+can also call [`MetadataFinder.getLatestMetadataFor(int
+player)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLatestMetadataFor-int-)
+to find the metadata for the track loaded in the playback deck of the
+specified player. See the
+[`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
 API documentation for all the details it provides.
 
 With the `MetadataFinder` running, you can also start the `ArtFinder`,
@@ -394,11 +398,17 @@ starting with
 [`requestRootMenuFrom()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MenuLoader.html#requestRootMenuFrom-org.deepsymmetry.beatlink.data.SlotReference-int-)
 to determine what menus are actually available.
 
-> Note that in order to reliably send the correct message to obtain
-> the root menu for a particular slot, the `MenuLoader` needs to know
-> the type of database that is mounted in that slot, so the
-> `MetadataFinder` should be running and tracking media details for it
-> to check.
+> :warning: The only way to get menus is by talking to the `dbserver`
+> on the players, so even if you are using the `CrateDigger` as
+> described [above](#getting-track-metadata), you will only be able to
+> do this reliably if you are using a real player number, which means
+> you can have no more than three actual players on the network.
+>
+> Also note that in order to
+> reliably send the correct message to obtain the root menu for a
+> particular slot, the `MenuLoader` needs to know the type of database
+> that is mounted in that slot, so the `MetadataFinder` should be
+> running and tracking media details for it to check.
 
 ## An Example
 
