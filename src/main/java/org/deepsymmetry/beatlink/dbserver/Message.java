@@ -43,6 +43,10 @@ public class Message {
          */
         INVALID_DATA     (0x0001, "invalid data"),
         /**
+         * The special final request that is sent before closing the connection.
+         */
+        TEARDOWN_REQ     (0x0100, "teardown request"),
+        /**
          * Asks for the top-level menu of the player.
          */
         ROOT_MENU_REQ    (0x1000, "root menu request", "r:m:s:t", "sort order", "magic constant?"),

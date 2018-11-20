@@ -21,9 +21,15 @@ This change log follows the conventions of
 
 ### Added
 
+- We now can use
+  [Crate Digger](https://github.com/Deep-Symmetry/crate-digger#crate-digger)
+  to reliably obtain metadata even when there are four players on the
+  network, and we are using player number 5.
 - When going online, the `VirtualCdj` now reports information about
   the chosen network interface to help with troubleshooting problematic
   network environments.
+- When disconnecting from a player’s dbserver, we politely send a
+  teardown message and let it close the connection from its side.
 
 ## [0.4.1] - 2018-10-28
 

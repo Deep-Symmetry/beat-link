@@ -135,6 +135,15 @@ public class Client {
     }
 
     /**
+     * Exchanges the final messages which politely report our intention to disconnect from the dbserver.
+     */
+    private void performTeardownExchange() throws IOException {
+        Message teardownRequest = new Message(0xfffffffeL, Message.KnownType.TEARDOWN_REQ);
+        sendMessage(teardownRequest);
+        // At this point, the server closes the connection from its end, so we can’t read any more.
+    }
+
+    /**
      * Check whether our connection is still available for use. We will close it if there is ever a problem
      * communicating with the dbserver.
      *
@@ -149,6 +158,11 @@ public class Client {
      * Closes the connection to the dbserver. This instance can no longer be used after this action.
      */
     void close() {
+        try {
+            performTeardownExchange();
+        } catch (IOException e) {
+            logger.warn("Problem reporting our intention to close the dbserver connection", e);
+        }
         try {
             channel.close();
         } catch (IOException e) {
