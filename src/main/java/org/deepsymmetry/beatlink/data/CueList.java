@@ -4,7 +4,7 @@ import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
-import org.deepsymmetry.cratedigger.pdb.AnlzFile;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -173,14 +173,14 @@ public class CueList {
      *
      * @param anlzFile the recordbox analysis file corresponding to that track
      */
-    public CueList(AnlzFile anlzFile) {
+    public CueList(RekordboxAnlz anlzFile) {
         rawMessage = null;  // We did not create this from a dbserver response.
         List<Entry> mutableEntries = new ArrayList<Entry>();
-        for (AnlzFile.TaggedSection section : anlzFile.sections()) {
-            if (section.body() instanceof AnlzFile.CueTag) {
-                AnlzFile.CueTag tag = (AnlzFile.CueTag) section.body();
-                for (AnlzFile.CueEntry cueEntry : tag.cues()) {  // TODO: Need to figure out how to identify deleted entries to ignore.
-                    if (cueEntry.type() == AnlzFile.CueEntryType.LOOP) {
+        for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
+            if (section.body() instanceof RekordboxAnlz.CueTag) {
+                RekordboxAnlz.CueTag tag = (RekordboxAnlz.CueTag) section.body();
+                for (RekordboxAnlz.CueEntry cueEntry : tag.cues()) {  // TODO: Need to figure out how to identify deleted entries to ignore.
+                    if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
                         mutableEntries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
                                 Util.timeToHalfFrame(cueEntry.loopTime())));
                     } else {

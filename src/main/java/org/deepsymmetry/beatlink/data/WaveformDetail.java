@@ -3,7 +3,7 @@ package org.deepsymmetry.beatlink.data;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
-import org.deepsymmetry.cratedigger.pdb.AnlzFile;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 
 import javax.swing.*;
 import java.nio.ByteBuffer;
@@ -119,13 +119,13 @@ public class WaveformDetail {
      * @param reference the unique database reference that was used to request this waveform preview
      * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
      */
-    WaveformDetail(DataReference reference, AnlzFile anlzFile) {
+    WaveformDetail(DataReference reference, RekordboxAnlz anlzFile) {
         dataReference = reference;
         rawMessage = null;
         ByteBuffer found = null;
-        for (AnlzFile.TaggedSection section : anlzFile.sections()) {
-            if (section.body() instanceof AnlzFile.WaveScrollTag) {
-                AnlzFile.WaveScrollTag tag = (AnlzFile.WaveScrollTag) section.body();
+        for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
+            if (section.body() instanceof RekordboxAnlz.WaveScrollTag) {
+                RekordboxAnlz.WaveScrollTag tag = (RekordboxAnlz.WaveScrollTag) section.body();
                 found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
                 break;
             }

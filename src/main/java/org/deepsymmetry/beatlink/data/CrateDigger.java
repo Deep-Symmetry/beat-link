@@ -3,8 +3,8 @@ package org.deepsymmetry.beatlink.data;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.cratedigger.Database;
 import org.deepsymmetry.cratedigger.FileFetcher;
-import org.deepsymmetry.cratedigger.pdb.AnlzFile;
-import org.deepsymmetry.cratedigger.pdb.PdbFile;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
+import org.deepsymmetry.cratedigger.pdb.RekordboxPdb;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -239,19 +239,19 @@ public class CrateDigger {
      *
      * @return the file containing the track analysis
      */
-    private AnlzFile findTrackAnalysis(DataReference track, Database database) {
+    private RekordboxAnlz findTrackAnalysis(DataReference track, Database database) {
         File file = null;
         try {
-            PdbFile.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
+            RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
             if (trackRow != null) {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
                         "track-" + track.rekordboxId + "-anlz.dat");
                 if (file.canRead()) {
-                    return AnlzFile.fromFile(file.getAbsolutePath());  // We have already downloaded it.
+                    return RekordboxAnlz.fromFile(file.getAbsolutePath());  // We have already downloaded it.
                 }
                 file.deleteOnExit();  // Prepare to download it.
                 fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
-                return AnlzFile.fromFile((file.getAbsolutePath()));
+                return RekordboxAnlz.fromFile((file.getAbsolutePath()));
             } else {
                 logger.warn("Unable to find track " + track + " in database " + database);
             }
@@ -273,22 +273,22 @@ public class CrateDigger {
      *
      * @return the file containing the track analysis
      */
-    private AnlzFile findExtendedAnalysis(DataReference track, Database database) {
+    private RekordboxAnlz findExtendedAnalysis(DataReference track, Database database) {
         File file = null;
         try {
-            PdbFile.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
+            RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
             if (trackRow != null) {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
                         "track-" + track.rekordboxId + "-anlz.ext");
                 if (file.canRead()) {
-                    return AnlzFile.fromFile(file.getAbsolutePath());  // We have already downloaded it.
+                    return RekordboxAnlz.fromFile(file.getAbsolutePath());  // We have already downloaded it.
                 }
                 file.deleteOnExit();  // Prepare to download it.
                 final String analyzePath = Database.getText(trackRow.analyzePath());
                 final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
 
                 fetchFile(track.getSlotReference(), extendedPath, file);
-                return AnlzFile.fromFile((file.getAbsolutePath()));
+                return RekordboxAnlz.fromFile((file.getAbsolutePath()));
             } else {
                 logger.warn("Unable to find track " + track + " in database " + database);
             }
@@ -330,7 +330,7 @@ public class CrateDigger {
             Database database = findDatabase(art);
             if (database != null) {
                 try {
-                    PdbFile.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
+                    RekordboxPdb.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
                     if (artworkRow != null) {
                         file = new File(downloadDirectory, slotPrefix(art.getSlotReference()) +
                                 "art-" + art.rekordboxId + ".jpg");
@@ -359,7 +359,7 @@ public class CrateDigger {
             Database database = findDatabase(track);
             if (database != null) {
                 try {
-                    AnlzFile file = findTrackAnalysis(track, database);
+                    RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
                         return new BeatGrid(track, file);
                     }
@@ -375,7 +375,7 @@ public class CrateDigger {
             Database database = findDatabase(track);
             if (database != null) {
                 try {
-                    AnlzFile file = findTrackAnalysis(track, database);
+                    RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
                         return new CueList(file);
                     }
@@ -391,7 +391,7 @@ public class CrateDigger {
             Database database = findDatabase(track);
             if (database != null) {
                 try {
-                    AnlzFile file = findTrackAnalysis(track, database);
+                    RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
                         return new WaveformPreview(track, file);
                     }
@@ -407,7 +407,7 @@ public class CrateDigger {
             Database database = findDatabase(track);
             if (database != null) {
                 try {
-                    AnlzFile file = findExtendedAnalysis(track, database);
+                    RekordboxAnlz file = findExtendedAnalysis(track, database);
                     if (file != null) {
                         return new WaveformDetail(track, file);
                     }

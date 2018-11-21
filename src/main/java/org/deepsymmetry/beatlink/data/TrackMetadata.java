@@ -5,7 +5,7 @@ import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.deepsymmetry.beatlink.dbserver.StringField;
 import org.deepsymmetry.cratedigger.Database;
-import org.deepsymmetry.cratedigger.pdb.PdbFile;
+import org.deepsymmetry.cratedigger.pdb.RekordboxPdb;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +40,7 @@ public class TrackMetadata {
      * The raw dbserver messages containing the metadata when it was read over the network.
      * Can be used to analyze fields that have not yet been reliably understood,
      * and is also used for storing the metadata in a cache file. Will be {@code null} if
-     * the metadata was constructed from a {@link org.deepsymmetry.cratedigger.pdb.PdbFile.TrackRow}.
+     * the metadata was constructed from a {@link org.deepsymmetry.cratedigger.pdb.RekordboxPdb.TrackRow}.
      *
      * @see #rawRow
      */
@@ -54,7 +54,7 @@ public class TrackMetadata {
      * @see #rawItems
      */
     @SuppressWarnings("WeakerAccess")
-    public final PdbFile.TrackRow rawRow;
+    public final RekordboxPdb.TrackRow rawRow;
 
     /**
      * The album on which the track was released.
@@ -241,7 +241,7 @@ public class TrackMetadata {
         artworkId = (int)rawRow.artworkId();
 
         // Look up the track artist, if there is one.
-        PdbFile.ArtistRow artistRow = database.artistIndex.get(rawRow.artistId());
+        RekordboxPdb.ArtistRow artistRow = database.artistIndex.get(rawRow.artistId());
         if (artistRow != null) {
             artist = new SearchableItem((int) artistRow.id(), Database.getText(artistRow.name()));
         }
@@ -259,13 +259,13 @@ public class TrackMetadata {
         }
 
         // Look up the album, if there is one.
-        PdbFile.AlbumRow albumRow = database.albumIndex.get(rawRow.albumId());
+        RekordboxPdb.AlbumRow albumRow = database.albumIndex.get(rawRow.albumId());
         if (albumRow !=  null) {
             album = new SearchableItem((int) albumRow.id(), Database.getText(albumRow.name()));
         }
 
         // Look up the label, if there is one.
-        PdbFile.LabelRow labelRow = database.labelIndex.get(rawRow.labelId());
+        RekordboxPdb.LabelRow labelRow = database.labelIndex.get(rawRow.labelId());
         if (labelRow != null) {
             label = new SearchableItem((int) labelRow.id(), Database.getText(labelRow.name()));
         }
@@ -275,7 +275,7 @@ public class TrackMetadata {
         comment = Database.getText(rawRow.comment());
 
         // Look up the musical key, if there is one.
-        PdbFile.KeyRow keyRow = database.musicalKeyIndex.get(rawRow.keyId());
+        RekordboxPdb.KeyRow keyRow = database.musicalKeyIndex.get(rawRow.keyId());
         if (keyRow != null) {
             key = new SearchableItem((int) keyRow.id(), Database.getText(keyRow.name()));
         }
@@ -283,7 +283,7 @@ public class TrackMetadata {
         rating = rawRow.rating();
 
         // Associate the track color, if there is one.
-        PdbFile.ColorRow colorRow = database.colorIndex.get((long)rawRow.colorId());
+        RekordboxPdb.ColorRow colorRow = database.colorIndex.get((long)rawRow.colorId());
         if (colorRow != null) {
             color = buildColorItem(rawRow.colorId(), Database.getText(colorRow.name()));
         } else {
@@ -291,7 +291,7 @@ public class TrackMetadata {
         }
 
         // Look up the genre, if there is one.
-        PdbFile.GenreRow genreRow = database.genreIndex.get(rawRow.genreId());
+        RekordboxPdb.GenreRow genreRow = database.genreIndex.get(rawRow.genreId());
         if (genreRow != null) {
             genre = new SearchableItem((int) genreRow.id(), Database.getText((genreRow.name())));
         }

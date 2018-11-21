@@ -3,7 +3,7 @@ package org.deepsymmetry.beatlink.data;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
-import org.deepsymmetry.cratedigger.pdb.AnlzFile;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -34,6 +34,7 @@ public class BeatGrid {
      *
      * @return the bytes that make up the beat grid
      */
+    @SuppressWarnings("WeakerAccess")
     public ByteBuffer getRawData() {
         if (rawData != null) {
             rawData.rewind();
@@ -97,10 +98,10 @@ public class BeatGrid {
      *
      * @return the section containing the beat grid
      */
-    private AnlzFile.BeatGridTag findTag(AnlzFile anlzFile) {
-        for (AnlzFile.TaggedSection section : anlzFile.sections()) {
-            if (section.body() instanceof AnlzFile.BeatGridTag) {
-                return (AnlzFile.BeatGridTag) section.body();
+    private RekordboxAnlz.BeatGridTag findTag(RekordboxAnlz anlzFile) {
+        for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
+            if (section.body() instanceof RekordboxAnlz.BeatGridTag) {
+                return (RekordboxAnlz.BeatGridTag) section.body();
             }
         }
         throw new IllegalArgumentException("No beat grid found inside analysis file " + anlzFile);
@@ -112,15 +113,15 @@ public class BeatGrid {
      * @param reference the unique database reference that was used to request this waveform detail
      * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
      */
-    public BeatGrid(DataReference reference, AnlzFile anlzFile) {
+    public BeatGrid(DataReference reference, RekordboxAnlz anlzFile) {
         dataReference = reference;
         rawData = null;
-        AnlzFile.BeatGridTag tag = findTag(anlzFile);
+        RekordboxAnlz.BeatGridTag tag = findTag(anlzFile);
         beatCount = (int)tag.lenBeats();
         beatWithinBarValues = new int[beatCount];
         timeWithinTrackValues = new long[beatCount];
         for (int beatNumber = 0; beatNumber < beatCount; beatNumber++) {
-            AnlzFile.BeatGridBeat beat = tag.beats().get(beatNumber);
+            RekordboxAnlz.BeatGridBeat beat = tag.beats().get(beatNumber);
             beatWithinBarValues[beatNumber] = beat.beatNumber();
             timeWithinTrackValues[beatNumber] = beat.time();
         }
@@ -184,6 +185,7 @@ public class BeatGrid {
      *
      * @return the beat number represented by that time, or -1 if the time is before the first beat
      */
+    @SuppressWarnings("WeakerAccess")
     public int findBeatAtTime(long milliseconds) {
         int found = Arrays.binarySearch(timeWithinTrackValues, milliseconds);
         if (found >= 0) {  // An exact match, just change 0-based array index to 1-based beat number
