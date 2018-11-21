@@ -10,10 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -95,6 +92,7 @@ public class CrateDigger {
                 FileFetcher.getInstance().removePlayer(player.getAddress());
                 final Database database = databases.remove(slot);
                 if (database != null) {
+                    deliverDatabaseUpdate(slot, database, false);
                     //noinspection ResultOfMethodCallIgnored
                     database.sourceFile.delete();
                 }
@@ -202,7 +200,9 @@ public class CrateDigger {
                         try {
                             file = new File(downloadDirectory, slotPrefix(details.slotReference) + "export.pdb");
                             fetchFile(details.slotReference, "PIONEER/rekordbox/export.pdb", file);
-                            databases.put(details.slotReference, new Database(file));
+                            Database database = new Database(file);
+                            databases.put(details.slotReference, database);
+                            deliverDatabaseUpdate(details.slotReference, database, true);
                         } catch (Throwable t) {
                             logger.error("Problem fetching rekordbox database for media " + details +
                                     ", will not offer metadata for it.", t);
@@ -498,6 +498,76 @@ public class CrateDigger {
         }
         throw new IllegalStateException("Failed to create download directory within " + TEMP_DIR_ATTEMPTS + " attempts.");
     }
+
+    /**
+     * Keeps track of the registered database listeners.
+     */
+    private final Set<DatabaseListener> dbListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<DatabaseListener, Boolean>());
+
+    /**
+     * Adds the specified database listener to receive updates when a rekordbox database has been obtained for a
+     * media slot, or when the underlying media for a database has been unmounted so it is no longer relevant.
+     * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
+     * thrown and no action is performed.
+     *
+     * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     *
+     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the cache update listener to add
+     */
+    public void addDatabaseListener(DatabaseListener listener) {
+        if (listener != null) {
+            dbListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified database listener so that it no longer receives updates when there
+     * are changes to the available set of rekordbox databases. If {@code listener} is {@code null} or not present
+     * in the set of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the cache update listener to remove
+     */
+    public void removeDatabaseListener(DatabaseListener listener) {
+        if (listener != null) {
+            dbListeners.remove(listener);
+        }
+    }
+
+    @SuppressWarnings("WeakerAccess")
+    public Set<DatabaseListener> getDatabaseListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Collections.unmodifiableSet(new HashSet<DatabaseListener>(dbListeners));
+    }
+
+    /**
+     * Send a database announcement to all registered listeners.
+     *
+     * @param slot the media slot whose database availability has changed
+     * @param database the database whose relevance has changed
+     * @param available if {@code} true, the database is newly available, otherwise it is no longer relevant
+     */
+    private void deliverDatabaseUpdate(SlotReference slot, Database database, boolean available) {
+        for (final DatabaseListener listener : getDatabaseListeners()) {
+            try {
+                if (available) {
+                    listener.databaseMounted(slot, database);
+                } else {
+                    listener.databaseUnmounted(slot, database);
+                }
+            } catch (Throwable t) {
+                logger.warn("Problem delivering rekordbox database availability update to listener", t);
+            }
+        }
+    }
+
 
     /**
      * Prevent direct instantiation, create a temporary directory for our file downloads,
