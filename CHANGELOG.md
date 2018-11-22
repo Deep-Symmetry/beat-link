@@ -31,6 +31,14 @@ This change log follows the conventions of
 - When disconnecting from a player’s dbserver, we politely send a
   teardown message and let it close the connection from its side.
 
+### Fixed
+
+- The code that was supposed to notice computers running rekordbox
+  and track their media collections as being available on the network
+  had always been broken, but was easy enough to fix. Now Beat Link
+  Trigger can load tracks from rekordbox and rekordbox mobile onto
+  players.
+
 ## [0.4.1] - 2018-10-28
 
 ### Added
