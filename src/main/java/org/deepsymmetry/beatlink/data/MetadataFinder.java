@@ -336,12 +336,14 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * Our announcement listener watches for devices to disappear from the network so we can discard all information
-     * about them.
+     * about them. It also records the arrival and departure of rekordbox collections as rekordbox comes and goes.
      */
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
-            if ((announcement.getNumber() > 0x10) && (announcement.getNumber() < 0x20)) {  // Looks like rekordbox.
+            logger.info("Processing device found, number:" + announcement.getNumber() + ", name:\"" + announcement.getName() + "\".");
+            if ((announcement.getNumber() > 40) && (announcement.getName().startsWith("rekordbox"))) {  // Looks like rekordbox.
+                logger.info("Recording rekordbox collection mount.");
                 recordMount(SlotReference.getSlotReference(announcement.getNumber(),
                         CdjStatus.TrackSourceSlot.COLLECTION));  // Report the rekordbox collection as mounted media.
             }
@@ -356,7 +358,7 @@ public class MetadataFinder extends LifecycleParticipant {
                 removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
                 detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
                 detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
-            } else if (announcement.getNumber() < 0x20) {  // Looks like rekordbox, clear "mounted" database.
+            } else if (announcement.getNumber() > 40 && announcement.getName().startsWith("rekordbox")) {  // Looks like rekordbox, clear "mounted" database.
                 removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.COLLECTION));
             }
         }

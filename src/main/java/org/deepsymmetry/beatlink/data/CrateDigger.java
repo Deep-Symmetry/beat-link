@@ -191,6 +191,7 @@ public class CrateDigger {
         @Override
         public void detailsAvailable(final MediaDetails details) {
             if (isRunning() && details.mediaType == CdjStatus.TrackType.REKORDBOX &&
+                    details.slotReference.slot != CdjStatus.TrackSourceSlot.COLLECTION &&  // We always use dbserver to talk to rekordbox
                     !databases.containsKey(details.slotReference) &&
                     activeRequests.add(details.slotReference)) {
                 new Thread(new Runnable() {
