@@ -104,8 +104,9 @@ public class MetadataFinder extends LifecycleParticipant {
             }
         }
 
-        // At this point, unless we are allowed to actively request the data, we are done.
-        if (passive.get() && failIfPassive) {
+        // At this point, unless we are allowed to actively request the data, we are done. We can always actively
+        // request tracks from rekordbox.
+        if (passive.get() && failIfPassive && track.slot != CdjStatus.TrackSourceSlot.COLLECTION) {
             return null;
         }
 

@@ -296,8 +296,9 @@ public class ArtFinder extends LifecycleParticipant {
             }
         }
 
-        // At this point, unless we are allowed to actively request the data, we are done.
-        if (MetadataFinder.getInstance().isPassive() && failIfPassive) {
+        // At this point, unless we are allowed to actively request the data, we are done. We can always actively
+        // request tracks from rekordbox.
+        if (MetadataFinder.getInstance().isPassive() && failIfPassive && artReference.slot != CdjStatus.TrackSourceSlot.COLLECTION) {
             return null;
         }
 
