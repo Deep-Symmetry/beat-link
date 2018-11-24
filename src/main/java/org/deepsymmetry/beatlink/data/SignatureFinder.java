@@ -324,7 +324,7 @@ public class SignatureFinder extends LifecycleParticipant {
             }
 
             return hex.toString();
-            
+
         } catch (NoSuchAlgorithmException e) {
             logger.error("Unable to obtain SHA-1 MessageDigest instance for computing track signatures.", e);
         } catch (UnsupportedEncodingException e) {
@@ -422,5 +422,31 @@ public class SignatureFinder extends LifecycleParticipant {
             });
         }
         deliverLifecycleAnnouncement(logger, false);
+    }
+
+    /**
+     * Holds the singleton instance of this class.
+     */
+    private static final SignatureFinder ourInstance = new SignatureFinder();
+
+    /**
+     * Get the singleton instance of this class.
+     *
+     * @return the only instance of this class which exists.
+     */
+    public static SignatureFinder getInstance() {
+        return ourInstance;
+    }
+
+    /**
+     * Prevent instantiation.
+     */
+    private SignatureFinder() {
+        // Nothing to do.
+    }
+
+    @Override
+    public String toString() {
+        return "SignatureFinder[running:" + isRunning() + ", signatures:" + signatures + "]";
     }
 }
