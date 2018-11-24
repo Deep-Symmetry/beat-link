@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * deck, or as a hot cue, since those tracks could start playing instantly.</p>
  *
  * <p>Implicitly honors the active/passive setting of the {@link MetadataFinder}
- * (see {@link MetadataFinder#setPassive(boolean)}), because art is loaded in response to metadata updates.</p>
+ * (see {@link MetadataFinder#setPassive(boolean)}), because waveforms are loaded in response to metadata updates.</p>
  *
  * @author James Elliott
  */
@@ -40,7 +40,7 @@ public class WaveformFinder extends LifecycleParticipant {
             new ConcurrentHashMap<DeckReference, WaveformPreview>();
 
     /**
-     * Keeps track of the current waveform preview cached for each player. We hot cache art for any track which is
+     * Keeps track of the current waveform details cached for each player. We hot cache art for any track which is
      * currently on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
     private final Map<DeckReference, WaveformDetail> detailHotCache =
@@ -49,7 +49,7 @@ public class WaveformFinder extends LifecycleParticipant {
     /**
      * Should we ask for details as well as the previews?
      */
-    final private AtomicBoolean findDetails = new AtomicBoolean(false);
+    final private AtomicBoolean findDetails = new AtomicBoolean(true);
 
     /**
      * Set whether we should retrieve the waveform details in addition to the waveform previews.
@@ -567,16 +567,14 @@ public class WaveformFinder extends LifecycleParticipant {
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
      * thrown and no action is performed.</p>
      *
-     * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
-     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
-     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * <p>Updates are delivered to listeners on the Swing Event Dispatch thread, so it is safe to interact with
+     * user interface elements within the event handler.
      *
-     * Even if you are not interacting with user interface objects, any code in the listener method
-     * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
-     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     * Even so, any code in the listener method <em>must</em> finish quickly, or it will freeze the user interface,
+     * add latency for other listeners, and updates will back up. If you want to perform lengthy processing of any sort,
+     * do so on another thread.</p>
      *
-     * @param listener the album art update listener to add
+     * @param listener the waveform update listener to add
      */
     public void addWaveformListener(WaveformListener listener) {
         if (listener != null) {
@@ -589,7 +587,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * waveform information for a player changes. If {@code listener} is {@code null} or not present
      * in the set of registered listeners, no exception is thrown and no action is performed.
      *
-     * @param listener the waveform listener to remove
+     * @param listener the waveform update listener to remove
      */
     public void removeWaveformListener(WaveformListener listener) {
         if (listener != null) {
@@ -615,12 +613,13 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param preview the new waveform preview, if any
      */
     private void deliverWaveformPreviewUpdate(final int player, final WaveformPreview preview) {
-        if (!getWaveformListeners().isEmpty()) {
+        final Set<WaveformListener> listeners = getWaveformListeners();
+        if (!listeners.isEmpty()) {
             SwingUtilities.invokeLater(new Runnable() {
                 @Override
                 public void run() {
                     final WaveformPreviewUpdate update = new WaveformPreviewUpdate(player, preview);
-                    for (final WaveformListener listener : getWaveformListeners()) {
+                    for (final WaveformListener listener : listeners) {
                         try {
                             listener.previewChanged(update);
 
