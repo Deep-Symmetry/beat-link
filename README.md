@@ -410,6 +410,29 @@ to determine what menus are actually available.
 > that is mounted in that slot, so the `MetadataFinder` should be
 > running and tracking media details for it to check.
 
+## Recognizing Tracks
+
+If you want to know when a particular track has been loaded on a player,
+indpendent of the specific rekordbox export media it was loaded from,
+you can start the
+[`SignatureFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html),
+and it will do most of the work for you, with the help of the
+`MetadataFinder`, `WafevormFinder`, and `BeatGridFinder`. Whenever a
+rekordbox track is loaded and metadata for it has been obtained, it will
+compute an SHA-1 hash of the track title, artist, duration, detailed
+waveform and beat grid. The results boil down to a 40-character string
+of hexadecimal digits which can be used to uniquely identify and
+recognize that track (for example, using it as a key in a hash map to
+find cues that should run when that track is playing).
+
+You can access the signatures of all loaded rekordbox tracks by calling
+[`getSignatures()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html#getSignatures--),
+or look up the signature for a track on a specific player with
+[`getLatestSignatureFor()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html#getLatestSignatureFor-int-).
+If you want to know immediately when signatures are available for loaded
+tracks, you can register a [`SignatureListener`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureListener.html)
+using [`addSignatureListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html#addSignatureListener-org.deepsymmetry.beatlink.data.SignatureListener-).
+
 ## An Example
 
 Here is the source for `Example.java`, a small class that demonstrates
