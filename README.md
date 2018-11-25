@@ -413,11 +413,11 @@ to determine what menus are actually available.
 ## Recognizing Tracks
 
 If you want to know when a particular track has been loaded on a player,
-indpendent of the specific rekordbox export media it was loaded from,
+independent of the specific rekordbox export media it was loaded from,
 you can start the
 [`SignatureFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html),
 and it will do most of the work for you, with the help of the
-`MetadataFinder`, `WafevormFinder`, and `BeatGridFinder`. Whenever a
+`MetadataFinder`, `WaveformFinder`, and `BeatGridFinder`. Whenever a
 rekordbox track is loaded and metadata for it has been obtained, it will
 compute an SHA-1 hash of the track title, artist, duration, detailed
 waveform and beat grid. The results boil down to a 40-character string

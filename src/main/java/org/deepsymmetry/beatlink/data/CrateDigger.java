@@ -228,8 +228,21 @@ public class CrateDigger {
      *
      * @return the appropriate rekordbox extract to start from in finding that data, if we have one
      */
-    private Database findDatabase(DataReference reference) {
+    @SuppressWarnings("WeakerAccess")
+    public Database findDatabase(DataReference reference) {
         return databases.get(reference.getSlotReference());
+    }
+
+    /**
+     * Find the database we have downloaded and parsed that can provide information about the supplied slot
+     * reference, if any.
+     *
+     * @param slot identifies the slot from which data is desired
+     *
+     * @return the appropriate rekordbox extract to start from in finding that data, if we have one
+     */
+    public Database findDatabase(SlotReference slot) {
+        return databases.get(slot);
     }
 
     /**
