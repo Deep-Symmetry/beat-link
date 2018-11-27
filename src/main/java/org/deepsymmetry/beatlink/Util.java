@@ -374,6 +374,60 @@ public class Util {
     }
 
     /**
+     * Used to allow locking operations against named resources, such as files being fetched by
+     * {@link org.deepsymmetry.beatlink.data.CrateDigger}, to protect against race conditions where
+     * one thread creates the file and another thinks it has already been downloaded and tries to
+     * parse the partial file.
+     */
+    private static final Map<String, Object> namedLocks = new HashMap<String, Object>();
+
+    /**
+     * Counts the threads that are currently using a named lock, so we can know when it can be
+     * removed from the maps.
+     */
+    private static final Map<String, Integer> namedLockUseCounts = new HashMap<String, Integer>();
+
+    /**
+     * Obtain an object that can be synchronized against to provide exclusive access to a named resource,
+     * given its unique name. Used with file canonical path names by {@link org.deepsymmetry.beatlink.data.CrateDigger}
+     * to protect against race conditions where one thread creates the file and another thinks it has already been
+     * downloaded and tries to parse the partial file.
+     *
+     * Once the exclusive lock is no longer needed, {@link #freeNamedLock(String)} should be called with the same
+     * name so the lock can be garbage collected if no other threads are now using it.
+     *
+     * @param name uniquely identifies some resource to which exclusive access is needed
+     * @return an object that can be used with a {@code synchronized} block to guarantee exclusive access to the resource
+     */
+    public synchronized static Object allocateNamedLock(String name) {
+        Object result = namedLocks.get(name);
+        if (result != null) {
+            namedLockUseCounts.put(name, namedLockUseCounts.get(name) + 1);
+            return result;
+        }
+        namedLockUseCounts.put(name, 1);
+        result = new Object();
+        namedLocks.put(name, result);
+        return result;
+    }
+
+    /**
+     * Indicate that an object obtained from {@link #allocateNamedLock(String)} is no longer needed by the caller, so
+     * it is eligible for garbage collection if no other threads have it allocated.
+     *
+     * @param name uniquely identifies some resource to which exclusive access was previously needed
+     */
+    public synchronized static void freeNamedLock(String name) {
+        int count = namedLockUseCounts.get(name);
+        if (count > 1) {
+            namedLockUseCounts.put(name, count - 1);
+        } else {
+            namedLocks.remove(name);
+            namedLockUseCounts.remove(name);
+        }
+    }
+
+    /**
      * Prevent instantiation.
      */
     private Util() {

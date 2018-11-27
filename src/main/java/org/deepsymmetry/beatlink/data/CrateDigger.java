@@ -260,13 +260,18 @@ public class CrateDigger {
             if (trackRow != null) {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
                         "track-" + track.rekordboxId + "-anlz.dat");
-                synchronized (file.getCanonicalPath().intern()) {
-                    if (file.canRead()) {
-                        return RekordboxAnlz.fromFile(file.getAbsolutePath());  // We have already downloaded it.
+                final String filePath = file.getCanonicalPath();
+                try {
+                    synchronized (Util.allocateNamedLock(filePath)) {
+                        if (file.canRead()) {
+                            return RekordboxAnlz.fromFile(filePath);  // We have already downloaded it.
+                        }
+                        file.deleteOnExit();  // Prepare to download it.
+                        fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
+                        return RekordboxAnlz.fromFile(filePath);
                     }
-                    file.deleteOnExit();  // Prepare to download it.
-                    fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
-                    return RekordboxAnlz.fromFile((file.getAbsolutePath()));
+                } finally {
+                    Util.freeNamedLock(filePath);
                 }
             } else {
                 logger.warn("Unable to find track " + track + " in database " + database);
@@ -296,16 +301,21 @@ public class CrateDigger {
             if (trackRow != null) {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
                         "track-" + track.rekordboxId + "-anlz.ext");
-                synchronized (file.getCanonicalPath().intern()) {
-                    if (file.canRead()) {
-                        return RekordboxAnlz.fromFile(file.getAbsolutePath());  // We have already downloaded it.
-                    }
-                    file.deleteOnExit();  // Prepare to download it.
-                    final String analyzePath = Database.getText(trackRow.analyzePath());
-                    final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
+                final String filePath = file.getCanonicalPath();
+                try {
+                    synchronized (Util.allocateNamedLock(filePath)) {
+                        if (file.canRead()) {
+                            return RekordboxAnlz.fromFile(filePath);  // We have already downloaded it.
+                        }
+                        file.deleteOnExit();  // Prepare to download it.
+                        final String analyzePath = Database.getText(trackRow.analyzePath());
+                        final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
 
-                    fetchFile(track.getSlotReference(), extendedPath, file);
-                    return RekordboxAnlz.fromFile((file.getAbsolutePath()));
+                        fetchFile(track.getSlotReference(), extendedPath, file);
+                        return RekordboxAnlz.fromFile(filePath);
+                    }
+                } finally {
+                    Util.freeNamedLock(filePath);
                 }
             } else {
                 logger.warn("Unable to find track " + track + " in database " + database);
