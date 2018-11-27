@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
-import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -59,21 +58,7 @@ public class WaveformDetailComponent extends JComponent {
      */
     private static final Color LOOP_BACKGROUND = new Color(204, 121, 29);
 
-    /**
-     * The different colors the waveform can be based on its intensity.
-     */
-    private static final Color[] COLOR_MAP = {
-            new Color(0, 0, 175),
-            new Color(0, 52, 208),
-            new Color(0, 119, 233),
-            new Color(46, 205, 255),
-            new Color(76, 210, 255),
-            new Color(124, 218, 255),
-            new Color(185, 222, 255),
-            new Color(205, 233, 255)
-    };
-
-    /**
+   /**
      * If not zero, automatically update the waveform, position, and metadata in response to the activity of the
      * specified player number.
      */
@@ -363,53 +348,6 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
-     * Determine the total number of valid segments in a waveform.
-     *
-     * @param waveBytes the bytes encoding the waveform heights and colors
-     */
-    private int totalSegments(ByteBuffer waveBytes) {
-        return waveBytes.remaining() - waveform.get().leadingJunkBytes;
-    }
-
-    /**
-     * Determine the height of the waveform given an index into it. If we are not at full scale, we determine an
-     * average starting with that segment.
-     *
-     * @param segment the index of the first waveform byte to examine
-     * @param waveBytes the bytes encoding the waveform heights and colors
-     *
-     * @return a value from 0 to 31 representing the height of the waveform at that segment, which may be an average
-     *         of a number of values starting there, determined by the scale
-     */
-    private int segmentHeight(int segment, ByteBuffer waveBytes) {
-        final int scale = this.scale.get();
-        int sum = 0;
-        for (int i = segment; (i < segment + scale) && (i < totalSegments(waveBytes)); i++) {
-            sum += waveBytes.get(i + waveform.get().leadingJunkBytes) & 0x1f;
-        }
-        return sum / scale;
-    }
-
-    /**
-     * Determine the color of the waveform given an index into it. If we are not at full scale, we determine an
-     * average starting with that segment. Skips over the junk bytes at the start of the waveform.
-     *
-     * @param segment the index of the first waveform byte to examine
-     * @param waveBytes the bytes encoding the waveform heights and colors
-     *
-     * @return the color of the waveform at that segment, which may be based on an average
-     *         of a number of values starting there, determined by the scale
-     */
-    private Color segmentColor(int segment, ByteBuffer waveBytes) {
-        final int scale = this.scale.get();
-        int sum = 0;
-        for (int i = segment; (i < segment + scale) && (i < totalSegments(waveBytes)); i++) {
-            sum += (waveBytes.get(i + waveform.get().leadingJunkBytes) & 0xe0) >> 5;
-        }
-        return COLOR_MAP[sum / scale];
-    }
-
-    /**
      * The largest scale at which we will draw individual beat markers; above this we show only bars.
      */
     private static final int MAX_BEAT_SCALE = 9;
@@ -458,17 +396,16 @@ public class WaveformDetailComponent extends JComponent {
             }
         }
 
-        final ByteBuffer waveBytes = (waveform.get() == null) ? null : waveform.get().getData();
         int lastBeat = 0;
         if (beatGrid.get() != null) {  // Find what beat was represented by the column just before the first we draw.
             lastBeat = beatGrid.get().findBeatAtTime(Util.halfFrameToTime(getSegmentForX(clipRect.x - 1)));
         }
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = getSegmentForX(x);
-            if (waveBytes != null) { // Drawing the waveform itself
-                if ((segment >= 0) && (segment < totalSegments(waveBytes))) {
-                    g.setColor(segmentColor(segment, waveBytes));
-                    final int height = (segmentHeight(segment, waveBytes) * maxHeight) / 31;
+            if (waveform.get() != null) { // Drawing the waveform itself
+                if ((segment >= 0) && (segment < waveform.get().getFrameCount())) {
+                    g.setColor(waveform.get().segmentColor(segment, scale.get()));
+                    final int height = (waveform.get().segmentHeight(segment, scale.get()) * maxHeight) / 31;
                     g.drawLine(x, axis - height, x, axis + height);
                 }
             }

@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
-import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -84,18 +83,6 @@ public class WaveformPreviewComponent extends JComponent {
      * The X coordinate of the waveform, to give enough space for a cue marker at the start of the track.
      */
     private static final int WAVEFORM_MARGIN = 4;
-
-    /**
-     * The color at which segments of the waveform marked most intense are drawn.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static final Color INTENSE_COLOR = new Color(116, 246, 244);
-
-    /**
-     * The color at which non-intense waveform segments are drawn.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static final Color NORMAL_COLOR = new Color(43, 89, 255);
 
     /**
      * The color for brighter sections of the already-played section of the playback progress bar.
@@ -387,21 +374,71 @@ public class WaveformPreviewComponent extends JComponent {
         return WAVEFORM_MARGIN + Math.max(0, Math.min(400, (int) result));
     }
 
+    /**
+     * Helper method to average the three underlying height values when we are rendering a color preview, since we
+     * always only draw 400 columns worth of preview for historical reasons.
+     *
+     * @param segment the virtual segment we want, always ranging from 0 to 399
+     * @param front whether this is a brighter front segment, or dimmer back segment (for color previews)
+     *
+     * @return the height (or average height) of the underlying preview segment(s)
+     */
+    private int effectiveSegmentHeight(final int segment, final boolean front) {
+        if (preview.get().isColor) {
+            final int base = segment * 3;
+            int sum = 0;
+            for (int i = 0; i < 3; i++) {
+                sum += preview.get().segmentHeight(base + i, front);
+            }
+            return sum / 3;
+        }
+        return preview.get().segmentHeight(segment, front);
+    }
+
+    /**
+     * Helper method to blend the three underlying color values when we are rendering a color preview, since we
+     * always only draw 400 columns worth of preview for historical reasons.
+     *
+     * @param segment the virtual segment we want, always ranging from 0 to 399
+     * @param front whether this is a brighter front segment, or dimmer back segment (for color previews)
+     *
+     * @return the color (or blended colors) of the underlying preview segment(s)
+     */
+    private Color effectiveSegmentColor(final int segment, final boolean front) {
+        if (preview.get().isColor) {
+            final int base = segment * 3;
+            int red = 0;
+            int green = 0;
+            int blue = 0;
+            for (int i = 0; i < 3; i++) {
+                Color color = preview.get().segmentColor(base + i, front);
+                red += color.getRed();
+                green += color.getGreen();
+                blue += color.getBlue();
+            }
+            return new Color(red / 3, green / 3, blue / 3);
+        }
+        return preview.get().segmentColor(segment, front);
+    }
+
     @Override
     protected synchronized void paintComponent(Graphics g) {
         Rectangle clipRect = g.getClipBounds();  // We only need to draw the part that is visible or dirty
         g.setColor(Color.BLACK);  // Black out the background
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
-        final ByteBuffer waveBytes = (preview.get() == null)? null : preview.get().getData();
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = x - WAVEFORM_MARGIN;
             if ((segment >= 0) && (segment < 400)) {
-                if (waveBytes != null) {  // Draw the waveform
-                    final int height = waveBytes.get(segment * 2) & 0x1f;
-                    final int intensity = waveBytes.get(segment * 2 + 1) & 0x07;
-                    g.setColor((intensity >= 5) ? INTENSE_COLOR : NORMAL_COLOR);
+                if (preview.get() != null) {  // Draw the preview
+                    final int height = effectiveSegmentHeight(segment, false) * WAVEFORM_HEIGHT / preview.get().maxHeight;
+                    g.setColor(effectiveSegmentColor(segment, false));
                     g.drawLine(x, WAVEFORM_TOP + WAVEFORM_HEIGHT, x, WAVEFORM_TOP + WAVEFORM_HEIGHT - height);
+                    if (preview.get().isColor) {  // We have a front color segment to draw on top.
+                        final int frontHeight = effectiveSegmentHeight(segment, true) * WAVEFORM_HEIGHT / preview.get().maxHeight;
+                        g.setColor(effectiveSegmentColor(segment, true));
+                        g.drawLine(x, WAVEFORM_TOP + WAVEFORM_HEIGHT, x, WAVEFORM_TOP + WAVEFORM_HEIGHT - frontHeight);
+                    }
                 }
 
                 if (metadata.get() != null) { // Draw the playback progress bar

@@ -260,12 +260,14 @@ public class CrateDigger {
             if (trackRow != null) {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
                         "track-" + track.rekordboxId + "-anlz.dat");
-                if (file.canRead()) {
-                    return RekordboxAnlz.fromFile(file.getAbsolutePath());  // We have already downloaded it.
+                synchronized (file.getCanonicalPath().intern()) {
+                    if (file.canRead()) {
+                        return RekordboxAnlz.fromFile(file.getAbsolutePath());  // We have already downloaded it.
+                    }
+                    file.deleteOnExit();  // Prepare to download it.
+                    fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
+                    return RekordboxAnlz.fromFile((file.getAbsolutePath()));
                 }
-                file.deleteOnExit();  // Prepare to download it.
-                fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
-                return RekordboxAnlz.fromFile((file.getAbsolutePath()));
             } else {
                 logger.warn("Unable to find track " + track + " in database " + database);
             }
@@ -294,15 +296,17 @@ public class CrateDigger {
             if (trackRow != null) {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
                         "track-" + track.rekordboxId + "-anlz.ext");
-                if (file.canRead()) {
-                    return RekordboxAnlz.fromFile(file.getAbsolutePath());  // We have already downloaded it.
-                }
-                file.deleteOnExit();  // Prepare to download it.
-                final String analyzePath = Database.getText(trackRow.analyzePath());
-                final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
+                synchronized (file.getCanonicalPath().intern()) {
+                    if (file.canRead()) {
+                        return RekordboxAnlz.fromFile(file.getAbsolutePath());  // We have already downloaded it.
+                    }
+                    file.deleteOnExit();  // Prepare to download it.
+                    final String analyzePath = Database.getText(trackRow.analyzePath());
+                    final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
 
-                fetchFile(track.getSlotReference(), extendedPath, file);
-                return RekordboxAnlz.fromFile((file.getAbsolutePath()));
+                    fetchFile(track.getSlotReference(), extendedPath, file);
+                    return RekordboxAnlz.fromFile((file.getAbsolutePath()));
+                }
             } else {
                 logger.warn("Unable to find track " + track + " in database " + database);
             }
@@ -404,6 +408,16 @@ public class CrateDigger {
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
             Database database = findDatabase(track);
             if (database != null) {
+                try {
+                    RekordboxAnlz file = findExtendedAnalysis(track, database);  // Look for color preview first
+                    if (file != null) {
+                        return new WaveformPreview(track, file);
+                    }
+                } catch (IllegalStateException e) {
+                    logger.info("No color preview waveform found, checking for blue version.");
+                } catch (Exception e) {
+                    logger.error("Problem fetching color waveform preview for track " + track + " from database " + database, e);
+                }
                 try {
                     RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
