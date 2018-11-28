@@ -31,6 +31,14 @@ public class WaveformDetail {
     public static final int LEADING_DBSERVER_JUNK_BYTES = 19;
 
     /**
+     * The number of bytes at the start of the color waveform data to be skipped when that was loaded using the
+     * nxs2 ANLZ tag request. We actually know what these mean, now that we know how to parse EXT files, but we
+     * can simply skip them anyway.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int LEADING_DBSERVER_COLOR_JUNK_BYTES = 28;
+
+    /**
      * The unique identifier that was used to request this waveform detail.
      */
     @SuppressWarnings("WeakerAccess")
@@ -69,7 +77,6 @@ public class WaveformDetail {
      * @return the bytes from which the detail can be drawn, as described in Section 5.8 of the
      * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    @SuppressWarnings("WeakerAccess")
     public ByteBuffer getData() {
         detailBuffer.rewind();
         return detailBuffer.slice();
@@ -80,7 +87,6 @@ public class WaveformDetail {
      *
      * @return the number of half-frames (pixel columns) that make up the track, ignoring the leading junk bytes
      */
-    @SuppressWarnings("WeakerAccess")
     public int getFrameCount() {
         final int bytes = getData().remaining() - leadingJunkBytes;
         if (isColor) {
@@ -124,11 +130,11 @@ public class WaveformDetail {
      */
     @SuppressWarnings("WeakerAccess")
     public WaveformDetail(DataReference reference, Message message) {
-        isColor = false;  // TODO can we tell from the message? Once we figure out the actual dbserver values used.
+        isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, its an NXS2 color wave.
         dataReference = reference;
         rawMessage = message;
         detailBuffer = ((BinaryField) rawMessage.arguments.get(3)).getValue();
-        leadingJunkBytes = LEADING_DBSERVER_JUNK_BYTES;
+        leadingJunkBytes = isColor? LEADING_DBSERVER_COLOR_JUNK_BYTES : LEADING_DBSERVER_JUNK_BYTES;
     }
 
     /**

@@ -315,7 +315,6 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
     public WaveformPreview getLatestPreviewFor(int player) {
         ensureRunning();
         return previewHotCache.get(DeckReference.getDeckReference(player, 0));
@@ -343,7 +342,6 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
     public WaveformDetail getLatestDetailFor(int player) {
         ensureRunning();
         return detailHotCache.get(DeckReference.getDeckReference(player, 0));
@@ -536,14 +534,20 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     WaveformDetail getWaveformDetail(int rekordboxId, SlotReference slot, Client client)
             throws IOException {
-        Message response = client.simpleRequest(Message.KnownType.WAVE_DETAIL_REQ, null,
-                client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot),
-                new NumberField(rekordboxId), NumberField.WORD_0);
-        if (response.knownType == Message.KnownType.WAVE_DETAIL) {
+        // First try to get the NXS2-style color waveform if we can.
+        final NumberField idField = new NumberField(rekordboxId);
+        try {
+            Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
+                    client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
+                    new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
             return new WaveformDetail(new DataReference(slot, rekordboxId), response);
+        } catch (Exception e) {
+            logger.info("No color waveform available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.", e);
         }
-        logger.error("Unexpected response type when requesting waveform detail: {}", response);
-        return null;
+
+        Message response = client.simpleRequest(Message.KnownType.WAVE_DETAIL_REQ, Message.KnownType.WAVE_DETAIL,
+                client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField, NumberField.WORD_0);
+        return new WaveformDetail(new DataReference(slot, rekordboxId), response);
     }
 
     /**
@@ -818,7 +822,6 @@ public class WaveformFinder extends LifecycleParticipant {
     /**
      * Stop finding waveforms for all active players.
      */
-    @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
@@ -861,7 +864,6 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
-    @SuppressWarnings("WeakerAccess")
     public static WaveformFinder getInstance() {
         return ourInstance;
     }

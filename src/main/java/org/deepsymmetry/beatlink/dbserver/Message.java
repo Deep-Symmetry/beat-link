@@ -179,11 +179,18 @@ public class Message {
          * Asks for the beat grid of a track, by rekordbox id.
          */
         BEAT_GRID_REQ    (0x2204, "beat grid request", "r:m:s:t", "rekordbox id"),
+        // 0x2504 when loading track?!
         /**
          * Asks for the detailed waveform data for a track, by rekordbox ID.
          */
-        // 0x2504 when loading track?!
         WAVE_DETAIL_REQ  (0x2904, "track waveform detail request", "r:m:s:t", "rekordbox id"),
+        /**
+         * This is a multipurpose request added for the nxs2 players which allows a specific tagged element of an
+         * ANLZnnnn.DAT or ANLZnnnn.EXT file to be retrieved. The tag type is the four-character-code identifying the
+         * desired file section (with bytes in reverse order), and the file extension is the same for the extension
+         * identifying the desired file. (For an EXT file they are 00 54 58 45, or "EXT" padded with a NUL and reversed.
+         */
+        ANLZ_TAG_REQ     (0x2c04, "anlz file tag content request", "r:m:s:t", "rekordbox id", "tag type", "file extension"),
         /**
          * Once a specific type of request has been made and acknowledged, this allows the results to be retrieved,
          * possibly in paginated chunks starting at <em>offset</em>, returning up to <em>limit</em> results.
@@ -239,7 +246,11 @@ public class Message {
         /**
          * Returns the bytes of the detailed waveform which is scrolled through while the track is playing.
          */
-        WAVE_DETAIL      (0x4a02, "track waveform detail", "request type", "unknown (0)", "waveform length", "waveform bytes");
+        WAVE_DETAIL      (0x4a02, "track waveform detail", "request type", "unknown (0)", "waveform length", "waveform bytes"),
+        /**
+         * Returns the bytes of the requested tag from an ANLZnnnn.DAT or ANLZnnnn.EXT file.
+         */
+        ANLZ_TAG         (0x4f02, "anlz file tag content", "request type", "unknown (0)", "tag length", "tag bytes", "unknown (1)");
 
         /**
          * The numeric value that identifies this message type, by its presence in a 4-byte number field immediately
@@ -250,7 +261,6 @@ public class Message {
         /**
          * The descriptive name of the message type.
          */
-        @SuppressWarnings("WeakerAccess")
         public final String description;
 
         /**
@@ -271,7 +281,6 @@ public class Message {
          *
          * @return either the description found, or "unknown" if none was found.
          */
-        @SuppressWarnings("WeakerAccess")
         public String describeArgument(int index) {
             if (index < 0 || index >= arguments.length) {
                 return "unknown";
@@ -304,6 +313,33 @@ public class Message {
         KNOWN_TYPE_MAP = Collections.unmodifiableMap(scratch);
     }
 
+    /**
+     * The value to pass for the file type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
+     * an element of an ANLZnnnn.DAT file. (The characters "DAT" and NUL as a byte-swapped integer.)
+     */
+    public static final int ALNZ_FILE_TYPE_DAT = 0x00544144;
+
+    /**
+     * The value to pass for the file type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
+     * an element of an ANLZnnnn.EXT file. (The characters "EXT" and NUL as a byte-swapped integer.)
+     */
+    public static final int ALNZ_FILE_TYPE_EXT = 0x00545845;
+
+    /**
+     * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
+     * the color waveform preview data. (The characters "PWV4" as a byte-swapped integer.)
+     */
+    public static final int ANLZ_FILE_TAG_COLOR_WAVEFORM_PREVIEW = 0x34565750;
+
+    /**
+     * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
+     * the scrollable color waveform data. (The characters "PWV5" as a byte-swapped integer.)
+     */
+    public static final int ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL = 0x35565750;
+
+    /**
+     * Defines all the known types of entries that an be returned for a menu request.
+     */
     public enum MenuItemType {
         /**
          * A potentially-nested grouping of other objects, such as a group of playlists in the playlists menu.
@@ -555,7 +591,6 @@ public class Message {
          * The value which identifies this type of menu item by appearing in the seventh argument of a
          * {@link KnownType#MENU_ITEM} response.
          */
-        @SuppressWarnings("WeakerAccess")
         public final long protocolValue;
 
         MenuItemType(long value) {
@@ -619,7 +654,6 @@ public class Message {
      * @param messageType identifies the purpose and structure of the message
      * @param arguments the arguments to send with the message
      */
-    @SuppressWarnings("WeakerAccess")
     public Message(long transaction, long messageType, Field... arguments) {
         this(new NumberField(transaction, 4), new NumberField(messageType, 2), arguments);
     }
@@ -643,7 +677,6 @@ public class Message {
      * @param messageType identifies the purpose and structure of the message
      * @param arguments the arguments to send with the message
      */
-    @SuppressWarnings("WeakerAccess")
     public Message(NumberField transaction, NumberField messageType, Field... arguments) {
         if (transaction.getSize() != 4) {
             throw new IllegalArgumentException("Message transaction sequence number must be 4 bytes long");
