@@ -1,10 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.*;
-import org.deepsymmetry.beatlink.dbserver.Client;
-import org.deepsymmetry.beatlink.dbserver.ConnectionManager;
-import org.deepsymmetry.beatlink.dbserver.Message;
-import org.deepsymmetry.beatlink.dbserver.NumberField;
+import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +82,32 @@ public class WaveformFinder extends LifecycleParticipant {
     @SuppressWarnings("WeakerAccess")
     public final boolean isFindingDetails() {
         return findDetails.get();
+    }
+
+    /**
+     * Should we ask for color versions of the waveforms and previews if they are available?
+     */
+    final private AtomicBoolean preferColor = new AtomicBoolean(true);
+
+    /**
+     * Set whether we should obtain color versions of waveforms and previews when they are available. This will only
+     * affect waveforms loaded after the setting has been changed.
+     *
+     * @param preferColor if {@code true}, the full-color versions of waveforms will be requested, if {@code false}
+     *                   only the older blue versions will be retrieved
+     */
+    public final void setColorPreferred(boolean preferColor) {
+        this.preferColor.set(preferColor);
+    }
+
+    /**
+     * Check whether we are retrieving color versions of waveforms and previews when they are available.
+     *
+     * @return {@code true} if full-color of waveform are being retrieved, {@code false} if the older blue versions
+     *         are being retrieved
+     */
+    public final boolean isColorPreferred() {
+        return preferColor.get();
     }
 
     /**
@@ -442,14 +465,26 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     WaveformPreview getWaveformPreview(int rekordboxId, SlotReference slot, Client client)
             throws IOException {
-        Message response = client.simpleRequest(Message.KnownType.WAVE_PREVIEW_REQ, null,
-                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot), NumberField.WORD_1,
-                new NumberField(rekordboxId), NumberField.WORD_0);
-        if (response.knownType == Message.KnownType.WAVE_PREVIEW) {
-            return new WaveformPreview(new DataReference(slot, rekordboxId), response);
+
+        final NumberField idField = new NumberField(rekordboxId);
+
+        // First try to get the NXS2-style color waveform if we are supposed to.
+        if (preferColor.get()) {
+            try {
+                Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
+                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
+                        new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_PREVIEW), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
+                return new WaveformPreview(new DataReference(slot, rekordboxId), response);
+            } catch (Exception e) {
+                logger.info("No color waveform preview available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.", e);
+            }
+
         }
-        logger.error("Unexpected response type when requesting waveform preview: {}", response);
-        return null;
+
+        Message response = client.simpleRequest(Message.KnownType.WAVE_PREVIEW_REQ, Message.KnownType.WAVE_PREVIEW,
+                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot), NumberField.WORD_1,
+                idField, NumberField.WORD_0);
+        return new WaveformPreview(new DataReference(slot, rekordboxId), response);
     }
 
     /**
@@ -534,15 +569,18 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     WaveformDetail getWaveformDetail(int rekordboxId, SlotReference slot, Client client)
             throws IOException {
-        // First try to get the NXS2-style color waveform if we can.
         final NumberField idField = new NumberField(rekordboxId);
-        try {
-            Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
-                    client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
-                    new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
-            return new WaveformDetail(new DataReference(slot, rekordboxId), response);
-        } catch (Exception e) {
-            logger.info("No color waveform available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.", e);
+
+        // First try to get the NXS2-style color waveform if we are supposed to.
+        if (preferColor.get()) {
+            try {
+                Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
+                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
+                        new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
+                return new WaveformDetail(new DataReference(slot, rekordboxId), response);
+            } catch (Exception e) {
+                logger.info("No color waveform available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.", e);
+            }
         }
 
         Message response = client.simpleRequest(Message.KnownType.WAVE_DETAIL_REQ, Message.KnownType.WAVE_DETAIL,

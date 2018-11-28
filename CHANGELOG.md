@@ -25,6 +25,9 @@ This change log follows the conventions of
   [Crate Digger](https://github.com/Deep-Symmetry/crate-digger#crate-digger)
   to reliably obtain metadata even when there are four players on the
   network, and we are using player number 5.
+- We can now retrieve and display the full-color waveforms used by
+  nxs2 players and rekordbox, and prefer them when available. This
+  can be turned off through a `WaveformFinder` property.
 - When going online, the `VirtualCdj` now reports information about
   the chosen network interface to help with troubleshooting problematic
   network environments.

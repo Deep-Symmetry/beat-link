@@ -19,6 +19,14 @@ import java.nio.ByteBuffer;
 public class WaveformPreview {
 
     /**
+     * The number of bytes at the start of the color waveform data to be skipped when that was loaded using the
+     * nxs2 ANLZ tag request. We actually know what these mean, now that we know how to parse EXT files, but we
+     * can simply skip them anyway.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int LEADING_DBSERVER_COLOR_JUNK_BYTES = 28;
+
+    /**
      * The unique identifier that was used to request this waveform preview.
      */
     @SuppressWarnings("WeakerAccess")
@@ -51,13 +59,12 @@ public class WaveformPreview {
      * @return the bytes from which the preview can be drawn, as described in Section 5.8 of the
      * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
-    @SuppressWarnings("WeakerAccess")
     public ByteBuffer getData() {
-        if (rawMessage != null) {
-            return ((BinaryField) rawMessage.arguments.get(3)).getValue();
+        if (expandedData != null) {
+            expandedData.rewind();
+            return expandedData.slice();
         }
-        expandedData.rewind();
-        return expandedData.slice();
+        return ((BinaryField) rawMessage.arguments.get(3)).getValue();
     }
 
     /**
@@ -111,12 +118,17 @@ public class WaveformPreview {
      * @param reference the unique database reference that was used to request this waveform preview
      * @param message the response that contains the preview
      */
-    @SuppressWarnings("WeakerAccess")
     WaveformPreview(DataReference reference, Message message) {
+        isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, its an NXS2 color wave.
         dataReference = reference;
         rawMessage = message;
-        expandedData = null;
-        isColor = false;  // TODO may change once we find the actual messages for requesting nxs2 values from dbserver.
+        if (isColor) {
+            ByteBuffer data = ((BinaryField) rawMessage.arguments.get(3)).getValue();
+            data.position(LEADING_DBSERVER_COLOR_JUNK_BYTES);
+            expandedData = data.slice();
+        } else {
+            expandedData = null;
+        }
         maxHeight = findMaxHeight();
     }
 
@@ -134,7 +146,7 @@ public class WaveformPreview {
         boolean colorFound = false;
 
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
-            if (section.body() instanceof  RekordboxAnlz.WaveColorPreviewTag) {
+            if (WaveformFinder.getInstance().isColorPreferred() && section.body() instanceof  RekordboxAnlz.WaveColorPreviewTag) {
                 RekordboxAnlz.WaveColorPreviewTag tag = (RekordboxAnlz.WaveColorPreviewTag) section.body();
                 found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
                 colorFound = true;

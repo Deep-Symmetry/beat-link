@@ -151,7 +151,7 @@ public class WaveformDetail {
         boolean colorFound = false;
 
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
-            if (section.body() instanceof RekordboxAnlz.WaveColorScrollTag) {
+            if (WaveformFinder.getInstance().isColorPreferred() && section.body() instanceof RekordboxAnlz.WaveColorScrollTag) {
                 RekordboxAnlz.WaveColorScrollTag tag = (RekordboxAnlz.WaveColorScrollTag) section.body();
                 found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
                 colorFound = true;
