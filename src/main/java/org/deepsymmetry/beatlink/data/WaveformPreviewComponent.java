@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -211,7 +212,7 @@ public class WaveformPreviewComponent extends JComponent {
         if (preview == null) {
             waveformImage.set(null);
         } else {
-            Image image = createImage(preview.segmentCount, preview.maxHeight);
+            BufferedImage image = new BufferedImage(preview.segmentCount, preview.maxHeight, BufferedImage.TYPE_INT_RGB);
             Graphics g = image.getGraphics();
             g.setColor(Color.BLACK);
             g.fillRect(0, 0, preview.segmentCount, preview.maxHeight);
