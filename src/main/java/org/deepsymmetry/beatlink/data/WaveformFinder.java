@@ -91,13 +91,21 @@ public class WaveformFinder extends LifecycleParticipant {
 
     /**
      * Set whether we should obtain color versions of waveforms and previews when they are available. This will only
-     * affect waveforms loaded after the setting has been changed.
+     * affect waveforms loaded after the setting has been changed. If this changes the setting, and we were running,
+     * stop and restart in order to flush and reload the correct waveform versions.
      *
      * @param preferColor if {@code true}, the full-color versions of waveforms will be requested, if {@code false}
      *                   only the older blue versions will be retrieved
      */
     public final void setColorPreferred(boolean preferColor) {
-        this.preferColor.set(preferColor);
+        if (this.preferColor.compareAndSet(!preferColor, preferColor) && isRunning()) {
+            stop();
+            try {
+                start();
+            } catch (Exception e) {
+                logger.error("Unexplained exception restarting; we had been running already!", e);
+            }
+        }
     }
 
     /**
