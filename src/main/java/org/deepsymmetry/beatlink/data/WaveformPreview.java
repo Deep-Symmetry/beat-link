@@ -68,14 +68,10 @@ public class WaveformPreview {
     }
 
     /**
-     * Get the pixel width (number of waveform preview columns) available.
-     *
-     * @return the width required to draw the entire preview.
+     * The pixel width (number of waveform preview columns) available.
      */
     @SuppressWarnings("WeakerAccess")
-    public int getSegmentCount() {
-        return getData().remaining() / (isColor? 6 : 2);
-    }
+    public final int segmentCount;
 
     /**
      * Holds the maximum height of any point along the waveform, so that it can drawn in a normalized manner to fit
@@ -100,13 +96,22 @@ public class WaveformPreview {
     }
 
     /**
+     * Figures out how many segments (columns) are in the preview.
+     *
+     * @return the width, in pixels, at which the preview should ideally be drawn
+     */
+    private int getSegmentCount() {
+        return getData().remaining() / (isColor? 6 : 2);
+    }
+
+    /**
      * Scan the segments to find the largest height value present.
      *
      * @return the largest waveform height anywhere in the preview.
      */
-    private int findMaxHeight() {
+    private int getMaxHeight() {
         int result = 0;
-        for (int i = 0; i < getSegmentCount(); i++) {
+        for (int i = 0; i < segmentCount; i++) {
             result = Math.max(result, segmentHeight(i, false));
         }
         return result;
@@ -129,7 +134,8 @@ public class WaveformPreview {
         } else {
             expandedData = null;
         }
-        maxHeight = findMaxHeight();
+        segmentCount = getSegmentCount();
+        maxHeight = getMaxHeight();
     }
 
     /**
@@ -172,7 +178,8 @@ public class WaveformPreview {
         if (expandedData == null) {
             throw new IllegalStateException("Could not construct WaveformPreview, missing from ANLZ file " + anlzFile);
         }
-        maxHeight = findMaxHeight();
+        segmentCount = getSegmentCount();
+        maxHeight = getMaxHeight();
     }
 
     /**
@@ -246,6 +253,6 @@ public class WaveformPreview {
     @Override
     public String toString() {
         return "WaveformPreview[dataReference=" + dataReference + ", isColor? " + isColor + ", size:" + getData().remaining() +
-                ", segments:" + getSegmentCount() + "]";
+                ", segments:" + segmentCount + "]";
     }
 }

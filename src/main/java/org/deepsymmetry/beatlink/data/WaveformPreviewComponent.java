@@ -45,14 +45,39 @@ public class WaveformPreviewComponent extends JComponent {
     private static final int WAVEFORM_TOP = POSITION_MARKER_TOP + 2;
 
     /**
-     * The height of the waveform.
+     * Calculate the height of the waveform based on the component height.
+     *
+     * @return the height of the waveform.
      */
-    private static final int WAVEFORM_HEIGHT = 31;
+    private int waveformHeight() {
+        return getHeight() - POSITION_MARKER_TOP - 9 - PLAYBACK_BAR_HEIGHT - MINUTE_MARKER_HEIGHT;
+    }
+
+    /**
+     * Calculate the width of the waveform based on the component width.
+     *
+     * @return the width of the waveform
+     */
+    private int waveformWidth() {
+        return getWidth() - WAVEFORM_MARGIN * 2;
+    }
+
+    /**
+     * The minimum acceptable height for the waveform.
+     */
+    private static final int MIN_WAVEFORM_HEIGHT = 31;
+
+    /**
+     * The minimum acceptable width for the waveform.
+     */
+    public static final int MIN_WAVEFORM_WIDTH = 200;
 
     /**
      * The Y coordinate at which the top of the playback progress bar is drawn.
      */
-    private static final int PLAYBACK_BAR_TOP = WAVEFORM_TOP + WAVEFORM_HEIGHT + 3;
+    private int playbackBarTop() {
+        return WAVEFORM_TOP + waveformHeight() + 3;
+    }
 
     /**
      * The height of the playback progress bar.
@@ -62,7 +87,9 @@ public class WaveformPreviewComponent extends JComponent {
     /**
      * The Y coordinate at which the top of the minute markers are drawn.
      */
-    private static final int MINUTE_MARKER_TOP = PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT + 3;
+    private int minuteMarkerTop() {
+        return playbackBarTop() + PLAYBACK_BAR_HEIGHT + 3;
+    }
 
     /**
      * The height of the minute markers.
@@ -72,12 +99,9 @@ public class WaveformPreviewComponent extends JComponent {
     /**
      * The height of the large bar showing the current playback position.
      */
-    private static final int POSITION_MARKER_HEIGHT = MINUTE_MARKER_TOP - POSITION_MARKER_TOP - 1;
-
-    /**
-     * The total height of the component.
-     */
-    private static final int VIEW_HEIGHT = MINUTE_MARKER_TOP + MINUTE_MARKER_HEIGHT + 1;
+    private int positionMarkerHeight() {
+        return minuteMarkerTop() - POSITION_MARKER_TOP - 1;
+    }
 
     /**
      * The X coordinate of the waveform, to give enough space for a cue marker at the start of the track.
@@ -114,6 +138,11 @@ public class WaveformPreviewComponent extends JComponent {
     private final AtomicReference<WaveformPreview> preview = new AtomicReference<WaveformPreview>();
 
     /**
+     * The rendered image of the waveform itself at its natural size.
+     */
+    private final AtomicReference<Image> waveformImage = new AtomicReference<Image>();
+
+    /**
      * Track the current playback position in milliseconds.
      */
     private final AtomicLong playbackPosition = new AtomicLong(0);
@@ -146,15 +175,16 @@ public class WaveformPreviewComponent extends JComponent {
         if ((metadata.get() !=  null) && (playbackPosition.get() != milliseconds)) {
             int left;
             int right;
+            final int width = waveformWidth() + 8;
             if (milliseconds > playbackPosition.get()) {
-                left = Math.max(0, Math.min(408, millisecondsToX(playbackPosition.get()) - 6));
-                right = Math.max(0, Math.min(408, millisecondsToX(milliseconds) + 6));
+                left = Math.max(0, Math.min(width, millisecondsToX(playbackPosition.get()) - 6));
+                right = Math.max(0, Math.min(width, millisecondsToX(milliseconds) + 6));
             } else {
-                left = Math.max(0, Math.min(408, millisecondsToX(milliseconds) - 6));
-                right = Math.max(0, Math.min(408, millisecondsToX(playbackPosition.get()) + 6));
+                left = Math.max(0, Math.min(width, millisecondsToX(milliseconds) - 6));
+                right = Math.max(0, Math.min(width, millisecondsToX(playbackPosition.get()) + 6));
             }
             playbackPosition.set(milliseconds);
-            repaint(left, 0, right - left, VIEW_HEIGHT);
+            repaint(left, 0, right - left, getHeight());
         } else {
             playbackPosition.set(milliseconds);  // Just set, don't attempt to draw anything
         }
@@ -165,12 +195,35 @@ public class WaveformPreviewComponent extends JComponent {
      *
      * @param playing if {@code true}, draw the position marker in white, otherwise red
      */
-    @SuppressWarnings("WeakerAccess")
     public void setPlaying(boolean playing) {
         final boolean oldValue = this.playing.getAndSet(playing);
         if ((metadata.get() != null) && oldValue != playing) {
-            int left = Math.max(0, Math.min(408, millisecondsToX(playbackPosition.get()) - 2));
-            repaint(left, 0, 4, VIEW_HEIGHT);
+            int left = Math.max(0, Math.min(waveformWidth() + 8, millisecondsToX(playbackPosition.get()) - 2));
+            repaint(left, 0, 4, getHeight());
+        }
+    }
+
+    /**
+     * Create an image of the proper size to hold a new waveform preview image and draw it.
+     */
+    private void updateWaveform(WaveformPreview preview) {
+        this.preview.set(preview);
+        if (preview == null) {
+            waveformImage.set(null);
+        } else {
+            Image image = createImage(preview.segmentCount, preview.maxHeight);
+            Graphics g = image.getGraphics();
+            g.setColor(Color.BLACK);
+            g.fillRect(0, 0, preview.segmentCount, preview.maxHeight);
+            for (int segment = 0; segment < preview.segmentCount; segment++) {
+                g.setColor(preview.segmentColor(segment, false));
+                g.drawLine(segment, preview.maxHeight, segment, preview.maxHeight - preview.segmentHeight(segment, false));
+                if (preview.isColor) {  // We have a front color segment to draw on top.
+                    g.setColor(preview.segmentColor(segment, true));
+                    g.drawLine(segment, preview.maxHeight, segment, preview.maxHeight - preview.segmentHeight(segment, true));
+                }
+            }
+            waveformImage.set(image);
         }
     }
 
@@ -183,7 +236,7 @@ public class WaveformPreviewComponent extends JComponent {
      *                 positions
      */
     public void setWaveformPreview(WaveformPreview preview, TrackMetadata metadata) {
-        this.preview.set(preview);
+        updateWaveform(preview);
         this.metadata.set(metadata);
         playbackPosition.set(0);
         repaint();
@@ -215,9 +268,9 @@ public class WaveformPreviewComponent extends JComponent {
             }
             WaveformFinder.getInstance().addWaveformListener(waveformListener);
             if (WaveformFinder.getInstance().isRunning()) {
-                preview.set(WaveformFinder.getInstance().getLatestPreviewFor(player));
+                updateWaveform(WaveformFinder.getInstance().getLatestPreviewFor(player));
             } else {
-                preview.set(null);
+                updateWaveform(null);
             }
             BeatGridFinder.getInstance().addBeatGridListener(beatGridListener);
             if (BeatGridFinder.getInstance().isRunning()) {
@@ -255,7 +308,7 @@ public class WaveformPreviewComponent extends JComponent {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
             metadata.set(null);
-            preview.set(null);
+            updateWaveform(null);
             beatGrid.set(null);
         }
         repaint();
@@ -281,7 +334,7 @@ public class WaveformPreviewComponent extends JComponent {
         @Override
         public void previewChanged(WaveformPreviewUpdate update) {
             if (update.player == monitoredPlayer.get()) {
-                preview.set(update.preview);
+                updateWaveform(update.preview);
                 repaint();
             }
         }
@@ -325,7 +378,6 @@ public class WaveformPreviewComponent extends JComponent {
      *
      * @param player the player number to monitor, or zero if it should start out monitoring no player
      */
-    @SuppressWarnings("WeakerAccess")
     public WaveformPreviewComponent(int player) {
         setMonitoredPlayer(player);
     }
@@ -338,23 +390,43 @@ public class WaveformPreviewComponent extends JComponent {
      *                 positions
      */
     public WaveformPreviewComponent(WaveformPreview preview, TrackMetadata metadata) {
-        this.preview.set(preview);
+        updateWaveform(preview);
         this.metadata.set(metadata);
+    }
+
+    /**
+     * Calculates the total height needed to draw the component for a given waveform height.
+     *
+     * @param waveformHeight the height of the waveform being previewed
+     *
+     * @return the total height needed to render the component
+     */
+    private int heightGivenWaveformHeight(int waveformHeight) {
+        return waveformHeight + POSITION_MARKER_TOP + 9 + PLAYBACK_BAR_HEIGHT + MINUTE_MARKER_HEIGHT;
+    }
+
+    /**
+     * Calculates the total height needed to draw the component for a given waveform width.
+     *
+     * @param waveformWidth the width of the waveform being previewed
+     *
+     * @return the total width needed to render the component
+     */
+    private int widthGivenWaveformWidth(int waveformWidth) {
+        return waveformWidth + WAVEFORM_MARGIN * 2;
     }
 
     @Override
     public Dimension getPreferredSize() {
-        return new Dimension(400 + WAVEFORM_MARGIN * 2, VIEW_HEIGHT);
+        int wavePreferredHeight = preview.get() == null? MIN_WAVEFORM_HEIGHT : preview.get().maxHeight;
+        int wavePreferredWidth = preview.get() == null? 400 : preview.get().segmentCount;
+
+        return new Dimension(widthGivenWaveformWidth(wavePreferredWidth), heightGivenWaveformHeight(wavePreferredHeight));
     }
 
     @Override
     public Dimension getMinimumSize() {
-        return getPreferredSize();
-    }
-
-    @Override
-    public Dimension getMaximumSize() {
-        return getPreferredSize();
+        return new Dimension(widthGivenWaveformWidth(MIN_WAVEFORM_WIDTH), heightGivenWaveformHeight(MIN_WAVEFORM_HEIGHT));
     }
 
     /**
@@ -370,89 +442,39 @@ public class WaveformPreviewComponent extends JComponent {
         if (duration < 1) {  // Don't crash on goofy metadata
             return 0;
         }
-        long result = milliseconds * 4 / (metadata.get().getDuration() * 10);
-        return WAVEFORM_MARGIN + Math.max(0, Math.min(400, (int) result));
-    }
-
-    /**
-     * Helper method to average the three underlying height values when we are rendering a color preview, since we
-     * always only draw 400 columns worth of preview for historical reasons.
-     *
-     * @param segment the virtual segment we want, always ranging from 0 to 399
-     * @param front whether this is a brighter front segment, or dimmer back segment (for color previews)
-     *
-     * @return the height (or average height) of the underlying preview segment(s)
-     */
-    private int effectiveSegmentHeight(final int segment, final boolean front) {
-        if (preview.get().isColor) {
-            final int base = segment * 3;
-            int sum = 0;
-            for (int i = 0; i < 3; i++) {
-                sum += preview.get().segmentHeight(base + i, front);
-            }
-            return sum / 3;
-        }
-        return preview.get().segmentHeight(segment, front);
-    }
-
-    /**
-     * Helper method to blend the three underlying color values when we are rendering a color preview, since we
-     * always only draw 400 columns worth of preview for historical reasons.
-     *
-     * @param segment the virtual segment we want, always ranging from 0 to 399
-     * @param front whether this is a brighter front segment, or dimmer back segment (for color previews)
-     *
-     * @return the color (or blended colors) of the underlying preview segment(s)
-     */
-    private Color effectiveSegmentColor(final int segment, final boolean front) {
-        if (preview.get().isColor) {
-            final int base = segment * 3;
-            int red = 0;
-            int green = 0;
-            int blue = 0;
-            for (int i = 0; i < 3; i++) {
-                Color color = preview.get().segmentColor(base + i, front);
-                red += color.getRed();
-                green += color.getGreen();
-                blue += color.getBlue();
-            }
-            return new Color(red / 3, green / 3, blue / 3);
-        }
-        return preview.get().segmentColor(segment, front);
+        long result = milliseconds * waveformWidth() / (metadata.get().getDuration() * 1000);
+        return WAVEFORM_MARGIN + Math.max(0, Math.min(waveformWidth(), (int) result));
     }
 
     @Override
     protected synchronized void paintComponent(Graphics g) {
+
         Rectangle clipRect = g.getClipBounds();  // We only need to draw the part that is visible or dirty
         g.setColor(Color.BLACK);  // Black out the background
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
+        // Draw our precomputed waveform image scaled and positioned to fit the component
+        Image image = waveformImage.get();
+        if (image != null) {
+            g.drawImage(image, WAVEFORM_MARGIN, WAVEFORM_TOP, waveformWidth(), waveformHeight(), null);
+        }
+
+        // Draw the other preview elements that are visible or dirty
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = x - WAVEFORM_MARGIN;
-            if ((segment >= 0) && (segment < 400)) {
-                if (preview.get() != null) {  // Draw the preview
-                    final int height = effectiveSegmentHeight(segment, false) * WAVEFORM_HEIGHT / preview.get().maxHeight;
-                    g.setColor(effectiveSegmentColor(segment, false));
-                    g.drawLine(x, WAVEFORM_TOP + WAVEFORM_HEIGHT, x, WAVEFORM_TOP + WAVEFORM_HEIGHT - height);
-                    if (preview.get().isColor) {  // We have a front color segment to draw on top.
-                        final int frontHeight = effectiveSegmentHeight(segment, true) * WAVEFORM_HEIGHT / preview.get().maxHeight;
-                        g.setColor(effectiveSegmentColor(segment, true));
-                        g.drawLine(x, WAVEFORM_TOP + WAVEFORM_HEIGHT, x, WAVEFORM_TOP + WAVEFORM_HEIGHT - frontHeight);
-                    }
-                }
-
+            if ((segment >= 0) && (segment < waveformWidth())) {
                 if (metadata.get() != null) { // Draw the playback progress bar
                     if (x < millisecondsToX(playbackPosition.get()) - 1) {  // The played section
                         g.setColor((x % 2 == 0)? BRIGHT_PLAYED : DIM_PLAYED);
                         if (x == WAVEFORM_MARGIN) {
-                            g.drawLine(x, PLAYBACK_BAR_TOP, x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT);
+                            g.drawLine(x, playbackBarTop(), x, playbackBarTop() + PLAYBACK_BAR_HEIGHT);
                         } else {
-                            g.drawLine(x, PLAYBACK_BAR_TOP, x, PLAYBACK_BAR_TOP);
-                            g.drawLine(x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT, x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT);
+                            g.drawLine(x, playbackBarTop(), x, playbackBarTop());
+                            g.drawLine(x, playbackBarTop() + PLAYBACK_BAR_HEIGHT, x, playbackBarTop() + PLAYBACK_BAR_HEIGHT);
                         }
                     } else if (x > millisecondsToX(playbackPosition.get()) + 1) {  // The unplayed section
                         g.setColor((x % 2 == 0)? Color.WHITE : DIM_UNPLAYED);
-                        g.drawLine(x, PLAYBACK_BAR_TOP, x, PLAYBACK_BAR_TOP + PLAYBACK_BAR_HEIGHT);
+                        g.drawLine(x, playbackBarTop(), x, playbackBarTop() + PLAYBACK_BAR_HEIGHT);
                     }
                 }
             }
@@ -462,13 +484,13 @@ public class WaveformPreviewComponent extends JComponent {
             g.setColor(Color.WHITE);
             for (int time = 60; time < metadata.get().getDuration(); time += 60) {
                 final int x = millisecondsToX(time * 1000);
-                g.drawLine(x, MINUTE_MARKER_TOP, x, MINUTE_MARKER_TOP + MINUTE_MARKER_HEIGHT);
+                g.drawLine(x, minuteMarkerTop(), x, minuteMarkerTop() + MINUTE_MARKER_HEIGHT);
             }
             final int x = millisecondsToX(playbackPosition.get());
             if (!playing.get()) {
                 g.setColor(Color.RED);
             }
-            g.fillRect(x - 1, POSITION_MARKER_TOP, 2, POSITION_MARKER_HEIGHT);
+            g.fillRect(x - 1, POSITION_MARKER_TOP, 2, positionMarkerHeight());
         }
 
         // Finally, draw the cue points
