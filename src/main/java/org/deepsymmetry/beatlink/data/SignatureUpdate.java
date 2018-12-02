@@ -19,7 +19,7 @@ public class SignatureUpdate {
      */
     public final String signature;
 
-    SignatureUpdate(int player, String signature) {
+    public SignatureUpdate(int player, String signature) {
         this.player = player;
         this.signature = signature;
     }

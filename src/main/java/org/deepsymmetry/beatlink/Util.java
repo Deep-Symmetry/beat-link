@@ -1,6 +1,10 @@
 package org.deepsymmetry.beatlink;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
@@ -425,6 +429,54 @@ public class Util {
             namedLocks.remove(name);
             namedLockUseCounts.remove(name);
         }
+    }
+
+    /**
+     * An interface that knows how to load an object of a given type. Used so we can provide proxies for user interface
+     * objects that can be garbage collected when off-screen, but reloaded when they are scrolled back into view.
+     *
+     * @param <T> the type of object which is returned by the loader
+     */
+    public interface Loader<T> {
+        /**
+         * Load the object because it is once again needed.
+         *
+         * @return the object which had been freed up for memory reasons
+         */
+        T load();
+    }
+
+    /**
+     * Creates a proxy for an object that can be garbage collected when not in use, and recreated when necessary.
+     * This is useful for example in creating user interfaces with lots of
+     * {@link org.deepsymmetry.beatlink.data.WaveformPreview} objects in them, most of which are scrolled off screen
+     * most of the time, but which need to be drawable when they are scrolled back into view.
+     *
+     * @param clazz the class of the object which we are proxying
+     * @param loader will be used to create the object initially, and recreate it if it is ever garbage collected
+     * @param <T> the type of the object we are proxying
+     * @return a proxy which will not hold on to the underlying object during garbage collection, but will recreate
+     *         it if necessary when it is dereferenced.
+     */
+    @SuppressWarnings({"unchecked", "unused"})
+    public static <T> T reloadableProxy(Class<T> clazz, final Loader<T> loader) {
+        return (T) Proxy.newProxyInstance(clazz.getClassLoader(), new Class<?>[]{clazz},
+                new InvocationHandler() {
+                    /**
+                     * Stores the object we are proxying but does not prevent it from being garbage collected.
+                     */
+                    SoftReference<T> reference = new SoftReference<T>(loader.load());
+
+                    @Override
+                    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                        T target = reference.get();  // Do we still have the object we are proxying?
+                        if (target == null) {        // No, it was garbage collected.
+                            target = loader.load();  // Reload it because someone is trying to use it.
+                            reference = new SoftReference<T>(target);
+                        }
+                        return method.invoke(target, args);
+                    }
+                });
     }
 
     /**
