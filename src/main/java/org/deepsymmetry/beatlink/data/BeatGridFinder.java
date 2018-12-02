@@ -145,6 +145,9 @@ public class BeatGridFinder extends LifecycleParticipant {
         for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
             if (deck.player == player) {
                 hotCache.remove(deck);
+                if (deck.hotCue == 0) {
+                    deliverBeatGridUpdate(player, null);  // Inform listeners the beat grid is gone.
+                }
             }
         }
     }

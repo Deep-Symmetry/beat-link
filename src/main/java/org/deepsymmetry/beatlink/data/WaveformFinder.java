@@ -258,12 +258,18 @@ public class WaveformFinder extends LifecycleParticipant {
         for (DeckReference deck : new HashSet<DeckReference>(previewHotCache.keySet())) {
             if (deck.player == player) {
                 previewHotCache.remove(deck);
+                if (deck.hotCue == 0) {
+                    deliverWaveformPreviewUpdate(player, null);  // Inform listeners that preview is gone.
+                }
             }
         }
         // Again iterate over a copy to avoid concurrent modification issues
         for (DeckReference deck : new HashSet<DeckReference>(detailHotCache.keySet())) {
             if (deck.player == player) {
                 detailHotCache.remove(deck);
+                if (deck.hotCue == 0) {
+                    deliverWaveformDetailUpdate(player, null);  // Inform listeners that detail is gone.
+                }
             }
         }
     }

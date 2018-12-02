@@ -444,6 +444,9 @@ public class MetadataFinder extends LifecycleParticipant {
         for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
             if (deck.player == player) {
                 hotCache.remove(deck);
+                if (deck.hotCue == 0) {
+                    deliverTrackMetadataUpdate(player, null);  // Inform listeners the metadata is gone.
+                }
             }
         }
     }

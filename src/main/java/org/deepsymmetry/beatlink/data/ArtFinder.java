@@ -155,6 +155,9 @@ public class ArtFinder extends LifecycleParticipant {
         for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
             if (deck.player == player) {
                 hotCache.remove(deck);
+                if (deck.hotCue == 0) {
+                    deliverAlbumArtUpdate(player, null);  // Inform listeners that the artwork is gone.
+                }
             }
         }
         // Again iterate over a copy to avoid concurrent modification issues
