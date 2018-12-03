@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -184,6 +185,22 @@ public class CrateDigger {
     }
 
     /**
+     * Format a number of bytes in a human-centric format.
+     * From https://stackoverflow.com/a/3758880/802383
+     *
+     * @param bytes the number of bytes
+     * @param si {code @true} if should use SI interpretation where k=1000
+     * @return the nicely readable summary string
+     */
+    public static String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        @SuppressWarnings("SpellCheckingInspection") String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
+    }
+
+    /**
      * Whenever we learn media details about a newly-mounted media slot, if it is rekordbox media, start the process
      * of fetching and parsing the database so we can offer metadata for that slot.
      */
@@ -200,8 +217,20 @@ public class CrateDigger {
                         File file = null;
                         try {
                             file = new File(downloadDirectory, slotPrefix(details.slotReference) + "export.pdb");
+                            logger.info("Fetching rekordbox export.pdb from player " + details.slotReference.player +
+                                    ", slot " + details.slotReference.slot);
+                            long started = System.nanoTime();
                             fetchFile(details.slotReference, "PIONEER/rekordbox/export.pdb", file);
+                            long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+                            logger.info("Finished fetching export.pdb from player " + details.slotReference.player +
+                                    ", slot " + details.slotReference.slot + "; received " +
+                                    humanReadableByteCount(file.length(), true) + " in " + duration + "ms, " +
+                                    humanReadableByteCount(file.length() * 1000 / duration, true) + "/s.");
+                            started = System.nanoTime();
                             Database database = new Database(file);
+                            duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+                            logger.info("Parsing database took " + duration + "ms, " +
+                                            (database.trackIndex.size() * 1000 / duration) + " tracks/s");
                             databases.put(details.slotReference, database);
                             deliverDatabaseUpdate(details.slotReference, database, true);
                         } catch (Throwable t) {
