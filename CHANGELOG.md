@@ -50,6 +50,12 @@ This change log follows the conventions of
 - The various metadata finders were supposed to report the loss of
   associated metadata when a player disappeared from the network, but
   they were not doing so.
+- Hot cue markers are supposed to be drawn in green even when there is
+  a memory point at the same location. This worked fine for dbserver
+  metadata because it always gave us the hot cues last, so they were
+  drawn over the memory cues. But with crate digger that order is not
+  guaranteed, so we now enforce it in drawing regardless of the order
+  of the cue list itself.
 
 ## [0.4.1] - 2018-10-28
 

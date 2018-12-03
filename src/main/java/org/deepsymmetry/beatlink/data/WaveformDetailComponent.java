@@ -131,7 +131,6 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param playing if {@code true}, draw the position marker in white, otherwise red
      */
-    @SuppressWarnings("WeakerAccess")
     public void setPlaying(boolean playing) {
         final boolean oldValue = this.playing.getAndSet(playing);
         if ((metadata.get() != null) && oldValue != playing) {
@@ -298,7 +297,6 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param player the player number to monitor, or zero if it should start out monitoring no player
      */
-    @SuppressWarnings("WeakerAccess")
     public WaveformDetailComponent(int player) {
         setMonitoredPlayer(player);
     }
@@ -424,9 +422,30 @@ public class WaveformDetailComponent extends JComponent {
             }
         }
 
-        // Draw the cue and memory point markers
+        // Draw the cue and memory point markers, first the memory cues and then the hot cues, since some are in
+        // the same place and we want the hot cues to stand out.
         if (cueList != null) {
-            for (CueList.Entry entry : cueList.entries) {
+            drawCueList(g, clipRect, cueList, axis, maxHeight, false);
+            drawCueList(g, clipRect, cueList, axis, maxHeight, true);
+        }
+
+        g.setColor(playing.get()? PLAYBACK_MARKER_PLAYING : PLAYBACK_MARKER_STOPPED);  // Draw the playback position
+        g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
+    }
+
+    /**
+     * Draw the visible memory cue points or hot cues.
+     *
+     * @param g the graphics object in which we are being rendered
+     * @param clipRect the region that is being currently rendered
+     * @param cueList the cues to  be drawn
+     * @param axis the base on which the waveform is being drawn
+     * @param maxHeight the highest waveform segment
+     * @param hot true if we should draw hot cues, otherwise we draw memory points
+     */
+    private void drawCueList(Graphics g, Rectangle clipRect, CueList cueList, int axis, int maxHeight, boolean hot) {
+        for (CueList.Entry entry : cueList.entries) {
+            if ((hot && entry.hotCueNumber > 0) || (entry.hotCueNumber == 0 && !hot)) {
                 final int x = millisecondsToX(entry.cueTime);
                 if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
                     g.setColor(cueColor(entry));
@@ -437,9 +456,6 @@ public class WaveformDetailComponent extends JComponent {
                 }
             }
         }
-
-        g.setColor(playing.get()? PLAYBACK_MARKER_PLAYING : PLAYBACK_MARKER_STOPPED);  // Draw the playback position
-        g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
     }
 
     @Override
