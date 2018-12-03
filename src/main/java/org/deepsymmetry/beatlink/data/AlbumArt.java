@@ -70,7 +70,8 @@ public class AlbumArt {
      *
      * @throws IOException if there is a problem reading the file
      */
-    AlbumArt(DataReference artReference, File file) throws IOException {
+    @SuppressWarnings("WeakerAccess")
+    public AlbumArt(DataReference artReference, File file) throws IOException {
         this.artReference = artReference;
         RandomAccessFile raf = new RandomAccessFile(file, "r");
         byte[] bytes = new byte[(int)raf.length()];

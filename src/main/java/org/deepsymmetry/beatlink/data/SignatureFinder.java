@@ -298,7 +298,7 @@ public class SignatureFinder extends LifecycleParticipant {
      * @param waveformDetail the monochrome waveform detail of the track
      * @param beatGrid the beat grid of the track
      *
-     * @return the SHA-1 hash of all the arguments supplied
+     * @return the SHA-1 hash of all the arguments supplied, or {@code null} if any arguments were {@code null}
      */
     public String computeTrackSignature(final String title, final String artist, final int duration,
                                         final WaveformDetail waveformDetail, final BeatGrid beatGrid) {
@@ -325,6 +325,8 @@ public class SignatureFinder extends LifecycleParticipant {
 
             return hex.toString();
 
+        } catch (NullPointerException e) {
+            logger.info("Returning null track signature because an input element was null.", e);
         } catch (NoSuchAlgorithmException e) {
             logger.error("Unable to obtain SHA-1 MessageDigest instance for computing track signatures.", e);
         } catch (UnsupportedEncodingException e) {
