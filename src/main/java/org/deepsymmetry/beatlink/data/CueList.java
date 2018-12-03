@@ -1,11 +1,13 @@
 package org.deepsymmetry.beatlink.data;
 
+import io.kaitai.struct.ByteBufferKaitaiStream;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -21,9 +23,16 @@ public class CueList {
 
     /**
      * The message holding the cue list information as it was read over the network. This can be used to analyze fields
-     * that have not yet been reliably understood, and is also used for storing the cue list in a cache file.
+     * that have not yet been reliably understood, and is also used for storing the cue list in a cache file. This will
+     * be {@code null} if the cue list was not obtained from a dbserver query.
      */
     public final Message rawMessage;
+
+    /**
+     * The bytes from which the Kaitai Struct tags holding cue list information were parsed from an ANLZ file.
+     * Will be {@code null} if the cue list was obtained from a dbserver query.
+     */
+    public final List<ByteBuffer> rawTags;
 
     /**
      * Return the number of entries in the cue list that represent hot cues.
@@ -31,7 +40,16 @@ public class CueList {
      * @return the number of cue list entries that are hot cues
      */
     public int getHotCueCount() {
-        return (int) ((NumberField) rawMessage.arguments.get(5)).getValue();
+        if (rawMessage != null) {
+            return (int) ((NumberField) rawMessage.arguments.get(5)).getValue();
+        }
+        int total = 0;
+        for (Entry entry : entries) {
+            if (entry.hotCueNumber > 0) {
+                ++total;
+            }
+        }
+        return total;
     }
 
     /**
@@ -41,7 +59,16 @@ public class CueList {
      * @return the number of cue list entries other than hot cues
      */
     public int getMemoryPointCount() {
-        return (int) ((NumberField) rawMessage.arguments.get(6)).getValue();
+        if (rawMessage != null) {
+            return (int) ((NumberField) rawMessage.arguments.get(6)).getValue();
+        }
+        int total = 0;
+        for (Entry entry : entries) {
+            if (entry.hotCueNumber == 0) {
+                ++total;
+            }
+        }
+        return total;
     }
 
     /**
@@ -164,8 +191,24 @@ public class CueList {
      * The entries present in the cue list, sorted into order by increasing position, with hot cues coming after
      * ordinary memory points if both are at the same position (as often seems to happen).
      */
-    @SuppressWarnings("WeakerAccess")
     public final List<Entry> entries;
+
+    /**
+     * Helper method to add cue list entries from a parsed ANLZ cue tag
+     *
+     * @param entries the list of entries being accumulated
+     * @param tag the tag whose entries are to be added
+     */
+    private void addEntriesFromTag(List<Entry> entries, RekordboxAnlz.CueTag tag) {
+        for (RekordboxAnlz.CueEntry cueEntry : tag.cues()) {  // TODO: Need to figure out how to identify deleted entries to ignore.
+            if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
+                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
+                        Util.timeToHalfFrame(cueEntry.loopTime())));
+            } else {
+                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time())));
+            }
+        }
+    }
 
     /**
      * Constructor for when reading from a rekordbox track analysis file. Finds the cues sections and
@@ -175,19 +218,31 @@ public class CueList {
      */
     public CueList(RekordboxAnlz anlzFile) {
         rawMessage = null;  // We did not create this from a dbserver response.
+        List<ByteBuffer> tagBuffers = new ArrayList<ByteBuffer>(2);
         List<Entry> mutableEntries = new ArrayList<Entry>();
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
             if (section.body() instanceof RekordboxAnlz.CueTag) {
                 RekordboxAnlz.CueTag tag = (RekordboxAnlz.CueTag) section.body();
-                for (RekordboxAnlz.CueEntry cueEntry : tag.cues()) {  // TODO: Need to figure out how to identify deleted entries to ignore.
-                    if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
-                        mutableEntries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
-                                Util.timeToHalfFrame(cueEntry.loopTime())));
-                    } else {
-                        mutableEntries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time())));
-                    }
-                }
+                tagBuffers.add(ByteBuffer.wrap(section._raw_body()).asReadOnlyBuffer());
+                addEntriesFromTag(mutableEntries, tag);
             }
+        }
+        entries = Collections.unmodifiableList(mutableEntries);
+        rawTags = Collections.unmodifiableList(tagBuffers);
+    }
+
+    /**
+     * Constructor for when recreating from cache files containing the raw tag bytes.
+
+     * @param rawTags the un-parsed ANLZ file tags holding the cue list entries
+     */
+    public CueList(List<ByteBuffer> rawTags) {
+        rawMessage = null;
+        this.rawTags = Collections.unmodifiableList(rawTags);
+        List<Entry> mutableEntries = new ArrayList<Entry>();
+        for (ByteBuffer buffer : rawTags) {
+            RekordboxAnlz.CueTag tag = new RekordboxAnlz.CueTag(new ByteBufferKaitaiStream(buffer));
+            addEntriesFromTag(mutableEntries, tag);
         }
         entries = Collections.unmodifiableList(mutableEntries);
     }
@@ -199,6 +254,7 @@ public class CueList {
      */
     public CueList(Message message) {
         rawMessage = message;
+        rawTags = null;
         byte[] entryBytes = ((BinaryField) message.arguments.get(3)).getValueAsArray();
         final int entryCount = entryBytes.length / 36;
         ArrayList<Entry> scratch = new ArrayList<Entry>(entryCount);
