@@ -59,13 +59,6 @@ public class WaveformDetail {
     private final ByteBuffer detailBuffer;
 
     /**
-     * How many leading junk bytes are present in the waveform data. This value will depend on how the data was
-     * obtained.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public final int leadingJunkBytes;
-
-    /**
      * Indicates whether this is an NXS2-style color waveform, or a monochrome (blue) waveform.
      */
     @SuppressWarnings("WeakerAccess")
@@ -85,10 +78,10 @@ public class WaveformDetail {
     /**
      * Count the half-frames of waveform available.
      *
-     * @return the number of half-frames (pixel columns) that make up the track, ignoring the leading junk bytes
+     * @return the number of half-frames (pixel columns) that make up the track
      */
     public int getFrameCount() {
-        final int bytes = getData().remaining() - leadingJunkBytes;
+        final int bytes = getData().remaining();
         if (isColor) {
             return bytes / 2;
         }
@@ -133,8 +126,10 @@ public class WaveformDetail {
         isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, its an NXS2 color wave.
         dataReference = reference;
         rawMessage = message;
-        detailBuffer = ((BinaryField) rawMessage.arguments.get(3)).getValue();
-        leadingJunkBytes = isColor? LEADING_DBSERVER_COLOR_JUNK_BYTES : LEADING_DBSERVER_JUNK_BYTES;
+        // Load the bytes we were sent, and skip over the proper number of leading junk bytes
+        ByteBuffer rawBuffer = ((BinaryField) rawMessage.arguments.get(3)).getValue();
+        rawBuffer.position(isColor? LEADING_DBSERVER_COLOR_JUNK_BYTES : LEADING_DBSERVER_JUNK_BYTES);
+        detailBuffer = rawBuffer.slice();
     }
 
     /**
@@ -168,7 +163,6 @@ public class WaveformDetail {
         if (detailBuffer == null) {
             throw new IllegalStateException("Could not construct WaveformDetail, missing from ANLZ file " + anlzFile);
         }
-        leadingJunkBytes = 0;
         logger.debug("Created waveform, isColor? " + isColor + ", frameCount: " + getFrameCount() + ", data size: " + getData().remaining());
     }
 
@@ -197,7 +191,7 @@ public class WaveformDetail {
      * @return the sixteen-bit number encoding the height and RGB values of that segment
      */
     private int getColorWaveformBits(final ByteBuffer waveBytes, final int segment) {
-        final int base = (segment * 2) + leadingJunkBytes;
+        final int base = (segment * 2);
         final int big = Util.unsign(waveBytes.get(base));
         final int small = Util.unsign(waveBytes.get(base + 1));
         return big * 256 + small;
@@ -222,7 +216,7 @@ public class WaveformDetail {
             if (isColor) {
                 sum += (getColorWaveformBits(waveBytes, segment) >> 2) & 0x1f;
             } else {
-                sum += waveBytes.get(i + leadingJunkBytes) & 0x1f;
+                sum += waveBytes.get(i) & 0x1f;
             }
         }
         return sum / scale;
@@ -256,7 +250,7 @@ public class WaveformDetail {
         }
         int sum = 0;
         for (int i = segment; (i < segment + scale) && (i < limit); i++) {
-            sum += (waveBytes.get(i + leadingJunkBytes) & 0xe0) >> 5;
+            sum += (waveBytes.get(i) & 0xe0) >> 5;
         }
         return COLOR_MAP[sum / scale];
     }
