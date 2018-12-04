@@ -20,7 +20,7 @@ import java.nio.ByteBuffer;
  */
 public class WaveformDetail {
 
-    @SuppressWarnings("FieldCanBeLocal")
+    @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final Logger logger = LoggerFactory.getLogger(WaveformDetail.class);
 
     /**
@@ -163,7 +163,22 @@ public class WaveformDetail {
         if (detailBuffer == null) {
             throw new IllegalStateException("Could not construct WaveformDetail, missing from ANLZ file " + anlzFile);
         }
-        logger.debug("Created waveform, isColor? " + isColor + ", frameCount: " + getFrameCount() + ", data size: " + getData().remaining());
+    }
+
+    /**
+     * Constructor for use with external caching mechanisms.
+     *
+     * @param reference the unique database reference that was used to request this waveform preview
+     * @param data the waveform data as will be returned by {@link #getData()}
+     * @param isColor indicates whether the data represents a color waveform
+     */
+    public WaveformDetail(DataReference reference, ByteBuffer data, boolean isColor) {
+        dataReference = reference;
+        rawMessage = null;
+        byte[] bytes = new byte[data.remaining()];
+        data.get(bytes);
+        detailBuffer = ByteBuffer.wrap(bytes).asReadOnlyBuffer();
+        this.isColor = isColor;
     }
 
     /**

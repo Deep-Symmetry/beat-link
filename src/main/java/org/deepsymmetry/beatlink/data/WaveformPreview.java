@@ -175,7 +175,7 @@ public class WaveformPreview {
     }
 
     /**
-     * Constructor when creating from a general cache file.
+     * Constructor when creating from an external caching mechanism.
      *
      * @param reference the unique database reference that was used to request this waveform preview
      * @param data the expanded data as will be returned by {@link #getData()}
@@ -185,7 +185,9 @@ public class WaveformPreview {
         dataReference = reference;
         rawMessage = null;
         this.isColor = isColor;
-        expandedData = data.slice().asReadOnlyBuffer();
+        byte[] bytes = new byte[data.remaining()];
+        data.get(bytes);
+        expandedData = ByteBuffer.wrap(bytes).asReadOnlyBuffer();
         segmentCount = getSegmentCount();
         maxHeight = getMaxHeight();
     }
