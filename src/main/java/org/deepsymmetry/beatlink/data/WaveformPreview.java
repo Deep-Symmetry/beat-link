@@ -41,9 +41,9 @@ public class WaveformPreview {
     public final Message rawMessage;
 
     /**
-     * The results of expanding the data we received from the player's NFS server if this preview was retrieved
-     * by Crate Digger rather than from the dbserver. If it is a color waveform, the data is always in expanded
-     * form.
+     * The waveform data in its most convenient form. The results of expanding the data we received from the player's
+     * NFS server if this preview was retrieved by Crate Digger rather than from the dbserver.
+     * If it is a color waveform, the leading junk bytes have been removed.
      */
     private final ByteBuffer expandedData;
 
@@ -60,11 +60,8 @@ public class WaveformPreview {
      * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
     public ByteBuffer getData() {
-        if (expandedData != null) {
-            expandedData.rewind();
-            return expandedData.slice();
-        }
-        return ((BinaryField) rawMessage.arguments.get(3)).getValue();
+        expandedData.rewind();
+        return expandedData.slice();
     }
 
     /**
@@ -127,13 +124,9 @@ public class WaveformPreview {
         isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, its an NXS2 color wave.
         dataReference = reference;
         rawMessage = message;
-        if (isColor) {
-            ByteBuffer data = ((BinaryField) rawMessage.arguments.get(3)).getValue();
-            data.position(LEADING_DBSERVER_COLOR_JUNK_BYTES);
-            expandedData = data.slice();
-        } else {
-            expandedData = null;
-        }
+        ByteBuffer data = ((BinaryField) rawMessage.arguments.get(3)).getValue();
+        data.position(isColor? LEADING_DBSERVER_COLOR_JUNK_BYTES : 0);
+        expandedData = data.slice();
         segmentCount = getSegmentCount();
         maxHeight = getMaxHeight();
     }
@@ -144,7 +137,6 @@ public class WaveformPreview {
      * @param reference the unique database reference that was used to request this waveform preview
      * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
      */
-    @SuppressWarnings("WeakerAccess")
     public WaveformPreview(DataReference reference, RekordboxAnlz anlzFile) {
         dataReference = reference;
         rawMessage = null;
@@ -178,6 +170,22 @@ public class WaveformPreview {
         if (expandedData == null) {
             throw new IllegalStateException("Could not construct WaveformPreview, missing from ANLZ file " + anlzFile);
         }
+        segmentCount = getSegmentCount();
+        maxHeight = getMaxHeight();
+    }
+
+    /**
+     * Constructor when creating from a general cache file.
+     *
+     * @param reference the unique database reference that was used to request this waveform preview
+     * @param data the expanded data as will be returned by {@link #getData()}
+     * @param isColor indicates whether the data represents a color preview
+     */
+    public WaveformPreview(DataReference reference, ByteBuffer data, boolean isColor) {
+        dataReference = reference;
+        rawMessage = null;
+        this.isColor = isColor;
+        expandedData = data.slice().asReadOnlyBuffer();
         segmentCount = getSegmentCount();
         maxHeight = getMaxHeight();
     }
