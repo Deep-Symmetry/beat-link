@@ -108,7 +108,7 @@ public class BeatGrid {
     }
 
     /**
-     * Constructor for  when fetched from Crate Digger.
+     * Constructor for when fetched from Crate Digger.
      *
      * @param reference the unique database reference that was used to request this waveform detail
      * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
@@ -125,6 +125,26 @@ public class BeatGrid {
             beatWithinBarValues[beatNumber] = beat.beatNumber();
             timeWithinTrackValues[beatNumber] = beat.time();
         }
+    }
+
+    /**
+     * Constructor for use by an external cache system.
+     *
+     * @param reference the unique database reference that was used to request this waveform detail
+     * @param beatWithinBarValues the musical time on which each beat in the grid falls
+     * @param timeWithinTrackValues the time, in milliseconds, at which each beat occurs in the track
+     */
+    public BeatGrid(DataReference reference, int[] beatWithinBarValues, long[] timeWithinTrackValues) {
+        dataReference = reference;
+        rawData = null;
+        beatCount = beatWithinBarValues.length;
+        if (beatCount != timeWithinTrackValues.length) {
+            throw new IllegalArgumentException("Arrays must contain the same number of beats.");
+        }
+        this.beatWithinBarValues = new int[beatCount];
+        System.arraycopy(beatWithinBarValues, 0, this.beatWithinBarValues, 0, beatCount);
+        this.timeWithinTrackValues = new long[beatCount];
+        System.arraycopy(timeWithinTrackValues, 0, this.timeWithinTrackValues, 0, beatCount);
     }
 
     /**
