@@ -80,14 +80,17 @@ public class AlbumArt {
     }
 
     /**
-     * Constructor simply sets the immutable value fields.
+     * Constructor usable by caching mechanism simply sets the immutable value fields.
      *
      * @param artReference the unique database reference that was used to request this artwork
-     * @param rawBytes the bytes of image data as loaded from the player
+     * @param rawBytes the bytes of image data as loaded from the player or media export
      */
-    AlbumArt(DataReference artReference, ByteBuffer rawBytes) {
+    @SuppressWarnings("WeakerAccess")
+    public AlbumArt(DataReference artReference, ByteBuffer rawBytes) {
         this.artReference = artReference;
-        this.rawBytes = rawBytes;
+        byte[] bytes = new byte[rawBytes.remaining()];
+        rawBytes.get(bytes);
+        this.rawBytes = ByteBuffer.wrap(bytes).asReadOnlyBuffer();
     }
 
     @Override
