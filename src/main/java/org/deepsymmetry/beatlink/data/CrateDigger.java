@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import io.kaitai.struct.RandomAccessFileKaitaiStream;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.cratedigger.Database;
 import org.deepsymmetry.cratedigger.FileFetcher;
@@ -78,7 +79,8 @@ public class CrateDigger {
 
     /**
      * Clear the {@link org.deepsymmetry.cratedigger.FileFetcher} cache when media is unmounted, so it does not try
-     * to use stale filesystem handles. Also clear up our own caches for the vanished media.
+     * to use stale filesystem handles. Also clear up our own caches for the vanished media, and close the files
+     * associated with the parsed database structures.
      */
     private final MountListener mountListener = new MountListener() {
         @Override
@@ -94,6 +96,11 @@ public class CrateDigger {
                 final Database database = databases.remove(slot);
                 if (database != null) {
                     deliverDatabaseUpdate(slot, database, false);
+                    try {
+                        database.close();
+                    } catch (IOException e) {
+                        logger.error("Problem closing parsed rekordbox database export.", e);
+                    }
                     //noinspection ResultOfMethodCallIgnored
                     database.sourceFile.delete();
                 }
@@ -276,11 +283,12 @@ public class CrateDigger {
 
     /**
      * Find the analysis file for the specified track, downloading it from the player if we have not already done so.
+     * Be sure to call {@code _io().close()} when you are done using the returned struct.
      *
      * @param track the track whose analysis file is desired
      * @param database the parsed database export from which the analysis path can be determined
      *
-     * @return the file containing the track analysis
+     * @return the parsed file containing the track analysis
      */
     private RekordboxAnlz findTrackAnalysis(DataReference track, Database database) {
         File file = null;
@@ -292,12 +300,12 @@ public class CrateDigger {
                 final String filePath = file.getCanonicalPath();
                 try {
                     synchronized (Util.allocateNamedLock(filePath)) {
-                        if (file.canRead()) {
-                            return RekordboxAnlz.fromFile(filePath);  // We have already downloaded it.
+                        if (file.canRead()) {  // We have already downloaded it.
+                            return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                         }
                         file.deleteOnExit();  // Prepare to download it.
                         fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
-                        return RekordboxAnlz.fromFile(filePath);
+                        return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                     }
                 } finally {
                     Util.freeNamedLock(filePath);
@@ -316,12 +324,13 @@ public class CrateDigger {
     }
 
     /**
-     * Find the extended analysis file for the specified track, downloading it from the player if we have not already done so.
+     * Find the extended analysis file for the specified track, downloading it from the player if we have not already
+     * done so. Be sure to call {@code _io().close()} when you are done using the returned struct.
      *
      * @param track the track whose extended analysis file is desired
      * @param database the parsed database export from which the analysis path can be determined
      *
-     * @return the file containing the track analysis
+     * @return the parsed file containing the track analysis
      */
     private RekordboxAnlz findExtendedAnalysis(DataReference track, Database database) {
         File file = null;
@@ -333,15 +342,15 @@ public class CrateDigger {
                 final String filePath = file.getCanonicalPath();
                 try {
                     synchronized (Util.allocateNamedLock(filePath)) {
-                        if (file.canRead()) {
-                            return RekordboxAnlz.fromFile(filePath);  // We have already downloaded it.
+                        if (file.canRead()) {  // We have already downloaded it.
+                            return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                         }
                         file.deleteOnExit();  // Prepare to download it.
                         final String analyzePath = Database.getText(trackRow.analyzePath());
                         final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
 
                         fetchFile(track.getSlotReference(), extendedPath, file);
-                        return RekordboxAnlz.fromFile(filePath);
+                        return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                     }
                 } finally {
                     Util.freeNamedLock(filePath);
@@ -418,7 +427,11 @@ public class CrateDigger {
                 try {
                     RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
-                        return new BeatGrid(track, file);
+                        try {
+                            return new BeatGrid(track, file);
+                        } finally {
+                            file._io().close();
+                        }
                     }
                 } catch (Exception e) {
                     logger.error("Problem fetching beat grid for track " + track + " from database " + database, e);
@@ -434,7 +447,11 @@ public class CrateDigger {
                 try {
                     RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
-                        return new CueList(file);
+                        try {
+                            return new CueList(file);
+                        } finally {
+                            file._io().close();
+                        }
                     }
                 } catch (Exception e) {
                     logger.error("Problem fetching cue list for track " + track + " from database " + database, e);
@@ -450,7 +467,11 @@ public class CrateDigger {
                 try {
                     RekordboxAnlz file = findExtendedAnalysis(track, database);  // Look for color preview first
                     if (file != null) {
-                        return new WaveformPreview(track, file);
+                        try {
+                            return new WaveformPreview(track, file);
+                        } finally {
+                            file._io().close();
+                        }
                     }
                 } catch (IllegalStateException e) {
                     logger.info("No color preview waveform found, checking for blue version.");
@@ -460,7 +481,11 @@ public class CrateDigger {
                 try {
                     RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
-                        return new WaveformPreview(track, file);
+                        try {
+                            return new WaveformPreview(track, file);
+                        } finally {
+                            file._io().close();
+                        }
                     }
                 } catch (Exception e) {
                     logger.error("Problem fetching waveform preview for track " + track + " from database " + database, e);
@@ -476,7 +501,11 @@ public class CrateDigger {
                 try {
                     RekordboxAnlz file = findExtendedAnalysis(track, database);
                     if (file != null) {
-                        return new WaveformDetail(track, file);
+                        try {
+                            return new WaveformDetail(track, file);
+                        } finally {
+                            file._io().close();
+                        }
                     }
                 } catch (Exception e) {
                     logger.error("Problem fetching waveform preview for track " + track + " from database " + database, e);
