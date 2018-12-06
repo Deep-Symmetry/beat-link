@@ -33,12 +33,6 @@ This change log follows the conventions of
   network environments.
 - When disconnecting from a player’s dbserver, we politely send a
   teardown message and let it close the connection from its side.
-- A new utility method for creating a proxy around an object
-  which allows the underlying object to be garbage collected but
-  reloaded whenever the proxy is used. This is useful for building
-  user interfaces with lots of large objects which are mostly
-  off-screen, such as the track waveforms in the Beat Link Trigger
-  Show windows.
 
 ### Fixed
 
