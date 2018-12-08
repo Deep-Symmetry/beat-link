@@ -7,9 +7,10 @@ import org.slf4j.LoggerFactory;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -144,14 +145,43 @@ public class WaveformPreviewComponent extends JComponent {
     private final AtomicReference<Image> waveformImage = new AtomicReference<Image>();
 
     /**
-     * Track the current playback position in milliseconds.
+     * Captures the playback state of a single player that has the track loaded, as an immutable value class.
      */
-    private final AtomicLong playbackPosition = new AtomicLong(0);
+    private static class PlaybackState {
+
+        /**
+         * The player number whose playback state this represents.
+         */
+        public final int player;
+
+        /**
+         * The current playback position of the player in milliseconds.
+         */
+        public final long position;
+
+        /**
+         * Whether the player is actively playing the track.
+         */
+        public final boolean playing;
+
+        /**
+         * Create an instance to represent a particular playback state.
+         *
+         * @param player the player number whose playback state this represents
+         * @param position the current playback position in milliseconds
+         * @param playing whether the player is actively playing the track
+         */
+        public PlaybackState(int player, long position, boolean playing) {
+            this.player = player;
+            this.position = position;
+            this.playing = playing;
+        }
+    }
 
     /**
-     * Track whether the player holding the waveform is currently playing.
+     * Track the playback state for the players that have the track loaded.
      */
-    private final AtomicBoolean playing = new AtomicBoolean(false);
+    private final Map<Integer, PlaybackState> playbackStateMap = new ConcurrentHashMap<Integer, PlaybackState>(4);
 
     /**
      * Information about the track whose waveform we are drawing, so we can translate times into positions.
@@ -165,42 +195,214 @@ public class WaveformPreviewComponent extends JComponent {
     private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
 
     /**
-     * Set the current playback position. Will cause part of the component to be redrawn if the position has
+     * Look up the playback state that has reached furthest in the track. This is used to render the “played until”
+     * graphic below the preview.
+     *
+     * @return the playback state, if any, with the highest {@link PlaybackState#position} value
+     */
+    public PlaybackState getFurthestPlaybackState() {
+        PlaybackState result = null;
+        for (PlaybackState state : playbackStateMap.values()) {
+            if (result == null || result.position < state.position) {
+                result = state;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Helper method to mark the parts of the component that need repainting due to a change to the
+     * tracked playback positions.
+     *
+     * @param oldMaxPosition The furthest playback position in our previous state
+     * @param newMaxPosition The furthest playback position in our new state
+     * @param oldState the old position of a marker being moved, or {@code null} if we are adding a marker
+     * @param newState the new position of a marker being moved, or {@code null} if we are removing a marker
+     */
+    private void repaintDueToPlaybackStateChange(long oldMaxPosition, long newMaxPosition,
+                                                 PlaybackState oldState, PlaybackState newState) {
+        if (metadata.get() != null) {  // We are only drawing markers if we have metadata
+            final int width = waveformWidth() + 8;
+
+            // See if we need to redraw a stretch of the “played until” stripe.
+            if (oldMaxPosition > newMaxPosition) {
+                final int left = Math.max(0, Math.min(width, millisecondsToX(newMaxPosition) - 6));
+                final int right = Math.max(0, Math.min(width, millisecondsToX(oldMaxPosition) + 6));
+                repaint(left, 0, right - left, getHeight());
+            } else if (newMaxPosition > oldMaxPosition) {
+                final int left = Math.max(0, Math.min(width, millisecondsToX(oldMaxPosition) - 6));
+                final int right = Math.max(0, Math.min(width, millisecondsToX(newMaxPosition) + 6));
+                repaint(left, 0, right - left, getHeight());
+            }
+
+            // Also refresh where the specific marker was moved from and/or to.
+            if (oldState != null) {
+                final int left = Math.max(0, Math.min(width, millisecondsToX(oldState.position) - 6));
+                final int right = Math.max(0, Math.min(width, millisecondsToX(oldState.position) + 6));
+                repaint(left, 0, right - left, getHeight());
+            }
+            if (newState != null) {
+                final int left = Math.max(0, Math.min(width, millisecondsToX(newState.position) - 6));
+                final int right = Math.max(0, Math.min(width, millisecondsToX(newState.position) + 6));
+                repaint(left, 0, right - left, getHeight());
+            }
+        }
+    }
+
+    /**
+     * Set the current playback state for a player.
+     *
+     * Will cause part of the component to be redrawn if the player state has
+     * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
+     * component). This will be quickly overruled if a player is being monitored, but
+     * can be used in other contexts.
+     *
+     * @param player the player number whose playback state is being recorded
+     * @param position the current playback position of that player in milliseconds
+     * @param playing whether the player is actively playing the track
+     * @since 0.5.0
+     */
+    public synchronized void setPlaybackState(int player, long position, boolean playing) {
+        long oldMaxPosition = 0;
+        PlaybackState furthestState = getFurthestPlaybackState();
+        if (furthestState != null) {
+            oldMaxPosition = furthestState.position;
+        }
+        PlaybackState newState = new PlaybackState(player, position, playing);
+        PlaybackState oldState = playbackStateMap.put(player, newState);
+        long newMaxPosition = 0;
+        furthestState = getFurthestPlaybackState();
+        if (furthestState != null) {
+            newMaxPosition = furthestState.position;
+        }
+        repaintDueToPlaybackStateChange(oldMaxPosition, newMaxPosition, oldState, newState);
+    }
+
+    /**
+     * Clear the playback state stored for a player, such as when it has unloaded the track.
+     *
+     * @param player the player number whose playback state is no longer valid
+     * @since 0.5.0
+     */
+    public synchronized void clearPlaybackState(int player) {
+        long oldMaxPosition = 0;
+        PlaybackState furthestState = getFurthestPlaybackState();
+        if (furthestState != null) {
+            oldMaxPosition = furthestState.position;
+        }
+        PlaybackState oldState = playbackStateMap.remove(player);
+        long newMaxPosition = 0;
+        furthestState = getFurthestPlaybackState();
+        if (furthestState != null) {
+            newMaxPosition = furthestState.position;
+        }
+        repaintDueToPlaybackStateChange(oldMaxPosition, newMaxPosition, oldState, null);
+    }
+
+    /**
+     * Removes all stored playback state.
+     */
+    public synchronized void clearPlaybackState() {
+        for (PlaybackState state : playbackStateMap.values()) {
+            clearPlaybackState(state.player);
+        }
+    }
+
+    /**
+     * Look up the playback state recorded for a particular player.
+     *
+     * @param player the player number whose playback state information is desired
+     * @return the corresponding playback state, if any has been stored
+     * @since 0.5.0
+     */
+    public PlaybackState getPlaybackState(int player) {
+        return playbackStateMap.get(player);
+    }
+
+    /**
+     * Look up all recorded playback state information.
+     *
+     * @return the playback state recorded for any player
+     * @since 0.5.0
+     */
+    public Set<PlaybackState> getPlaybackState() {
+        Set<PlaybackState> result = new HashSet<PlaybackState>(playbackStateMap.values());
+        return Collections.unmodifiableSet(result);
+    }
+
+    /**
+     * Helper method to find the optional single current playback state when used in single-player mode.
+     *
+     * @return either the single stored playback state or {@code null} if there is none
+     */
+    private PlaybackState currentSimpleState() {
+        final Iterator<PlaybackState> iterator = playbackStateMap.values().iterator();
+        PlaybackState currentState = null;
+        if (iterator.hasNext()) {
+            currentState = iterator.next();
+        }
+        return currentState;
+    }
+
+    /**
+     * Set the current playback position. This method can only be used in situations where the component is
+     * tied to a single player, and therefore has zero or one playback position.
+     *
+     * Will cause part of the component to be redrawn if the position has
      * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
      * component). This will be quickly overruled if a player is being monitored, but
      * can be used in other contexts.
      *
      * @param milliseconds how far into the track has been played
+     *
+     * @throws IllegalStateException if there is more than one playback position
+     * @see #setPlaybackState
      */
-    public void setPlaybackPosition(long milliseconds) {
-        if ((metadata.get() !=  null) && (playbackPosition.get() != milliseconds)) {
-            int left;
-            int right;
-            final int width = waveformWidth() + 8;
-            if (milliseconds > playbackPosition.get()) {
-                left = Math.max(0, Math.min(width, millisecondsToX(playbackPosition.get()) - 6));
-                right = Math.max(0, Math.min(width, millisecondsToX(milliseconds) + 6));
-            } else {
-                left = Math.max(0, Math.min(width, millisecondsToX(milliseconds) - 6));
-                right = Math.max(0, Math.min(width, millisecondsToX(playbackPosition.get()) + 6));
+    public synchronized void setPlaybackPosition(long milliseconds) {
+        if (playbackStateMap.size() < 2) {
+            PlaybackState oldState = currentSimpleState();
+            if ((oldState == null) || (oldState.position != milliseconds)) {
+                boolean oldPlaying = false;
+                if (oldState != null) {
+                    oldPlaying = oldState.playing;
+                }
+                int oldPlayer = getMonitoredPlayer();
+                if (oldState != null) {
+                    oldPlayer = oldState.player;
+                }
+                setPlaybackState(oldPlayer, milliseconds, oldPlaying);
             }
-            playbackPosition.set(milliseconds);
-            repaint(left, 0, right - left, getHeight());
         } else {
-            playbackPosition.set(milliseconds);  // Just set, don't attempt to draw anything
+            throw new IllegalStateException("Can only call setPlaybackPosition when there is at most one playback position.");
         }
     }
 
     /**
      * Set whether the player holding the waveform is playing, which changes the indicator color to white from red.
+     *  This method can only be used in situations where the component is tied to a single player, and therefore has
+     *  zero or one playback position.
      *
      * @param playing if {@code true}, draw the position marker in white, otherwise red
+     *
+     * @throws IllegalStateException if there is more than one playback position
+     * @see #setPlaybackState
      */
     public void setPlaying(boolean playing) {
-        final boolean oldValue = this.playing.getAndSet(playing);
-        if ((metadata.get() != null) && oldValue != playing) {
-            int left = Math.max(0, Math.min(waveformWidth() + 8, millisecondsToX(playbackPosition.get()) - 2));
-            repaint(left, 0, 4, getHeight());
+        if (playbackStateMap.size() < 2) {
+            PlaybackState oldState = currentSimpleState();
+            if ((oldState == null) || (oldState.playing != playing)) {
+                int oldPlayer = getMonitoredPlayer();
+                if (oldState != null) {
+                    oldPlayer = oldState.player;
+                }
+                long oldPosition = 0;
+                if (oldState != null) {
+                    oldPosition = oldState.position;
+                }
+                setPlaybackState(oldPlayer, oldPosition, playing);
+            }
+        } else {
+            throw new IllegalStateException("Can only call setPlaying when there is at most one playback position.");
         }
     }
 
@@ -239,7 +441,7 @@ public class WaveformPreviewComponent extends JComponent {
     public void setWaveformPreview(WaveformPreview preview, TrackMetadata metadata) {
         updateWaveform(preview);
         this.metadata.set(metadata);
-        playbackPosition.set(0);
+        clearPlaybackState();
         repaint();
     }
 
@@ -259,6 +461,7 @@ public class WaveformPreviewComponent extends JComponent {
         if (player < 0) {
             throw new IllegalArgumentException("player cannot be negative");
         }
+        clearPlaybackState();
         monitoredPlayer.set(player);
         if (player > 0) {  // Start monitoring the specified player
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
@@ -313,6 +516,15 @@ public class WaveformPreviewComponent extends JComponent {
             beatGrid.set(null);
         }
         repaint();
+    }
+
+    /**
+     * See which player is having its state tracked automatically by the component, if any.
+     *
+     * @return the player number being monitored, or zero if none
+     */
+    public int getMonitoredPlayer() {
+        return monitoredPlayer.get();
     }
 
     /**
@@ -465,7 +677,12 @@ public class WaveformPreviewComponent extends JComponent {
             final int segment = x - WAVEFORM_MARGIN;
             if ((segment >= 0) && (segment < waveformWidth())) {
                 if (metadata.get() != null) { // Draw the playback progress bar
-                    if (x < millisecondsToX(playbackPosition.get()) - 1) {  // The played section
+                    long maxPosition = 0;
+                    final PlaybackState furthestState = getFurthestPlaybackState();
+                    if (furthestState != null) {
+                        maxPosition = furthestState.position;
+                    }
+                    if (x < millisecondsToX(maxPosition) - 1) {  // The played section
                         g.setColor((x % 2 == 0)? BRIGHT_PLAYED : DIM_PLAYED);
                         if (x == WAVEFORM_MARGIN) {
                             g.drawLine(x, playbackBarTop(), x, playbackBarTop() + PLAYBACK_BAR_HEIGHT);
@@ -473,7 +690,7 @@ public class WaveformPreviewComponent extends JComponent {
                             g.drawLine(x, playbackBarTop(), x, playbackBarTop());
                             g.drawLine(x, playbackBarTop() + PLAYBACK_BAR_HEIGHT, x, playbackBarTop() + PLAYBACK_BAR_HEIGHT);
                         }
-                    } else if (x > millisecondsToX(playbackPosition.get()) + 1) {  // The unplayed section
+                    } else if (x > millisecondsToX(maxPosition) + 1) {  // The unplayed section
                         g.setColor((x % 2 == 0)? Color.WHITE : DIM_UNPLAYED);
                         g.drawLine(x, playbackBarTop(), x, playbackBarTop() + PLAYBACK_BAR_HEIGHT);
                     }
@@ -487,11 +704,21 @@ public class WaveformPreviewComponent extends JComponent {
                 final int x = millisecondsToX(time * 1000);
                 g.drawLine(x, minuteMarkerTop(), x, minuteMarkerTop() + MINUTE_MARKER_HEIGHT);
             }
-            final int x = millisecondsToX(playbackPosition.get());
-            if (!playing.get()) {
-                g.setColor(Color.RED);
+
+            // Draw the non-playing markers first, so the playing ones will be seen if they are in the same spot.
+            for (PlaybackState state : playbackStateMap.values()) {
+                if (!state.playing) {
+                    g.fillRect(millisecondsToX(state.position) - 1, POSITION_MARKER_TOP, 2, positionMarkerHeight());
+                }
             }
-            g.fillRect(x - 1, POSITION_MARKER_TOP, 2, positionMarkerHeight());
+
+            // Then draw the playing markers on top of the non-playing ones.
+            g.setColor(Color.RED);
+            for (PlaybackState state : playbackStateMap.values()) {
+                if (state.playing) {
+                    g.fillRect(millisecondsToX(state.position) - 1, POSITION_MARKER_TOP, 2, positionMarkerHeight());
+                }
+            }
         }
 
         // Finally, draw the cue points, first the ordinary memory points and then the hot cues, since sometimes
@@ -526,7 +753,6 @@ public class WaveformPreviewComponent extends JComponent {
     @Override
     public String toString() {
         return"WaveformPreviewComponent[metadata=" + metadata.get() + ", waveformPreview=" + preview.get() + ", beatGrid=" +
-                beatGrid.get() + ", playbackPosition=" + playbackPosition.get() + ", playing=" + playing.get() + ", monitoredPlayer=" +
-                monitoredPlayer.get() + "]";
+                beatGrid.get() + ", playbackStateMap=" + playbackStateMap + ", monitoredPlayer=" + monitoredPlayer.get() + "]";
     }
 }
