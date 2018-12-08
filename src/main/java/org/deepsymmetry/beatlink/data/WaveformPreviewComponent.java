@@ -184,15 +184,21 @@ public class WaveformPreviewComponent extends JComponent {
     private final Map<Integer, PlaybackState> playbackStateMap = new ConcurrentHashMap<Integer, PlaybackState>(4);
 
     /**
-     * Information about the track whose waveform we are drawing, so we can translate times into positions.
+     * Information about the playback duration of the track whose waveform we are drawing, so we can translate times
+     * into positions.
      */
-    private final AtomicReference<TrackMetadata> metadata = new AtomicReference<TrackMetadata>();
+    private final AtomicInteger duration = new AtomicInteger(0);
 
     /**
      * Information about where all the beats in the track fall, so we can figure out our current position from
      * player updates.
      */
     private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
+
+    /**
+     * Information about where all the cues are so we can draw them.
+     */
+    private final AtomicReference<CueList> cueList = new AtomicReference<CueList>();
 
     /**
      * Look up the playback state that has reached furthest in the track. This is used to render the “played until”
@@ -221,7 +227,7 @@ public class WaveformPreviewComponent extends JComponent {
      */
     private void repaintDueToPlaybackStateChange(long oldMaxPosition, long newMaxPosition,
                                                  PlaybackState oldState, PlaybackState newState) {
-        if (metadata.get() != null) {  // We are only drawing markers if we have metadata
+        if (duration.get() > 0) {  // We are only drawing markers if we know the track duration
             final int width = waveformWidth() + 8;
 
             // See if we need to redraw a stretch of the “played until” stripe.
@@ -416,11 +422,29 @@ public class WaveformPreviewComponent extends JComponent {
      *
      * @param preview the waveform preview to display
      * @param metadata information about the track whose waveform we are drawing, so we can translate times into
-     *                 positions
+     *                 positions and display hot cues and memory points
      */
     public void setWaveformPreview(WaveformPreview preview, TrackMetadata metadata) {
         updateWaveform(preview);
-        this.metadata.set(metadata);
+        this.duration.set(metadata.getDuration());
+        this.cueList.set(metadata.getCueList());
+        clearPlaybackState();
+        repaint();
+    }
+
+    /**
+     * Change the waveform preview being drawn. This will be quickly overruled if a player is being monitored, but
+     * can be used in other contexts.
+     *
+     * @param preview the waveform preview to display
+     * @param duration the playback duration, in seconds, of the track whose waveform we are drawing, so we can
+     *                 translate times into positions
+     * @param cueList the hot cues and memory points stored for the track, if any, so we can draw them
+     */
+    public void setWaveformPreview(WaveformPreview preview, int duration, CueList cueList) {
+        updateWaveform(preview);
+        this.duration.set(duration);
+        this.cueList.set(cueList);
         clearPlaybackState();
         repaint();
     }
@@ -446,11 +470,16 @@ public class WaveformPreviewComponent extends JComponent {
         if (player > 0) {  // Start monitoring the specified player
             setPlaybackState(player, 0, false);  // Start with default values for required simple state.
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
+            TrackMetadata knownMetadata = null;
             if (MetadataFinder.getInstance().isRunning()) {
-                metadata.set(MetadataFinder.getInstance().getLatestMetadataFor(player));
-            } else {
-                metadata.set(null);
+                knownMetadata = MetadataFinder.getInstance().getLatestMetadataFor(player);
             }
+            if (knownMetadata == null) {
+                duration.set(0);  // We don't know the duration, so we can’t draw markers.
+            } else {
+                duration.set(knownMetadata.getDuration());
+            }
+
             WaveformFinder.getInstance().addWaveformListener(waveformListener);
             if (WaveformFinder.getInstance().isRunning()) {
                 updateWaveform(WaveformFinder.getInstance().getLatestPreviewFor(player));
@@ -492,7 +521,7 @@ public class WaveformPreviewComponent extends JComponent {
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
-            metadata.set(null);
+            duration.set(0);
             updateWaveform(null);
             beatGrid.set(null);
         }
@@ -515,7 +544,7 @@ public class WaveformPreviewComponent extends JComponent {
         @Override
         public void metadataChanged(TrackMetadataUpdate update) {
             if (update.player == getMonitoredPlayer()) {
-                metadata.set(update.metadata);
+                duration.set(update.metadata.getDuration());
                 repaint();
             }
         }
@@ -559,7 +588,7 @@ public class WaveformPreviewComponent extends JComponent {
         @Override
         public void received(DeviceUpdate update) {
             if ((update instanceof CdjStatus) && (update.getDeviceNumber() == getMonitoredPlayer()) &&
-                    (metadata.get() != null) && (beatGrid.get() != null)) {
+                    (duration.get() > 0) && (beatGrid.get() != null)) {
                 CdjStatus status = (CdjStatus) update;
                 setPlaying(status.isPlaying());
             }
@@ -585,7 +614,21 @@ public class WaveformPreviewComponent extends JComponent {
      */
     public WaveformPreviewComponent(WaveformPreview preview, TrackMetadata metadata) {
         updateWaveform(preview);
-        this.metadata.set(metadata);
+        this.duration.set(metadata.getDuration());
+    }
+
+    /**
+     * Create a view which draws a specific waveform, even if it is not currently loaded in a player.
+     *
+     * @param preview the waveform preview to display
+     * @param duration the playback duration, in seconds, of the track whose waveform we are drawing, so we can
+     *                 translate times into positions
+     * @param cueList the hot cues and memory points stored for the track, if any, so we can draw them
+     */
+    public WaveformPreviewComponent(WaveformPreview preview, int duration, CueList cueList) {
+        updateWaveform(preview);
+        this.duration.set(duration);
+        this.cueList.set(cueList);
     }
 
     /**
@@ -632,11 +675,10 @@ public class WaveformPreviewComponent extends JComponent {
      * @return the component x coordinate at which it should be drawn
      */
     private int millisecondsToX(long milliseconds) {
-        long duration = metadata.get().getDuration();
-        if (duration < 1) {  // Don't crash on goofy metadata
+        if (duration.get() < 1) {  // Don't crash if we are missing duration information.
             return 0;
         }
-        long result = milliseconds * waveformWidth() / (metadata.get().getDuration() * 1000);
+        long result = milliseconds * waveformWidth() / (duration.get() * 1000);
         return WAVEFORM_MARGIN + Math.max(0, Math.min(waveformWidth(), (int) result));
     }
 
@@ -657,7 +699,7 @@ public class WaveformPreviewComponent extends JComponent {
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = x - WAVEFORM_MARGIN;
             if ((segment >= 0) && (segment < waveformWidth())) {
-                if (metadata.get() != null) { // Draw the playback progress bar
+                if (duration.get() > 0) { // Draw the playback progress bar
                     long maxPosition = 0;
                     final PlaybackState furthestState = getFurthestPlaybackState();
                     if (furthestState != null) {
@@ -679,9 +721,9 @@ public class WaveformPreviewComponent extends JComponent {
             }
         }
 
-        if (metadata.get() != null) {  // Draw the minute marks and playback position
+        if (duration.get() > 0) {  // Draw the minute marks and playback position
             g.setColor(Color.WHITE);
-            for (int time = 60; time < metadata.get().getDuration(); time += 60) {
+            for (int time = 60; time < duration.get(); time += 60) {
                 final int x = millisecondsToX(time * 1000);
                 g.drawLine(x, minuteMarkerTop(), x, minuteMarkerTop() + MINUTE_MARKER_HEIGHT);
             }
@@ -704,7 +746,7 @@ public class WaveformPreviewComponent extends JComponent {
 
         // Finally, draw the cue points, first the ordinary memory points and then the hot cues, since sometimes
         // they are in the same place and we want the hot cues to stand out.
-        if (metadata.get() != null && metadata.get().getCueList() != null) {
+        if (cueList.get() != null) {
             drawCueList(g, clipRect, false);
             drawCueList(g, clipRect, true);
         }
@@ -718,7 +760,7 @@ public class WaveformPreviewComponent extends JComponent {
      * @param hot true if we should draw hot cues, otherwise we draw memory points
      */
     private void drawCueList(Graphics g, Rectangle clipRect, boolean hot) {
-        for (CueList.Entry entry : metadata.get().getCueList().entries) {
+        for (CueList.Entry entry : cueList.get().entries) {
             if ((hot && entry.hotCueNumber > 0) || (entry.hotCueNumber == 0 && !hot)) {
                 final int x = millisecondsToX(entry.cueTime);
                 if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
@@ -733,7 +775,8 @@ public class WaveformPreviewComponent extends JComponent {
 
     @Override
     public String toString() {
-        return"WaveformPreviewComponent[metadata=" + metadata.get() + ", waveformPreview=" + preview.get() + ", beatGrid=" +
-                beatGrid.get() + ", playbackStateMap=" + playbackStateMap + ", monitoredPlayer=" + getMonitoredPlayer() + "]";
+        return"WaveformPreviewComponent[duration=" + duration.get() + ", waveformPreview=" + preview.get() +
+                ", beatGrid=" + beatGrid.get() + ", cueList=" + cueList.get() + ", playbackStateMap=" +
+                playbackStateMap + ", monitoredPlayer=" + getMonitoredPlayer() + "]";
     }
 }

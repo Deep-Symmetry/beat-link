@@ -9,7 +9,7 @@ This change log follows the conventions of
 ### Changed
 
 > :warning: These are breaking API changes. Code that used some
-> cache-related methods will need to be rewritten.
+> cache-related and metadata methods will need to be rewritten.
 
 - The handling of metadata cache files has been moved out of the
   MetadataFinder into a new class focused on this task. It also
@@ -18,6 +18,15 @@ This change log follows the conventions of
   that group metadata from multiple different media sources).
 - Track comments and dates added are just plain strings, not
   searchable items, so the API has been changed to reflect this.
+- The WaveformPreviewComponent has been generalized to support
+  tracking multiple simultaneous playback positions, so it can be
+  used in the context of a Beat Link Trigger show file, where a track
+  can be loaded and even playing on multiple players at once.
+- It is now possible to construct a fully-functional
+  WaveformPreview component even if you don’t have access to actual
+  TrackMetadata objects, as long as you pass it the few individual
+  pieces of information it needs. Again, this supports the needs of
+  the new Beat Link Trigger show interface.
 
 ### Added
 
