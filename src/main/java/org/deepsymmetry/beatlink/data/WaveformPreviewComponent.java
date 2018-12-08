@@ -260,9 +260,20 @@ public class WaveformPreviewComponent extends JComponent {
      * @param player the player number whose playback state is being recorded
      * @param position the current playback position of that player in milliseconds
      * @param playing whether the player is actively playing the track
+     *
+     * @throws IllegalStateException if the component is configured to monitor a player, and this is called
+     *         with state for a different player
+     * @throws IllegalArgumentException if player is less than one
+     *
      * @since 0.5.0
      */
     public synchronized void setPlaybackState(int player, long position, boolean playing) {
+        if (getMonitoredPlayer() != 0 && player != getMonitoredPlayer()) {
+            throw new IllegalStateException("Cannot setPlaybackState for another player when monitoring player " + getMonitoredPlayer());
+        }
+        if (player < 1) {
+            throw new IllegalArgumentException("player must be positive");
+        }
         long oldMaxPosition = 0;
         PlaybackState furthestState = getFurthestPlaybackState();
         if (furthestState != null) {
@@ -331,22 +342,17 @@ public class WaveformPreviewComponent extends JComponent {
     }
 
     /**
-     * Helper method to find the optional single current playback state when used in single-player mode.
+     * Helper method to find the single current playback state when used in single-player mode.
      *
-     * @return either the single stored playback state or {@code null} if there is none
+     * @return either the single stored playback state
      */
     private PlaybackState currentSimpleState() {
-        final Iterator<PlaybackState> iterator = playbackStateMap.values().iterator();
-        PlaybackState currentState = null;
-        if (iterator.hasNext()) {
-            currentState = iterator.next();
-        }
-        return currentState;
+        return playbackStateMap.values().iterator().next();
     }
 
     /**
      * Set the current playback position. This method can only be used in situations where the component is
-     * tied to a single player, and therefore has zero or one playback position.
+     * tied to a single player, and therefore always has a single playback position.
      *
      * Will cause part of the component to be redrawn if the position has
      * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
@@ -355,54 +361,28 @@ public class WaveformPreviewComponent extends JComponent {
      *
      * @param milliseconds how far into the track has been played
      *
-     * @throws IllegalStateException if there is more than one playback position
      * @see #setPlaybackState
      */
-    public synchronized void setPlaybackPosition(long milliseconds) {
-        if (playbackStateMap.size() < 2) {
-            PlaybackState oldState = currentSimpleState();
-            if ((oldState == null) || (oldState.position != milliseconds)) {
-                boolean oldPlaying = false;
-                if (oldState != null) {
-                    oldPlaying = oldState.playing;
-                }
-                int oldPlayer = getMonitoredPlayer();
-                if (oldState != null) {
-                    oldPlayer = oldState.player;
-                }
-                setPlaybackState(oldPlayer, milliseconds, oldPlaying);
-            }
-        } else {
-            throw new IllegalStateException("Can only call setPlaybackPosition when there is at most one playback position.");
+    private void setPlaybackPosition(long milliseconds) {
+        PlaybackState oldState = currentSimpleState();
+        if (oldState.position != milliseconds) {
+            setPlaybackState(oldState.player, milliseconds, oldState.playing);
         }
     }
 
     /**
      * Set whether the player holding the waveform is playing, which changes the indicator color to white from red.
-     *  This method can only be used in situations where the component is tied to a single player, and therefore has
-     *  zero or one playback position.
+     * This method can only be used in situations where the component is tied to a single player, and therefore has
+     * a single playback position.
      *
      * @param playing if {@code true}, draw the position marker in white, otherwise red
      *
-     * @throws IllegalStateException if there is more than one playback position
      * @see #setPlaybackState
      */
-    public void setPlaying(boolean playing) {
-        if (playbackStateMap.size() < 2) {
-            PlaybackState oldState = currentSimpleState();
-            if ((oldState == null) || (oldState.playing != playing)) {
-                int oldPlayer = getMonitoredPlayer();
-                if (oldState != null) {
-                    oldPlayer = oldState.player;
-                }
-                long oldPosition = 0;
-                if (oldState != null) {
-                    oldPosition = oldState.position;
-                }
-                setPlaybackState(oldPlayer, oldPosition, playing);
-            }
-        } else {
-            throw new IllegalStateException("Can only call setPlaying when there is at most one playback position.");
+    private void setPlaying(boolean playing) {
+        PlaybackState oldState = currentSimpleState();
+        if (oldState.playing != playing) {
+            setPlaybackState(oldState.player, oldState.position, playing);
         }
     }
 
@@ -464,6 +444,7 @@ public class WaveformPreviewComponent extends JComponent {
         clearPlaybackState();
         monitoredPlayer.set(player);
         if (player > 0) {  // Start monitoring the specified player
+            setPlaybackState(player, 0, false);  // Start with default values for required simple state.
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             if (MetadataFinder.getInstance().isRunning()) {
                 metadata.set(MetadataFinder.getInstance().getLatestMetadataFor(player));
@@ -497,7 +478,7 @@ public class WaveformPreviewComponent extends JComponent {
                                     logger.warn("Waveform animation thread interrupted; ending");
                                     animating.set(false);
                                 }
-                                setPlaybackPosition(TimeFinder.getInstance().getTimeFor(monitoredPlayer.get()));
+                                setPlaybackPosition(TimeFinder.getInstance().getTimeFor(getMonitoredPlayer()));
                             }
                         }
                     }).start();
@@ -533,7 +514,7 @@ public class WaveformPreviewComponent extends JComponent {
     private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
         @Override
         public void metadataChanged(TrackMetadataUpdate update) {
-            if (update.player == monitoredPlayer.get()) {
+            if (update.player == getMonitoredPlayer()) {
                 metadata.set(update.metadata);
                 repaint();
             }
@@ -546,7 +527,7 @@ public class WaveformPreviewComponent extends JComponent {
     private final WaveformListener waveformListener = new WaveformListener() {
         @Override
         public void previewChanged(WaveformPreviewUpdate update) {
-            if (update.player == monitoredPlayer.get()) {
+            if (update.player == getMonitoredPlayer()) {
                 updateWaveform(update.preview);
                 repaint();
             }
@@ -564,7 +545,7 @@ public class WaveformPreviewComponent extends JComponent {
     private final BeatGridListener beatGridListener = new BeatGridListener() {
         @Override
         public void beatGridChanged(BeatGridUpdate update) {
-            if (update.player == monitoredPlayer.get()) {
+            if (update.player == getMonitoredPlayer()) {
                 beatGrid.set(update.beatGrid);
                 repaint();
             }
@@ -577,7 +558,7 @@ public class WaveformPreviewComponent extends JComponent {
     private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
         @Override
         public void received(DeviceUpdate update) {
-            if ((update instanceof CdjStatus) && (update.getDeviceNumber() == monitoredPlayer.get()) &&
+            if ((update instanceof CdjStatus) && (update.getDeviceNumber() == getMonitoredPlayer()) &&
                     (metadata.get() != null) && (beatGrid.get() != null)) {
                 CdjStatus status = (CdjStatus) update;
                 setPlaying(status.isPlaying());
@@ -753,6 +734,6 @@ public class WaveformPreviewComponent extends JComponent {
     @Override
     public String toString() {
         return"WaveformPreviewComponent[metadata=" + metadata.get() + ", waveformPreview=" + preview.get() + ", beatGrid=" +
-                beatGrid.get() + ", playbackStateMap=" + playbackStateMap + ", monitoredPlayer=" + monitoredPlayer.get() + "]";
+                beatGrid.get() + ", playbackStateMap=" + playbackStateMap + ", monitoredPlayer=" + getMonitoredPlayer() + "]";
     }
 }
