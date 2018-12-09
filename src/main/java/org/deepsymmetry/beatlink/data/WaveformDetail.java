@@ -20,7 +20,7 @@ import java.nio.ByteBuffer;
  */
 public class WaveformDetail {
 
-    @SuppressWarnings({"FieldCanBeLocal", "unused"})
+    @SuppressWarnings({"unused"})
     private final Logger logger = LoggerFactory.getLogger(WaveformDetail.class);
 
     /**

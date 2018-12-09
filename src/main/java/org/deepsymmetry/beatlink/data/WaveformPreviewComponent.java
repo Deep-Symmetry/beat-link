@@ -217,6 +217,43 @@ public class WaveformPreviewComponent extends JComponent {
     }
 
     /**
+     * Keep track of whether we are supposed to be delegating our repaint calls to a host component.
+     */
+    private final AtomicReference<RepaintDelegate> repaintDelegate = new AtomicReference<RepaintDelegate>();
+
+    /**
+     * Establish a host component to which all {@link #repaint(int, int, int, int)} calls should be delegated,
+     * presumably because we are being soft-loaded in a large user interface to save on memory.
+     *
+     * @param delegate the permanent component that can actually accumulate repaint regions, or {@code null} if
+     *                 we are being hosted normally in a container, so we should use the normal repaint process.
+     */
+    public void setRepaintDelegate(RepaintDelegate delegate) {
+        repaintDelegate.set(delegate);
+    }
+
+    /**
+     * Determine whether we should use the normal repaint process, or delegate that to another component that is
+     * hosting us in a soft-loaded manner to save memory.
+     *
+     * @param x the left edge of the region that we want to have redrawn
+     * @param y the top edge of the region that we want to have redrawn
+     * @param width the width of the region that we want to have redrawn
+     * @param height the height of the region that we want to have redrawn
+     */
+    @SuppressWarnings("SameParameterValue")
+    private void delegatingRepaint(int x, int y, int width, int height) {
+        final RepaintDelegate delegate = repaintDelegate.get();
+        if (delegate != null) {
+            //logger.info("Delegating repaint: " + x + ", " + y + ", " + width + ", " + height);
+            delegate.repaint(x, y, width, height);
+        } else {
+            //logger.info("Normal repaint: " + x + ", " + y + ", " + width + ", " + height);
+            repaint(x, y, width, height);
+        }
+    }
+
+    /**
      * Helper method to mark the parts of the component that need repainting due to a change to the
      * tracked playback positions.
      *
@@ -234,23 +271,23 @@ public class WaveformPreviewComponent extends JComponent {
             if (oldMaxPosition > newMaxPosition) {
                 final int left = Math.max(0, Math.min(width, millisecondsToX(newMaxPosition) - 6));
                 final int right = Math.max(0, Math.min(width, millisecondsToX(oldMaxPosition) + 6));
-                repaint(left, 0, right - left, getHeight());
+                delegatingRepaint(left, 0, right - left, getHeight());
             } else if (newMaxPosition > oldMaxPosition) {
                 final int left = Math.max(0, Math.min(width, millisecondsToX(oldMaxPosition) - 6));
                 final int right = Math.max(0, Math.min(width, millisecondsToX(newMaxPosition) + 6));
-                repaint(left, 0, right - left, getHeight());
+                delegatingRepaint(left, 0, right - left, getHeight());
             }
 
             // Also refresh where the specific marker was moved from and/or to.
             if (oldState != null) {
                 final int left = Math.max(0, Math.min(width, millisecondsToX(oldState.position) - 6));
                 final int right = Math.max(0, Math.min(width, millisecondsToX(oldState.position) + 6));
-                repaint(left, 0, right - left, getHeight());
+                delegatingRepaint(left, 0, right - left, getHeight());
             }
             if (newState != null) {
                 final int left = Math.max(0, Math.min(width, millisecondsToX(newState.position) - 6));
                 final int right = Math.max(0, Math.min(width, millisecondsToX(newState.position) + 6));
-                repaint(left, 0, right - left, getHeight());
+                delegatingRepaint(left, 0, right - left, getHeight());
             }
         }
     }
