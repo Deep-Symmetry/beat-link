@@ -581,7 +581,11 @@ public class WaveformPreviewComponent extends JComponent {
         @Override
         public void metadataChanged(TrackMetadataUpdate update) {
             if (update.player == getMonitoredPlayer()) {
-                duration.set(update.metadata.getDuration());
+                if (update.metadata != null) {
+                    duration.set(update.metadata.getDuration());
+                } else {
+                    duration.set(0);
+                }
                 repaint();
             }
         }
