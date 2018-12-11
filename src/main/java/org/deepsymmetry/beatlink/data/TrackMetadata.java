@@ -217,6 +217,20 @@ public class TrackMetadata {
     }
 
     /**
+     * Helper method to extract the name from an artist row, since it can be found one of two places.
+     *
+     * @param artistRow the row whose name is desired.
+     *
+     * @return the best name that was found.
+     */
+    private String getName(RekordboxPdb.ArtistRow artistRow) {
+        if (artistRow.longName() !=  null) {
+            return Database.getText(artistRow.longName());
+        }
+        return Database.getText(artistRow.name());
+    }
+
+    /**
      * Constructor for when reading from a rekordbox export file. Finds the desired track in the exported
      * database, along with all of the related records, and sets all the interpreted fields based on the parsed
      * database structures.
@@ -243,19 +257,19 @@ public class TrackMetadata {
         // Look up the track artist, if there is one.
         RekordboxPdb.ArtistRow artistRow = database.artistIndex.get(rawRow.artistId());
         if (artistRow != null) {
-            artist = new SearchableItem((int) artistRow.id(), Database.getText(artistRow.name()));
+            artist = new SearchableItem((int) artistRow.id(), getName(artistRow));
         }
 
         // Look up the original artist, if there is one.
         artistRow = database.artistIndex.get(rawRow.originalArtistId());
         if (artistRow != null) {
-            originalArtist = new SearchableItem((int) artistRow.id(), Database.getText(artistRow.name()));
+            originalArtist = new SearchableItem((int) artistRow.id(), getName(artistRow));
         }
 
         // Look up the remixer, if there is one.
         artistRow = database.artistIndex.get(rawRow.originalArtistId());
         if (artistRow != null) {
-            remixer = new SearchableItem((int) artistRow.id(), Database.getText(artistRow.name()));
+            remixer = new SearchableItem((int) artistRow.id(), getName(artistRow));
         }
 
         // Look up the album, if there is one.
@@ -502,7 +516,6 @@ public class TrackMetadata {
      *
      * @return the hot cues, loops and memory points stored for the track, if any
      */
-    @SuppressWarnings("WeakerAccess")
     public CueList getCueList() {
         return cueList;
     }
