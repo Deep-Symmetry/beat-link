@@ -40,6 +40,11 @@ This change log follows the conventions of
 - When going online, the `VirtualCdj` now reports information about
   the chosen network interface to help with troubleshooting problematic
   network environments.
+- There is a new interface, `TrackPositionBeatListener`, that can
+  be registered with the `TimeFinder` in order to learn about new
+  beats as soon as they happen, along with the actual beat number
+  within the track represented by the beat (which is missing from
+  the raw beat packet available through the `BeatFinder`).
 - When disconnecting from a player’s dbserver, we politely send a
   teardown message and let it close the connection from its side.
 

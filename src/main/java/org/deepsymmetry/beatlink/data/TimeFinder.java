@@ -63,7 +63,6 @@ public class TimeFinder extends LifecycleParticipant {
      *
      * @return true if track playback positions are being kept track of for all active players
      */
-    @SuppressWarnings("WeakerAccess")
     public boolean isRunning() {
         return running.get();
     }
@@ -328,13 +327,15 @@ public class TimeFinder extends LifecycleParticipant {
 
     /**
      * Check if the current position tracking information for a player represents a significant change compared to
-     * what a listener was last informed to expect, and if so, send another update.
+     * what a listener was last informed to expect, and if so, send another update. If this is a definitive update
+     * (i.e. a new beat), and the listener wants all beats, always send it.
      *
      * @param player the device number for which an update has occurred
      * @param update the latest track position tracking information for the specified player, or {@code null} if we
      *               no longer have any
+     * @param beat if this update was triggered by a beat packet, contains the packet to pass on to interested listeners
      */
-    private void updateListenersIfNeeded(int player, TrackPositionUpdate update) {
+    private void updateListenersIfNeeded(int player, TrackPositionUpdate update, Beat beat) {
         // Iterate over a copy to avoid issues with concurrent modification
         for (Map.Entry<TrackPositionListener, TrackPositionUpdate> entry :
                 new HashMap<TrackPositionListener, TrackPositionUpdate>(trackPositionListeners).entrySet()) {
@@ -361,6 +362,16 @@ public class TimeFinder extends LifecycleParticipant {
                             } catch (Throwable t) {
                                 logger.warn("Problem delivering movementChanged update", t);
                             }
+                        }
+                    }
+
+                    // And regardless of whether this was a significant change, if this was a new beat and the listener
+                    // implements the interface that requests all beats, send that information.
+                    if (update.definitive && entry.getKey() instanceof TrackPositionBeatListener) {
+                        try {
+                            ((TrackPositionBeatListener) entry.getKey()).newBeat(beat, update);
+                        } catch (Throwable t) {
+                            logger.warn("Problem delivering newBeat update", t);
                         }
                     }
                 }
@@ -405,12 +416,12 @@ public class TimeFinder extends LifecycleParticipant {
                             done = positions.replace(update.getDeviceNumber(), lastPosition, newPosition);
                         }
                         if (done) {
-                            updateListenersIfNeeded(update.getDeviceNumber(), newPosition);
+                            updateListenersIfNeeded(update.getDeviceNumber(), newPosition, null);
                         }
                     }
                 } else {
                     positions.remove(update.getDeviceNumber());  // We can't say where that player is.
-                    updateListenersIfNeeded(update.getDeviceNumber(), null);
+                    updateListenersIfNeeded(update.getDeviceNumber(), null, null);
                 }
             }
         }
@@ -483,10 +494,10 @@ public class TimeFinder extends LifecycleParticipant {
                             timeOfBeat(beatGrid, beatNumber, beat), beatNumber, definitive, true,
                             Util.pitchToMultiplier(beat.getPitch()), false, beatGrid);
                     positions.put(beat.getDeviceNumber(), newPosition);
-                    updateListenersIfNeeded(beat.getDeviceNumber(), newPosition);
+                    updateListenersIfNeeded(beat.getDeviceNumber(), newPosition, beat);
                 } else {
                     positions.remove(beat.getDeviceNumber());  // We can't determine where the player is.
-                    updateListenersIfNeeded(beat.getDeviceNumber(), null);
+                    updateListenersIfNeeded(beat.getDeviceNumber(), null, beat);
                 }
             }
         }
@@ -536,7 +547,6 @@ public class TimeFinder extends LifecycleParticipant {
     /**
      * Stop interpolating playback position for all active players.
      */
-    @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
             BeatFinder.getInstance().removeBeatListener(beatListener);
