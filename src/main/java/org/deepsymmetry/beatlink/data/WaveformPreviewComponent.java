@@ -390,7 +390,10 @@ public class WaveformPreviewComponent extends JComponent {
      * @return either the single stored playback state
      */
     private PlaybackState currentSimpleState() {
-        return playbackStateMap.values().iterator().next();
+        if (!playbackStateMap.isEmpty()) {  // Avoid exceptions during animation loop shutdown.
+            return playbackStateMap.values().iterator().next();
+        }
+        return null;
     }
 
     /**
@@ -408,7 +411,7 @@ public class WaveformPreviewComponent extends JComponent {
      */
     private void setPlaybackPosition(long milliseconds) {
         PlaybackState oldState = currentSimpleState();
-        if (oldState.position != milliseconds) {
+        if (oldState != null && oldState.position != milliseconds) {
             setPlaybackState(oldState.player, milliseconds, oldState.playing);
         }
     }
@@ -424,7 +427,7 @@ public class WaveformPreviewComponent extends JComponent {
      */
     private void setPlaying(boolean playing) {
         PlaybackState oldState = currentSimpleState();
-        if (oldState.playing != playing) {
+        if (oldState != null && oldState.playing != playing) {
             setPlaybackState(oldState.player, oldState.position, playing);
         }
     }
