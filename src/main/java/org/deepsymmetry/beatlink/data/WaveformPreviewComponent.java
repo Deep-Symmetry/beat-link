@@ -770,6 +770,7 @@ public class WaveformPreviewComponent extends JComponent {
             }
 
             // Draw the non-playing markers first, so the playing ones will be seen if they are in the same spot.
+            g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_STOPPED);
             for (PlaybackState state : playbackStateMap.values()) {
                 if (!state.playing) {
                     g.fillRect(millisecondsToX(state.position) - 1, POSITION_MARKER_TOP, 2, positionMarkerHeight());
@@ -777,7 +778,7 @@ public class WaveformPreviewComponent extends JComponent {
             }
 
             // Then draw the playing markers on top of the non-playing ones.
-            g.setColor(Color.RED);
+            g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_PLAYING);
             for (PlaybackState state : playbackStateMap.values()) {
                 if (state.playing) {
                     g.fillRect(millisecondsToX(state.position) - 1, POSITION_MARKER_TOP, 2, positionMarkerHeight());

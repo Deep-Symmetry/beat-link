@@ -64,6 +64,11 @@ This change log follows the conventions of
   drawn over the memory cues. But with crate digger that order is not
   guaranteed, so we now enforce it in drawing regardless of the order
   of the cue list itself.
+- The colors used for playback position markers were inconsistent
+  between the waveform preview and waveform detail (one used red
+  when the other used white for playing/stopped). Now they both
+  use the constants defined in the WaveformDetailComponent, which
+  also adds a bit of transparency to the preview markers.
 
 ## [0.4.1] - 2018-10-28
 

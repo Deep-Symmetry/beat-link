@@ -46,12 +46,12 @@ public class WaveformDetailComponent extends JComponent {
     /**
      * The color to draw the playback position when playing; a slightly transparent white.
      */
-    private static final Color PLAYBACK_MARKER_PLAYING = new Color(255, 255, 255, 235);
+    static final Color PLAYBACK_MARKER_PLAYING = new Color(255, 0, 0, 235);
 
     /**
      * The color to draw the playback position when playing; a slightly transparent red.
      */
-    private static final Color PLAYBACK_MARKER_STOPPED = new Color(255, 0, 0, 235);
+    static final Color PLAYBACK_MARKER_STOPPED = new Color(255, 255, 255, 235);
 
     /**
      * The color drawn behind sections of the waveform which represent loops.
