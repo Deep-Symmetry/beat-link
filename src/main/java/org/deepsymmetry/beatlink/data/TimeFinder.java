@@ -581,6 +581,7 @@ public class TimeFinder extends LifecycleParticipant {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("TimeFinder[running:").append(isRunning());
+        sb.append(", listener count:").append(trackPositionListeners.size());
         if (isRunning()) {
             sb.append(", latestPositions:").append(getLatestPositions());
             sb.append(", latestUpdates:").append(getLatestUpdates());
