@@ -321,6 +321,7 @@ public class WaveformPreviewComponent extends JComponent {
 
     /**
      * Removes all stored playback state.
+     * @since 0.5.0
      */
     public synchronized void clearPlaybackState() {
         for (PlaybackState state : playbackStateMap.values()) {

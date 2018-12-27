@@ -1,15 +1,21 @@
 package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
 
 /**
  * Provides a convenient way to draw waveform detail in a user interface, including annotations like the
@@ -70,19 +76,14 @@ public class WaveformDetailComponent extends JComponent {
     private final AtomicReference<WaveformDetail> waveform = new AtomicReference<WaveformDetail>();
 
     /**
-     * Track the current playback position in milliseconds.
+     * Track the playback state for the players that have the track loaded.
      */
-    private final AtomicLong playbackPosition = new AtomicLong(0);
+    private final Map<Integer, PlaybackState> playbackStateMap = new ConcurrentHashMap<Integer, PlaybackState>(4);
 
     /**
      * Track how many segments we average into a column of pixels; larger values zoom out, 1 is full scale.
      */
     private final AtomicInteger scale = new AtomicInteger(1);
-
-    /**
-     * Track whether the player holding the waveform is currently playing.
-     */
-    private final AtomicBoolean playing = new AtomicBoolean(false);
 
     /**
      * Information about the track whose waveform we are drawing, so we can draw cues and memory points.
@@ -95,16 +96,162 @@ public class WaveformDetailComponent extends JComponent {
     private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
 
     /**
-     * Set the current playback position. Will cause the component to be redrawn if the position has
+     * Keep track of whether we are supposed to be delegating our repaint calls to a host component.
+     */
+    private final AtomicReference<RepaintDelegate> repaintDelegate = new AtomicReference<RepaintDelegate>();
+
+    /**
+     * Establish a host component to which all {@link #repaint(int, int, int, int)} calls should be delegated,
+     * presumably because we are being soft-loaded in a large user interface to save on memory.
+     *
+     * @param delegate the permanent component that can actually accumulate repaint regions, or {@code null} if
+     *                 we are being hosted normally in a container, so we should use the normal repaint process.
+     */
+    public void setRepaintDelegate(RepaintDelegate delegate) {
+        repaintDelegate.set(delegate);
+    }
+
+    /**
+     * Determine whether we should use the normal repaint process, or delegate that to another component that is
+     * hosting us in a soft-loaded manner to save memory.
+     *
+     * @param x the left edge of the region that we want to have redrawn
+     * @param y the top edge of the region that we want to have redrawn
+     * @param width the width of the region that we want to have redrawn
+     * @param height the height of the region that we want to have redrawn
+     */
+    @SuppressWarnings("SameParameterValue")
+    private void delegatingRepaint(int x, int y, int width, int height) {
+        final RepaintDelegate delegate = repaintDelegate.get();
+        if (delegate != null) {
+            delegate.repaint(x, y, width, height);
+        } else {
+            repaint(x, y, width, height);
+        }
+    }
+
+    /**
+     * Helper method to mark the parts of the component that need repainting due to a change to the
+     * tracked playback positions.
+     *
+     * @param oldState the old position of a marker being moved, or {@code null} if we are adding a marker
+     * @param newState the new position of a marker being moved, or {@code null} if we are removing a marker
+     */
+    private void repaintDueToPlaybackStateChange(PlaybackState oldState, PlaybackState newState) {
+        // Refresh where the specific marker was moved from and/or to.
+        if (oldState != null) {
+            final int left = millisecondsToX(oldState.position) - 6;
+            final int right = millisecondsToX(oldState.position) + 6;
+            delegatingRepaint(left, 0, right - left, getHeight());
+        }
+        if (newState != null) {
+            final int left = millisecondsToX(newState.position) - 6;
+            final int right = millisecondsToX(newState.position) + 6;
+            delegatingRepaint(left, 0, right - left, getHeight());
+        }
+    }
+
+    /**
+     * Set the current playback state for a player.
+     *
+     * Will cause part of the component to be redrawn if the player state has
+     * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
+     * component). This will be quickly overruled if a player is being monitored, but
+     * can be used in other contexts.
+     *
+     * @param player the player number whose playback state is being recorded
+     * @param position the current playback position of that player in milliseconds
+     * @param playing whether the player is actively playing the track
+     *
+     * @throws IllegalStateException if the component is configured to monitor a player, and this is called
+     *         with state for a different player
+     * @throws IllegalArgumentException if player is less than one
+     *
+     * @since 0.5.0
+     */
+    public synchronized void setPlaybackState(int player, long position, boolean playing) {
+        if (getMonitoredPlayer() != 0 && player != getMonitoredPlayer()) {
+            throw new IllegalStateException("Cannot setPlaybackState for another player when monitoring player " + getMonitoredPlayer());
+        }
+        if (player < 1) {
+            throw new IllegalArgumentException("player must be positive");
+        }
+        PlaybackState newState = new PlaybackState(player, position, playing);
+        PlaybackState oldState = playbackStateMap.put(player, newState);
+        repaintDueToPlaybackStateChange(oldState, newState);
+    }
+
+    /**
+     * Clear the playback state stored for a player, such as when it has unloaded the track.
+     *
+     * @param player the player number whose playback state is no longer valid
+     * @since 0.5.0
+     */
+    public synchronized void clearPlaybackState(int player) {
+        PlaybackState oldState = playbackStateMap.remove(player);
+        repaintDueToPlaybackStateChange(oldState, null);
+    }
+
+    /**
+     * Removes all stored playback state.
+     * @since 0.5.0
+     */
+    public synchronized void clearPlaybackState() {
+        for (PlaybackState state : playbackStateMap.values()) {
+            clearPlaybackState(state.player);
+        }
+    }
+
+    /**
+     * Look up the playback state recorded for a particular player.
+     *
+     * @param player the player number whose playback state information is desired
+     * @return the corresponding playback state, if any has been stored
+     * @since 0.5.0
+     */
+    public PlaybackState getPlaybackState(int player) {
+        return playbackStateMap.get(player);
+    }
+
+    /**
+     * Look up all recorded playback state information.
+     *
+     * @return the playback state recorded for any player
+     * @since 0.5.0
+     */
+    public Set<PlaybackState> getPlaybackState() {
+        Set<PlaybackState> result = new HashSet<PlaybackState>(playbackStateMap.values());
+        return Collections.unmodifiableSet(result);
+    }
+
+    /**
+     * Helper method to find the single current playback state when used in single-player mode.
+     *
+     * @return either the single stored playback state
+     */
+    private PlaybackState currentSimpleState() {
+        if (!playbackStateMap.isEmpty()) {  // Avoid exceptions during animation loop shutdown.
+            return playbackStateMap.values().iterator().next();
+        }
+        return null;
+    }
+
+    /**
+     * Set the current playback position. This method can only be used in situations where the component is
+     * tied to a single player, and therefore always has a single playback position.
+     *
+     * Will cause part of the component to be redrawn if the position has
      * changed. This will be quickly overruled if a player is being monitored, but
      * can be used in other contexts.
      *
      * @param milliseconds how far into the track has been played
+     *
+     * @see #setPlaybackState
      */
-    public void setPlaybackPosition(long milliseconds) {
-        long oldPosition = playbackPosition.getAndSet(milliseconds);
-        if (oldPosition != milliseconds) {
-            repaint();
+    private void setPlaybackPosition(long milliseconds) {
+        PlaybackState oldState = currentSimpleState();
+        if (oldState != null && oldState.position != milliseconds) {
+            setPlaybackState(oldState.player, milliseconds, oldState.playing);
         }
     }
 
@@ -128,13 +275,17 @@ public class WaveformDetailComponent extends JComponent {
 
     /**
      * Set whether the player holding the waveform is playing, which changes the indicator color to white from red.
+     * This method can only be used in situations where the component is tied to a single player, and therefore has
+     * a single playback position.
      *
      * @param playing if {@code true}, draw the position marker in white, otherwise red
+     *
+     * @see #setPlaybackState
      */
-    public void setPlaying(boolean playing) {
-        final boolean oldValue = this.playing.getAndSet(playing);
-        if ((metadata.get() != null) && oldValue != playing) {
-            repaint((getWidth() / 2) - 2, 0, 4, getHeight());
+    private void setPlaying(boolean playing) {
+        PlaybackState oldState = currentSimpleState();
+        if (oldState != null && oldState.playing != playing) {
+            setPlaybackState(oldState.player, oldState.position, playing);
         }
     }
 
@@ -150,7 +301,7 @@ public class WaveformDetailComponent extends JComponent {
         this.waveform.set(waveform);
         this.metadata.set(metadata);
         this.beatGrid.set(beatGrid);
-        playbackPosition.set(0);
+        clearPlaybackState();
         repaint();
     }
 
@@ -170,8 +321,10 @@ public class WaveformDetailComponent extends JComponent {
         if (player < 0) {
             throw new IllegalArgumentException("player cannot be negative");
         }
+        clearPlaybackState();
         monitoredPlayer.set(player);
         if (player > 0) {  // Start monitoring the specified player
+            setPlaybackState(player, 0, false);  // Start with default values for required simple state.
             VirtualCdj.getInstance().addUpdateListener(updateListener);
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             if (MetadataFinder.getInstance().isRunning()) {
@@ -206,7 +359,7 @@ public class WaveformDetailComponent extends JComponent {
                                     logger.warn("Waveform animation thread interrupted; ending");
                                     animating.set(false);
                                 }
-                                setPlaybackPosition(TimeFinder.getInstance().getTimeFor(monitoredPlayer.get()));
+                                setPlaybackPosition(TimeFinder.getInstance().getTimeFor(getMonitoredPlayer()));
                                 int newPosition = getSegmentForX(0);
                                 if (lastPosition != newPosition) {
                                     lastPosition = newPosition;
@@ -233,12 +386,21 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
+     * See which player is having its state tracked automatically by the component, if any.
+     *
+     * @return the player number being monitored, or zero if none
+     */
+    public int getMonitoredPlayer() {
+        return monitoredPlayer.get();
+    }
+
+    /**
      * Reacts to changes in the track metadata associated with the player we are monitoring.
      */
     private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
         @Override
         public void metadataChanged(TrackMetadataUpdate update) {
-            if (update.player == monitoredPlayer.get()) {
+            if (update.player == getMonitoredPlayer()) {
                 metadata.set(update.metadata);
                 repaint();
             }
@@ -257,7 +419,7 @@ public class WaveformDetailComponent extends JComponent {
         @Override
         public void detailChanged(WaveformDetailUpdate update) {
             logger.debug("Got waveform detail update: {}", update);
-            if (update.player == monitoredPlayer.get()) {
+            if (update.player == getMonitoredPlayer()) {
                 waveform.set(update.detail);
                 repaint();
             }
@@ -270,7 +432,7 @@ public class WaveformDetailComponent extends JComponent {
     private final BeatGridListener beatGridListener = new BeatGridListener() {
         @Override
         public void beatGridChanged(BeatGridUpdate update) {
-            if (update.player == monitoredPlayer.get()) {
+            if (update.player == getMonitoredPlayer()) {
                 beatGrid.set(update.beatGrid);
                 repaint();
             }
@@ -283,7 +445,7 @@ public class WaveformDetailComponent extends JComponent {
     private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
         @Override
         public void received(DeviceUpdate update) {
-            if ((update instanceof CdjStatus) && (update.getDeviceNumber() == monitoredPlayer.get()) &&
+            if ((update instanceof CdjStatus) && (update.getDeviceNumber() == getMonitoredPlayer()) &&
                     (metadata.get() != null) && (beatGrid.get() != null)) {
                 CdjStatus status = (CdjStatus) update;
                 setPlaying(status.isPlaying());
@@ -320,6 +482,24 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
+     * Look up the playback state that has reached furthest in the track, but give playing players priority over stopped players.
+     * This is used to choose the scroll center when auto-scrolling is active.
+     *
+     * @return the playback state, if any, with the highest playing {@link PlaybackState#position} value
+     */
+    public PlaybackState getFurthestPlaybackState() {
+        PlaybackState result = null;
+        for (PlaybackState state : playbackStateMap.values()) {
+            if (result == null || (!result.playing && state.playing) ||
+                    (result.position < state.position) && (state.playing || !result.playing)) {
+                result = state;
+            }
+        }
+        return result;
+    }
+
+
+    /**
      * Figure out the starting waveform segment that corresponds to the specified coordinate in the window.
 
      * @param x the column being drawn
@@ -328,7 +508,8 @@ public class WaveformDetailComponent extends JComponent {
      */
     private int getSegmentForX(int x) {
         int playHead = (x - (getWidth() / 2));
-        int offset = Util.timeToHalfFrame(playbackPosition.get()) / scale.get();
+        // TODO: Make auto-scroll optional.
+        int offset = Util.timeToHalfFrame(getFurthestPlaybackState().position) / scale.get();
         return  (playHead + offset) * scale.get();
     }
 
@@ -341,7 +522,8 @@ public class WaveformDetailComponent extends JComponent {
      */
     private int millisecondsToX(long milliseconds) {
         int playHead = (getWidth() / 2) + 2;
-        long offset = milliseconds - playbackPosition.get();
+        // TODO: Make auto-scroll optional.
+        long offset = milliseconds - getFurthestPlaybackState().position;
         return playHead + (Util.timeToHalfFrame(offset) / scale.get());
     }
 
@@ -429,8 +611,21 @@ public class WaveformDetailComponent extends JComponent {
             drawCueList(g, clipRect, cueList, axis, maxHeight, true);
         }
 
-        g.setColor(playing.get()? PLAYBACK_MARKER_PLAYING : PLAYBACK_MARKER_STOPPED);  // Draw the playback position
-        g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
+        // Draw the non-playing markers first, so the playing ones will be seen if they are in the same spot.
+        g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_STOPPED);
+        for (PlaybackState state : playbackStateMap.values()) {
+            if (!state.playing) {
+                g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
+            }
+        }
+
+        // Then draw the playing markers on top of the non-playing ones.
+        g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_PLAYING);
+        for (PlaybackState state : playbackStateMap.values()) {
+            if (state.playing) {
+                g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
+            }
+        }
     }
 
     /**
@@ -461,7 +656,7 @@ public class WaveformDetailComponent extends JComponent {
     @Override
     public String toString() {
         return"WaveformDetailComponent[metadata=" + metadata.get() + ", waveform=" + waveform.get() + ", beatGrid=" +
-                beatGrid.get() + ", playbackPosition=" + playbackPosition.get() + ", playing=" + playing.get() + ", monitoredPlayer=" +
-                monitoredPlayer.get() + "]";
+                beatGrid.get() + ", playbackStateMap=" + playbackStateMap + ", monitoredPlayer=" +
+                getMonitoredPlayer() + "]";
     }
 }
