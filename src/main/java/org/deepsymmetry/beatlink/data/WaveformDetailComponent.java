@@ -71,6 +71,16 @@ public class WaveformDetailComponent extends JComponent {
     private final AtomicInteger monitoredPlayer = new AtomicInteger(0);
 
     /**
+     * Determines how we decide what to draw. The default behavior is to draw as much of the waveform as fits
+     * within our current size at the current scale around the current playback position (or, if we are tracking
+     * multiple players, the furthest playback position, prioritizing active players even if they are not as far as
+     * an inactive player). If this is changed to {@code false} then changing the scale actually changes the size
+     * of the component, and we always draw the full waveform at the chosen scale, allowing an outer scroll pane to
+     * control what is visible.
+     */
+    private final AtomicBoolean autoScroll = new AtomicBoolean(true);
+
+    /**
      * The waveform preview that we are drawing.
      */
     private final AtomicReference<WaveformDetail> waveform = new AtomicReference<WaveformDetail>();
@@ -96,58 +106,40 @@ public class WaveformDetailComponent extends JComponent {
     private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
 
     /**
-     * Keep track of whether we are supposed to be delegating our repaint calls to a host component.
-     */
-    private final AtomicReference<RepaintDelegate> repaintDelegate = new AtomicReference<RepaintDelegate>();
-
-    /**
-     * Establish a host component to which all {@link #repaint(int, int, int, int)} calls should be delegated,
-     * presumably because we are being soft-loaded in a large user interface to save on memory.
-     *
-     * @param delegate the permanent component that can actually accumulate repaint regions, or {@code null} if
-     *                 we are being hosted normally in a container, so we should use the normal repaint process.
-     */
-    public void setRepaintDelegate(RepaintDelegate delegate) {
-        repaintDelegate.set(delegate);
-    }
-
-    /**
-     * Determine whether we should use the normal repaint process, or delegate that to another component that is
-     * hosting us in a soft-loaded manner to save memory.
-     *
-     * @param x the left edge of the region that we want to have redrawn
-     * @param y the top edge of the region that we want to have redrawn
-     * @param width the width of the region that we want to have redrawn
-     * @param height the height of the region that we want to have redrawn
-     */
-    @SuppressWarnings("SameParameterValue")
-    private void delegatingRepaint(int x, int y, int width, int height) {
-        final RepaintDelegate delegate = repaintDelegate.get();
-        if (delegate != null) {
-            delegate.repaint(x, y, width, height);
-        } else {
-            repaint(x, y, width, height);
-        }
-    }
-
-    /**
      * Helper method to mark the parts of the component that need repainting due to a change to the
      * tracked playback positions.
      *
      * @param oldState the old position of a marker being moved, or {@code null} if we are adding a marker
      * @param newState the new position of a marker being moved, or {@code null} if we are removing a marker
+     * @param oldFurthestState the position at which the waveform was centered before this update, if we are auto-scrolling
      */
-    private void repaintDueToPlaybackStateChange(PlaybackState oldState, PlaybackState newState) {
+    private void repaintDueToPlaybackStateChange(PlaybackState oldState, PlaybackState newState, PlaybackState oldFurthestState) {
+        if (autoScroll.get()) {
+            // See if we need to repaint the whole component because our center point has shifted
+            long oldFurthest = 0;
+            if (oldFurthestState != null) {
+                oldFurthest = oldFurthestState.position;
+            }
+            long newFurthest = 0;
+            PlaybackState newFurthestState = getFurthestPlaybackState();
+            if (newFurthestState != null) {
+                newFurthest = newFurthestState.position;
+            }
+            if (oldFurthest != newFurthest) {
+                repaint();
+                return;
+            }
+        }
         // Refresh where the specific marker was moved from and/or to.
         if (oldState != null) {
             final int left = millisecondsToX(oldState.position) - 6;
             final int right = millisecondsToX(oldState.position) + 6;
-            delegatingRepaint(left, 0, right - left, getHeight());
+            repaint(left, 0, right - left, getHeight());
         }
         if (newState != null) {
             final int left = millisecondsToX(newState.position) - 6;
             final int right = millisecondsToX(newState.position) + 6;
-            delegatingRepaint(left, 0, right - left, getHeight());
+            repaint(left, 0, right - left, getHeight());
         }
     }
 
@@ -176,9 +168,10 @@ public class WaveformDetailComponent extends JComponent {
         if (player < 1) {
             throw new IllegalArgumentException("player must be positive");
         }
+        PlaybackState oldFurthestState = getFurthestPlaybackState();
         PlaybackState newState = new PlaybackState(player, position, playing);
         PlaybackState oldState = playbackStateMap.put(player, newState);
-        repaintDueToPlaybackStateChange(oldState, newState);
+        repaintDueToPlaybackStateChange(oldState, newState, oldFurthestState);
     }
 
     /**
@@ -188,8 +181,9 @@ public class WaveformDetailComponent extends JComponent {
      * @since 0.5.0
      */
     public synchronized void clearPlaybackState(int player) {
+        PlaybackState oldFurthestState = getFurthestPlaybackState();
         PlaybackState oldState = playbackStateMap.remove(player);
-        repaintDueToPlaybackStateChange(oldState, null);
+        repaintDueToPlaybackStateChange(oldState, null, oldFurthestState);
     }
 
     /**
@@ -256,7 +250,7 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
-     * Set the zoom scale of the view. a value of (the smallest allowed) draws the waveform at full scale.
+     * Set the zoom scale of the view. a value of 1 (the smallest allowed) draws the waveform at full scale.
      * Larger values combine more and more segments into a single column of pixels, zooming out to see more at once.
      *
      * @param scale the number of waveform segments that should be averaged into a single column of pixels
@@ -270,6 +264,9 @@ public class WaveformDetailComponent extends JComponent {
         int oldScale = this.scale.getAndSet(scale);
         if (oldScale != scale) {
             repaint();
+            if (!autoScroll.get()) {
+                invalidate();
+            }
         }
     }
 
@@ -303,6 +300,9 @@ public class WaveformDetailComponent extends JComponent {
         this.beatGrid.set(beatGrid);
         clearPlaybackState();
         repaint();
+        if (!autoScroll.get()) {
+            invalidate();
+        }
     }
 
     /**
@@ -351,7 +351,6 @@ public class WaveformDetailComponent extends JComponent {
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            int lastPosition = getSegmentForX(0);
                             while (animating.get()) {
                                 try {
                                     Thread.sleep(33);  // Animate at 30 fps
@@ -360,11 +359,6 @@ public class WaveformDetailComponent extends JComponent {
                                     animating.set(false);
                                 }
                                 setPlaybackPosition(TimeFinder.getInstance().getTimeFor(getMonitoredPlayer()));
-                                int newPosition = getSegmentForX(0);
-                                if (lastPosition != newPosition) {
-                                    lastPosition = newPosition;
-                                    repaint();
-                                }
                             }
                         }
                     }).start();
@@ -381,6 +375,9 @@ public class WaveformDetailComponent extends JComponent {
             metadata.set(null);
             waveform.set(null);
             beatGrid.set(null);
+        }
+        if (!autoScroll.get()) {
+            invalidate();
         }
         repaint();
     }
@@ -421,6 +418,9 @@ public class WaveformDetailComponent extends JComponent {
             logger.debug("Got waveform detail update: {}", update);
             if (update.player == getMonitoredPlayer()) {
                 waveform.set(update.detail);
+                if (!autoScroll.get()) {
+                    invalidate();
+                }
                 repaint();
             }
         }
@@ -478,7 +478,11 @@ public class WaveformDetailComponent extends JComponent {
 
     @Override
     public Dimension getMinimumSize() {
-        return new Dimension(300, 92);
+        final WaveformDetail detail = waveform.get();
+        if (autoScroll.get() || detail == null) {
+            return new Dimension(300, 92);
+        }
+        return new Dimension(detail.getFrameCount() / scale.get(), 92);
     }
 
     /**
@@ -507,10 +511,12 @@ public class WaveformDetailComponent extends JComponent {
      * @return the offset into the waveform at the current scale and playback time that should be drawn there
      */
     private int getSegmentForX(int x) {
-        int playHead = (x - (getWidth() / 2));
-        // TODO: Make auto-scroll optional.
-        int offset = Util.timeToHalfFrame(getFurthestPlaybackState().position) / scale.get();
-        return  (playHead + offset) * scale.get();
+        if (autoScroll.get()) {
+            int playHead = (x - (getWidth() / 2));
+            int offset = Util.timeToHalfFrame(getFurthestPlaybackState().position) / scale.get();
+            return  (playHead + offset) * scale.get();
+        }
+        return x * scale.get();
     }
 
     /**
@@ -521,10 +527,12 @@ public class WaveformDetailComponent extends JComponent {
      * @return the component x coordinate at which it should be drawn
      */
     private int millisecondsToX(long milliseconds) {
-        int playHead = (getWidth() / 2) + 2;
-        // TODO: Make auto-scroll optional.
-        long offset = milliseconds - getFurthestPlaybackState().position;
-        return playHead + (Util.timeToHalfFrame(offset) / scale.get());
+        if (autoScroll.get()) {
+            int playHead = (getWidth() / 2) + 2;
+            long offset = milliseconds - getFurthestPlaybackState().position;
+            return playHead + (Util.timeToHalfFrame(offset) / scale.get());
+        }
+        return Util.timeToHalfFrame(milliseconds) / scale.get();
     }
 
     /**
@@ -615,7 +623,8 @@ public class WaveformDetailComponent extends JComponent {
         g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_STOPPED);
         for (PlaybackState state : playbackStateMap.values()) {
             if (!state.playing) {
-                g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
+                g.fillRect(millisecondsToX(state.position) - (PLAYBACK_MARKER_WIDTH / 2), 0,
+                        PLAYBACK_MARKER_WIDTH, getHeight());
             }
         }
 
@@ -623,7 +632,8 @@ public class WaveformDetailComponent extends JComponent {
         g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_PLAYING);
         for (PlaybackState state : playbackStateMap.values()) {
             if (state.playing) {
-                g.fillRect((getWidth() / 2) - 1, 0, PLAYBACK_MARKER_WIDTH, getHeight());
+                g.fillRect(millisecondsToX(state.position) - (PLAYBACK_MARKER_WIDTH / 2), 0,
+                        PLAYBACK_MARKER_WIDTH, getHeight());
             }
         }
     }
