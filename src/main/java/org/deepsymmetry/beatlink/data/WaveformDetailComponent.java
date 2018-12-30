@@ -626,6 +626,32 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
+     * Determine the playback time that corresponds to a particular X coordinate in the component given the current
+     * scale.
+     * @param x the horizontal position within the component coordinate space
+     * @return the number of milliseconds into the track this would correspond to (may fall outside the actual track)
+     */
+    public long getTimeForX(int x) {
+        return Util.halfFrameToTime(getSegmentForX(x));
+    }
+
+    /**
+     * Determine the beat that corresponds to a particular X coordinate in the component, given the current scale.
+     * Clicks past the end of the track will return the final beat, clicks before the first beat (or if there is no
+     * beat grid) will return -1.
+     *
+     * @param x the horizontal position within the component coordinate space
+     * @return the beat number being played at that point, or -1 if the point is before the first beat
+     */
+    public int getBeatForX(int x) {
+        BeatGrid grid = beatGrid.get();
+        if (grid != null) {
+            return grid.findBeatAtTime(getTimeForX(x));
+        }
+        return -1;
+    }
+
+    /**
      * Converts a time in milliseconds to the appropriate x coordinate for drawing something at that time.
      *
      * @param milliseconds the time at which something should be drawn
