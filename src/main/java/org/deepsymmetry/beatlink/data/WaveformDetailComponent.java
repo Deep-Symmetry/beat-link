@@ -96,9 +96,9 @@ public class WaveformDetailComponent extends JComponent {
     private final AtomicInteger scale = new AtomicInteger(1);
 
     /**
-     * Information about the track whose waveform we are drawing, so we can draw cues and memory points.
+     * Information about the cues, memory points, and loops in the track.
      */
-    private final AtomicReference<TrackMetadata> metadata = new AtomicReference<TrackMetadata>();
+    private final AtomicReference<CueList> cueList = new AtomicReference<CueList>();
 
     /**
      * Information about where all the beats in the track fall, so we can draw them.
@@ -296,7 +296,30 @@ public class WaveformDetailComponent extends JComponent {
      */
     public void setWaveform(WaveformDetail waveform, TrackMetadata metadata, BeatGrid beatGrid) {
         this.waveform.set(waveform);
-        this.metadata.set(metadata);
+        if (metadata != null) {
+            cueList.set(metadata.getCueList());
+        } else {
+            cueList.set(null);
+        }
+        this.beatGrid.set(beatGrid);
+        clearPlaybackState();
+        repaint();
+        if (!autoScroll.get()) {
+            invalidate();
+        }
+    }
+
+    /**
+     * Change the waveform preview being drawn. This will be quickly overruled if a player is being monitored, but
+     * can be used in other contexts.
+     *
+     * @param waveform the waveform detail to display
+     * @param cueList used to draw cue and memory points
+     * @param beatGrid the locations of the beats, so they can be drawn
+     */
+    public void setWaveform(WaveformDetail waveform, CueList cueList, BeatGrid beatGrid) {
+        this.waveform.set(waveform);
+        this.cueList.set(cueList);
         this.beatGrid.set(beatGrid);
         clearPlaybackState();
         repaint();
@@ -327,10 +350,12 @@ public class WaveformDetailComponent extends JComponent {
             setPlaybackState(player, 0, false);  // Start with default values for required simple state.
             VirtualCdj.getInstance().addUpdateListener(updateListener);
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
+            cueList.set(null);  // Assume the worst, but see if we have one available next.
             if (MetadataFinder.getInstance().isRunning()) {
-                metadata.set(MetadataFinder.getInstance().getLatestMetadataFor(player));
-            } else {
-                metadata.set(null);
+                TrackMetadata metadata = MetadataFinder.getInstance().getLatestMetadataFor(player);
+                if (metadata != null) {
+                    cueList.set(metadata.getCueList());
+                }
             }
             WaveformFinder.getInstance().addWaveformListener(waveformListener);
             if (WaveformFinder.getInstance().isRunning() && WaveformFinder.getInstance().isFindingDetails()) {
@@ -372,7 +397,7 @@ public class WaveformDetailComponent extends JComponent {
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
-            metadata.set(null);
+            cueList.set(null);
             waveform.set(null);
             beatGrid.set(null);
         }
@@ -398,7 +423,11 @@ public class WaveformDetailComponent extends JComponent {
         @Override
         public void metadataChanged(TrackMetadataUpdate update) {
             if (update.player == getMonitoredPlayer()) {
-                metadata.set(update.metadata);
+                if (update.metadata != null) {
+                    cueList.set(update.metadata.getCueList());
+                } else {
+                    cueList.set(null);
+                }
                 repaint();
             }
         }
@@ -446,7 +475,7 @@ public class WaveformDetailComponent extends JComponent {
         @Override
         public void received(DeviceUpdate update) {
             if ((update instanceof CdjStatus) && (update.getDeviceNumber() == getMonitoredPlayer()) &&
-                    (metadata.get() != null) && (beatGrid.get() != null)) {
+                    (cueList.get() != null) && (beatGrid.get() != null)) {
                 CdjStatus status = (CdjStatus) update;
                 setPlaying(status.isPlaying());
             }
@@ -472,7 +501,22 @@ public class WaveformDetailComponent extends JComponent {
      */
     public WaveformDetailComponent(WaveformDetail waveform, TrackMetadata metadata, BeatGrid beatGrid) {
         this.waveform.set(waveform);
-        this.metadata.set(metadata);
+        if (metadata != null) {
+            cueList.set(metadata.getCueList());
+        }
+        this.beatGrid.set(beatGrid);
+    }
+
+    /**
+     * Create a view which draws a specific waveform, even if it is not currently loaded in a player.
+     *
+     * @param waveform the waveform detail to display
+     * @param cueList used to draw cues and memory points
+     * @param beatGrid the locations of the beats, so they can be drawn
+     */
+    public WaveformDetailComponent(WaveformDetail waveform, CueList cueList, BeatGrid beatGrid) {
+        this.waveform.set(waveform);
+        this.cueList.set(cueList);
         this.beatGrid.set(beatGrid);
     }
 
@@ -564,18 +608,14 @@ public class WaveformDetailComponent extends JComponent {
         g.setColor(Color.BLACK);  // Black out the background
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
-        // See if we have a cue list
-        CueList cueList = null;
-        if (metadata.get() != null) {
-            cueList = metadata.get().getCueList();
-        }
+        CueList currentCueList = cueList.get();  // Avoid crashes if the value changes mid-render.
 
         // Draw the loop regions of any visible loops
         final int axis = getHeight() / 2;
         final int maxHeight = axis - VERTICAL_MARGIN;
-        if (cueList != null) {
+        if (currentCueList != null) {
             g.setColor(LOOP_BACKGROUND);
-            for (CueList.Entry entry : cueList.entries) {
+            for (CueList.Entry entry : currentCueList.entries) {
                 if (entry.isLoop) {
                     final int start = millisecondsToX(entry.cueTime);
                     final int end = millisecondsToX(entry.loopTime);
@@ -614,9 +654,9 @@ public class WaveformDetailComponent extends JComponent {
 
         // Draw the cue and memory point markers, first the memory cues and then the hot cues, since some are in
         // the same place and we want the hot cues to stand out.
-        if (cueList != null) {
-            drawCueList(g, clipRect, cueList, axis, maxHeight, false);
-            drawCueList(g, clipRect, cueList, axis, maxHeight, true);
+        if (currentCueList != null) {
+            drawCueList(g, clipRect, currentCueList, axis, maxHeight, false);
+            drawCueList(g, clipRect, currentCueList, axis, maxHeight, true);
         }
 
         // Draw the non-playing markers first, so the playing ones will be seen if they are in the same spot.
@@ -665,7 +705,7 @@ public class WaveformDetailComponent extends JComponent {
 
     @Override
     public String toString() {
-        return"WaveformDetailComponent[metadata=" + metadata.get() + ", waveform=" + waveform.get() + ", beatGrid=" +
+        return"WaveformDetailComponent[cueList=" + cueList.get() + ", waveform=" + waveform.get() + ", beatGrid=" +
                 beatGrid.get() + ", playbackStateMap=" + playbackStateMap + ", monitoredPlayer=" +
                 getMonitoredPlayer() + "]";
     }
