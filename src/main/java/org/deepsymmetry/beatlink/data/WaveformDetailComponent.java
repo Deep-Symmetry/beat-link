@@ -171,7 +171,9 @@ public class WaveformDetailComponent extends JComponent {
         PlaybackState oldFurthestState = getFurthestPlaybackState();
         PlaybackState newState = new PlaybackState(player, position, playing);
         PlaybackState oldState = playbackStateMap.put(player, newState);
-        repaintDueToPlaybackStateChange(oldState, newState, oldFurthestState);
+        if (oldState == null || oldState.position != newState.position) {
+            repaintDueToPlaybackStateChange(oldState, newState, oldFurthestState);
+        }
     }
 
     /**
@@ -527,6 +529,11 @@ public class WaveformDetailComponent extends JComponent {
             return new Dimension(300, 92);
         }
         return new Dimension(detail.getFrameCount() / scale.get(), 92);
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        return getMinimumSize();
     }
 
     /**

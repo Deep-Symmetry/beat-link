@@ -27,9 +27,15 @@ public class PlaybackState {
      * @param position the current playback position in milliseconds
      * @param playing whether the player is actively playing the track
      */
+    @SuppressWarnings("WeakerAccess")
     public PlaybackState(int player, long position, boolean playing) {
         this.player = player;
         this.position = position;
         this.playing = playing;
+    }
+
+    @Override
+    public String toString() {
+        return "PlaybackState[player=" + player + ", position=" + position + ", playing=" + playing + "]";
     }
 }
