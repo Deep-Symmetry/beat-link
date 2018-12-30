@@ -106,6 +106,33 @@ public class WaveformDetailComponent extends JComponent {
     private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
 
     /**
+     * Control whether the component should automatically center itself on the playback position of the player
+     * that is furthest into the track. This is the default behavior of the component, and will allow it to be
+     * useful at any size, showing a currently-relevant portion of the waveform. If set to {@code false} the
+     * component must be inside a scroll pane so the user can control what portion of the waveform is visible.
+     *
+     * @param auto should the waveform be centered on the playback position
+     */
+    public void setAutoScroll(boolean auto) {
+        if (autoScroll.getAndSet(auto) != auto) {
+            setSize(getPreferredSize());
+            repaint();
+        }
+    }
+
+    /**
+     * Check whether the component should automatically center itself on the playback position of the player
+     * that is furthest into the track. This is the default behavior of the component, and will allow it to be
+     * useful at any size, showing a currently-relevant portion of the waveform. If set to {@code false} the
+     * component must be inside a scroll pane so the user can control what portion of the waveform is visible.
+     *
+     * @return {@code true} if the waveform will be centered on the playback position
+     */
+    public boolean getAutoScroll() {
+        return autoScroll.get();
+    }
+
+    /**
      * Helper method to mark the parts of the component that need repainting due to a change to the
      * tracked playback positions.
      *
@@ -267,7 +294,7 @@ public class WaveformDetailComponent extends JComponent {
         if (oldScale != scale) {
             repaint();
             if (!autoScroll.get()) {
-                invalidate();
+                setSize(getPreferredSize());
             }
         }
     }
