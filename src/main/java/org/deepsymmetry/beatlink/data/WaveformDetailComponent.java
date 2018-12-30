@@ -106,6 +106,11 @@ public class WaveformDetailComponent extends JComponent {
     private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
 
     /**
+     * The overlay painter that has been registered, if any.
+     */
+    private final AtomicReference<OverlayPainter> overlayPainter = new AtomicReference<OverlayPainter>();
+
+    /**
      * Control whether the component should automatically center itself on the playback position of the player
      * that is furthest into the track. This is the default behavior of the component, and will allow it to be
      * useful at any size, showing a currently-relevant portion of the waveform. If set to {@code false} the
@@ -130,6 +135,16 @@ public class WaveformDetailComponent extends JComponent {
      */
     public boolean getAutoScroll() {
         return autoScroll.get();
+    }
+
+    /**
+     * Arrange for an overlay to be painted on top of the component.
+     *
+     * @param painter if not {@code null}, its {@link OverlayPainter#paintOverlay(Component, Graphics)} method will
+     *                be called once this component has done its own painting
+     */
+    public void setOverlayPainter(OverlayPainter painter) {
+        overlayPainter.set(painter);
     }
 
     /**
@@ -722,6 +737,12 @@ public class WaveformDetailComponent extends JComponent {
                 g.fillRect(millisecondsToX(state.position) - (PLAYBACK_MARKER_WIDTH / 2), 0,
                         PLAYBACK_MARKER_WIDTH, getHeight());
             }
+        }
+
+        // Finally, if an overlay painter has been attached, let it paint its overlay.
+        OverlayPainter painter = overlayPainter.get();
+        if (painter != null) {
+            painter.paintOverlay(this, g);
         }
     }
 
