@@ -546,6 +546,19 @@ public class WaveformDetailComponent extends JComponent {
         return result;
     }
 
+    /**
+     * Look up the furthest position, in milliseconds, that has been reached, giving playing players priority over stopped players.
+     * If there are no playback positions, returns 0.
+     *
+     * @return The position in milliseconds of the furthest playback state reached, or 0 if there are no playback states
+     */
+    public long getFurthestPlaybackPosition() {
+        PlaybackState state = getFurthestPlaybackState();
+        if (state != null) {
+            return state.position;
+        }
+        return 0;
+    }
 
     /**
      * Figure out the starting waveform segment that corresponds to the specified coordinate in the window.
@@ -557,7 +570,7 @@ public class WaveformDetailComponent extends JComponent {
     private int getSegmentForX(int x) {
         if (autoScroll.get()) {
             int playHead = (x - (getWidth() / 2));
-            int offset = Util.timeToHalfFrame(getFurthestPlaybackState().position) / scale.get();
+            int offset = Util.timeToHalfFrame(getFurthestPlaybackPosition()) / scale.get();
             return  (playHead + offset) * scale.get();
         }
         return x * scale.get();
@@ -573,7 +586,7 @@ public class WaveformDetailComponent extends JComponent {
     private int millisecondsToX(long milliseconds) {
         if (autoScroll.get()) {
             int playHead = (getWidth() / 2) + 2;
-            long offset = milliseconds - getFurthestPlaybackState().position;
+            long offset = milliseconds - getFurthestPlaybackPosition();
             return playHead + (Util.timeToHalfFrame(offset) / scale.get());
         }
         return Util.timeToHalfFrame(milliseconds) / scale.get();
