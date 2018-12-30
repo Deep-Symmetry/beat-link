@@ -652,6 +652,21 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
+     * Determine the X coordinate within the component at which the specified beat begins.
+     *
+     * @param beat the beat number whose position is desired
+     * @return the horizontal position within the component coordinate space where that beat begins
+     * @throws IllegalArgumentException if the beat number exceeds the number of beats in the track.
+     */
+    public int getXForBeat(int beat) {
+        BeatGrid grid = beatGrid.get();
+        if (grid != null) {
+            return millisecondsToX(grid.getTimeWithinTrack(beat));
+        }
+        return 0;
+    }
+
+    /**
      * Converts a time in milliseconds to the appropriate x coordinate for drawing something at that time.
      *
      * @param milliseconds the time at which something should be drawn
