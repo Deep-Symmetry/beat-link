@@ -167,6 +167,21 @@ public class WaveformPreviewComponent extends JComponent {
     private final AtomicReference<CueList> cueList = new AtomicReference<CueList>();
 
     /**
+     * The overlay painter that has been registered, if any.
+     */
+    private final AtomicReference<OverlayPainter> overlayPainter = new AtomicReference<OverlayPainter>();
+
+    /**
+     * Arrange for an overlay to be painted on top of the component.
+     *
+     * @param painter if not {@code null}, its {@link OverlayPainter#paintOverlay(Component, Graphics)} method will
+     *                be called once this component has done its own painting
+     */
+    public void setOverlayPainter(OverlayPainter painter) {
+        overlayPainter.set(painter);
+    }
+
+    /**
      * Look up the playback state that has reached furthest in the track. This is used to render the “played until”
      * graphic below the preview.
      *
@@ -685,7 +700,7 @@ public class WaveformPreviewComponent extends JComponent {
      *
      * @return the component x coordinate at which it should be drawn
      */
-    private int millisecondsToX(long milliseconds) {
+    public int millisecondsToX(long milliseconds) {
         if (duration.get() < 1) {  // Don't crash if we are missing duration information.
             return 0;
         }
@@ -756,11 +771,17 @@ public class WaveformPreviewComponent extends JComponent {
             }
         }
 
-        // Finally, draw the cue points, first the ordinary memory points and then the hot cues, since sometimes
+        // Draw the cue points, first the ordinary memory points and then the hot cues, since sometimes
         // they are in the same place and we want the hot cues to stand out.
         if (cueList.get() != null) {
             drawCueList(g, clipRect, false);
             drawCueList(g, clipRect, true);
+        }
+
+        // Finally, if an overlay painter has been attached, let it paint its overlay.
+        OverlayPainter painter = overlayPainter.get();
+        if (painter != null) {
+            painter.paintOverlay(this, g);
         }
     }
 

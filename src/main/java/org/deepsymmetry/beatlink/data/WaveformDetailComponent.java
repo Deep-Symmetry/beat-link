@@ -673,7 +673,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return the component x coordinate at which it should be drawn
      */
-    private int millisecondsToX(long milliseconds) {
+    public int millisecondsToX(long milliseconds) {
         if (autoScroll.get()) {
             int playHead = (getWidth() / 2) + 2;
             long offset = milliseconds - getFurthestPlaybackPosition();
