@@ -708,6 +708,19 @@ public class WaveformPreviewComponent extends JComponent {
         return WAVEFORM_MARGIN + Math.max(0, Math.min(waveformWidth(), (int) result));
     }
 
+    /**
+     * Determine the playback time that corresponds to a particular X coordinate in the component given the current
+     * scale.
+     * @param x the horizontal position within the component coordinate space
+     * @return the number of milliseconds into the track this would correspond to (may fall outside the actual track)
+     */
+    public long getTimeForX(int x) {
+        if (duration.get() < 1) {  // Don't crash if we are missing duration information.
+            return 0;
+        }
+        return (x - WAVEFORM_MARGIN) * duration.get() * 1000 / waveformWidth();
+    }
+
     @Override
     protected synchronized void paintComponent(Graphics g) {
 
