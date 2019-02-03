@@ -136,8 +136,9 @@ public class MediaDetails {
         mediaType = type;
 
         try {
-            name = new String(packetCopy, 0x2c, 0x40, "UTF-16BE").trim();
-            creationDate = new String(packetCopy, 0x6c, 0x18, "UTF-16BE").trim();
+            final String charsetName = hostPlayer < 40? "UTF-16BE" : "UTF-32LE";
+            name = new String(packetCopy, 0x2c, 0x40, charsetName).trim();
+            creationDate = new String(packetCopy, 0x6c, 0x18, charsetName).trim();
         } catch (UnsupportedEncodingException e) {
             throw new IllegalStateException("Java no longer supports UTF-16BE encoding?!", e);
         }
