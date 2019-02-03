@@ -302,6 +302,7 @@ public class TrackMetadata {
         }
 
         dateAdded = Database.getText(rawRow.dateAdded());
+        year = rawRow.year();
     }
 
     /**
