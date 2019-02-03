@@ -819,6 +819,298 @@ public class MenuLoader {
         return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting tracks by rating menu");
     }
 
+    /**
+     * Ask the specified player for a Color menu.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the entries in the color menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestColorMenuFrom(final SlotReference slotReference, final int sortOrder)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting Rating menu.");
+                        Message response = client.menuRequest(Message.KnownType.COLOR_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                new NumberField(sortOrder));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting color menu");
+    }
+
+    /**
+     * Ask the specified player for a track menu for a given color.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param color the desired color for tracks to be returned
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the matching tracks
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestTracksByColorFrom(final SlotReference slotReference, final int sortOrder, final int color)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting key neighbor menu.");
+                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_COLOR_REQ, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(color));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting tracks by color menu");
+    }
+
+    /**
+     * Ask the specified player for a Time menu, grouping tracks by their length in minutes.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the entries in the time menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestTimeMenuFrom(final SlotReference slotReference, final int sortOrder)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting Rating menu.");
+                        Message response = client.menuRequest(Message.KnownType.TIME_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                new NumberField(sortOrder));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting time menu");
+    }
+
+    /**
+     * Ask the specified player for a track menu for a given time (track length in minutes).
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param time the length in minutes of tracks to be returned
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the matching tracks
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestTracksByTimeFrom(final SlotReference slotReference, final int sortOrder, final int time)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting key neighbor menu.");
+                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_TIME_REQ, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(time));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting tracks by time menu");
+    }
+
+    /**
+     * Ask the specified player for a Year menu, grouping years by decade.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the entries in the year menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestYearMenuFrom(final SlotReference slotReference, final int sortOrder)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting Rating menu.");
+                        Message response = client.menuRequest(Message.KnownType.YEAR_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                new NumberField(sortOrder));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting year menu");
+    }
+
+    /**
+     * Ask the specified player for a year menu for a given decade.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param decade narrows the years of tracks to be returned
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the matching tracks
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestYearsByDecadeFrom(final SlotReference slotReference, final int sortOrder, final int decade)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting key neighbor menu.");
+                        Message response = client.menuRequest(Message.KnownType.YEAR_MENU_FOR_DECADE_REQ, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(decade));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting years by decade menu");
+    }
+
+    /**
+     * Ask the specified player for a track menu for a decade and year.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param decade the decade for which tracks are desired
+     * @param year the specific year for which tracks are desired, or -1 for all years within the specified decade
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the matching tracks
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestTracksByDecadeAndYear(final SlotReference slotReference, final int sortOrder, final int decade, final int year)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting key neighbor menu.");
+                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_DECADE_YEAR_REQ, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(decade), new NumberField(year));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting tracks by decade and year menu");
+    }
+
+    /**
+     * Ask the specified player for a Filename menu.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the entries in the filename menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestFilenameMenuFrom(final SlotReference slotReference, final int sortOrder)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting Rating menu.");
+                        Message response = client.menuRequest(Message.KnownType.FILENAME_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                new NumberField(sortOrder));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting filename menu");
+    }
 
     /**
      * Ask the specified player for a Folder menu for exploring its raw filesystem.

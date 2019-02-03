@@ -75,9 +75,25 @@ public class Message {
          */
         RATING_MENU_REQ  (0x1007, "rating menu request", "r:m:s:t", "sort order"),
         /**
+         * Asks for a list of years (at the decade level) in the specified media slot.
+         */
+        YEAR_MENU_REQ  (0x1008, "year menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for a list of colors in the specified media slot.
+         */
+        COLOR_MENU_REQ  (0x100d, "color menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for a list of track times (in minutes) in the specified media slot.
+         */
+        TIME_MENU_REQ  (0x1010, "time menu request", "r:m:s:t", "sort order"),
+        /**
          * Asks for a list of performance histories found in the specified media slot.
          */
         HISTORY_MENU_REQ (0x1012, "history menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for a list of track file names found in the specified media slot.
+         */
+        FILENAME_MENU_REQ (0x1013, "filename menu request", "r:m:s:t", "sort order"),
         /**
          * Asks for a list of track keys found in the specified media slot.
          */
@@ -107,6 +123,18 @@ public class Message {
          */
         TRACK_MENU_FOR_RATING_REQ (0x1107, "track menu for rating request", "r:m:s:t", "sort", "rating ID"),
         /**
+         * Asks for a year menu for a particular decade in the specified media slot.
+         */
+        YEAR_MENU_FOR_DECADE_REQ (0x1108, "year menu for decade request", "r:m:s:t", "sort", "decade"),
+        /**
+         * Asks for a track menu for a particular color in the specified media slot.
+         */
+        TRACK_MENU_FOR_COLOR_REQ (0x110d, "track menu for color request", "r:m:s:t", "sort", "color ID"),
+        /**
+         * Asks for a track menu for a particular track time (length in minutes) in the specified media slot.
+         */
+        TRACK_MENU_FOR_TIME_REQ (0x1110, "track menu for time request", "r:m:s:t", "sort", "minutes"),
+        /**
          * Asks for a track menu for a particular rating in the specified media slot.
          */
         TRACK_MENU_FOR_HISTORY_REQ (0x1112, "track menu for history entry request", "r:m:s:t", "sort", "history ID"),
@@ -132,6 +160,11 @@ public class Message {
          */
         TRACK_MENU_FOR_BPM_AND_DISTANCE (0x1206, "track menu for BPM and distance request", "r:m:s:t:", "sort",
                 "bpm ID", "distance (+/- %, can range from 0-6)"),
+        /**
+         * Asks for a track menu for a particular decade and year in the specified media slot.
+         */
+        TRACK_MENU_FOR_DECADE_YEAR_REQ (0x1208, "track menu for decade and year request", "r:m:s:t", "sort",
+                "decade", "year, or -1 for ALL"),
         /**
          * Asks for an track menu by key and distance (which represents harmonic compatibility as allowed movement
          * around the circle of fifths), ranging from 0 to 2.
@@ -487,9 +520,17 @@ public class Message {
          */
         RATING_MENU (0x0086),
         /**
+         * The root menu item that takes you to the years by decade list.
+         */
+        YEAR_MENU (0x0087),
+        /**
          * The root menu item that takes you to the key list.
          */
         KEY_MENU (0x008b),
+        /**
+         * The root menu item that takes you to the color list.
+         */
+        COLOR_MENU (0x008e),
         /**
          * The root menu item that takes you to the folder list.
          */
@@ -498,6 +539,14 @@ public class Message {
          * The root menu item that takes you to the search interface.
          */
         SEARCH_MENU (0x0091),
+        /**
+         * The root menu item that takes you to the time (track length in minutes) list.
+         */
+        TIME_MENU (0x0092),
+        /**
+         * The root menu item that takes you to the file name list.
+         */
+        FILENAME_MENU (0x0094),
         /**
          * The root menu item that takes you to the history list.
          */

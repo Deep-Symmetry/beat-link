@@ -45,6 +45,8 @@ This change log follows the conventions of
   beats as soon as they happen, along with the actual beat number
   within the track represented by the beat (which is missing from
   the raw beat packet available through the `BeatFinder`).
+- `MenuLoader` supports loading several more menu types from the
+  dbserver.
 - When disconnecting from a player’s dbserver, we politely send a
   teardown message and let it close the connection from its side.
 
