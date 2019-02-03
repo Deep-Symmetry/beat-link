@@ -73,6 +73,9 @@ This change log follows the conventions of
   when the other used white for playing/stopped). Now they both
   use the constants defined in the WaveformDetailComponent, which
   also adds a bit of transparency to the preview markers.
+- It turns out that rekordbox mobile does not report meaningful values
+  for its media name or creation date, so we no longer attempt to
+  parse them.
 
 ## [0.4.1] - 2018-10-28
 
