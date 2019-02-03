@@ -433,6 +433,10 @@ public class Message {
          */
         UNANALYZED_UNKNOWN (0x0010),
         /**
+         * A number identifying a year in which a track was created.
+         */
+        YEAR ( 0x0011),
+        /**
          * Indicates the DJ has not assigned a color label to a track, part of the track metadata response.
          */
         COLOR_NONE (0x0013),
