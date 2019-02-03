@@ -135,7 +135,7 @@ public class MediaDetails {
         }
         mediaType = type;
 
-        if (hostPlayer < 40) {  // Does not send media name or creation date.
+        if (hostPlayer >= 40) {  // Rekordbox mobile does not send media name or creation date.
             name = "rekordbox mobile";
             creationDate = "";
         } else {
