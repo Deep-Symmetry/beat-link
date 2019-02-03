@@ -122,6 +122,11 @@ public class TrackMetadata {
     private int tempo;
 
     /**
+     * The year the track was created.
+     */
+    private int year;
+
+    /**
      * The title of the track.
      */
     private String title;
@@ -391,6 +396,10 @@ public class TrackMetadata {
                 dateAdded = ((StringField) item.arguments.get(3)).getValue();
                 break;
 
+            case YEAR:
+                year = (int) ((NumberField) item.arguments.get(1)).getValue();
+                break;
+
             case UNANALYZED_UNKNOWN:  // Don't yet know what to do with this.
                 break;
 
@@ -597,13 +606,22 @@ public class TrackMetadata {
         return title;
     }
 
+    /**
+     * Get the year of the track, if known.
+     *
+     * @return the year the track was created, or 0 if rekordbox is not indexing by year.
+     */
+    public int getYear() {
+        return year;
+    }
+
     @Override
     public String toString() {
         return "Track Metadata[trackReference: " + trackReference + ", TrackType: " + trackType +
                 ", Title: " + title + ", Artist: " + artist + ", Album: " + album + ", Remixer: " + remixer +
                 ", Label: " + label + ", Original Artist: " + originalArtist + ", Date Added: " + dateAdded +
                 ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
-                ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre +
+                ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre + ", Year: " + year +
                 ", Artwork ID: " + artworkId + ", Cue List: " + cueList +"]";
     }
 }

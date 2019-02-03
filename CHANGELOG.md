@@ -47,6 +47,8 @@ This change log follows the conventions of
   the raw beat packet available through the `BeatFinder`).
 - `MenuLoader` supports loading several more menu types from the
   dbserver.
+- We can offer track years as part of the metadata when rekordbox is
+  indexing that.
 - When disconnecting from a player’s dbserver, we politely send a
   teardown message and let it close the connection from its side.
 
