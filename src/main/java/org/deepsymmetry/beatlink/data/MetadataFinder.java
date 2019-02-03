@@ -342,7 +342,8 @@ public class MetadataFinder extends LifecycleParticipant {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
             logger.info("Processing device found, number:" + announcement.getNumber() + ", name:\"" + announcement.getName() + "\".");
-            if ((announcement.getNumber() > 40) && (announcement.getName().startsWith("rekordbox"))) {  // Looks like rekordbox.
+            if ((((announcement.getNumber() > 0x0f) && announcement.getNumber() < 0x20) || announcement.getNumber() > 40) &&
+                    (announcement.getName().startsWith("rekordbox"))) {  // Looks like rekordbox.
                 logger.info("Recording rekordbox collection mount.");
                 recordMount(SlotReference.getSlotReference(announcement.getNumber(),
                         CdjStatus.TrackSourceSlot.COLLECTION));  // Report the rekordbox collection as mounted media.
@@ -358,7 +359,8 @@ public class MetadataFinder extends LifecycleParticipant {
                 removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
                 detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
                 detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
-            } else if (announcement.getNumber() > 40 && announcement.getName().startsWith("rekordbox")) {  // Looks like rekordbox, clear "mounted" database.
+            } else if ((((announcement.getNumber() > 0x0f) && announcement.getNumber() < 0x20) || announcement.getNumber() > 40) &&
+                    (announcement.getName().startsWith("rekordbox"))) {  // Looks like rekordbox, clear "mounted" database.
                 removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.COLLECTION));
             }
         }
