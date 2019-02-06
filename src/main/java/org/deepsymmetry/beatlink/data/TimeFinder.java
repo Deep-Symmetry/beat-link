@@ -417,6 +417,8 @@ public class TimeFinder extends LifecycleParticipant {
                         }
                         if (done) {
                             updateListenersIfNeeded(update.getDeviceNumber(), newPosition, null);
+                        } else {  // Some other thread updated the position while we were working, re-evaluate.
+                            lastPosition = positions.get(update.getDeviceNumber());
                         }
                     }
                 } else {

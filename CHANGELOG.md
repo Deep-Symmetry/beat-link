@@ -54,6 +54,12 @@ This change log follows the conventions of
 
 ### Fixed
 
+- A mistake in the `TimeFinder` which could trap the `VirtualCdj`
+  packet delivery thread in an infinite loop, which would then cause
+  client applications to lose contact with what was happening on the
+  players, with no recourse except going offline and back online.
+  Thanks to [@Kevinnns](https://github.com/Kevinnns) for the thread
+  dumps which helped finally find this!
 - The code that was supposed to notice computers running rekordbox
   and track their media collections as being available on the network
   had always been broken, but was easy enough to fix. Now Beat Link
