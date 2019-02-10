@@ -182,7 +182,6 @@ public class TimeFinder extends LifecycleParticipant {
             if (metadata != null && metadata.getCueList() != null) {
                 for (CueList.Entry entry : metadata.getCueList().entries) {
                     final int entryBeat = beatGrid.findBeatAtTime(entry.cueTime);
-                    logger.info("newBeat:" + newBeat + ", entryBeat:" + entryBeat);
                     if (Math.abs(newBeat - entryBeat) < 2) {
                         return entry.cueTime;  // We have found a cue we likely jumped to
                     }
