@@ -194,6 +194,30 @@ public class CueList {
     public final List<Entry> entries;
 
     /**
+     * Sorts the entries into the order we want to present them in, which is by position, with hot cues coming after
+     * ordinary memory points if both exist at the same position, which often happens.
+     *
+     * @param loadedEntries the unsorted entries we have loaded from a dbserver message, metadata cache, or rekordbox
+     *                database export
+     * @return an immutable list of the collections in the proper order
+     */
+    private List<Entry> sortEntries(List<Entry> loadedEntries) {
+        Collections.sort(loadedEntries, new Comparator<Entry>() {
+            @Override
+            public int compare(Entry entry1, Entry entry2) {
+                int result = (int) (entry1.cuePosition - entry2.cuePosition);
+                if (result == 0) {
+                    int h1 = (entry1.hotCueNumber != 0) ? 1 : 0;
+                    int h2 = (entry2.hotCueNumber != 0) ? 1 : 0;
+                    result = h1 - h2;
+                }
+                return result;
+            }
+        });
+        return Collections.unmodifiableList(loadedEntries);
+    }
+
+    /**
      * Helper method to add cue list entries from a parsed ANLZ cue tag
      *
      * @param entries the list of entries being accumulated
@@ -227,7 +251,7 @@ public class CueList {
                 addEntriesFromTag(mutableEntries, tag);
             }
         }
-        entries = Collections.unmodifiableList(mutableEntries);
+        entries = sortEntries(mutableEntries);
         rawTags = Collections.unmodifiableList(tagBuffers);
     }
 
@@ -244,7 +268,7 @@ public class CueList {
             RekordboxAnlz.CueTag tag = new RekordboxAnlz.CueTag(new ByteBufferKaitaiStream(buffer));
             addEntriesFromTag(mutableEntries, tag);
         }
-        entries = Collections.unmodifiableList(mutableEntries);
+        entries = sortEntries(mutableEntries);
     }
 
     /**
@@ -257,7 +281,7 @@ public class CueList {
         rawTags = null;
         byte[] entryBytes = ((BinaryField) message.arguments.get(3)).getValueAsArray();
         final int entryCount = entryBytes.length / 36;
-        ArrayList<Entry> scratch = new ArrayList<Entry>(entryCount);
+        ArrayList<Entry> mutableEntries = new ArrayList<Entry>(entryCount);
         for (int i = 0; i < entryCount; i++) {
             final int offset = i * 36;
             final int cueFlag = entryBytes[offset + 1];
@@ -267,25 +291,13 @@ public class CueList {
                 final long position = Util.bytesToNumberLittleEndian(entryBytes, offset + 12, 4);
                 if (entryBytes[offset] != 0) {  // This is a loop
                     final long endPosition = Util.bytesToNumberLittleEndian(entryBytes, offset + 16, 4);
-                    scratch.add(new Entry(hotCueNumber, position, endPosition));
+                    mutableEntries.add(new Entry(hotCueNumber, position, endPosition));
                 } else {
-                    scratch.add(new Entry(hotCueNumber, position));
+                    mutableEntries.add(new Entry(hotCueNumber, position));
                 }
             }
         }
-        Collections.sort(scratch, new Comparator<Entry>() {
-            @Override
-            public int compare(Entry entry1, Entry entry2) {
-                int result = (int) (entry1.cuePosition - entry2.cuePosition);
-                if (result == 0) {
-                    int h1 = (entry1.hotCueNumber != 0) ? 1 : 0;
-                    int h2 = (entry2.hotCueNumber != 0) ? 1 : 0;
-                    result = h1 - h2;
-                }
-                return result;
-            }
-        });
-        entries = Collections.unmodifiableList(scratch);
+        entries = sortEntries(mutableEntries);
     }
 
     @Override
