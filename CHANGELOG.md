@@ -45,6 +45,9 @@ This change log follows the conventions of
   beats as soon as they happen, along with the actual beat number
   within the track represented by the beat (which is missing from
   the raw beat packet available through the `BeatFinder`).
+- The `TimeFinder` takes advantage of track metadata when it is
+  available to detect when the DJ has jumped to a cue, so it can
+  more accurately infer where the player has stopped.
 - `MenuLoader` supports loading several more menu types from the
   dbserver.
 - We can offer track years as part of the metadata when rekordbox is

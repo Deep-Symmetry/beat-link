@@ -172,18 +172,44 @@ public class TimeFinder extends LifecycleParticipant {
     private long interpolateTimeFromUpdate(TrackPositionUpdate lastTrackUpdate, CdjStatus newDeviceUpdate,
                                            BeatGrid beatGrid) {
         final int beatNumber = newDeviceUpdate.getBeatNumber();
-        if (!lastTrackUpdate.playing ) {  // Haven't moved
-            if (lastTrackUpdate.beatNumber == beatNumber) {
-                return lastTrackUpdate.milliseconds;
-            } else {  // Have jumped without playing.
-                if (beatNumber < 0) {
-                    return -1; // We don't know the position any more; weird to get into this state and still have a grid?
+        final boolean nowPaused = newDeviceUpdate.isPaused();
+
+        // If we have just stopped, see if we are near a cue (assuming that information is available), and if so,
+        // the best assumption is that the DJ jumped to that cue.
+        if (lastTrackUpdate.playing && nowPaused && MetadataFinder.getInstance().isRunning()) {
+            final TrackMetadata metadata = MetadataFinder.getInstance().getLatestMetadataFor(newDeviceUpdate);
+            final int newBeat = newDeviceUpdate.getBeatNumber();
+            if (metadata != null && metadata.getCueList() != null) {
+                for (CueList.Entry entry : metadata.getCueList().entries) {
+                    final int entryBeat = beatGrid.findBeatAtTime(entry.cueTime);
+                    logger.info("newBeat:" + newBeat + ", entryBeat:" + entryBeat);
+                    if (Math.abs(newBeat - entryBeat) < 2) {
+                        return entry.cueTime;  // We have found a cue we likely jumped to
+                    }
+                    if (entryBeat > newBeat) {
+                        break;  // We have moved past our location, no point scanning further.
+                    }
                 }
-                // As a heuristic, assume we are right before the beat? Interfering with correction logic right now.
-                // This all needs some serious pondering on more sleep.
-                return timeOfBeat(beatGrid, beatNumber, newDeviceUpdate);
             }
         }
+
+        // Handle the special case where we were not playing either in the previous or current update, but the DJ
+        // might have jumped to a different place in the track.
+        if (!lastTrackUpdate.playing) {
+            if (lastTrackUpdate.beatNumber == beatNumber && nowPaused) {  // Haven't moved
+                return lastTrackUpdate.milliseconds;
+            } else {
+                if (nowPaused) {  // Have jumped without playing.
+                    if (beatNumber < 0) {
+                        return -1; // We don't know the position any more; weird to get into this state and still have a grid?
+                    }
+                    // As a heuristic, assume we are right before the beat?
+                    return timeOfBeat(beatGrid, beatNumber, newDeviceUpdate);
+                }
+            }
+        }
+
+        // One way or another, we are now playing.
         long elapsedMillis = (newDeviceUpdate.getTimestamp() - lastTrackUpdate.timestamp) / 1000000;
         long moved = Math.round(lastTrackUpdate.pitch * elapsedMillis);
         long interpolated = (lastTrackUpdate.reverse)?
