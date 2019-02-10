@@ -79,9 +79,24 @@ public class MixerStatus extends DeviceUpdate {
         }
 
         final int payloadLength = (int)Util.bytesToNumber(packetBytes, 0x22, 2);
-        if (packetBytes.length != payloadLength + 0x24) {
-            logger.warn("Received Mixer status packet with reported payload length of " + payloadLength + " and actual payload length of " +
-                    (packetBytes.length - 0x24));
+        final byte subtype = packetBytes[0x20];
+        switch (subtype) {
+            case 0:  // Actual mixer status packets use this subtype
+                if (packetBytes.length != payloadLength + 0x24) {
+                    logger.warn("Received Mixer status packet with reported payload length of " + payloadLength + " and actual payload length of " +
+                            (packetBytes.length - 0x24) + ": " + this);
+                }
+                break;
+
+            case 1:  // rekordbox seems to sometimes send packets with this subtype
+                if (packetBytes.length != payloadLength) {
+                    logger.warn("Received Mixer status packet with reported length of " + payloadLength + " and actual length of " +
+                            (packetBytes.length) + ": " + this);
+                }
+                break;
+
+            default:
+                logger.warn("Received Mixer status packet with unexpected subtype " + subtype + ": " + this);
         }
 
         if (!expectedStatusPacketSizes.contains(packetBytes.length)) {
@@ -148,7 +163,6 @@ public class MixerStatus extends DeviceUpdate {
      *
      * @return true if the sync flag was set
      */
-    @SuppressWarnings("WeakerAccess")
     @Override
     public boolean isSynced() {
         return (packetBytes[STATUS_FLAGS] & CdjStatus.SYNCED_FLAG) > 0;

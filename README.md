@@ -64,7 +64,7 @@ put it on your project&rsquo;s class path, along with
 binding to the logging framework you would like to use.
 
 You will also need
-[ConcurrentLinkedHashmap](https://github.com/ben-manes/concurrentlinkedhashmap)
+[ConcurrentLinkedHashMap](https://github.com/ben-manes/concurrentlinkedhashmap)
 for maintaining album art caches, and
 [Remote Tea](https://sourceforge.net/projects/remotetea/), so Maven
 is by far your easiest bet, because it will take care of _all_ these

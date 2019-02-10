@@ -82,6 +82,9 @@ This change log follows the conventions of
 - It turns out that rekordbox mobile does not report meaningful values
   for its media name or creation date, so we no longer attempt to
   parse them.
+- It seems rekordbox sometimes send mixer status packets with a
+  different subtype structure which was causing us to log warnings
+  about a length mismatch. We now properly recognize this subtype.
 
 ## [0.4.1] - 2018-10-28
 
