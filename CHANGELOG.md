@@ -103,6 +103,9 @@ This change log follows the conventions of
   probably eventually being taken care of by the garbage collector and
   finalizers, but there is no guarantee if or when that would actually
   happen.
+- When handling a Fader Start command, a missing `break` statement
+  caused the `BeatFinder` to log warning which incorrectly reported
+  that the command had not been recognized. This no longer happens.
 
 ## [0.4.0] - 2018-10-07
 

@@ -187,6 +187,7 @@ public class BeatFinder extends LifecycleParticipant {
                                                 playersToStop = Collections.unmodifiableSet(playersToStop);
                                                 deliverFaderStartCommand(playersToStart, playersToStop);
                                             }
+                                            break;
 
                                         default:
                                             logger.warn("Ignoring packet received on beat port with unexpected type: " + kind);
