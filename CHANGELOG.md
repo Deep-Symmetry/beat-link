@@ -37,9 +37,12 @@ This change log follows the conventions of
 - We can now retrieve and display the full-color waveforms used by
   nxs2 players and rekordbox, and prefer them when available. This
   can be turned off through a `WaveformFinder` property.
+- `WaveformPreviewComponent` and `WaveformDetailComponent` can now
+  show multiple player positions at the same time, to support their
+  use in the new Show interface.
 - When going online, the `VirtualCdj` now reports information about
-  the chosen network interface to help with troubleshooting problematic
-  network environments.
+  the chosen network interface to help with troubleshooting
+  problematic network environments.
 - There is a new interface, `TrackPositionBeatListener`, that can
   be registered with the `TimeFinder` in order to learn about new
   beats as soon as they happen, along with the actual beat number
@@ -71,6 +74,10 @@ This change log follows the conventions of
 - The various metadata finders were supposed to report the loss of
   associated metadata when a player disappeared from the network, but
   they were not doing so.
+- At some point (possibly when adding the ability to show multiple
+  player locations in a waveform) the memory point and hot cue markers
+  stopped being displayed in the waveform preview. They have been
+  restored.
 - Cue Lists were not being sorted into the correct order when they
   were loaded from Crate Digger. Now they are sorted regardless of
   how we obtain them.

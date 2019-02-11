@@ -758,8 +758,7 @@ public class WaveformDetailComponent extends JComponent {
         // Draw the cue and memory point markers, first the memory cues and then the hot cues, since some are in
         // the same place and we want the hot cues to stand out.
         if (currentCueList != null) {
-            drawCueList(g, clipRect, currentCueList, axis, maxHeight, false);
-            drawCueList(g, clipRect, currentCueList, axis, maxHeight, true);
+            drawCueList(g, clipRect, currentCueList, axis, maxHeight);
         }
 
         // Draw the non-playing markers first, so the playing ones will be seen if they are in the same spot.
@@ -795,18 +794,15 @@ public class WaveformDetailComponent extends JComponent {
      * @param cueList the cues to  be drawn
      * @param axis the base on which the waveform is being drawn
      * @param maxHeight the highest waveform segment
-     * @param hot true if we should draw hot cues, otherwise we draw memory points
      */
-    private void drawCueList(Graphics g, Rectangle clipRect, CueList cueList, int axis, int maxHeight, boolean hot) {
+    private void drawCueList(Graphics g, Rectangle clipRect, CueList cueList, int axis, int maxHeight) {
         for (CueList.Entry entry : cueList.entries) {
-            if ((hot && entry.hotCueNumber > 0) || (entry.hotCueNumber == 0 && !hot)) {
-                final int x = millisecondsToX(entry.cueTime);
-                if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
-                    g.setColor(cueColor(entry));
-                    for (int i = 0; i < 4; i++) {
-                        g.drawLine(x - 3 + i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i,
-                                x + 3 - i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i);
-                    }
+            final int x = millisecondsToX(entry.cueTime);
+            if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
+                g.setColor(cueColor(entry));
+                for (int i = 0; i < 4; i++) {
+                    g.drawLine(x - 3 + i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i,
+                            x + 3 - i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i);
                 }
             }
         }

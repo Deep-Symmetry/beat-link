@@ -788,11 +788,9 @@ public class WaveformPreviewComponent extends JComponent {
             }
         }
 
-        // Draw the cue points, first the ordinary memory points and then the hot cues, since sometimes
-        // they are in the same place and we want the hot cues to stand out.
+        // Draw the cue points.
         if (cueList.get() != null) {
-            drawCueList(g, clipRect, false);
-            drawCueList(g, clipRect, true);
+            drawCueList(g, clipRect);
         }
 
         // Finally, if an overlay painter has been attached, let it paint its overlay.
@@ -807,17 +805,14 @@ public class WaveformPreviewComponent extends JComponent {
      *
      * @param g the graphics object in which we are being rendered
      * @param clipRect the region that is being currently rendered
-     * @param hot true if we should draw hot cues, otherwise we draw memory points
      */
-    private void drawCueList(Graphics g, Rectangle clipRect, boolean hot) {
+    private void drawCueList(Graphics g, Rectangle clipRect) {
         for (CueList.Entry entry : cueList.get().entries) {
-            if ((hot && entry.hotCueNumber > 0) || (entry.hotCueNumber == 0 && !hot)) {
-                final int x = millisecondsToX(entry.cueTime);
-                if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
-                    g.setColor(WaveformDetailComponent.cueColor(entry));
-                    for (int i = 0; i < 4; i++) {
-                        g.drawLine(x - 3 + i, CUE_MARKER_TOP + i, x + 3 - i, CUE_MARKER_TOP + i);
-                    }
+            final int x = millisecondsToX(entry.cueTime);
+            if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
+                g.setColor(WaveformDetailComponent.cueColor(entry));
+                for (int i = 0; i < 4; i++) {
+                    g.drawLine(x - 3 + i, CUE_MARKER_TOP + i, x + 3 - i, CUE_MARKER_TOP + i);
                 }
             }
         }
