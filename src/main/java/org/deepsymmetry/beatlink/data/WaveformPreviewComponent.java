@@ -498,8 +498,10 @@ public class WaveformPreviewComponent extends JComponent {
             }
             if (knownMetadata == null) {
                 duration.set(0);  // We don't know the duration, so we can’t draw markers.
+                cueList.set(null);
             } else {
                 duration.set(knownMetadata.getDuration());
+                cueList.set(knownMetadata.getCueList());
             }
 
             WaveformFinder.getInstance().addWaveformListener(waveformListener);
@@ -568,8 +570,10 @@ public class WaveformPreviewComponent extends JComponent {
             if (update.player == getMonitoredPlayer()) {
                 if (update.metadata != null) {
                     duration.set(update.metadata.getDuration());
+                    cueList.set(update.metadata.getCueList());
                 } else {
                     duration.set(0);
+                    cueList.set(null);
                 }
                 repaint();
             }
