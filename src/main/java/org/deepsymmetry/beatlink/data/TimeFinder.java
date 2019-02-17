@@ -160,6 +160,32 @@ public class TimeFinder extends LifecycleParticipant {
     }
 
     /**
+     * Checks whether a CDJ status update seems to be close enough to a cue that if we just jumped there (or just
+     * loaded the track) it would be a reasonable assumption that we jumped to the cue.
+     *
+     * @param update the status update to check for proximity to hot cues and memory points
+     * @param beatGrid the beat grid of the track  being played
+     * @return a matching memory point if we had a cue list available and were within a beat of one, or {@code null}
+     */
+    private CueList.Entry findAdjacentCue(CdjStatus update, BeatGrid beatGrid) {
+        if (!MetadataFinder.getInstance().isRunning()) return null;
+        final TrackMetadata metadata = MetadataFinder.getInstance().getLatestMetadataFor(update);
+        final int newBeat = update.getBeatNumber();
+        if (metadata != null && metadata.getCueList() != null) {
+            for (CueList.Entry entry : metadata.getCueList().entries) {
+                final int entryBeat = beatGrid.findBeatAtTime(entry.cueTime);
+                if (Math.abs(newBeat - entryBeat) < 2) {
+                    return entry;  // We have found a cue we likely jumped to
+                }
+                if (entryBeat > newBeat) {
+                    break;  // We have moved past our location, no point scanning further.
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Sanity-check a new non-beat update, make sure we are still interpolating a sensible position, and correct
      * as needed.
      *
@@ -176,20 +202,9 @@ public class TimeFinder extends LifecycleParticipant {
 
         // If we have just stopped, see if we are near a cue (assuming that information is available), and if so,
         // the best assumption is that the DJ jumped to that cue.
-        if (lastTrackUpdate.playing && noLongerPlaying && MetadataFinder.getInstance().isRunning()) {
-            final TrackMetadata metadata = MetadataFinder.getInstance().getLatestMetadataFor(newDeviceUpdate);
-            final int newBeat = newDeviceUpdate.getBeatNumber();
-            if (metadata != null && metadata.getCueList() != null) {
-                for (CueList.Entry entry : metadata.getCueList().entries) {
-                    final int entryBeat = beatGrid.findBeatAtTime(entry.cueTime);
-                    if (Math.abs(newBeat - entryBeat) < 2) {
-                        return entry.cueTime;  // We have found a cue we likely jumped to
-                    }
-                    if (entryBeat > newBeat) {
-                        break;  // We have moved past our location, no point scanning further.
-                    }
-                }
-            }
+        if (lastTrackUpdate.playing && noLongerPlaying) {
+            final CueList.Entry jumpedTo = findAdjacentCue(newDeviceUpdate, beatGrid);
+            if (jumpedTo != null) return jumpedTo.cueTime;
         }
 
         // Handle the special case where we were not playing either in the previous or current update, but the DJ
@@ -423,8 +438,13 @@ public class TimeFinder extends LifecycleParticipant {
                         TrackPositionUpdate newPosition;
                         if (lastPosition == null || lastPosition.beatGrid != beatGrid) {
                             // This is a new track, and we have not yet received a beat packet for it
+                            long timeGuess = timeOfBeat(beatGrid, beatNumber, update);
+                            final CueList.Entry likelyCue = findAdjacentCue((CdjStatus) update, beatGrid);
+                            if (likelyCue != null) {
+                                timeGuess = likelyCue.cueTime;
+                            }
                             newPosition = new TrackPositionUpdate(update.getTimestamp(),
-                                    timeOfBeat(beatGrid, beatNumber, update), beatNumber, false,
+                                    timeGuess, beatNumber, false,
                                     ((CdjStatus) update).isPlaying(),
                                     Util.pitchToMultiplier(update.getPitch()),
                                     ((CdjStatus) update).isPlayingBackwards(), beatGrid);
