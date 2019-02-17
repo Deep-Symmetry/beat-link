@@ -172,11 +172,11 @@ public class TimeFinder extends LifecycleParticipant {
     private long interpolateTimeFromUpdate(TrackPositionUpdate lastTrackUpdate, CdjStatus newDeviceUpdate,
                                            BeatGrid beatGrid) {
         final int beatNumber = newDeviceUpdate.getBeatNumber();
-        final boolean nowPaused = newDeviceUpdate.isPaused();
+        final boolean noLongerPlaying = !newDeviceUpdate.isPlaying();
 
         // If we have just stopped, see if we are near a cue (assuming that information is available), and if so,
         // the best assumption is that the DJ jumped to that cue.
-        if (lastTrackUpdate.playing && nowPaused && MetadataFinder.getInstance().isRunning()) {
+        if (lastTrackUpdate.playing && noLongerPlaying && MetadataFinder.getInstance().isRunning()) {
             final TrackMetadata metadata = MetadataFinder.getInstance().getLatestMetadataFor(newDeviceUpdate);
             final int newBeat = newDeviceUpdate.getBeatNumber();
             if (metadata != null && metadata.getCueList() != null) {
@@ -195,10 +195,10 @@ public class TimeFinder extends LifecycleParticipant {
         // Handle the special case where we were not playing either in the previous or current update, but the DJ
         // might have jumped to a different place in the track.
         if (!lastTrackUpdate.playing) {
-            if (lastTrackUpdate.beatNumber == beatNumber && nowPaused) {  // Haven't moved
+            if (lastTrackUpdate.beatNumber == beatNumber && noLongerPlaying) {  // Haven't moved
                 return lastTrackUpdate.milliseconds;
             } else {
-                if (nowPaused) {  // Have jumped without playing.
+                if (noLongerPlaying) {  // Have jumped without playing.
                     if (beatNumber < 0) {
                         return -1; // We don't know the position any more; weird to get into this state and still have a grid?
                     }
