@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <p>Uses the <a href="https://github.com/Deep-Symmetry/crate-digger#crate-digger">Crate Digger</a> library to
@@ -30,6 +31,32 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class CrateDigger {
 
     private final Logger logger = LoggerFactory.getLogger(CrateDigger.class);
+
+    /**
+     * How many times we will try to download a file from a player before giving up.
+     */
+    private final AtomicInteger retryLimit = new AtomicInteger(3);
+
+    /**
+     * Check how many times we will try to download a file from a player before giving up.
+     *
+     * @return the maximum number of attempts we will make when a file download fails
+     */
+    public int getRetryLimit() {
+        return retryLimit.get();
+    }
+
+    /**
+     * Set how many times we will try to download a file from a player before giving up.
+     *
+     * @param limit the maximum number of attempts we will make when a file download fails
+     */
+    public void setRetryLimit(int limit) {
+        if (limit < 1 || limit > 10) {
+            throw new IllegalArgumentException("limit must be between 1 and 10");
+        }
+        retryLimit.set(limit);
+    }
 
     /**
      * Keep track of whether we are running.
@@ -176,7 +203,20 @@ public class CrateDigger {
         if (player == null) {
             throw new IOException("Cannot fetch file from player that is not found on the network; slot: " + slot);
         }
-        FileFetcher.getInstance().fetch(player.getAddress(), mountPath(slot.slot), path, destination);
+        int triesLeft = getRetryLimit();
+        while (triesLeft > 0) {
+            try {
+                FileFetcher.getInstance().fetch(player.getAddress(), mountPath(slot.slot), path, destination);
+                return;
+            } catch (IOException e) {
+                triesLeft--;
+                if (triesLeft > 0) {
+                    logger.warn("Attempt to fetch file from player failed, tries left: " + triesLeft, e);
+                } else {
+                    throw e;
+                }
+            }
+        }
     }
 
     /**
