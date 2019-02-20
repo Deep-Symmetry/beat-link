@@ -529,6 +529,31 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
+     * Hold the network interfaces which match the address on which we found player traffic. Should only be one,
+     * or we will likely receive duplicate packets, which will cause problematic behavior.
+     */
+    private List<NetworkInterface> matchingInterfaces = null;
+
+    /**
+     * Check the interfaces that match the address from which we are receiving DJ Link traffic. If there is more
+     * than one value in this list, that is a problem because we will likely receive duplicate packets that will
+     * play havoc with our understanding of player states.
+     *
+     * @return the list of network interfaces on which we might receive player packets
+     * @throws IllegalStateException if we are not running
+     */
+    public List<NetworkInterface> getMatchingInterfaces() {
+        ensureRunning();
+        return Collections.unmodifiableList(matchingInterfaces);
+    }
+
+    /**
+     * Holds the interface address we chose to communicate with the DJ Link device we found during startup,
+     * so we can check if there are any unreachable ones.
+     */
+    private InterfaceAddress matchedAddress = null;
+
+    /**
      * Once we have seen some DJ Link devices on the network, we can proceed to create a virtual player on that
      * same network.
      *
@@ -537,14 +562,16 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private boolean createVirtualCdj() throws SocketException {
         // Find the network interface and address to use to communicate with the first device we found.
-        NetworkInterface matchedInterface = null;
-        InterfaceAddress matchedAddress = null;
+        matchingInterfaces = new ArrayList<NetworkInterface>();
+        matchedAddress = null;
         DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            matchedAddress = findMatchingAddress(aDevice, networkInterface);
-            if (matchedAddress != null) {
-                matchedInterface = networkInterface;
-                break;
+            InterfaceAddress candidate = findMatchingAddress(aDevice, networkInterface);
+            if (candidate != null) {
+                if (matchedAddress == null) {
+                    matchedAddress = candidate;
+                }
+                matchingInterfaces.add(networkInterface);
             }
         }
 
@@ -554,8 +581,15 @@ public class VirtualCdj extends LifecycleParticipant {
             return false;
         }
 
-        logger.info("Found matching network interface " + matchedInterface.getDisplayName() + " (" +
-                matchedInterface.getName() + "), will use address " + matchedAddress);
+        logger.info("Found matching network interface " + matchingInterfaces.get(0).getDisplayName() + " (" +
+                matchingInterfaces.get(0).getName() + "), will use address " + matchedAddress);
+        if (matchingInterfaces.size() > 1) {
+            for (ListIterator<NetworkInterface> it = matchingInterfaces.listIterator(1); it.hasNext(); ) {
+                NetworkInterface extra = it.next();
+                logger.warn("Network interface " + extra.getDisplayName() + " (" + extra.getName() +
+                        ") sees same network: we will likely get duplicate DJ Link packets, causing severe problems.");
+            }
+        }
 
         if (getDeviceNumber() == 0) {
             if (!selfAssignDeviceNumber()) {
@@ -564,7 +598,7 @@ public class VirtualCdj extends LifecycleParticipant {
         }
 
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template
-        System.arraycopy(matchedInterface.getHardwareAddress(), 0, announcementBytes, 38, 6);
+        System.arraycopy(matchingInterfaces.get(0).getHardwareAddress(), 0, announcementBytes, 38, 6);
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, announcementBytes, 44, 4);
         broadcastAddress.set(matchedAddress.getBroadcast());
 
@@ -625,6 +659,25 @@ public class VirtualCdj extends LifecycleParticipant {
         announcer.start();
         deliverLifecycleAnnouncement(logger, true);
         return true;
+    }
+
+    /**
+     * Checks if we can see any players that are on a different network than the one we chose for the Virtual CDJ.
+     * If so, we are not going to be able to communicate with them, and they should all be moved onto a single
+     * network.
+     *
+     * @return the device announcements of any players which are on unreachable networks, or hopefully an empty list
+     * @throws IllegalStateException if we are not running
+     */
+    public Set<DeviceAnnouncement> findUnreachablePlayers() {
+        ensureRunning();
+        Set<DeviceAnnouncement> result = new HashSet<DeviceAnnouncement>();
+        for (DeviceAnnouncement candidate: DeviceFinder.getInstance().getCurrentDevices()) {
+            if (!Util.sameNetwork(matchedAddress.getNetworkPrefixLength(), matchedAddress.getAddress(), candidate.getAddress())) {
+                result.add(candidate);
+            }
+        }
+        return Collections.unmodifiableSet(result);
     }
 
     /**
