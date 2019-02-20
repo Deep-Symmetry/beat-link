@@ -57,6 +57,7 @@ This change log follows the conventions of
   indexing that.
 - When disconnecting from a player’s dbserver, we politely send a
   teardown message and let it close the connection from its side.
+- Methods that can help troubleshoot problematic network topologies.
 
 ### Fixed
 
