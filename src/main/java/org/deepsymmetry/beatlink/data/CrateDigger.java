@@ -42,6 +42,7 @@ public class CrateDigger {
      *
      * @return the maximum number of attempts we will make when a file download fails
      */
+    @SuppressWarnings("WeakerAccess")
     public int getRetryLimit() {
         return retryLimit.get();
     }
@@ -188,6 +189,16 @@ public class CrateDigger {
     }
 
     /**
+     * How long we should back off, in milliseconds, before retrying after each failure to get a file.
+     */
+    private static final long RETRY_BACKOFF = 2000;
+
+    /**
+     * The maximum amount of time we should wait between retry attempts, in milliseconds.
+     */
+    private static final long MAX_RETRY_INTERVAL = 6000;
+
+    /**
      * Helper method to call the {@link FileFetcher} with the right arguments to get a file for a particular slot. Also
      * arranges for the file to be deleted when we are shutting down in case we fail to clean it up ourselves.
      *
@@ -203,15 +214,20 @@ public class CrateDigger {
         if (player == null) {
             throw new IOException("Cannot fetch file from player that is not found on the network; slot: " + slot);
         }
-        int triesLeft = getRetryLimit();
-        while (triesLeft > 0) {
+        int triesMade = 0;
+        while (triesMade < getRetryLimit()) {
             try {
                 FileFetcher.getInstance().fetch(player.getAddress(), mountPath(slot.slot), path, destination);
                 return;
             } catch (IOException e) {
-                triesLeft--;
-                if (triesLeft > 0) {
-                    logger.warn("Attempt to fetch file from player failed, tries left: " + triesLeft, e);
+                triesMade++;
+                if (triesMade < getRetryLimit()) {
+                    logger.warn("Attempt to fetch file from player failed, tries left: " + (getRetryLimit() - triesMade), e);
+                    try {
+                        Thread.sleep(Math.min(MAX_RETRY_INTERVAL, triesMade * RETRY_BACKOFF));
+                    } catch (InterruptedException ie) {
+                        logger.warn("Interrupted while sleeping between file fetch attempts. Retrying immediately.");
+                    }
                 } else {
                     throw e;
                 }
@@ -239,6 +255,7 @@ public class CrateDigger {
      * @param si {code @true} if should use SI interpretation where k=1000
      * @return the nicely readable summary string
      */
+    @SuppressWarnings("WeakerAccess")
     public static String humanReadableByteCount(long bytes, boolean si) {
         int unit = si ? 1000 : 1024;
         if (bytes < unit) return bytes + " B";
