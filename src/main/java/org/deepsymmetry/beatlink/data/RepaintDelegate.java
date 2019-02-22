@@ -9,6 +9,7 @@ package org.deepsymmetry.beatlink.data;
  * used along with {@link WaveformPreviewComponent#setRepaintDelegate(RepaintDelegate)} to enable those
  * changes to be communicated to the lighter component which is hosting it.
  */
+@SuppressWarnings("WeakerAccess")
 public interface RepaintDelegate {
 
     /**

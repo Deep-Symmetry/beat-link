@@ -15,6 +15,7 @@ import org.deepsymmetry.beatlink.Beat;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public interface TrackPositionBeatListener extends TrackPositionListener {
 
     /**

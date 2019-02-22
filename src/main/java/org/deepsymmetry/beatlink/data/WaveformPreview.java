@@ -59,6 +59,7 @@ public class WaveformPreview {
      * @return the bytes from which the preview can be drawn, as described in Section 5.8 of the
      * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
      */
+    @SuppressWarnings("WeakerAccess")
     public ByteBuffer getData() {
         expandedData.rewind();
         return expandedData.slice();

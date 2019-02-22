@@ -294,6 +294,7 @@ public class Message {
         /**
          * The descriptive name of the message type.
          */
+        @SuppressWarnings("WeakerAccess")
         public final String description;
 
         /**
@@ -314,6 +315,7 @@ public class Message {
          *
          * @return either the description found, or "unknown" if none was found.
          */
+        @SuppressWarnings("WeakerAccess")
         public String describeArgument(int index) {
             if (index < 0 || index >= arguments.length) {
                 return "unknown";
@@ -644,6 +646,7 @@ public class Message {
          * The value which identifies this type of menu item by appearing in the seventh argument of a
          * {@link KnownType#MENU_ITEM} response.
          */
+        @SuppressWarnings("WeakerAccess")
         public final long protocolValue;
 
         MenuItemType(long value) {
@@ -707,6 +710,7 @@ public class Message {
      * @param messageType identifies the purpose and structure of the message
      * @param arguments the arguments to send with the message
      */
+    @SuppressWarnings("WeakerAccess")
     public Message(long transaction, long messageType, Field... arguments) {
         this(new NumberField(transaction, 4), new NumberField(messageType, 2), arguments);
     }

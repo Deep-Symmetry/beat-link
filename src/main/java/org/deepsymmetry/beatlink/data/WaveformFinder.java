@@ -874,6 +874,7 @@ public class WaveformFinder extends LifecycleParticipant {
     /**
      * Stop finding waveforms for all active players.
      */
+    @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);

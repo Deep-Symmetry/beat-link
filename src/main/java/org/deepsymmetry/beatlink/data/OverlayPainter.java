@@ -7,6 +7,7 @@ import java.awt.*;
  * components offered by Beat Link, they allow an overlay painter to be registered with them, and it will then
  * be invoked after the component has done its own painting.
  */
+@SuppressWarnings("WeakerAccess")
 public interface OverlayPainter {
     /**
      * Paint the overlay on top of the component, which has finished doing its own painting.

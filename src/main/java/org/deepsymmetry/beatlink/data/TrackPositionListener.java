@@ -14,6 +14,7 @@ package org.deepsymmetry.beatlink.data;
  *
  * @author James Elliott
  */
+@SuppressWarnings("WeakerAccess")
 public interface TrackPositionListener {
     /**
      * <p>Called when there has been a significant change in movement since the last reported change.</p>

@@ -220,6 +220,12 @@ public class CrateDigger {
                 FileFetcher.getInstance().fetch(player.getAddress(), mountPath(slot.slot), path, destination);
                 return;
             } catch (IOException e) {
+                if (path.startsWith("PIONEER/") &&
+                        e.getMessage().contains("lookup of element \"PIONEER\" returned status")) {
+                    // Workaround for the fact that HFS+ formatted devices hide their PIONEER directory as a dot-file
+                    fetchFile(slot, "." + path, destination);
+                    return;
+                }
                 triesMade++;
                 if (triesMade < getRetryLimit()) {
                     logger.warn("Attempt to fetch file from player failed, tries left: " + (getRetryLimit() - triesMade), e);
