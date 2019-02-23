@@ -753,7 +753,7 @@ public class CrateDigger {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("MetadataFinder[").append("running: ").append(isRunning());
+        sb.append("CrateDigger[").append("running: ").append(isRunning());
         if (isRunning()) {
             sb.append(", databases mounted: ").append(databases.size());
             sb.append(", download directory: ").append(downloadDirectory.getAbsolutePath());
