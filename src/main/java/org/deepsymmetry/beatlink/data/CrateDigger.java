@@ -106,6 +106,11 @@ public class CrateDigger {
     };
 
     /**
+     * Keeps tracks of the media that we have discovered name their database folder ".PIONEER" rather than "PIONEER".
+     */
+    private final Set<SlotReference> mediaWithHiddenPioneerFolder = new HashSet<SlotReference>();
+
+    /**
      * Clear the {@link org.deepsymmetry.cratedigger.FileFetcher} cache when media is unmounted, so it does not try
      * to use stale filesystem handles. Also clear up our own caches for the vanished media, and close the files
      * associated with the parsed database structures.
@@ -118,6 +123,7 @@ public class CrateDigger {
 
         @Override
         public void mediaUnmounted(SlotReference slot) {
+            mediaWithHiddenPioneerFolder.remove(slot);
             DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
             if (player != null) {
                 FileFetcher.getInstance().removePlayer(player.getAddress());
@@ -215,6 +221,9 @@ public class CrateDigger {
             throw new IOException("Cannot fetch file from player that is not found on the network; slot: " + slot);
         }
         int triesMade = 0;
+        if (path.startsWith("PIONEER/") && mediaWithHiddenPioneerFolder.contains(slot)) {
+            path = "." + path;  // We are dealing with HFS+ media, so skip the first, failed attempt to read it.
+        }
         while (triesMade < getRetryLimit()) {
             try {
                 FileFetcher.getInstance().fetch(player.getAddress(), mountPath(slot.slot), path, destination);
@@ -222,7 +231,8 @@ public class CrateDigger {
             } catch (IOException e) {
                 if (path.startsWith("PIONEER/") &&
                         e.getMessage().contains("lookup of element \"PIONEER\" returned status")) {
-                    // Workaround for the fact that HFS+ formatted devices hide their PIONEER directory as a dot-file
+                    // Workaround for the fact that HFS+ formatted devices hide their PIONEER directory as a dot-file.
+                    mediaWithHiddenPioneerFolder.add(slot);  // Skip the initial failed attempt next time we access it.
                     fetchFile(slot, "." + path, destination);
                     return;
                 }
@@ -278,7 +288,7 @@ public class CrateDigger {
         @Override
         public void detailsAvailable(final MediaDetails details) {
             if (isRunning() && details.mediaType == CdjStatus.TrackType.REKORDBOX &&
-                    details.slotReference.slot != CdjStatus.TrackSourceSlot.COLLECTION &&  // We always use dbserver to talk to rekordbox
+                    details.slotReference.slot != CdjStatus.TrackSourceSlot.COLLECTION &&  // We always use dbserver to talk to rekordbox.
                     !databases.containsKey(details.slotReference) &&
                     activeRequests.add(details.slotReference)) {
                 new Thread(new Runnable() {
@@ -747,6 +757,7 @@ public class CrateDigger {
         if (isRunning()) {
             sb.append(", databases mounted: ").append(databases.size());
             sb.append(", download directory: ").append(downloadDirectory.getAbsolutePath());
+            sb.append(", media using hidden PIONEER folder: ").append(mediaWithHiddenPioneerFolder);
         }
         return sb.append("]").toString();
     }
