@@ -6,6 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [0.5.0] - 2019-02-23
+
 ### Changed
 
 > :warning: These are breaking API changes. Code that used some
@@ -18,15 +22,16 @@ This change log follows the conventions of
   that group metadata from multiple different media sources).
 - Track comments and dates added are just plain strings, not
   searchable items, so the API has been changed to reflect this.
-- The WaveformPreviewComponent has been generalized to support
-  tracking multiple simultaneous playback positions, so it can be
-  used in the context of a Beat Link Trigger show file, where a track
-  can be loaded and even playing on multiple players at once.
+- `WaveformPreviewComponent` and `WaveformDetailComponent` have been
+  generalized to support tracking multiple simultaneous playback
+  positions, so they can be used in the context of a Beat Link Trigger
+  show file, where a track can be loaded and even playing on multiple
+  players at once.
 - It is now possible to construct a fully-functional
-  WaveformPreview component even if you don’t have access to actual
-  TrackMetadata objects, as long as you pass it the few individual
-  pieces of information it needs. Again, this supports the needs of
-  the new Beat Link Trigger show interface.
+  `WaveformPreviewComponent` or `WaveformDetailComponent` even if you
+  don’t have access to actual `TrackMetadata` objects, as long as you
+  pass them the few individual pieces of information they need. Again,
+  this supports the needs of the new Beat Link Trigger show interface.
 
 ### Added
 
@@ -37,9 +42,6 @@ This change log follows the conventions of
 - We can now retrieve and display the full-color waveforms used by
   nxs2 players and rekordbox, and prefer them when available. This
   can be turned off through a `WaveformFinder` property.
-- `WaveformPreviewComponent` and `WaveformDetailComponent` can now
-  show multiple player positions at the same time, to support their
-  use in the new Show interface.
 - When going online, the `VirtualCdj` now reports information about
   the chosen network interface to help with troubleshooting
   problematic network environments.
@@ -48,30 +50,34 @@ This change log follows the conventions of
   beats as soon as they happen, along with the actual beat number
   within the track represented by the beat (which is missing from
   the raw beat packet available through the `BeatFinder`).
-- The `TimeFinder` takes advantage of track metadata when it is
-  available to detect when the DJ has jumped to a cue, so it can
-  more accurately infer where the player has stopped.
+- The `TimeFinder` takes advantage of track metadata, (when it is
+  available) to detect when the DJ has jumped to a cue, or when a
+  track has loaded with auto-cue to a memory point, so it can more
+  accurately infer where the player has stopped.
 - `MenuLoader` supports loading several more menu types from the
   dbserver.
 - We can offer track years as part of the metadata when rekordbox is
   indexing that.
 - When disconnecting from a player’s dbserver, we politely send a
   teardown message and let it close the connection from its side.
-- Methods that can help troubleshoot problematic network topologies.
+- A few new methods that can help troubleshoot problematic network
+  topologies are available. Beat Link Trigger uses them to provide
+  better help at startup.
 
 ### Fixed
 
 - A mistake in the `TimeFinder` which could trap the `VirtualCdj`
   packet delivery thread in an infinite loop, which would then cause
-  client applications to lose contact with what was happening on the
-  players, with no recourse except going offline and back online.
-  Thanks to [@Kevinnns](https://github.com/Kevinnns) for the thread
-  dumps which helped finally find this!
-- The code that was supposed to notice computers running rekordbox
-  and track their media collections as being available on the network
-  had always been broken, but was easy enough to fix. Now Beat Link
-  Trigger can load tracks from rekordbox and rekordbox mobile onto
-  players.
+  client applications to lose touch with what was happening on the
+  players, with no recourse except going offline and back online (and
+  even this would gradually waste more and more CPU time on each
+  occurrence). Thanks to [@Kevinnns](https://github.com/Kevinnns) for
+  the thread dumps which helped finally find this!
+- The code that was supposed to notice computers running rekordbox and
+  report their media collections as being available on the network had
+  always been broken, but was easy enough to fix. Now Beat Link
+  Trigger can tell players to load tracks from rekordbox and rekordbox
+  mobile.
 - The various metadata finders were supposed to report the loss of
   associated metadata when a player disappeared from the network, but
   they were not doing so.
@@ -90,9 +96,10 @@ This change log follows the conventions of
 - It turns out that rekordbox mobile does not report meaningful values
   for its media name or creation date, so we no longer attempt to
   parse them.
-- It seems rekordbox sometimes send mixer status packets with a
+- It seems rekordbox sometimes sends mixer status packets with a
   different subtype structure which was causing us to log warnings
-  about a length mismatch. We now properly recognize this subtype.
+  about a length mismatch. We now properly recognize this packet
+  subtype.
 
 ## [0.4.1] - 2018-10-28
 
@@ -469,7 +476,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.4.1...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Deep-Symmetry/beat-link/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.3.7...v0.4.0
 [0.3.7]: https://github.com/Deep-Symmetry/beat-link/compare/v0.3.6...v0.3.7
