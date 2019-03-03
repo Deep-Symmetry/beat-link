@@ -49,7 +49,6 @@ public class StringField extends Field {
      *
      * @param is the stream on which the field value is to be read.
      *
-     * @throws IllegalArgumentException if tag is not a valid string field tag.
      * @throws IOException if there is a problem reading the value.
      */
     public StringField(DataInputStream is) throws IOException {
