@@ -323,6 +323,16 @@ public class TrackMetadata {
         for (Message item : items) {
             parseMetadataItem(item);
         }
+        // Protect against missing string elements
+        if (title == null) {
+            title = "";
+        }
+        if (comment == null) {
+            comment = "";
+        }
+        if (dateAdded == null) {
+            dateAdded = "";
+        }
     }
 
     /**
