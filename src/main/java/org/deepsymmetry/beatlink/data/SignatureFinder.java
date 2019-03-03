@@ -344,7 +344,9 @@ public class SignatureFinder extends LifecycleParticipant {
         final WaveformDetail waveformDetail = WaveformFinder.getInstance().getLatestDetailFor(player);
         final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(player);
         if (metadata != null && waveformDetail != null && beatGrid != null) {
-            final String signature = computeTrackSignature(metadata.getTitle(), metadata.getArtist().label,
+            final SearchableItem artist = metadata.getArtist();
+            final String artistName = (artist == null)? "[no artist]" : artist.label;
+            final String signature = computeTrackSignature(metadata.getTitle(), artistName,
                     metadata.getDuration(), waveformDetail, beatGrid);
             if (signature != null) {
                 signatures.put(player, signature);
