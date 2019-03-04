@@ -85,15 +85,19 @@ public class Message {
         /**
          * Asks for a list of colors in the specified media slot.
          */
-        COLOR_MENU_REQ  (0x100d, "color menu request", "r:m:s:t", "sort order"),
+        COLOR_MENU_REQ (0x100d, "color menu request", "r:m:s:t", "sort order"),
         /**
          * Asks for a list of track times (in minutes) in the specified media slot.
          */
         TIME_MENU_REQ  (0x1010, "time menu request", "r:m:s:t", "sort order"),
         /**
+         * Asks for a list of track bit rates (in kilobits per second) in the specified media slot.
+         */
+        BIT_RATE_MENU_REQ (0x1011, "bit rate menu request", "r:m:s:t", "sort order"),
+        /**
          * Asks for a list of performance histories found in the specified media slot.
          */
-        HISTORY_MENU_REQ (0x1012, "history menu request", "r:m:s:t", "sort order"),
+        HISTORY_MENU_REQ  (0x1012, "history menu request", "r:m:s:t", "sort order"),
         /**
          * Asks for a list of track file names found in the specified media slot.
          */
@@ -101,7 +105,7 @@ public class Message {
         /**
          * Asks for a list of track keys found in the specified media slot.
          */
-        KEY_MENU_REQ     (0x1014, "key menu request", "r:m:s:t", "sort order"),
+        KEY_MENU_REQ      (0x1014, "key menu request", "r:m:s:t", "sort order"),
         /**
          * Asks for an artist menu for a particular genre in the specified media slot.
          */
@@ -131,7 +135,7 @@ public class Message {
          */
         YEAR_MENU_FOR_DECADE_REQ  (0x1108, "year menu for decade request", "r:m:s:t", "sort", "decade"),
         /**
-         * Asks for an artist menu for a particular genre in the specified media slot.
+         * Asks for an artist menu for a particular label in the specified media slot.
          */
         ARTIST_MENU_FOR_LABEL_REQ (0x110a, "artist menu for genre request", "r:m:s:t", "sort", "label ID, or -1 for ALL"),
         /**
@@ -142,6 +146,10 @@ public class Message {
          * Asks for a track menu for a particular track time (length in minutes) in the specified media slot.
          */
         TRACK_MENU_FOR_TIME_REQ (0x1110, "track menu for time request", "r:m:s:t", "sort", "minutes"),
+        /**
+         * Asks for a track menu for a particular track bit rate (in Kbps) in the specified media slot.
+         */
+        TRACK_MENU_FOR_BIT_RATE_REQ (0x1111, "track menu for bit rate request", "r:m:s:t", "sort", "bit rate"),
         /**
          * Asks for a track menu for a particular rating in the specified media slot.
          */
@@ -450,9 +458,9 @@ public class Message {
          */
         KEY (0x000f),
         /**
-         * This value appears in non-rekordbox metadata, and we have not yet figured out what it contains.
+         * Track bit rate in Kbps; also appears in non-rekordbox metadata.
          */
-        UNANALYZED_UNKNOWN (0x0010),
+        BIT_RATE (0x0010),
         /**
          * A number identifying a year in which a track was created.
          */
@@ -572,6 +580,10 @@ public class Message {
          * The root menu item that takes you to the time (track length in minutes) list.
          */
         TIME_MENU (0x0092),
+        /**
+         * The root menu item that takes you to the track bit rate (Kbps) list.
+         */
+        BIT_RATE_MENU (0x0093),
         /**
          * The root menu item that takes you to the file name list.
          */

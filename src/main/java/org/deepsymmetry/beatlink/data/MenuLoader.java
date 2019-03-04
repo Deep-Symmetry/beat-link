@@ -1117,6 +1117,79 @@ public class MenuLoader {
     }
 
     /**
+     * Ask the specified player for a Bit Rate menu.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the entries in the bit rate menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestBitRateMenuFrom(final SlotReference slotReference, final int sortOrder)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting Label menu.");
+                        Message response = client.menuRequest(Message.KnownType.BIT_RATE_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                new NumberField(sortOrder));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting genre menu");
+    }
+
+    /**
+     * Ask the specified player for a track menu for a given track bit rate (in Kbps).
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param bitRate the bit rate, in kilobits per second, of tracks to be returned
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the matching tracks
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestTracksByBitRateFrom(final SlotReference slotReference, final int sortOrder, final int bitRate)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting key neighbor menu.");
+                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_BIT_RATE_REQ, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(bitRate));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting tracks by time menu");
+    }
+
+    /**
      * Ask the specified player for a Year menu, grouping years by decade.
      *
      * @param slotReference the player and slot for which the menu is desired

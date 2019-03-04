@@ -127,6 +127,11 @@ public class TrackMetadata {
     private int year;
 
     /**
+     * The audio bit rate of the track, in kilobits per second.
+     */
+    private int bitRate;
+
+    /**
      * The title of the track.
      */
     private String title;
@@ -411,8 +416,8 @@ public class TrackMetadata {
                 year = (int) ((NumberField) item.arguments.get(1)).getValue();
                 break;
 
-            case UNANALYZED_UNKNOWN:  // Don't yet know what to do with this.
-                break;
+            case BIT_RATE:  // Don't yet know what to do with this.
+                bitRate = (int) ((NumberField) item.arguments.get(1)).getValue();
 
             default:
                 logger.warn("Ignoring track metadata item with unknown type: {}", item);
@@ -497,6 +502,7 @@ public class TrackMetadata {
     public int hashCode() {
         int result = album != null ? album.hashCode() : 0;
         result = 31 * result + (artist != null ? artist.hashCode() : 0);
+        result = 31 * result + bitRate;
         result = 31 * result + (color != null ? color.hashCode() : 0);
         result = 31 * result + (comment != null ? comment.hashCode() : 0);
         result = 31 * result + (dateAdded != null ? dateAdded.hashCode() : 0);
@@ -513,7 +519,17 @@ public class TrackMetadata {
         result = 31 * result + (cueList != null ? cueList.hashCode() : 0);
         result = 31 * result + trackReference.hashCode();
         result = 31 * result + trackType.hashCode();
+        result = 31 * result + year;
         return result;
+    }
+
+    /**
+     * Get the bit rate of the track, if known.
+     *
+     * @return the audio bit rate of the track, in kilobits per second , or 0 if unknown or variable.
+     */
+    public int getBitRate() {
+        return bitRate;
     }
 
     /**
@@ -633,6 +649,6 @@ public class TrackMetadata {
                 ", Label: " + label + ", Original Artist: " + originalArtist + ", Date Added: " + dateAdded +
                 ", Duration: " + duration + ", Tempo: " + tempo + ", Comment: " + comment + ", Key: " + key +
                 ", Rating: " + rating + ", Color: " + color + ", Genre: " + genre + ", Year: " + year +
-                ", Artwork ID: " + artworkId + ", Cue List: " + cueList +"]";
+                ", Bit Rate: " + bitRate + ", Artwork ID: " + artworkId + ", Cue List: " + cueList +"]";
     }
 }
