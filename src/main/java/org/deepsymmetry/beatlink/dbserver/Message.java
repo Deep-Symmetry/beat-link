@@ -165,8 +165,7 @@ public class Message {
         ALBUM_MENU_FOR_GENRE_AND_ARTIST (0x1201, "album menu for genre and artist request", "r:m:s:t:", "sort",
                 "genre ID", "artist ID, or -1 for ALL"),
         /**
-         * Asks for an track menu by BPM and distance, which represents a percentage tolerance by which the BPM
-         * can differ, ranging from 0 to 6.
+         * Asks for an track menu by artist and album, can specify all albums by passing -1 for album ID.
          */
         TRACK_MENU_FOR_ARTIST_AND_ALBUM (0x1202, "track menu for artist and album request", "r:m:s:t:", "sort",
                 "artist ID", "album ID, or -1 for ALL"),
@@ -219,10 +218,22 @@ public class Message {
          */
         ALBUM_MENU_FOR_ORIGINAL_ARTIST_REQ (0x1402, "album menu for original artist request", "r:m:s:t", "sort", "artist ID"),
         /**
-         * Asks for an track menu by BPM and distance, which represents a percentage tolerance by which the BPM
-         * can differ, ranging from 0 to 6.
+         * Asks for an track menu by original artist and album, can specify all albums by passing -1 for the album ID.
          */
         TRACK_MENU_FOR_ORIGINAL_ARTIST_AND_ALBUM (0x1502, "track menu for original artist and album request", "r:m:s:t:", "sort",
+                "artist ID", "album ID, or -1 for ALL"),
+        /**
+         * Asks for the remixer menu for the specified media slot.
+         */
+        REMIXER_MENU_REQ  (0x1602, "remixer menu request", "r:m:s:t", "sort order"),
+        /**
+         * Asks for an album menu for a particular original artist in the specified media slot.
+         */
+        ALBUM_MENU_FOR_REMIXER_REQ (0x1702, "album menu for remixer request", "r:m:s:t", "sort", "artist ID"),
+        /**
+         * Asks for an track menu by remixer and album, can specify all albums by passing -1 for the album ID.
+         */
+        TRACK_MENU_FOR_REMIXER_AND_ALBUM (0x1802, "track menu for remixer and album request", "r:m:s:t:", "sort",
                 "artist ID", "album ID, or -1 for ALL"),
         /**
          * Asks for the metadata associated with a particular track, by rekordbox ID.
@@ -570,6 +581,10 @@ public class Message {
          * The root menu item that takes you to the years by decade list.
          */
         YEAR_MENU (0x0087),
+        /**
+         * The root menu item that takes you to the remixer menu.
+         */
+        REMIXER_MENU ( 0x0088),
         /**
          * The root menu item that takes you to the label menu.
          */

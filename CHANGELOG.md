@@ -13,7 +13,11 @@ This change log follows the conventions of
 
 ### Added
 
-- The `MenuLoader` now supports loading tracks from the Label menu.
+- The `MenuLoader` now supports loading tracks from the Label, Bit Rate,
+  Original Artist, and Remixer menus.
+- Track Metadata can now include bit rate when that information is
+  provided by the player's `dbserver`.
+
 
 ## [0.5.0] - 2019-02-23
 
