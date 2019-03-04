@@ -459,7 +459,7 @@ public class MenuLoader {
      * @param artistId the artist whose album track menu is desired, or -1 for all artists
      * @param albumId the album whose track menu is desired, or -1 for all albums
      *
-     * @return the entries in the genre artist albums menu
+     * @return the entries in the genre artist album tracks menu
      *
      * @throws Exception if there is a problem obtaining the menu
      */
@@ -475,6 +475,157 @@ public class MenuLoader {
                         logger.debug("Requesting Genre Artist Album Track menu.");
                         Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_GENRE_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
                                 slotReference.slot, new NumberField(sortOrder), new NumberField(genreId), new NumberField(artistId), new NumberField(albumId));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting genre artist album tracks menu");
+    }
+
+    /**
+     * Ask the specified player for a Label menu.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     *
+     * @return the entries in the label menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestLabelMenuFrom(final SlotReference slotReference, final int sortOrder)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting Label menu.");
+                        Message response = client.menuRequest(Message.KnownType.LABEL_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                new NumberField(sortOrder));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting genre menu");
+    }
+
+    /**
+     * Ask the specified player for a Label Artists menu.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     * @param labelId the label whose artist menu is desired
+     *
+     * @return the entries in the label artists menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestLabelArtistMenuFrom(final SlotReference slotReference, final int sortOrder, final int labelId)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting Genre Artist menu.");
+                        Message response = client.menuRequest(Message.KnownType.ARTIST_MENU_FOR_LABEL_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                                new NumberField(sortOrder), new NumberField(labelId));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting genre artists menu");
+    }
+
+    /**
+     * Ask the specified player for a Label Artist Albums menu.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     * @param labelId the label whose artist album menu is desired
+     * @param artistId the artist whose album menu is desired, or -1 for all artists
+     *
+     * @return the entries in the label artist albums menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestLabelArtistAlbumMenuFrom(final SlotReference slotReference, final int sortOrder, final int labelId, final int artistId)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting Genre Artist Album menu.");
+                        Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_LABEL_AND_ARTIST, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(labelId), new NumberField(artistId));
+                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                    } finally {
+                        client.unlockForMenuOperations();
+                    }
+                } else {
+                    throw new TimeoutException("Unable to lock player for menu operations.");
+                }
+            }
+        };
+
+        return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting genre artist albums menu");
+    }
+
+    /**
+     * Ask the specified player for a Label Artist Album Tracks menu.
+     *
+     * @param slotReference the player and slot for which the menu is desired
+     * @param sortOrder the order in which responses should be sorted, 0 for default, see Section 6.11.1 of the
+     *                  <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis
+     *                  document</a> for details
+     * @param labelId the label whose artist album track menu is desired
+     * @param artistId the artist whose album track menu is desired, or -1 for all artists
+     * @param albumId the album whose track menu is desired, or -1 for all albums
+     *
+     * @return the entries in the label artist album tracks menu
+     *
+     * @throws Exception if there is a problem obtaining the menu
+     */
+    public List<Message> requestLabelArtistAlbumTrackMenuFrom(final SlotReference slotReference, final int sortOrder, final int labelId,
+                                                              final int artistId, final int albumId)
+            throws Exception {
+
+        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
+            @Override
+            public List<Message> useClient(Client client) throws Exception {
+                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                    try {
+                        logger.debug("Requesting Genre Artist Album Track menu.");
+                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_LABEL_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
+                                slotReference.slot, new NumberField(sortOrder), new NumberField(labelId), new NumberField(artistId), new NumberField(albumId));
                         return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
                     } finally {
                         client.unlockForMenuOperations();

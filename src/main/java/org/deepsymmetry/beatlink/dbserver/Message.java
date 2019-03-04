@@ -79,6 +79,10 @@ public class Message {
          */
         YEAR_MENU_REQ  (0x1008, "year menu request", "r:m:s:t", "sort order"),
         /**
+         * Asks for a list of record labels in the specified media slot.
+         */
+        LABEL_MENU_REQ (0x100a, "label menu request", "r:m:s:t", "sort order"),
+        /**
          * Asks for a list of colors in the specified media slot.
          */
         COLOR_MENU_REQ  (0x100d, "color menu request", "r:m:s:t", "sort order"),
@@ -125,7 +129,11 @@ public class Message {
         /**
          * Asks for a year menu for a particular decade in the specified media slot.
          */
-        YEAR_MENU_FOR_DECADE_REQ (0x1108, "year menu for decade request", "r:m:s:t", "sort", "decade"),
+        YEAR_MENU_FOR_DECADE_REQ  (0x1108, "year menu for decade request", "r:m:s:t", "sort", "decade"),
+        /**
+         * Asks for an artist menu for a particular genre in the specified media slot.
+         */
+        ARTIST_MENU_FOR_LABEL_REQ (0x110a, "artist menu for genre request", "r:m:s:t", "sort", "label ID, or -1 for ALL"),
         /**
          * Asks for a track menu for a particular color in the specified media slot.
          */
@@ -166,6 +174,11 @@ public class Message {
         TRACK_MENU_FOR_DECADE_YEAR_REQ (0x1208, "track menu for decade and year request", "r:m:s:t", "sort",
                 "decade", "year, or -1 for ALL"),
         /**
+         * Asks for an album menu by label and artist, can specify all artists by passing -1 for artist ID.
+         */
+        ALBUM_MENU_FOR_LABEL_AND_ARTIST (0x120a, "album menu for label and artist request", "r:m:s:t:", "sort",
+                "label ID", "artist ID, or -1 for ALL"),
+        /**
          * Asks for an track menu by key and distance (which represents harmonic compatibility as allowed movement
          * around the circle of fifths), ranging from 0 to 2.
          */
@@ -178,11 +191,17 @@ public class Message {
         SEARCH_MENU      (0x1300, "search by substring request", "r:m:s:t", "sort", "search string byte size",
                 "search string (must be uppercase", "unknown (0)"),
         /**
-         * Asks for an album menu by genre, artist, and album, can specify all artists and/or albums by passing -1 for
+         * Asks for a track menu by genre, artist, and album, can specify all artists and/or albums by passing -1 for
          * the artist and/or album IDs.
          */
         TRACK_MENU_FOR_GENRE_ARTIST_AND_ALBUM (0x1301, "track menu for genre, artist and album request", "r:m:s:t:", "sort",
                 "genre ID", "artist ID, or -1 for ALL", "album ID, or -1 for ALL"),
+        /**
+         * Asks for a track menu by genre, artist, and album, can specify all artists and/or albums by passing -1 for
+         * the artist and/or album IDs.
+         */
+        TRACK_MENU_FOR_LABEL_ARTIST_AND_ALBUM (0x130a, "track menu for label, artist and album request", "r:m:s:t:", "sort",
+                "label ID", "artist ID, or -1 for ALL", "album ID, or -1 for ALL"),
         /**
          * Asks for the metadata associated with a particular track, by rekordbox ID.
          */
@@ -529,6 +548,10 @@ public class Message {
          * The root menu item that takes you to the years by decade list.
          */
         YEAR_MENU (0x0087),
+        /**
+         * The root menu item that takes you to the label menu.
+         */
+        LABEL_MENU ( 0x0089),
         /**
          * The root menu item that takes you to the key list.
          */

@@ -11,6 +11,10 @@ This change log follows the conventions of
 - The `SignatureFinder` would crash trying to calculate signatures
   for tracks without artists.
 
+### Added
+
+- The `MenuLoader` now supports loading tracks from the Label menu.
+
 ## [0.5.0] - 2019-02-23
 
 ### Changed
