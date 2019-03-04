@@ -168,7 +168,7 @@ public class Message {
          * Asks for an track menu by BPM and distance, which represents a percentage tolerance by which the BPM
          * can differ, ranging from 0 to 6.
          */
-        TRACK_MENU_FOR_ARTIST_AND_ALBUM (0x1202, "track menu for BPM and distance request", "r:m:s:t:", "sort",
+        TRACK_MENU_FOR_ARTIST_AND_ALBUM (0x1202, "track menu for artist and album request", "r:m:s:t:", "sort",
                 "artist ID", "album ID, or -1 for ALL"),
         /**
          * Asks for an track menu by BPM and distance, which represents a percentage tolerance by which the BPM
@@ -205,11 +205,25 @@ public class Message {
         TRACK_MENU_FOR_GENRE_ARTIST_AND_ALBUM (0x1301, "track menu for genre, artist and album request", "r:m:s:t:", "sort",
                 "genre ID", "artist ID, or -1 for ALL", "album ID, or -1 for ALL"),
         /**
+         * Asks for the original artist menu for the specified media slot.
+         */
+        ORIGINAL_ARTIST_MENU_REQ  (0x1302, "original artist menu request", "r:m:s:t", "sort order"),
+        /**
          * Asks for a track menu by genre, artist, and album, can specify all artists and/or albums by passing -1 for
          * the artist and/or album IDs.
          */
         TRACK_MENU_FOR_LABEL_ARTIST_AND_ALBUM (0x130a, "track menu for label, artist and album request", "r:m:s:t:", "sort",
                 "label ID", "artist ID, or -1 for ALL", "album ID, or -1 for ALL"),
+        /**
+         * Asks for an album menu for a particular original artist in the specified media slot.
+         */
+        ALBUM_MENU_FOR_ORIGINAL_ARTIST_REQ (0x1402, "album menu for original artist request", "r:m:s:t", "sort", "artist ID"),
+        /**
+         * Asks for an track menu by BPM and distance, which represents a percentage tolerance by which the BPM
+         * can differ, ranging from 0 to 6.
+         */
+        TRACK_MENU_FOR_ORIGINAL_ARTIST_AND_ALBUM (0x1502, "track menu for original artist and album request", "r:m:s:t:", "sort",
+                "artist ID", "album ID, or -1 for ALL"),
         /**
          * Asks for the metadata associated with a particular track, by rekordbox ID.
          */
@@ -560,6 +574,10 @@ public class Message {
          * The root menu item that takes you to the label menu.
          */
         LABEL_MENU ( 0x0089),
+        /**
+         * The root menu item that takes you to the original artist menu.
+         */
+        ORIGINAL_ARTIST_MENU ( 0x008a),
         /**
          * The root menu item that takes you to the key list.
          */
