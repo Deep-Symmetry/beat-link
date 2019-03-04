@@ -416,8 +416,9 @@ public class TrackMetadata {
                 year = (int) ((NumberField) item.arguments.get(1)).getValue();
                 break;
 
-            case BIT_RATE:  // Don't yet know what to do with this.
+            case BIT_RATE:
                 bitRate = (int) ((NumberField) item.arguments.get(1)).getValue();
+                break;
 
             default:
                 logger.warn("Ignoring track metadata item with unknown type: {}", item);
