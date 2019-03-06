@@ -307,6 +307,7 @@ public class TrackMetadata {
         }
 
         dateAdded = Database.getText(rawRow.dateAdded());
+        bitRate = (int)rawRow.bitrate();
         year = rawRow.year();
     }
 
