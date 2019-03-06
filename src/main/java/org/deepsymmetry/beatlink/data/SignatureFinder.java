@@ -293,21 +293,23 @@ public class SignatureFinder extends LifecycleParticipant {
      * Calculate the signature by which we can reliably recognize a loaded track.
      *
      * @param title the track title
-     * @param artist the track artist
+     * @param artist the track artist, or {@code null} if there is no artist
      * @param duration the duration of the track in seconds
      * @param waveformDetail the monochrome waveform detail of the track
      * @param beatGrid the beat grid of the track
      *
-     * @return the SHA-1 hash of all the arguments supplied, or {@code null} if any arguments were {@code null}
+     * @return the SHA-1 hash of all the arguments supplied, or {@code null} if any either {@code waveFormDetail} or {@code beatGrid} were {@code null}
      */
-    public String computeTrackSignature(final String title, final String artist, final int duration,
+    public String computeTrackSignature(final String title, final SearchableItem artist, final int duration,
                                         final WaveformDetail waveformDetail, final BeatGrid beatGrid) {
+        final String safeTitle = (title == null)? "" : title;
+        final String artistName = (artist == null)? "[no artist]" : artist.label;
         try {
             // Compute the SHA-1 hash of our fields
             MessageDigest digest = MessageDigest.getInstance("SHA1");
-            digest.update(title.getBytes("UTF-8"));
+            digest.update(safeTitle.getBytes("UTF-8"));
             digest.update((byte) 0);
-            digest.update(artist.getBytes("UTF-8"));
+            digest.update(artistName.getBytes("UTF-8"));
             digest.update((byte) 0);
             digestInteger(digest, duration);
             digest.update(waveformDetail.getData());
@@ -344,9 +346,7 @@ public class SignatureFinder extends LifecycleParticipant {
         final WaveformDetail waveformDetail = WaveformFinder.getInstance().getLatestDetailFor(player);
         final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(player);
         if (metadata != null && waveformDetail != null && beatGrid != null) {
-            final SearchableItem artist = metadata.getArtist();
-            final String artistName = (artist == null)? "[no artist]" : artist.label;
-            final String signature = computeTrackSignature(metadata.getTitle(), artistName,
+            final String signature = computeTrackSignature(metadata.getTitle(), metadata.getArtist(),
                     metadata.getDuration(), waveformDetail, beatGrid);
             if (signature != null) {
                 signatures.put(player, signature);
