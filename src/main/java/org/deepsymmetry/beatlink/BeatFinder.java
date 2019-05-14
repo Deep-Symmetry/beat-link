@@ -108,7 +108,7 @@ public class BeatFinder extends LifecycleParticipant {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
                             if (isRunning()) {
                                 // We did not expect to have a problem; log a warning and shut down.
-                                logger.warn("Problem reading from DeviceAnnouncement socket, stopping", e);
+                                logger.warn("Problem reading from beat/sync socket, stopping", e);
                                 stop();
                             }
                             received = false;
