@@ -357,7 +357,7 @@ public class TimeFinder extends LifecycleParticipant {
      * @param lastUpdate the last update that was sent to the listener
      * @param currentUpdate the latest update available for the same player
      *
-     * @return {@code true }if the listener will have diverged by more than our permitted amount of slack, and so
+     * @return {@code true} if the listener will have diverged by more than our permitted amount of slack, and so
      * should be updated
      */
     private boolean interpolationsDisagree(TrackPositionUpdate lastUpdate, TrackPositionUpdate currentUpdate) {
