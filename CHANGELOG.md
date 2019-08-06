@@ -6,7 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Added
+
+- `CueList` entries can now include nxs2-style DJ comments when they
+  are present.
 
 
 ## [0.5.1] - 2019-03-05

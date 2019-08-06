@@ -518,7 +518,11 @@ public class CrateDigger {
             Database database = findDatabase(track);
             if (database != null) {
                 try {
-                    RekordboxAnlz file = findTrackAnalysis(track, database);
+                    // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues
+                    RekordboxAnlz file = findExtendedAnalysis(track, database);
+                    if (file ==  null) {  // No extended analysis found, fall back to the basic one
+                        file = findTrackAnalysis(track, database);
+                    }
                     if (file != null) {
                         try {
                             return new CueList(file);

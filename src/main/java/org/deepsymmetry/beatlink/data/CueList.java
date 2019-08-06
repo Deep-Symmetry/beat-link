@@ -35,6 +35,13 @@ public class CueList {
     public final List<ByteBuffer> rawTags;
 
     /**
+     * The bytes from which the Kaitai Struct tags holding the nxs2 cue list information (which can include DJ-assigned
+     * comment text for each cue) were parsed from an extended ANLZ file. Will be {@code null} if the cue list was
+     * obtained from a dbserver query, and empty if there were no nxs2 cue tags available in the analysis data.
+     */
+    public final List<ByteBuffer> rawCommentTags;
+
+    /**
      * Return the number of entries in the cue list that represent hot cues.
      *
      * @return the number of cue list entries that are hot cues
@@ -136,18 +143,27 @@ public class CueList {
         public final long loopTime;
 
         /**
+         * If the entry was constructed from an extended nxs2-style commented cue tag, and the DJ assigned a comment
+         * to the cue, this will contain the comment text. Otherwise it will be an empty string.
+         */
+        public final String comment;
+
+        /**
          * Constructor for non-loop entries.
          *
          * @param number if non-zero, this is a hot cue, with the specified identifier
          * @param position the position of this cue/memory point in half-frame units, which are 1/150 of a second
+         * @param comment the DJ-assigned comment, or an empty string if none was assigned
          */
-        public Entry(int number, long position) {
+        public Entry(int number, long position, String comment) {
+            if (comment == null) throw new NullPointerException("comment must not be null");
             hotCueNumber = number;
             cuePosition = position;
             cueTime = Util.halfFrameToTime(position);
             isLoop = false;
             loopPosition = 0;
             loopTime = 0;
+            this.comment = comment;
         }
 
         /**
@@ -156,14 +172,17 @@ public class CueList {
          * @param number if non-zero, this is a hot cue, with the specified identifier
          * @param startPosition the position of the start of this loop in half-frame units, which are 1/150 of a second
          * @param endPosition the position of the end of this loop in half-frame units
+         * @param comment the DJ-assigned comment, or an empty string if none was assigned
          */
-        public Entry(int number, long startPosition, long endPosition) {
+        public Entry(int number, long startPosition, long endPosition, String comment) {
+            if (comment == null) throw new NullPointerException("comment must not be null");
             hotCueNumber = number;
             cuePosition = startPosition;
             cueTime = Util.halfFrameToTime(startPosition);
             isLoop = true;
             loopPosition = endPosition;
             loopTime = Util.halfFrameToTime(endPosition);
+            this.comment = comment;
         }
 
         @Override
@@ -181,6 +200,9 @@ public class CueList {
             sb.append("time ").append(cueTime).append("ms");
             if (isLoop) {
                 sb.append(", loop time ").append(loopTime).append("ms");
+            }
+            if (!comment.isEmpty()) {
+                sb.append(", comment ").append(comment);
             }
             sb.append(']');
             return sb.toString();
@@ -227,9 +249,26 @@ public class CueList {
         for (RekordboxAnlz.CueEntry cueEntry : tag.cues()) {  // TODO: Need to figure out how to identify deleted entries to ignore.
             if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
                 entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
-                        Util.timeToHalfFrame(cueEntry.loopTime())));
+                        Util.timeToHalfFrame(cueEntry.loopTime()), ""));
             } else {
-                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time())));
+                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), ""));
+            }
+        }
+    }
+
+    /**
+     * Helper method to add cue list entries from a parsed extended ANLZ nxs2 comment cue tag
+     *
+     * @param entries the list of entries being accumulated
+     * @param tag the tag whose entries are to be added
+     */
+    private void addEntriesFromTag(List<Entry> entries, RekordboxAnlz.CueCommentTag tag) {
+        for (RekordboxAnlz.CueCommentEntry cueEntry : tag.cues()) {
+            if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
+                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
+                        Util.timeToHalfFrame(cueEntry.loopTime()), cueEntry.comment()));
+            } else {
+                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), cueEntry.comment()));
             }
         }
     }
@@ -243,30 +282,65 @@ public class CueList {
     public CueList(RekordboxAnlz anlzFile) {
         rawMessage = null;  // We did not create this from a dbserver response.
         List<ByteBuffer> tagBuffers = new ArrayList<ByteBuffer>(2);
+        List<ByteBuffer> commentTagBuffers = new ArrayList<ByteBuffer>(2);
         List<Entry> mutableEntries = new ArrayList<Entry>();
+
+        // First see if there are any nxs2-style cue comment tags available.
+        for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
+            if (section.body() instanceof RekordboxAnlz.CueCommentTag) {
+                RekordboxAnlz.CueCommentTag tag = (RekordboxAnlz.CueCommentTag) section.body();
+                commentTagBuffers.add(ByteBuffer.wrap(section._raw_body()).asReadOnlyBuffer());
+                addEntriesFromTag(mutableEntries, tag);
+            }
+        }
+
+        // Then, collect any old style cue tags, but ignore their entries if we found nxs2-style ones.
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
             if (section.body() instanceof RekordboxAnlz.CueTag) {
                 RekordboxAnlz.CueTag tag = (RekordboxAnlz.CueTag) section.body();
                 tagBuffers.add(ByteBuffer.wrap(section._raw_body()).asReadOnlyBuffer());
-                addEntriesFromTag(mutableEntries, tag);
+                if (commentTagBuffers.isEmpty()) {
+                    addEntriesFromTag(mutableEntries, tag);
+                }
             }
         }
         entries = sortEntries(mutableEntries);
         rawTags = Collections.unmodifiableList(tagBuffers);
+        rawCommentTags = Collections.unmodifiableList(commentTagBuffers);
     }
 
     /**
-     * Constructor for when recreating from cache files containing the raw tag bytes.
+     * Constructor for when recreating from cache files containing the raw tag bytes if there were no nxs2-style
+     * cue comment tags.
 
      * @param rawTags the un-parsed ANLZ file tags holding the cue list entries
      */
     public CueList(List<ByteBuffer> rawTags) {
+        this (rawTags, Collections.<ByteBuffer>emptyList());
+    }
+
+    /**
+     * Constructor for when recreating from cache files containing the raw tag bytes and raw nxs2-style
+     * cue comment tag bytes.
+
+     * @param rawTags the un-parsed ANLZ file tags holding the cue list entries
+     * @param rawCommentTags the un-parsed etended ANLZ file tags holding the nxs2-style commented cue list entries
+     */
+    public CueList(List<ByteBuffer> rawTags, List<ByteBuffer> rawCommentTags) {
         rawMessage = null;
         this.rawTags = Collections.unmodifiableList(rawTags);
+        this.rawCommentTags = Collections.unmodifiableList(rawCommentTags);
         List<Entry> mutableEntries = new ArrayList<Entry>();
-        for (ByteBuffer buffer : rawTags) {
-            RekordboxAnlz.CueTag tag = new RekordboxAnlz.CueTag(new ByteBufferKaitaiStream(buffer));
-            addEntriesFromTag(mutableEntries, tag);
+        if (rawCommentTags.isEmpty()) {
+            for (ByteBuffer buffer : rawTags) {
+                RekordboxAnlz.CueTag tag = new RekordboxAnlz.CueTag(new ByteBufferKaitaiStream(buffer));
+                addEntriesFromTag(mutableEntries, tag);
+            }
+        } else {
+            for (ByteBuffer buffer : rawCommentTags) {
+                RekordboxAnlz.CueCommentTag tag = new RekordboxAnlz.CueCommentTag(new ByteBufferKaitaiStream(buffer));
+                addEntriesFromTag(mutableEntries, tag);
+            }
         }
         entries = sortEntries(mutableEntries);
     }
@@ -279,6 +353,7 @@ public class CueList {
     public CueList(Message message) {
         rawMessage = message;
         rawTags = null;
+        rawCommentTags = null;
         byte[] entryBytes = ((BinaryField) message.arguments.get(3)).getValueAsArray();
         final int entryCount = entryBytes.length / 36;
         ArrayList<Entry> mutableEntries = new ArrayList<Entry>(entryCount);
@@ -291,9 +366,9 @@ public class CueList {
                 final long position = Util.bytesToNumberLittleEndian(entryBytes, offset + 12, 4);
                 if (entryBytes[offset] != 0) {  // This is a loop
                     final long endPosition = Util.bytesToNumberLittleEndian(entryBytes, offset + 16, 4);
-                    mutableEntries.add(new Entry(hotCueNumber, position, endPosition));
+                    mutableEntries.add(new Entry(hotCueNumber, position, endPosition, ""));
                 } else {
-                    mutableEntries.add(new Entry(hotCueNumber, position));
+                    mutableEntries.add(new Entry(hotCueNumber, position, ""));
                 }
             }
         }
