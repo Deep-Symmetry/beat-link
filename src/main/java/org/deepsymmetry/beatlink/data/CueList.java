@@ -163,7 +163,7 @@ public class CueList {
             isLoop = false;
             loopPosition = 0;
             loopTime = 0;
-            this.comment = comment;
+            this.comment = comment.trim();
         }
 
         /**
@@ -182,7 +182,7 @@ public class CueList {
             isLoop = true;
             loopPosition = endPosition;
             loopTime = Util.halfFrameToTime(endPosition);
-            this.comment = comment;
+            this.comment = comment.trim();
         }
 
         @Override
