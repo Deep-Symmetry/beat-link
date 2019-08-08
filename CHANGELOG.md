@@ -10,6 +10,8 @@ This change log follows the conventions of
 
 - `CueList` entries can now include nxs2-style DJ comments when they
   are present.
+- The `WaveformPreviewComponent` can return its `CueList` for the
+  convenience of code that wants to add informative tool tips.
 
 
 ## [0.5.1] - 2019-03-05

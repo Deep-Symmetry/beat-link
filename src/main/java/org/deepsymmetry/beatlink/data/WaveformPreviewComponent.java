@@ -167,6 +167,15 @@ public class WaveformPreviewComponent extends JComponent {
     private final AtomicReference<CueList> cueList = new AtomicReference<CueList>();
 
     /**
+     * Get the cue list associated with this track.
+     *
+     * @return the cues defined for the track.
+     */
+    public CueList getCueList() {
+        return cueList.get();
+    }
+
+    /**
      * The overlay painter that has been registered, if any.
      */
     private final AtomicReference<OverlayPainter> overlayPainter = new AtomicReference<OverlayPainter>();
