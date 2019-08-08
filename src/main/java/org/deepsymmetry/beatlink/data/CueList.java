@@ -227,18 +227,18 @@ public class CueList {
         }
 
         /**
-         * Determine the best color to be used to display this cue. If there is an explicit color embedded in the cue,
-         * use that; otherwise, if there is an indexed rekordbox color, use that, and if neither of those is available,
+         * Determine the best color to be used to display this cue. If there is an indexed rekordbox color in the cue,
+         * use that; otherwise, if there is an explicit color embedded, use that, and if neither of those is available,
          * delegate to {@link #getNexusColor()}.
          *
          * @return the most suitable available display color for the cue
          */
         public Color getColor() {
-            if (embeddedColor != null) {
-                return embeddedColor;
-            }
             if (rekordboxColor != null) {
                 return rekordboxColor;
+            }
+            if (embeddedColor != null) {
+                return embeddedColor;
             }
             return getNexusColor();
         }
