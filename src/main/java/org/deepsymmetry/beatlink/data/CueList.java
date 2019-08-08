@@ -262,8 +262,8 @@ public class CueList {
      * @param entries the list of entries being accumulated
      * @param tag the tag whose entries are to be added
      */
-    private void addEntriesFromTag(List<Entry> entries, RekordboxAnlz.CueCommentTag tag) {
-        for (RekordboxAnlz.CueCommentEntry cueEntry : tag.cues()) {
+    private void addEntriesFromTag(List<Entry> entries, RekordboxAnlz.CueExtendedTag tag) {
+        for (RekordboxAnlz.CueExtendedEntry cueEntry : tag.cues()) {
             if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
                 entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
                         Util.timeToHalfFrame(cueEntry.loopTime()), cueEntry.comment()));
@@ -287,8 +287,8 @@ public class CueList {
 
         // First see if there are any nxs2-style cue comment tags available.
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
-            if (section.body() instanceof RekordboxAnlz.CueCommentTag) {
-                RekordboxAnlz.CueCommentTag tag = (RekordboxAnlz.CueCommentTag) section.body();
+            if (section.body() instanceof RekordboxAnlz.CueExtendedTag) {
+                RekordboxAnlz.CueExtendedTag tag = (RekordboxAnlz.CueExtendedTag) section.body();
                 commentTagBuffers.add(ByteBuffer.wrap(section._raw_body()).asReadOnlyBuffer());
                 addEntriesFromTag(mutableEntries, tag);
             }
@@ -338,7 +338,7 @@ public class CueList {
             }
         } else {
             for (ByteBuffer buffer : rawCommentTags) {
-                RekordboxAnlz.CueCommentTag tag = new RekordboxAnlz.CueCommentTag(new ByteBufferKaitaiStream(buffer));
+                RekordboxAnlz.CueExtendedTag tag = new RekordboxAnlz.CueExtendedTag(new ByteBufferKaitaiStream(buffer));
                 addEntriesFromTag(mutableEntries, tag);
             }
         }
