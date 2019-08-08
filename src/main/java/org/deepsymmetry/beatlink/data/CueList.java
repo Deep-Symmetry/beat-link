@@ -44,7 +44,7 @@ public class CueList {
      * comment text for each cue) were parsed from an extended ANLZ file. Will be {@code null} if the cue list was
      * obtained from a dbserver query, and empty if there were no nxs2 cue tags available in the analysis data.
      */
-    public final List<ByteBuffer> rawCommentTags;
+    public final List<ByteBuffer> rawExtendedTags;
 
     /**
      * Return the number of entries in the cue list that represent hot cues.
@@ -465,14 +465,14 @@ public class CueList {
     public CueList(RekordboxAnlz anlzFile) {
         rawMessage = null;  // We did not create this from a dbserver response.
         List<ByteBuffer> tagBuffers = new ArrayList<ByteBuffer>(2);
-        List<ByteBuffer> commentTagBuffers = new ArrayList<ByteBuffer>(2);
+        List<ByteBuffer> extendedTagBuffers = new ArrayList<ByteBuffer>(2);
         List<Entry> mutableEntries = new ArrayList<Entry>();
 
         // First see if there are any nxs2-style cue comment tags available.
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
             if (section.body() instanceof RekordboxAnlz.CueExtendedTag) {
                 RekordboxAnlz.CueExtendedTag tag = (RekordboxAnlz.CueExtendedTag) section.body();
-                commentTagBuffers.add(ByteBuffer.wrap(section._raw_body()).asReadOnlyBuffer());
+                extendedTagBuffers.add(ByteBuffer.wrap(section._raw_body()).asReadOnlyBuffer());
                 addEntriesFromTag(mutableEntries, tag);
             }
         }
@@ -482,19 +482,19 @@ public class CueList {
             if (section.body() instanceof RekordboxAnlz.CueTag) {
                 RekordboxAnlz.CueTag tag = (RekordboxAnlz.CueTag) section.body();
                 tagBuffers.add(ByteBuffer.wrap(section._raw_body()).asReadOnlyBuffer());
-                if (commentTagBuffers.isEmpty()) {
+                if (extendedTagBuffers.isEmpty()) {
                     addEntriesFromTag(mutableEntries, tag);
                 }
             }
         }
         entries = sortEntries(mutableEntries);
         rawTags = Collections.unmodifiableList(tagBuffers);
-        rawCommentTags = Collections.unmodifiableList(commentTagBuffers);
+        rawExtendedTags = Collections.unmodifiableList(extendedTagBuffers);
     }
 
     /**
      * Constructor for when recreating from cache files containing the raw tag bytes if there were no nxs2-style
-     * cue comment tags.
+     * extended cue tags. Included for backwards compatibility.
 
      * @param rawTags the un-parsed ANLZ file tags holding the cue list entries
      */
@@ -507,20 +507,20 @@ public class CueList {
      * cue comment tag bytes.
 
      * @param rawTags the un-parsed ANLZ file tags holding the cue list entries
-     * @param rawCommentTags the un-parsed etended ANLZ file tags holding the nxs2-style commented cue list entries
+     * @param rawExtendedTags the un-parsed extended ANLZ file tags holding the nxs2-style commented cue list entries
      */
-    public CueList(List<ByteBuffer> rawTags, List<ByteBuffer> rawCommentTags) {
+    public CueList(List<ByteBuffer> rawTags, List<ByteBuffer> rawExtendedTags) {
         rawMessage = null;
         this.rawTags = Collections.unmodifiableList(rawTags);
-        this.rawCommentTags = Collections.unmodifiableList(rawCommentTags);
+        this.rawExtendedTags = Collections.unmodifiableList(rawExtendedTags);
         List<Entry> mutableEntries = new ArrayList<Entry>();
-        if (rawCommentTags.isEmpty()) {
+        if (rawExtendedTags.isEmpty()) {
             for (ByteBuffer buffer : rawTags) {
                 RekordboxAnlz.CueTag tag = new RekordboxAnlz.CueTag(new ByteBufferKaitaiStream(buffer));
                 addEntriesFromTag(mutableEntries, tag);
             }
         } else {
-            for (ByteBuffer buffer : rawCommentTags) {
+            for (ByteBuffer buffer : rawExtendedTags) {
                 RekordboxAnlz.CueExtendedTag tag = new RekordboxAnlz.CueExtendedTag(new ByteBufferKaitaiStream(buffer));
                 addEntriesFromTag(mutableEntries, tag);
             }
@@ -536,7 +536,7 @@ public class CueList {
     public CueList(Message message) {
         rawMessage = message;
         rawTags = null;
-        rawCommentTags = null;
+        rawExtendedTags = null;
         byte[] entryBytes = ((BinaryField) message.arguments.get(3)).getValueAsArray();
         final int entryCount = entryBytes.length / 36;
         ArrayList<Entry> mutableEntries = new ArrayList<Entry>(entryCount);
