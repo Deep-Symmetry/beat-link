@@ -810,7 +810,7 @@ public class WaveformPreviewComponent extends JComponent {
         for (CueList.Entry entry : cueList.get().entries) {
             final int x = millisecondsToX(entry.cueTime);
             if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
-                g.setColor(WaveformDetailComponent.cueColor(entry));
+                g.setColor(entry.getColor());
                 for (int i = 0; i < 4; i++) {
                     g.drawLine(x - 3 + i, CUE_MARKER_TOP + i, x + 3 - i, CUE_MARKER_TOP + i);
                 }

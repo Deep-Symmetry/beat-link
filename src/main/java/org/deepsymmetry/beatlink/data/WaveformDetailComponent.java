@@ -693,16 +693,13 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param entry the entry being drawn
      *
-     * @return the color with which it should be represented.
+     * @return the color with which it should be represented
+     *
+     * @deprecated use {@link CueList.Entry#getColor()} instead
      */
+    @Deprecated
     public static Color cueColor(CueList.Entry entry) {
-        if (entry.hotCueNumber > 0) {
-            return Color.GREEN;
-        }
-        if (entry.isLoop) {
-            return Color.ORANGE;
-        }
-        return Color.RED;
+       return entry.getColor();
     }
 
     @Override
@@ -799,7 +796,7 @@ public class WaveformDetailComponent extends JComponent {
         for (CueList.Entry entry : cueList.entries) {
             final int x = millisecondsToX(entry.cueTime);
             if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
-                g.setColor(cueColor(entry));
+                g.setColor(entry.getColor());
                 for (int i = 0; i < 4; i++) {
                     g.drawLine(x - 3 + i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i,
                             x + 3 - i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i);
