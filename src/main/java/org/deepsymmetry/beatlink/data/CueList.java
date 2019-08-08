@@ -6,6 +6,8 @@ import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.nio.ByteBuffer;
@@ -21,6 +23,8 @@ import java.util.List;
  */
 @SuppressWarnings("WeakerAccess")
 public class CueList {
+
+    private static final Logger logger = LoggerFactory.getLogger(CueList.class);
 
     /**
      * The message holding the cue list information as it was read over the network. This can be used to analyze fields
@@ -83,6 +87,7 @@ public class CueList {
      * Breaks out information about each entry in the cue list.
      */
     public static class Entry {
+
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
@@ -310,6 +315,56 @@ public class CueList {
     }
 
     /**
+     * Look up the embedded color that we expect to be paired with a given rekordbox color code, so we can warn if
+     * something else is found instead, which implies our understanding of cue colors is incorrect.
+     *
+     * @param colorCode the first color byte
+     * @return the color corresponding to the three bytes that are expected to follow it
+     */
+    private Color expectedEmbeddedColor(int colorCode) {
+        switch (colorCode) {
+            case 0x31:  // magenta
+                return new Color(0xff, 0x00, 0xa1);
+            case 0x38:  // violet
+                return new Color(0x83, 0x00, 0xff);
+            case 0x3c:  // fuchsia
+                return new Color(0x80, 0x00, 0xff);
+            case 0x3e:  // light slate blue
+                return new Color(0x33, 0x00, 0xff);
+
+            case 0x01:  // blue
+                return new Color(0x00, 0x00, 0xff);
+            case 0x05:  // steel blue
+                return new Color(0x50, 0x07, 0xff);
+            case 0x09:  // aqua
+                return new Color(0x00, 0xe0, 0xff);
+            case 0x0e:  // sea green
+                return new Color(0x1f, 0xff, 0xa3);
+
+            case 0x12:  // teal
+                return new Color(0x00, 0xff, 0x47);
+            case 0x16:  // green
+                return new Color(0x1a, 0xff, 0x00);
+            case 0x1a:  // lime
+                return new Color(0x80,0xff, 0x00);
+            case 0x1e:  // olive
+                return new Color(0xe6, 0xff, 0x00);
+
+            case 0x20:  // yellow
+                return new Color(0xff, 0xe8, 0x00);
+            case 0x26:  // orange
+                return new Color(0xff, 0x5e, 0x00);
+            case 0x2a:  // red
+                return new Color(0xff, 0x00, 0x00);
+            case 0x2d:  // pink
+                return new Color(0xff, 0x00, 0x73);
+
+            default:
+                return null;
+        }
+    }
+
+    /**
      * Decode the embedded color present in the cue entry, if there is one.
      *
      * @param entry the parsed cue entry
@@ -337,7 +392,7 @@ public class CueList {
                 return new Color(0x84, 0x32, 0xff);
             case 0x3c:  // fuchsia
                 return new Color(0xaa, 0x72, 0xff);
-            case 0x3d:  // light slate blue
+            case 0x3e:  // light slate blue
                 return new Color(0x64, 0x73, 0xff);
 
             case 0x01:  // blue
@@ -366,7 +421,12 @@ public class CueList {
                 return new Color(0xe5, 0x28, 0x28);
             case 0x2d:  // pink
                 return new Color(0xfe, 0x12, 0x7a);
+
+            case 0x00:  // none
+                return null;
+
             default:
+                logger.warn("Unrecognized rekordbox color code, " + colorCode + ", returning null.");
                 return null;
         }
     }
@@ -379,12 +439,19 @@ public class CueList {
      */
     private void addEntriesFromTag(List<Entry> entries, RekordboxAnlz.CueExtendedTag tag) {
         for (RekordboxAnlz.CueExtendedEntry cueEntry : tag.cues()) {
+            final Color embeddedColor = findEmbeddedColor(cueEntry);
+            final Color expectedColor = expectedEmbeddedColor(cueEntry.colorCode());
+            final Color rekordboxColor = findRekordboxColor(cueEntry.colorCode());
+            if ((embeddedColor == null && expectedColor != null) ||
+                    (embeddedColor != null && !embeddedColor.equals(expectedColor))) {
+                logger.warn("Was expecting embedded color " + expectedEmbeddedColor(cueEntry.colorCode()) +
+                        " for rekordbox color code " + cueEntry.colorCode() + ", but found color " + embeddedColor);
+            }
             if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
                 entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
-                        Util.timeToHalfFrame(cueEntry.loopTime()), cueEntry.comment(), findEmbeddedColor(cueEntry), findRekordboxColor(cueEntry.colorCode())));
+                        Util.timeToHalfFrame(cueEntry.loopTime()), cueEntry.comment(), embeddedColor, rekordboxColor));
             } else {
-                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), cueEntry.comment(),
-                        findEmbeddedColor(cueEntry), findRekordboxColor(cueEntry.colorCode())));
+                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), cueEntry.comment(), embeddedColor, rekordboxColor));
             }
         }
     }
