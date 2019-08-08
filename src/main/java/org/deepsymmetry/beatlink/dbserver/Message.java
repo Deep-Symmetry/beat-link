@@ -425,6 +425,12 @@ public class Message {
     public static final int ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL = 0x35565750;
 
     /**
+     * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
+     * the enhanced cue and loop data, but does not seem to work. (The characters "PCO2" as a byte-swapped integer.)
+     */
+    public static final int ANLZ_FILE_TAG_CUE_COMMENT = 0x324f4350;
+
+    /**
      * Defines all the known types of entries that an be returned for a menu request.
      */
     public enum MenuItemType {
