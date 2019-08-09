@@ -601,6 +601,7 @@ public class WaveformPreviewComponent extends JComponent {
             }
         }
 
+        @SuppressWarnings("EmptyMethod")
         @Override
         public void detailChanged(WaveformDetailUpdate update) {
             // Nothing to do.

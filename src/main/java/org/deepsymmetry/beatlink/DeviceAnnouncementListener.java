@@ -24,6 +24,7 @@ public interface DeviceAnnouncementListener {
      *
      * @param announcement the message which announced the device's presence
      */
+    @SuppressWarnings("UnusedReturnValue")
     void deviceFound(DeviceAnnouncement announcement);
 
     /**
@@ -36,5 +37,6 @@ public interface DeviceAnnouncementListener {
      *
      * @param announcement the last message which was sent by the device before it disappeared
      */
+    @SuppressWarnings("UnusedReturnValue")
     void deviceLost(DeviceAnnouncement announcement);
 }

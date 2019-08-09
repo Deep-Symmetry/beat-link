@@ -84,6 +84,13 @@ public class WaveformDetailComponent extends JComponent {
     private final AtomicBoolean autoScroll = new AtomicBoolean(true);
 
     /**
+     * Determines the font to use when drawing hot cue, memory point, and loop labels. If {@code null}, they are
+     * not drawn at all.
+     */
+    private final AtomicReference<Font> labelFont =
+            new AtomicReference<Font>(javax.swing.UIManager.getDefaults().getFont("Label.font"));
+
+    /**
      * The waveform preview that we are drawing.
      */
     private final AtomicReference<WaveformDetail> waveform = new AtomicReference<WaveformDetail>();
@@ -138,6 +145,27 @@ public class WaveformDetailComponent extends JComponent {
      */
     public boolean getAutoScroll() {
         return autoScroll.get();
+    }
+
+    /**
+     * Specify the font to be used when drawing hot cue, memory point, and loop labels. If {@code null}, do not draw
+     * them at all. The default is the standard label font defined by the current Swing look and feel.
+     *
+     * @param font if not {@code null}, draw labels for hot cues and named memory points and loops, and use this font
+     */
+    public void setLabelFont(Font font) {
+        labelFont.set(font);
+        repaint();
+    }
+
+    /**
+     * Check the font being used to draw hot cue, memory point, and loop labels. If {@code null}, they are not being
+     * drawn at all.
+     *
+     * @return if not {@code null}, labels are being drawn for hot cues and named memory points and loops, in this font
+     */
+    public Font getLabelFont() {
+        return labelFont.get();
     }
 
     /**
@@ -758,7 +786,7 @@ public class WaveformDetailComponent extends JComponent {
         // Draw the cue and memory point markers, first the memory cues and then the hot cues, since some are in
         // the same place and we want the hot cues to stand out.
         if (currentCueList != null) {
-            drawCueList(g, clipRect, currentCueList, axis, maxHeight);
+            paintCueList(g, clipRect, currentCueList, axis, maxHeight);
         }
 
         // Draw the non-playing markers first, so the playing ones will be seen if they are in the same spot.
@@ -812,7 +840,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param axis the base on which the waveform is being drawn
      * @param maxHeight the highest waveform segment
      */
-    private void drawCueList(Graphics g, Rectangle clipRect, CueList cueList, int axis, int maxHeight) {
+    private void paintCueList(Graphics g, Rectangle clipRect, CueList cueList, int axis, int maxHeight) {
         for (CueList.Entry entry : cueList.entries) {
             final int x = millisecondsToX(entry.cueTime);
             if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
@@ -823,10 +851,11 @@ public class WaveformDetailComponent extends JComponent {
                 }
 
                 String label = buildCueLabel(entry);
-                if (!label.isEmpty()) {
+                Font font = labelFont.get();
+                if (font != null && !label.isEmpty()) {
                     Graphics2D g2 = (Graphics2D)g;
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setFont(javax.swing.UIManager.getDefaults().getFont("Label.font"));
+                    g2.setFont(font);
                     FontRenderContext renderContext = g2.getFontRenderContext();
                     LineMetrics metrics = g2.getFont().getLineMetrics(label, renderContext);
                     Rectangle2D bounds = g2.getFont().getStringBounds(label, renderContext);

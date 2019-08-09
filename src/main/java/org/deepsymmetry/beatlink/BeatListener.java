@@ -27,6 +27,7 @@ public interface BeatListener {
      *
      * @param beat the message which announced the start of the new beat
      */
+    @SuppressWarnings("EmptyMethod")
     void newBeat(Beat beat);
 
 }

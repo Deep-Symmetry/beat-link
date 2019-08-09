@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author James Elliott
  * @since 0.5.0
  */
+@SuppressWarnings("SameReturnValue")
 public class CrateDigger {
 
     private final Logger logger = LoggerFactory.getLogger(CrateDigger.class);
@@ -119,6 +120,7 @@ public class CrateDigger {
         @Override
         public void mediaMounted(SlotReference slot) {
             // Nothing for us to do here yet, we need to wait until the media details are available.
+            logger.debug("Media mounted, waiting for details.");
         }
 
         @Override

@@ -1707,6 +1707,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * Used to respond to master tempo changes and beats when we are synced, aligning our own metronome.
      */
     private final MasterListener ourSyncMasterListener = new MasterListener() {
+        @SuppressWarnings("EmptyMethod")
         @Override
         public void masterChanged(DeviceUpdate update) {
             // We don’t care about this.

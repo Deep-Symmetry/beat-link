@@ -28,6 +28,7 @@ public interface DeviceUpdateListener {
      *
      * @param update the status update which has just arrived
      */
+    @SuppressWarnings("UnusedReturnValue")
     void received(DeviceUpdate update);
 
 }

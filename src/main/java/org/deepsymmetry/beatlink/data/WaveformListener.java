@@ -28,5 +28,6 @@ public interface WaveformListener {
      *
      * @param update provides information about what has changed
      */
+    @SuppressWarnings("EmptyMethod")
     void detailChanged(WaveformDetailUpdate update);
 }

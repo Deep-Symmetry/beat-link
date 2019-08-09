@@ -20,6 +20,7 @@ public interface MountListener {
      *
      * @param slot uniquely identifies a media slot on the network.
      */
+    @SuppressWarnings("EmptyMethod")
     void mediaMounted(SlotReference slot);
 
     /**
