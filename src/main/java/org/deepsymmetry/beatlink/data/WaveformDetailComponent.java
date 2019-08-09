@@ -7,6 +7,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.font.FontRenderContext;
+import java.awt.font.LineMetrics;
+import java.awt.geom.Rectangle2D;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -784,6 +787,41 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
+     * The font used for labeling cues.
+     */
+    private static Font labelFont;
+
+    /**
+     * Get the font used for labeling cues, registering the embedded fonts first if needed.
+     *
+     * @return the font used for labeling cues.
+     */
+    public static synchronized Font getLabelFont() {
+        if (labelFont == null) {
+            Util.registerFonts();
+            labelFont = new Font("Teko", Font.PLAIN, 18);
+        }
+        return labelFont;
+    }
+
+    /**
+     * Determine the label to display below a cue marker.
+     *
+     * @param entry the cue list entry which might need labeling
+     * @return the text to display, or an empty string if none is needed
+     */
+    private String buildCueLabel(CueList.Entry entry) {
+        if (entry.hotCueNumber > 0) {
+            String label = String.valueOf((char)(64 + entry.hotCueNumber));
+            if (entry.comment.isEmpty()) {
+                return label;
+            }
+            return label + ": " + entry.comment;
+        }
+        return entry.comment;
+    }
+
+    /**
      * Draw the visible memory cue points or hot cues.
      *
      * @param g the graphics object in which we are being rendered
@@ -800,6 +838,21 @@ public class WaveformDetailComponent extends JComponent {
                 for (int i = 0; i < 4; i++) {
                     g.drawLine(x - 3 + i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i,
                             x + 3 - i, axis - maxHeight - BEAT_MARKER_HEIGHT - CUE_MARKER_HEIGHT + i);
+                }
+
+                String label = buildCueLabel(entry);
+                if (!label.isEmpty()) {
+                    Graphics2D g2 = (Graphics2D)g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setFont(getLabelFont());
+                    FontRenderContext renderContext = g2.getFontRenderContext();
+                    LineMetrics metrics = g2.getFont().getLineMetrics(label, renderContext);
+                    Rectangle2D bounds = g2.getFont().getStringBounds(label, renderContext);
+                    int textWidth = (int)Math.ceil(bounds.getWidth());
+                    int textHeight = (int)Math.ceil(metrics.getAscent() + metrics.getDescent());
+                    g2.fillRect(x, axis - maxHeight - 2, textWidth + 4, textHeight - 2);
+                    g2.setColor(Color.black);
+                    g2.drawString(label, x + 2, axis - maxHeight - 2 + metrics.getAscent());
                 }
             }
         }

@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink;
 
+import java.awt.*;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -424,6 +425,26 @@ public class Util {
         } else {
             namedLocks.remove(name);
             namedLockUseCounts.remove(name);
+        }
+    }
+
+    /**
+     * Keeps track of the Beat Link fonts have already been registered for use.
+     */
+    private static boolean fontsRegistered = false;
+
+    /**
+     * Registers the fonts embedded in the Beat Link jar so they are available for use in drawing.
+     */
+    public static synchronized void registerFonts() {
+        if (!fontsRegistered) {
+            try {
+                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(
+                        Font.createFont(Font.TRUETYPE_FONT, Util.class.getResourceAsStream("/fonts/Teko/Teko-SemiBold.ttf")));
+                fontsRegistered = true;
+            } catch (Exception e) {
+                logger.error("Unable to register our embedded fonts", e);
+            }
         }
     }
 

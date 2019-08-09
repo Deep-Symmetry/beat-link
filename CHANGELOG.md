@@ -12,6 +12,8 @@ This change log follows the conventions of
   are present.
 - The `WaveformPreviewComponent` can return its `CueList` for the
   convenience of code that wants to add informative tool tips.
+- The `WaveformDetailComponent` draws labels for hot cues and for any
+  cue or loop that has been assigned a comment.
 
 
 ## [0.5.1] - 2019-03-05
