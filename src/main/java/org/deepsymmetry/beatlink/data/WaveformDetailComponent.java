@@ -787,24 +787,6 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
-     * The font used for labeling cues.
-     */
-    private static Font labelFont;
-
-    /**
-     * Get the font used for labeling cues, registering the embedded fonts first if needed.
-     *
-     * @return the font used for labeling cues.
-     */
-    public static synchronized Font getLabelFont() {
-        if (labelFont == null) {
-            Util.registerFonts();
-            labelFont = new Font("Teko", Font.PLAIN, 18);
-        }
-        return labelFont;
-    }
-
-    /**
      * Determine the label to display below a cue marker.
      *
      * @param entry the cue list entry which might need labeling
@@ -844,15 +826,15 @@ public class WaveformDetailComponent extends JComponent {
                 if (!label.isEmpty()) {
                     Graphics2D g2 = (Graphics2D)g;
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setFont(getLabelFont());
+                    g2.setFont(javax.swing.UIManager.getDefaults().getFont("Label.font"));
                     FontRenderContext renderContext = g2.getFontRenderContext();
                     LineMetrics metrics = g2.getFont().getLineMetrics(label, renderContext);
                     Rectangle2D bounds = g2.getFont().getStringBounds(label, renderContext);
                     int textWidth = (int)Math.ceil(bounds.getWidth());
                     int textHeight = (int)Math.ceil(metrics.getAscent() + metrics.getDescent());
-                    g2.fillRect(x, axis - maxHeight - 2, textWidth + 4, textHeight - 2);
+                    g2.fillRect(x, axis - maxHeight - 2, textWidth + 4, textHeight + 2);
                     g2.setColor(Color.black);
-                    g2.drawString(label, x + 2, axis - maxHeight - 2 + metrics.getAscent());
+                    g2.drawString(label, x + 2, axis - maxHeight - 1 + metrics.getAscent());
                 }
             }
         }
