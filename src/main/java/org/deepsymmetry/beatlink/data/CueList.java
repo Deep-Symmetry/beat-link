@@ -11,9 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.*;
 import java.util.List;
 
 /**
@@ -81,6 +79,62 @@ public class CueList {
             }
         }
         return total;
+    }
+
+    /**
+     * Returns the entry whose track position comes most closely before the specified number of milliseconds, if any.
+     * If there is a cue which falls exactly at the specified time, it will be returned (and it will also be returned
+     * by {@link #findEntryAfter(long)}). If there is more than one entry at the exact time as the one that is returned,
+     * the one chosen will be unpredictable.
+     *
+     * All times are rounded to half frame units, because that is the resolution at which cues are stored.
+     *
+     * @param milliseconds the time of interest within the track
+     * @return the cue whose start time is closest to the specified time but not after it
+     */
+    public Entry findEntryBefore(long milliseconds) {
+        final Entry target = new Entry(0, Util.timeToHalfFrame(milliseconds), "", null, null);
+        int index = Collections.binarySearch(entries, target, TIME_ONLY_COMPARATOR);
+        if (index >= 0) {  // An exact match
+            return entries.get(index);
+        }
+
+        // The exact time was not found, so convert the result to the index where the time would be inserted.
+        index = -(index + 1);
+        if (index > 0) {  // If there is a value before where we should insert this time, that's what we should return.
+            return entries.get((index - 1));
+        }
+
+        // There was no cue at or before the desired time.
+        return null;
+    }
+
+    /**
+     * Returns the entry whose track position comes most closely after the specified number of milliseconds, if any.
+     * If there is a cue which falls exactly at the specified time, it will be returned (and it will also be returned
+     * by {@link #findEntryBefore(long)}). If there is more than one entry at the exact time as the one that is returned,
+     * the one chosen will be unpredictable.
+     *
+     * All times are rounded to half frame units, because that is the resolution at which cues are stored.
+     *
+     * @param milliseconds the time of interest within the track
+     * @return the cue whose start time is closest to the specified time but not before it
+     */
+    public Entry findEntryAfter(long milliseconds) {
+        final Entry target = new Entry(0, Util.timeToHalfFrame(milliseconds), "", null, null);
+        int index = Collections.binarySearch(entries, target, TIME_ONLY_COMPARATOR);
+        if (index >= 0) {
+            return entries.get(index);
+        }
+
+        // The exact time was not found, so convert the result to the index where the time would be inserted.
+        index = -(index + 1);
+        if (index < entries.size()) {  // If there is a value where we should insert this time, that's what we should return.
+            return entries.get(index);
+        }
+
+        // There was no cue at or after the desired time.
+        return null;
     }
 
     /**
@@ -274,6 +328,36 @@ public class CueList {
     public final List<Entry> entries;
 
     /**
+     * A comparator for sorting or searching entries that considers only their position within the track, and
+     * not whether they are a hot cue.
+     */
+    public static final Comparator<Entry> TIME_ONLY_COMPARATOR = new Comparator<Entry>() {
+        @Override
+        public int compare(Entry entry1, Entry entry2) {
+            return (int) (entry1.cuePosition - entry2.cuePosition);
+        }
+    };
+
+    /**
+     * The comparator used for sorting the cue list entries during construction, which orders them by position
+     * within the track, with hot cues coming after ordinary memory points if both exist at the same position.
+     * This often happens, and moving hot cues to the end ensures the waveform display components identify that
+     * position as a hot cue, which is important information.
+     */
+    public static final Comparator<Entry> SORT_COMPARATOR = new Comparator<Entry>() {
+        @Override
+        public int compare(Entry entry1, Entry entry2) {
+            int result = (int) (entry1.cuePosition - entry2.cuePosition);
+            if (result == 0) {
+                int h1 = (entry1.hotCueNumber != 0) ? 1 : 0;
+                int h2 = (entry2.hotCueNumber != 0) ? 1 : 0;
+                result = h1 - h2;
+            }
+            return result;
+        }
+    };
+
+    /**
      * Sorts the entries into the order we want to present them in, which is by position, with hot cues coming after
      * ordinary memory points if both exist at the same position, which often happens.
      *
@@ -282,18 +366,7 @@ public class CueList {
      * @return an immutable list of the collections in the proper order
      */
     private List<Entry> sortEntries(List<Entry> loadedEntries) {
-        Collections.sort(loadedEntries, new Comparator<Entry>() {
-            @Override
-            public int compare(Entry entry1, Entry entry2) {
-                int result = (int) (entry1.cuePosition - entry2.cuePosition);
-                if (result == 0) {
-                    int h1 = (entry1.hotCueNumber != 0) ? 1 : 0;
-                    int h2 = (entry2.hotCueNumber != 0) ? 1 : 0;
-                    result = h1 - h2;
-                }
-                return result;
-            }
-        });
+        Collections.sort(loadedEntries, SORT_COMPARATOR);
         return Collections.unmodifiableList(loadedEntries);
     }
 

@@ -10,11 +10,12 @@ This change log follows the conventions of
 
 - `CueList` entries can now include nxs2-style DJ comments when they
   are present.
+- Helper functions to search `CueList` entries for the closest cue
+  before or after a specific time in a track.
 - The `WaveformPreviewComponent` can return its `CueList` for the
   convenience of code that wants to add informative tool tips.
 - The `WaveformDetailComponent` draws labels for hot cues and for any
   cue or loop that has been assigned a comment.
-
 
 ## [0.5.1] - 2019-03-05
 
