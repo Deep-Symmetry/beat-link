@@ -93,7 +93,7 @@ public class CueList {
      * @return the cue whose start time is closest to the specified time but not after it
      */
     public Entry findEntryBefore(long milliseconds) {
-        final Entry target = new Entry(0, Util.timeToHalfFrame(milliseconds), "", null, null);
+        final Entry target = new Entry(0, Util.timeToHalfFrameRounded(milliseconds), "", null, null);
         int index = Collections.binarySearch(entries, target, TIME_ONLY_COMPARATOR);
         if (index >= 0) {  // An exact match
             return entries.get(index);
@@ -121,7 +121,7 @@ public class CueList {
      * @return the cue whose start time is closest to the specified time but not before it
      */
     public Entry findEntryAfter(long milliseconds) {
-        final Entry target = new Entry(0, Util.timeToHalfFrame(milliseconds), "", null, null);
+        final Entry target = new Entry(0, Util.timeToHalfFrameRounded(milliseconds), "", null, null);
         int index = Collections.binarySearch(entries, target, TIME_ONLY_COMPARATOR);
         if (index >= 0) {
             return entries.get(index);

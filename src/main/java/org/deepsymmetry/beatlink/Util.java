@@ -370,7 +370,18 @@ public class Util {
      * @return the half-frame that contains that part of the track
      */
     public static int timeToHalfFrame(long milliseconds) {
-        return  (int) (milliseconds * 15 / 100);
+        return (int) (milliseconds * 15 / 100);
+    }
+
+    /**
+     * Convert a track position (time) into the corresponding rounded half-frame value (75 frames per second, so 150 half-frames).
+     *
+     * @param milliseconds how long a track has been playing for
+     *
+     * @return the nearest half-frame that contains that part of the track
+     */
+    public static int timeToHalfFrameRounded(long milliseconds) {
+        return Math.round(milliseconds * 0.15f);
     }
 
     /**
