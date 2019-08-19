@@ -658,31 +658,31 @@ public class CueList {
         byte[] entryBytes = ((BinaryField) message.arguments.get(3)).getValueAsArray();
         final int entryCount = (int) ((NumberField) message.arguments.get(4)).getValue();
         ArrayList<Entry> mutableEntries = new ArrayList<Entry>(entryCount);
-        int offset = 4;
+        int offset = 0;
         for (int i = 0; i < entryCount; i++) {
             final int entrySize = (int) Util.bytesToNumberLittleEndian(entryBytes, offset, 4);
             final int cueFlag = entryBytes[offset + 6];
             final int hotCueNumber = entryBytes[offset + 4];
             if ((cueFlag != 0) || (hotCueNumber != 0)) {
                 // This entry is not empty, so represent it.
-                final long position = Util.bytesToNumberLittleEndian(entryBytes, offset + 12, 4);
+                final long position = Util.timeToHalfFrame(Util.bytesToNumberLittleEndian(entryBytes, offset + 12, 4));
 
                 // See if there is a comment.
                 String comment = "";
                 final int commentSize = (int) Util.bytesToNumberLittleEndian(entryBytes, offset + 0x48, 2);
                 if (commentSize > 0) {
                     try {
-                        comment = new String(entryBytes, offset + 0x50, commentSize - 2, "UTF-16LE");
+                        comment = new String(entryBytes, offset + 0x4a, commentSize - 2, "UTF-16LE");
                     } catch (UnsupportedEncodingException e) {
                         throw new IllegalStateException("Java no longer supports UTF-16LE encoding?!", e);
                     }
                 }
 
                 // See if there is a color.
-                final int colorCode = Util.unsign(entryBytes[offset + commentSize + 4]);
-                final int red = Util.unsign(entryBytes[offset + commentSize + 5]);
-                final int green = Util.unsign(entryBytes[offset + commentSize + 6]);
-                final int blue = Util.unsign(entryBytes[offset + commentSize + 7]);
+                final int colorCode = Util.unsign(entryBytes[offset + commentSize + 0x4e]);
+                final int red = Util.unsign(entryBytes[offset + commentSize + 0x4f]);
+                final int green = Util.unsign(entryBytes[offset + commentSize + 0x50]);
+                final int blue = Util.unsign(entryBytes[offset + commentSize + 0x51]);
                 final Color rekordboxColor = findRekordboxColor(colorCode);
                 final Color expectedColor = expectedEmbeddedColor(colorCode);
                 final Color embeddedColor = (red == 0 && green == 0 && blue == 0)? null : new Color(red, green, blue);
@@ -693,7 +693,7 @@ public class CueList {
                 }
 
                 if (cueFlag == 2) {  // This is a loop
-                    final long endPosition = Util.bytesToNumberLittleEndian(entryBytes, offset + 16, 4);
+                    final long endPosition = Util.timeToHalfFrame(Util.bytesToNumberLittleEndian(entryBytes, offset + 16, 4));
                     mutableEntries.add(new Entry(hotCueNumber, position, endPosition, comment, embeddedColor, rekordboxColor));
                 } else {
                     mutableEntries.add(new Entry(hotCueNumber, position, comment, embeddedColor, rekordboxColor));
