@@ -9,7 +9,7 @@ This change log follows the conventions of
 ### Added
 
 - `CueList` entries can now include nxs2-style DJ comments when they
-  are present.
+  are present, along with colors and hot cues beyond C.
 - Helper functions to search `CueList` entries for the closest cue
   before or after a specific time in a track.
 - The `WaveformPreviewComponent` can return its `CueList` for the

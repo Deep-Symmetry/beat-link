@@ -253,7 +253,7 @@ public class Message {
         FOLDER_MENU_REQ  (0x2006, "folder menu request", "r:m:s:t", "sort order?", "folder id (-1 for root)", "unknown (0)"),
         // 0x2102 seems to ask about track data file information.
         /**
-         * Asks for the cue points of a track, by rekordbox ID.
+         * Asks for the memory points, loops, and hot cues of a track, by rekordbox ID.
          */
         CUE_LIST_REQ     (0x2104, "track cue list request", "r:m:s:t", "rekordbox id"),
         /**
@@ -269,6 +269,10 @@ public class Message {
          * Asks for the detailed waveform data for a track, by rekordbox ID.
          */
         WAVE_DETAIL_REQ  (0x2904, "track waveform detail request", "r:m:s:t", "rekordbox id"),
+        /**
+         * Asks for the memory points, loops, and hot cues of a track, including comments and colors, by rekordbox ID.
+         */
+        CUE_LIST_EXT_REQ (0x2b04, "track extended cue list request", "r:m:s:t", "rekordbox id", "unknown (0)"),
         /**
          * This is a multipurpose request added for the nxs2 players which allows a specific tagged element of an
          * ANLZnnnn.DAT or ANLZnnnn.EXT file to be retrieved. The tag type is the four-character-code identifying the
@@ -324,14 +328,20 @@ public class Message {
          */
         BEAT_GRID        (0x4602, "beat grid", "request type", "unknown (0)", "beat grid length", "beat grid bytes", "unknown (0)"),
         /**
-         * Returns information about any cue points set in the track.
+         * Returns information about any memory points, loops, and hot cues set in the track.
          */
-        CUE_LIST         (0x4702, "cue points", "request type", "unknown", "blob 1 length", "blob 1", "unknown (0x24)",
-                "unknown", "unknown", "blob 2 length", "blob 2"),
+        CUE_LIST         (0x4702, "memory points, loops, and hot cues", "request type", "unknown", "blob 1 length", "blob 1",
+                "unknown (0x24)", "unknown", "unknown", "blob 2 length", "blob 2"),
         /**
          * Returns the bytes of the detailed waveform which is scrolled through while the track is playing.
          */
         WAVE_DETAIL      (0x4a02, "track waveform detail", "request type", "unknown (0)", "waveform length", "waveform bytes"),
+        /**
+         * Returns extended information about any memory points, loops, and hot cues set in the track, including
+         * DJ comments, colors, and hot cues beyond C.
+         */
+        CUE_LIST_EXT     (0x4e02, "extended memory points, loops, and hot cues", "request type", "unknown (0)",
+                "blob length", "blob", "entry count"),
         /**
          * Returns the bytes of the requested tag from an ANLZnnnn.DAT or ANLZnnnn.EXT file.
          */

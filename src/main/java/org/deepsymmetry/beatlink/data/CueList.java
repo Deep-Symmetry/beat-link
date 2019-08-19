@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.List;
@@ -517,7 +518,7 @@ public class CueList {
             final Color rekordboxColor = findRekordboxColor(cueEntry.colorCode());
             if ((embeddedColor == null && expectedColor != null) ||
                     (embeddedColor != null && !embeddedColor.equals(expectedColor))) {
-                logger.warn("Was expecting embedded color " + expectedEmbeddedColor(cueEntry.colorCode()) +
+                logger.warn("Was expecting embedded color " + expectedColor +
                         " for rekordbox color code " + cueEntry.colorCode() + ", but found color " + embeddedColor);
             }
             if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
@@ -604,12 +605,27 @@ public class CueList {
     /**
      * Constructor when reading from the network or a cache file.
      *
-     * @param message the response that contains the cue list information
+     * @param message the response holding the cue list information, in either original nexus or extended nxs2 format
      */
     public CueList(Message message) {
         rawMessage = message;
         rawTags = null;
         rawExtendedTags = null;
+        if (message.knownType == Message.KnownType.CUE_LIST) {
+            entries = parseNexusEntries(message);
+        } else {
+            entries = parseNxs2Entries(message);
+        }
+    }
+
+    /**
+     * Parse the memory points, loops, and hot cues from an original nexus style cue list response
+     *
+     * @param message the response holding the cue list information
+     *
+     * @return the parsed entries, sorted properly for searching and display
+     */
+    private List<Entry> parseNexusEntries(Message message) {
         byte[] entryBytes = ((BinaryField) message.arguments.get(3)).getValueAsArray();
         final int entryCount = entryBytes.length / 36;
         ArrayList<Entry> mutableEntries = new ArrayList<Entry>(entryCount);
@@ -628,7 +644,64 @@ public class CueList {
                 }
             }
         }
-        entries = sortEntries(mutableEntries);
+        return sortEntries(mutableEntries);
+    }
+
+    /**
+     * Parse the memory points, loops, and hot cues from an extended nxs2 style cue list response
+     *
+     * @param message the response holding the cue list information
+     *
+     * @return the parsed entries, sorted properly for searching and display
+     */
+    private List<Entry> parseNxs2Entries(Message message) {
+        byte[] entryBytes = ((BinaryField) message.arguments.get(3)).getValueAsArray();
+        final int entryCount = (int) ((NumberField) message.arguments.get(4)).getValue();
+        ArrayList<Entry> mutableEntries = new ArrayList<Entry>(entryCount);
+        int offset = 4;
+        for (int i = 0; i < entryCount; i++) {
+            final int entrySize = (int) Util.bytesToNumberLittleEndian(entryBytes, offset, 4);
+            final int cueFlag = entryBytes[offset + 6];
+            final int hotCueNumber = entryBytes[offset + 4];
+            if ((cueFlag != 0) || (hotCueNumber != 0)) {
+                // This entry is not empty, so represent it.
+                final long position = Util.bytesToNumberLittleEndian(entryBytes, offset + 12, 4);
+
+                // See if there is a comment.
+                String comment = "";
+                final int commentSize = (int) Util.bytesToNumberLittleEndian(entryBytes, offset + 0x48, 2);
+                if (commentSize > 0) {
+                    try {
+                        comment = new String(entryBytes, offset + 0x50, commentSize - 2, "UTF-16LE");
+                    } catch (UnsupportedEncodingException e) {
+                        throw new IllegalStateException("Java no longer supports UTF-16LE encoding?!", e);
+                    }
+                }
+
+                // See if there is a color.
+                final int colorCode = Util.unsign(entryBytes[offset + commentSize + 4]);
+                final int red = Util.unsign(entryBytes[offset + commentSize + 5]);
+                final int green = Util.unsign(entryBytes[offset + commentSize + 6]);
+                final int blue = Util.unsign(entryBytes[offset + commentSize + 7]);
+                final Color rekordboxColor = findRekordboxColor(colorCode);
+                final Color expectedColor = expectedEmbeddedColor(colorCode);
+                final Color embeddedColor = (red == 0 && green == 0 && blue == 0)? null : new Color(red, green, blue);
+                if ((embeddedColor == null && expectedColor != null) ||
+                        (embeddedColor != null && !embeddedColor.equals(expectedColor))) {
+                    logger.warn("Was expecting embedded color " + expectedColor +
+                            " for rekordbox color code " + colorCode + ", but found color " + embeddedColor);
+                }
+
+                if (cueFlag == 2) {  // This is a loop
+                    final long endPosition = Util.bytesToNumberLittleEndian(entryBytes, offset + 16, 4);
+                    mutableEntries.add(new Entry(hotCueNumber, position, endPosition, comment, embeddedColor, rekordboxColor));
+                } else {
+                    mutableEntries.add(new Entry(hotCueNumber, position, comment, embeddedColor, rekordboxColor));
+                }
+            }
+            offset += entrySize;  // Move on to the next entry.
+        }
+        return sortEntries(mutableEntries);
     }
 
     @Override

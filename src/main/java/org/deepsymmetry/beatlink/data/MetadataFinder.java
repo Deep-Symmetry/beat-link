@@ -187,11 +187,14 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     CueList getCueList(int rekordboxId, CdjStatus.TrackSourceSlot slot, Client client)
             throws IOException {
-        // Returns an empty tag response, alas. (Attempt to get nxs2 enhanced cue information from PCO2 tags.)
-        // logger.info("PCO2:" + client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
-        //        client.buildRMST(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId),
-        //        new NumberField(Message.ANLZ_FILE_TAG_CUE_COMMENT), new NumberField(Message.ALNZ_FILE_TYPE_EXT)));
-        Message response = client.simpleRequest(Message.KnownType.CUE_LIST_REQ, null,
+        // First try for an extended cue list, with colors and names, and hot cues above C.
+        Message response = client.simpleRequest(Message.KnownType.CUE_LIST_EXT_REQ, null,
+                client.buildRMST(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId), NumberField.WORD_0);
+        if (response.knownType == Message.KnownType.CUE_LIST_EXT) {
+            return new CueList(response);
+        }
+        // Fall back to an original Nexus cue list.
+        response = client.simpleRequest(Message.KnownType.CUE_LIST_REQ, null,
                 client.buildRMST(Message.MenuIdentifier.DATA, slot), new NumberField(rekordboxId));
         if (response.knownType == Message.KnownType.CUE_LIST) {
             return new CueList(response);
