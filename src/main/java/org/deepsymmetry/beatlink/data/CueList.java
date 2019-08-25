@@ -452,13 +452,13 @@ public class CueList {
     }
 
     /**
-     * Look up the color that rekordbox would use to display this cue. The colors in this table correspond
+     * Look up the color that rekordbox would use to display a cue. The colors in this table correspond
      * to the 4x4 grid that is available inside the hot cue configuration interface.
      *
      * @param colorCode the color index found in the cue
      * @return the corresponding color or {@code null} if the index is not recognized
      */
-    private Color findRekordboxColor(int colorCode) {
+    public static Color findRekordboxColor(int colorCode) {
         switch (colorCode) {
             case 0x31:  // magenta
                 return new Color(0xde, 0x44, 0xcf);
