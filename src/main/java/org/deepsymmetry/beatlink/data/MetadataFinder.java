@@ -826,12 +826,17 @@ public class MetadataFinder extends LifecycleParticipant {
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
      * thrown and no action is performed.
      *
+     * <p>Note that at the time a mount is detected, we will not yet know any details about the mounted media.
+     * If {@code listener} also implements {@link MediaDetailsListener}, then as soon as the media details have
+     * been reported by the mounting player, {@link MediaDetailsListener#detailsAvailable(MediaDetails)} will be
+     * called with them.</p>
+     *
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
@@ -1426,7 +1431,8 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * Prevent direct instantiation, and arrange for us to hear about the responses to any media details requests we
-     * ask the Virtual CDJ to make for us.
+     * ask the Virtual CDJ to make for us. and pass them on to any {@link MountListener} instances that also implement
+     * {@link MediaDetailsListener}.
      */
     private MetadataFinder() {
         VirtualCdj.getInstance().addMediaDetailsListener(new MediaDetailsListener() {
@@ -1438,6 +1444,16 @@ public class MetadataFinder extends LifecycleParticipant {
                     // responding to the event, so we end up in the correct final state.
                     logger.warn("Discarding media details reported for an unmounted media slot:" + details);
                     mediaDetails.remove(details.slotReference);
+                } else {
+                    for (final MountListener listener : getMountListeners()) {
+                        try {
+                            if (listener instanceof MediaDetailsListener) {
+                                ((MediaDetailsListener) listener).detailsAvailable(details);
+                            }
+                        } catch (Throwable t) {
+                            logger.warn("Problem delivering media details update to mount listener", t);
+                        }
+                    }
                 }
             }
         });

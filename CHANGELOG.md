@@ -16,6 +16,10 @@ This change log follows the conventions of
   convenience of code that wants to add informative tool tips.
 - The `WaveformDetailComponent` draws labels for hot cues and for any
   cue or loop that has been assigned a comment.
+- `MountListener` instances registered with the `MetadataFinder` will
+  be examined to see if they also implement `MediaDetailsListener`. If
+  they do, they will be informed when details are available for
+  newly-mounted media.
 
 ## [0.5.1] - 2019-03-05
 
