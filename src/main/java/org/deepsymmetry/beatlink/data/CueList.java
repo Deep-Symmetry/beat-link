@@ -433,6 +433,9 @@ public class CueList {
             case 0x2d:  // pink
                 return new Color(0xff, 0x00, 0x73);
 
+            case 0: // Nothing, default to pure green
+                return Color.green;
+
             default:
                 return null;
         }
@@ -516,8 +519,9 @@ public class CueList {
             final Color embeddedColor = findEmbeddedColor(cueEntry);
             final Color expectedColor = expectedEmbeddedColor(cueEntry.colorCode());
             final Color rekordboxColor = findRekordboxColor(cueEntry.colorCode());
-            if ((embeddedColor == null && expectedColor != null) ||
-                    (embeddedColor != null && !embeddedColor.equals(expectedColor))) {
+            if (((embeddedColor == null && expectedColor != null) ||
+                    (embeddedColor != null && !embeddedColor.equals(expectedColor))) &&
+                    (cueEntry.colorCode() != 0 || embeddedColor != null)) {
                 logger.warn("Was expecting embedded color " + expectedColor +
                         " for rekordbox color code " + cueEntry.colorCode() + ", but found color " + embeddedColor);
             }
@@ -686,8 +690,9 @@ public class CueList {
                 final Color rekordboxColor = findRekordboxColor(colorCode);
                 final Color expectedColor = expectedEmbeddedColor(colorCode);
                 final Color embeddedColor = (red == 0 && green == 0 && blue == 0)? null : new Color(red, green, blue);
-                if ((embeddedColor == null && expectedColor != null) ||
-                        (embeddedColor != null && !embeddedColor.equals(expectedColor))) {
+                if (((embeddedColor == null && expectedColor != null) ||
+                        (embeddedColor != null && !embeddedColor.equals(expectedColor))) &&
+                        (colorCode != 0 || embeddedColor != null)) {
                     logger.warn("Was expecting embedded color " + expectedColor +
                             " for rekordbox color code " + colorCode + ", but found color " + embeddedColor);
                 }

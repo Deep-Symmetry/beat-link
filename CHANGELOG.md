@@ -6,7 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far
+### Fixed
+
+- Eliminated spurious warnings in the log for cue entries with rekordbox
+  color code 0 which also had explicit green color values stored for
+  nxs2 players.
 
 ## [0.5.2] - 2019-09-02
 
