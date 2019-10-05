@@ -59,6 +59,13 @@ public class ConnectionManager extends LifecycleParticipant {
     private final AtomicInteger idleLimit = new AtomicInteger(1);
 
     /**
+     * How many times do we attempt to retry fetching the DB server port?
+     * If this is set low, we may try before the network is ready.
+     */
+    private final AtomicInteger dbServerRetries = new AtomicInteger(2);
+
+
+    /**
      * Determine how long an idle connection will be kept open for reuse. Once this time has elapsed, the connection
      * will be closed. Setting this to zero will close connections immediately after use, which might be somewhat
      * inefficient when multiple queries need to happen in a row, since each will require the establishment of a
@@ -222,6 +229,8 @@ public class ConnectionManager extends LifecycleParticipant {
         return result;
     }
 
+    private static final int DB_SERVER_QUERY_RETRIES = 2;
+
     /**
      * Our announcement listener watches for devices to appear on the network so we can ask them for their database
      * server port, and when they disappear discards all information about them.
@@ -267,12 +276,24 @@ public class ConnectionManager extends LifecycleParticipant {
     };
 
     /**
-     * Query a player to determine the port on which its database server is running.
+     * Query a player to determine the port on which its database server is running. Retries the default number
+     * of times
      *
      * @param announcement the device announcement with which we detected a new player on the network.
      */
     private void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
+        requestPlayerDBServerPort(announcement, dbServerRetries.get());
+    }
+
+    /**
+     * Query a player to determine the port on which its database server is running.
+     *
+     * @param announcement the device announcement with which we detected a new player on the network.
+     * @param retryCount the number of times to retry.
+     */
+    private void requestPlayerDBServerPort(DeviceAnnouncement announcement, int retryCount) {
         Socket socket = null;
+        boolean portFound = false;
         try {
             InetSocketAddress address = new InetSocketAddress(announcement.getAddress(), DB_SERVER_QUERY_PORT);
             socket = new Socket();
@@ -283,6 +304,7 @@ public class ConnectionManager extends LifecycleParticipant {
             os.write(DB_SERVER_QUERY_PACKET);
             byte[] response = readResponseWithExpectedSize(is, 2, "database server port query packet");
             if (response.length == 2) {
+                portFound = true;
                 setPlayerDBServerPort(announcement.getNumber(), (int)Util.bytesToNumber(response, 0, 2));
             }
         } catch (java.net.ConnectException ce) {
@@ -298,6 +320,9 @@ public class ConnectionManager extends LifecycleParticipant {
                     logger.warn("Problem closing database server port request socket", e);
                 }
             }
+        }
+        if(!portFound && retryCount > 0) {
+            requestPlayerDBServerPort(announcement, retryCount - 1);
         }
     }
 
