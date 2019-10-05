@@ -229,8 +229,6 @@ public class ConnectionManager extends LifecycleParticipant {
         return result;
     }
 
-    private static final int DB_SERVER_QUERY_RETRIES = 2;
-
     /**
      * Our announcement listener watches for devices to appear on the network so we can ask them for their database
      * server port, and when they disappear discards all information about them.
