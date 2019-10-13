@@ -11,7 +11,7 @@ This change log follows the conventions of
 - Eliminated spurious warnings in the log for cue entries with rekordbox
   color code 0 which also had explicit green color values stored for
   nxs2 players.
-- Builds now work properly in current JDKs, including Amazon Corretto 11
+- Now builds properly under current JDKs, including Amazon Corretto 11
   (which is a long-term support release). The minimum JDK for building
   is now Java 9, but the resulting build is still compatible back to
   Java 1.6. Building under Java 11 results in much nicer JavaDoc, with
