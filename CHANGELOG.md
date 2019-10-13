@@ -8,6 +8,12 @@ This change log follows the conventions of
 
 ### Fixed
 
+- CDJs which were powered on after Beat Link was already running would
+  not ever get assigned a valid `dbserver` port by the `ConnectionManager`
+  so the `MetadataFinder` would not be able to perform metadata requests
+  to them without `CrateDigger`. This seems to have been caused by the
+  players not being quite ready to respond to the port number query right
+  after booting, so we now try again a few times.
 - Eliminated spurious warnings in the log for cue entries with rekordbox
   color code 0 which also had explicit green color values stored for
   nxs2 players.

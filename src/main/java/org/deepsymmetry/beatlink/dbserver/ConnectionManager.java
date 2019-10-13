@@ -229,6 +229,7 @@ public class ConnectionManager extends LifecycleParticipant {
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
+            // logger.info("Processing device found, number: " + announcement.getNumber() + ", name: " + announcement.getName());
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -239,7 +240,7 @@ public class ConnectionManager extends LifecycleParticipant {
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
-            setPlayerDBServerPort(announcement.getNumber(), -1);
+            dbServerPorts.remove(announcement.getNumber());
         }
     };
 
@@ -272,33 +273,55 @@ public class ConnectionManager extends LifecycleParticipant {
      * @param announcement the device announcement with which we detected a new player on the network.
      */
     private void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
-        Socket socket = null;
-        try {
-            InetSocketAddress address = new InetSocketAddress(announcement.getAddress(), DB_SERVER_QUERY_PORT);
-            socket = new Socket();
-            socket.connect(address, socketTimeout.get());
-            InputStream is = socket.getInputStream();
-            OutputStream os = socket.getOutputStream();
-            socket.setSoTimeout(socketTimeout.get());
-            os.write(DB_SERVER_QUERY_PACKET);
-            byte[] response = readResponseWithExpectedSize(is, 2, "database server port query packet");
-            if (response.length == 2) {
-                setPlayerDBServerPort(announcement.getNumber(), (int)Util.bytesToNumber(response, 0, 2));
-            }
-        } catch (java.net.ConnectException ce) {
-            logger.info("Player " + announcement.getNumber() +
-                    " doesn't answer rekordbox port queries, connection refused. Won't attempt to request metadata.");
-        } catch (Exception e) {
-            logger.warn("Problem requesting database server port number", e);
-        } finally {
-            if (socket != null) {
+        // logger.info("Trying to determine database server port for device number " + announcement.getNumber());
+        for (int tries = 0; tries < 4; ++tries) {
+
+            if (tries > 0) {
                 try {
-                    socket.close();
-                } catch (IOException e) {
-                    logger.warn("Problem closing database server port request socket", e);
+                    Thread.sleep(1000 * tries);  // Give the player more time to be ready, it may be booting.
+                } catch (InterruptedException e) {
+                    logger.warn("Interrupted while trying to retry dbserver port query?");
+                }
+            }
+
+            Socket socket = null;
+            try {
+                InetSocketAddress address = new InetSocketAddress(announcement.getAddress(), DB_SERVER_QUERY_PORT);
+                socket = new Socket();
+                socket.connect(address, socketTimeout.get());
+                InputStream is = socket.getInputStream();
+                OutputStream os = socket.getOutputStream();
+                socket.setSoTimeout(socketTimeout.get());
+                os.write(DB_SERVER_QUERY_PACKET);
+                byte[] response = readResponseWithExpectedSize(is, 2, "database server port query packet");
+                if (response.length == 2) {
+                    final int portReturned = (int)Util.bytesToNumber(response, 0, 2);
+                    if (portReturned == 65535) {
+                        logger.info("Player " + announcement.getNumber() + " reported dbserver port of " + portReturned +
+                                ", not yet ready?");
+                    } else {
+                        setPlayerDBServerPort(announcement.getNumber(), portReturned);
+                        return;  // Success!
+                    }
+                }
+            } catch (java.net.ConnectException ce) {
+                logger.info("Player " + announcement.getNumber() +
+                        " doesn't answer rekordbox port queries, connection refused, not yet ready?");
+            } catch (Throwable t) {
+                logger.warn("Problem requesting database server port number", t);
+            } finally {
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException e) {
+                        logger.warn("Problem closing database server port request socket", e);
+                    }
                 }
             }
         }
+
+        logger.info("Player " + announcement.getNumber() +
+                " never responded with a valid rekordbox dbserver port. Won't attempt to request metadata.");
     }
 
     /**
@@ -460,7 +483,7 @@ public class ConnectionManager extends LifecycleParticipant {
             DeviceFinder.getInstance().addDeviceAnnouncementListener(announcementListener);
             DeviceFinder.getInstance().start();
             for (DeviceAnnouncement device: DeviceFinder.getInstance().getCurrentDevices()) {
-                requestPlayerDBServerPort(device);
+                announcementListener.deviceFound(device);
             }
 
             new Thread(null, new Runnable() {
