@@ -199,6 +199,9 @@
                                 <requireMavenVersion>
                                     <version>3.0.5</version>
                                 </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>9</version>
+                                </requireJavaVersion>
                             </rules>
                         </configuration>
                     </execution>
@@ -208,8 +211,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <release>6</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -263,7 +265,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
-                    <source>8</source>
+                    <release>8</release>
+                    <additionalOptions>-html5</additionalOptions>
+                    <additionalJOption>--no-module-directories</additionalJOption>
                 </configuration>
                 <executions>
                     <execution>
