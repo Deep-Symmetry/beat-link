@@ -14,6 +14,10 @@ This change log follows the conventions of
   to them without `CrateDigger`. This seems to have been caused by the
   players not being quite ready to respond to the port number query right
   after booting, so we now try again a few times.
+- Some extended cue entries encountered by users were missing the color
+  bytes, which prevented Crate Digger from parsing `EXT` files and
+  accessing color waveforms.
+  These values are now treated as optional.
 - Eliminated spurious warnings in the log for cue entries with rekordbox
   color code 0 which also had explicit green color values stored for
   nxs2 players.
