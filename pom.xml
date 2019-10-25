@@ -4,7 +4,7 @@
 
     <groupId>org.deepsymmetry</groupId>
     <artifactId>beat-link</artifactId>
-    <version>0.5.5-SNAPSHOT</version>
+    <version>0.5.5</version>
     <packaging>jar</packaging>
 
     <name>beat-link</name>
@@ -58,7 +58,7 @@
         <dependency>
             <groupId>org.deepsymmetry</groupId>
             <artifactId>crate-digger</artifactId>
-            <version>0.1.2-SNAPSHOT</version>
+            <version>0.1.2</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
