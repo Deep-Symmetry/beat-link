@@ -967,7 +967,7 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * Identify the beat of the track that being played. This counter starts at beat 1 as the track is played, and
+     * Identify the beat of the track that is being played. This counter starts at beat 1 as the track is played, and
      * increments on each beat. When the player is paused at the start of the track before playback begins, the
      * value reported is 0.
      *
