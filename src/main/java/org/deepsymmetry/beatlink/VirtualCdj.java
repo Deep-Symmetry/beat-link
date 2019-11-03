@@ -424,7 +424,9 @@ public class VirtualCdj extends LifecycleParticipant {
                 master.set(false);
                 nextMaster.set(0xff);
                 setTempoMaster(update);
-                setMasterTempo(update.getEffectiveTempo());
+                if (update.getBpm() != 0xffff) {  // Ignore invalid tempo, i.e. when master has no track loaded.
+                    setMasterTempo(update.getEffectiveTempo());
+                }
             } else {
                 // This is a yielding master packet. If it is us that is being yielded to, take over master.
                 // Log a message if it was unsolicited, and a warning if it's coming from a different player than

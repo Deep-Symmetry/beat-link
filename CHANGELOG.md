@@ -6,7 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Changed
+
+- `tempoChanged` events are no longer sent to the `MasterListener`
+  interface when the tempo is meaningless (i.e. the new master has
+  no track loaded).
 
 ## [0.5.5] - 2019-10-25
 
