@@ -112,6 +112,13 @@ public class CrateDigger {
     private final Set<SlotReference> mediaWithHiddenPioneerFolder = new HashSet<SlotReference>();
 
     /**
+     * Keeps track of the DeviceAnnouncement packets associated with media we hear about, so that if the device
+     * has already disappeared from the network when we learn about the unmount (caused by the loss of the device),
+     * we can still know what address it used to have, in order to properly clean up the {@link FileFetcher} cache.
+     */
+    private final Map<Integer, DeviceAnnouncement> addressBackup = new ConcurrentHashMap<Integer, DeviceAnnouncement>();
+
+    /**
      * Clear the {@link org.deepsymmetry.cratedigger.FileFetcher} cache when media is unmounted, so it does not try
      * to use stale filesystem handles. Also clear up our own caches for the vanished media, and close the files
      * associated with the parsed database structures.
@@ -119,7 +126,12 @@ public class CrateDigger {
     private final MountListener mountListener = new MountListener() {
         @Override
         public void mediaMounted(SlotReference slot) {
-            // Nothing for us to do here yet, we need to wait until the media details are available.
+            // Record information about the device owning the slot, in case it disappears before we learn we need to
+            // unmount its media.
+            final DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
+            addressBackup.put(slot.player, player);
+
+            // Nothing else to do here yet, we need to wait until the media details are available.
             logger.debug("Media mounted, waiting for details.");
         }
 
@@ -127,31 +139,36 @@ public class CrateDigger {
         public void mediaUnmounted(SlotReference slot) {
             mediaWithHiddenPioneerFolder.remove(slot);
             DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
+            if (player == null) {
+                logger.info("Received an unmount for a player we can't find, it must have left network.");
+                player = addressBackup.get(slot.player);
+            }
             if (player != null) {
                 FileFetcher.getInstance().removePlayer(player.getAddress());
-                final Database database = databases.remove(slot);
-                if (database != null) {
-                    deliverDatabaseUpdate(slot, database, false);
-                    try {
-                        database.close();
-                    } catch (IOException e) {
-                        logger.error("Problem closing parsed rekordbox database export.", e);
-                    }
-                    //noinspection ResultOfMethodCallIgnored
-                    database.sourceFile.delete();
-                }
-                final String prefix = slotPrefix(slot);
-                File[] files = downloadDirectory.listFiles();
-                if (files != null) {
-                    for (File file : files) {
-                        if (file.getName().startsWith(prefix)) {
-                            //noinspection ResultOfMethodCallIgnored
-                            file.delete();
-                        }
-                    }
-                }
             } else {
-                logger.info("Ignoring unmount from player that we can't find, must have left network.");
+                logger.warn("Unable to clear FileFetcher connections for player that we can't find backup address for!");
+            }
+
+            final Database database = databases.remove(slot);
+            if (database != null) {
+                deliverDatabaseUpdate(slot, database, false);
+                try {
+                    database.close();
+                } catch (IOException e) {
+                    logger.error("Problem closing parsed rekordbox database export.", e);
+                }
+                //noinspection ResultOfMethodCallIgnored
+                database.sourceFile.delete();
+            }
+            final String prefix = slotPrefix(slot);
+            File[] files = downloadDirectory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.getName().startsWith(prefix)) {
+                        //noinspection ResultOfMethodCallIgnored
+                        file.delete();
+                    }
+                }
             }
         }
     };

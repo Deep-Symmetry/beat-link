@@ -11,6 +11,11 @@ This change log follows the conventions of
 - `tempoChanged` events are no longer sent to the `MasterListener`
   interface when the tempo is meaningless (i.e. the new master has
   no track loaded).
+- Fixed a [race condition](https://github.com/Deep-Symmetry/beat-link/issues/38)
+  which caused `CrateDigger` to retain incorrect track information when
+  a player was removed from the network while it had a mounted USB, then
+  returned to the network with a different USB. Thanks to
+  [@ben-xo](https://github.com/ben-xo)!
 
 ## [0.5.5] - 2019-10-25
 
