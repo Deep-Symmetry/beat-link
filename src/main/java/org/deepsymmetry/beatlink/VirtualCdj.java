@@ -266,7 +266,8 @@ public class VirtualCdj extends LifecycleParticipant {
     private void setTempoMaster(DeviceUpdate newMaster) {
         DeviceUpdate oldMaster = tempoMaster.getAndSet(newMaster);
         if ((newMaster == null && oldMaster != null) ||
-                (newMaster != null && ((oldMaster == null) || !newMaster.getAddress().equals(oldMaster.getAddress())))) {
+                (newMaster != null && ((oldMaster == null) || !newMaster.getAddress().equals(oldMaster.getAddress()) ||
+                        newMaster.getDeviceNumber() != oldMaster.getDeviceNumber()))) {
             // This is a change in master, so report it to any registered listeners
             deliverMasterChangedAnnouncement(newMaster);
         }
