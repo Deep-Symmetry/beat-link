@@ -90,7 +90,7 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * Keep track of the announcements we have seen.
      */
-    private final Map<InetAddress, DeviceAnnouncement> devices = new ConcurrentHashMap<InetAddress, DeviceAnnouncement>();
+    private final Map<DeviceReference, DeviceAnnouncement> devices = new ConcurrentHashMap<DeviceReference, DeviceAnnouncement>();
 
     /**
      * Remove any device announcements that are so old that the device seems to have gone away.
@@ -98,8 +98,8 @@ public class DeviceFinder extends LifecycleParticipant {
     private void expireDevices() {
         long now = System.currentTimeMillis();
         // Make a copy so we don't have to worry about concurrent modification.
-        Map<InetAddress, DeviceAnnouncement> copy = new HashMap<InetAddress, DeviceAnnouncement>(devices);
-        for (Map.Entry<InetAddress, DeviceAnnouncement> entry : copy.entrySet()) {
+        Map<DeviceReference, DeviceAnnouncement> copy = new HashMap<DeviceReference, DeviceAnnouncement>(devices);
+        for (Map.Entry<DeviceReference, DeviceAnnouncement> entry : copy.entrySet()) {
             if (now - entry.getValue().getTimestamp() > MAXIMUM_AGE) {
                 devices.remove(entry.getKey());
                 deliverLostAnnouncement(entry.getValue());
@@ -117,7 +117,7 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     private void updateDevices(DeviceAnnouncement announcement) {
         firstDeviceTime.compareAndSet(0, System.currentTimeMillis());
-        devices.put(announcement.getAddress(), announcement);
+        devices.put(DeviceReference.getDeviceReference(announcement), announcement);
     }
 
     /**
@@ -128,7 +128,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * @return true if this is the first message from this device
      */
     private boolean isDeviceNew(DeviceAnnouncement announcement) {
-        return !devices.containsKey(announcement.getAddress());
+        return !devices.containsKey(DeviceReference.getDeviceReference(announcement));
     }
 
     /**

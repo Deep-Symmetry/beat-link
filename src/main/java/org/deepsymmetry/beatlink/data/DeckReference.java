@@ -34,7 +34,7 @@ public class DeckReference {
     }
 
     /**
-     * Holds all the instances of this class as they get created by the static factory methods.
+     * Holds all the instances of this class as they get created by the static factory method.
      */
     private static final Map<Integer, Map<Integer, DeckReference>> instances =
             new HashMap<Integer, Map<Integer, DeckReference>>();
@@ -47,6 +47,7 @@ public class DeckReference {
      *
      * @return the instance that will always represent a reference to the specified player and hot cue
      */
+    @SuppressWarnings("WeakerAccess")
     public static synchronized DeckReference getDeckReference(int player, int hotCue) {
         Map<Integer, DeckReference> playerMap = instances.get(player);
         if (playerMap == null) {

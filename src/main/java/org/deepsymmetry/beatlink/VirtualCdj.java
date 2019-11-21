@@ -84,7 +84,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Keep track of the most recent updates we have seen, indexed by the address they came from.
      */
-    private final Map<InetAddress, DeviceUpdate> updates = new ConcurrentHashMap<InetAddress, DeviceUpdate>();
+    private final Map<DeviceReference, DeviceUpdate> updates = new ConcurrentHashMap<DeviceReference, DeviceUpdate>();
 
     /**
      * Should we try to use a device number in the range 1 to 4 if we find one is available?
@@ -392,7 +392,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * role from or to another device.
      */
     private void processUpdate(DeviceUpdate update) {
-        updates.put(update.getAddress(), update);
+        updates.put(DeviceReference.getDeviceReference(update), update);
 
         // Keep track of the largest sync number we see.
         if (update instanceof CdjStatus) {
@@ -807,7 +807,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public DeviceUpdate getLatestStatusFor(DeviceUpdate device) {
         ensureRunning();
-        return updates.get(device.getAddress());
+        return updates.get(DeviceReference.getDeviceReference(device));
     }
 
     /**
@@ -825,7 +825,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public DeviceUpdate getLatestStatusFor(DeviceAnnouncement device) {
         ensureRunning();
-        return updates.get(device.getAddress());
+        return updates.get(DeviceReference.getDeviceReference(device));
     }
 
     /**

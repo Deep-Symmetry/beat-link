@@ -6,6 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+### Added
+
+- Support for the XDJ-XZ, which reports multiple devices on a single
+  IP address.
+
 ### Changed
 
 - `tempoChanged` events are no longer sent to the `MasterListener`
