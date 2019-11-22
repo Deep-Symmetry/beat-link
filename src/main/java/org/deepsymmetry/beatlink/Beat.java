@@ -106,7 +106,7 @@ public class Beat extends DeviceUpdate {
     @Override
     public boolean isTempoMaster() {
         DeviceUpdate master = VirtualCdj.getInstance().getTempoMaster();
-        return (master != null) && master.getAddress().equals(address);
+        return (master != null) && master.getAddress().equals(address) && master.getDeviceNumber() == deviceNumber;
     }
 
     /**

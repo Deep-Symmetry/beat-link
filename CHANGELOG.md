@@ -9,7 +9,8 @@ This change log follows the conventions of
 ### Added
 
 - Support for the XDJ-XZ, which reports multiple devices on a single
-  IP address.
+  IP address. This broke assumptions in many places in the code, and
+  required a more sophisticated approach to device matching.
 
 ### Changed
 

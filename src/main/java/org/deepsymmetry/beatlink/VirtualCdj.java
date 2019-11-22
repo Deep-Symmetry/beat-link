@@ -450,7 +450,8 @@ public class VirtualCdj extends LifecycleParticipant {
         } else {
             // This update was not acting as a tempo master; if we thought it should be, update our records.
             DeviceUpdate oldMaster = getTempoMaster();
-            if (oldMaster != null && oldMaster.getAddress().equals(update.getAddress())) {
+            if (oldMaster != null && oldMaster.getAddress().equals(update.getAddress()) &&
+                    oldMaster.getDeviceNumber() == update.getDeviceNumber()) {
                 // This device has resigned master status, and nobody else has claimed it so far
                 setTempoMaster(null);
             }
