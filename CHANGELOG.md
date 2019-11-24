@@ -6,23 +6,33 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far
+
+## [0.6.0] - 2019-11-24
+
 ### Added
 
 - Support for the XDJ-XZ, which reports multiple devices on a single
   IP address. This broke assumptions in many places in the code, and
-  required a more sophisticated approach to device matching.
+  required a more sophisticated approach to device matching. Thanks to
+  patient and detailed reports, experiments, packet captures, and
+  videos from [Teo Tormo](https://djtechtools.com/?s=teo+tormo).
+
+### Fixed
+
+- A [race condition](https://github.com/Deep-Symmetry/beat-link/issues/38)
+  which caused `CrateDigger` to retain incorrect track information when
+  a player was removed from the network while it had a mounted USB, then
+  returned to the network with a different USB, has been resolved. Thanks
+  to [@ben-xo](https://github.com/ben-xo) for discovering and reporting
+  this!
 
 ### Changed
 
 - `tempoChanged` events are no longer sent to the `MasterListener`
   interface when the tempo is meaningless (i.e. the new master has
   no track loaded).
-- Fixed a [race condition](https://github.com/Deep-Symmetry/beat-link/issues/38)
-  which caused `CrateDigger` to retain incorrect track information when
-  a player was removed from the network while it had a mounted USB, then
-  returned to the network with a different USB. Thanks to
-  [@ben-xo](https://github.com/ben-xo)!
-
+  
 ## [0.5.5] - 2019-10-25
 
 ### Fixed
@@ -545,7 +555,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.5...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.5...v0.6.0
 [0.5.5]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.2...v0.5.5
 [0.5.2]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.0...v0.5.1

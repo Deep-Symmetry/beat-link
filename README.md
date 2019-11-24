@@ -12,12 +12,6 @@ for examples of what you can do with this.
 
 [![License](https://img.shields.io/badge/License-Eclipse%20Public%20License%201.0-blue.svg)](#license)
 
-> :construction: beat-link is being worked on very heavily at the
-> moment to incorporate some
-> [amazing new discoveries](https://github.com/Deep-Symmetry/crate-digger).
-> Until that settles down, there may be rapid releases and big changes
-> between releases.
->
 > :warning: Because beat-link grew so much in 0.3.0 (and 0.5.0), it
 > was time to split some classes apart, and even split it into
 > multiple packages, so I also took the opportunity to make some basic
@@ -69,6 +63,48 @@ for maintaining album art caches, and
 [Remote Tea](https://sourceforge.net/projects/remotetea/), so Maven
 is by far your easiest bet, because it will take care of _all_ these
 libraries for you.
+
+## Compatibility
+
+This is in no way a sanctioned implementation of the protocols. It should be clear, but:
+
+> :warning: Use at your own risk! For example, there are reports that
+> the XDJ-RX (and XDJ-RX2) crash when Beat Link starts, so don&rsquo;t use
+> it with one on your network. As Pioneer themselves
+> [explain](https://forums.pioneerdj.com/hc/en-us/community/posts/203113059-xdj-rx-as-single-deck-on-pro-dj-link-),
+> the XDJ-RX does not actually implement the protocol:
+>
+> &ldquo;The LINK on the RX [and RX2] is ONLY for linking to rekordbox
+> on your computer or a router with WiFi to connect rekordbox mobile.
+> It can not exchange LINK data with other CDJs or DJMs.&rdquo;
+
+While these techniques appear to work for us so far, there are many
+gaps in our knowledge, and things could change at any time with new
+releases of hardware or even firmware updates from Pioneer.
+
+:x: You should also not expect to be able to run Beat Link, or
+any project like it, on the same machine that you are running
+rekordbox, because they will compete over access to network ports.
+
+:white_check_mark: Beat Link seems to work great with CDJ-2000
+Nexus gear, and works fairly well (with less information available)
+with older CDJ-2000s. It has also been reported to work with XDJ-1000
+gear, and (starting with version 0.6.0) with the XDJ-XZ as well. If
+you can try it with anything else, *please* let us know what you learn
+in [Beat Link Trigger's Gitter chat
+room](https://gitter.im/brunchboy/beat-link-trigger), or if you have
+worked out actionable details about something that could be improved,
+[open an
+Issue](https://github.com/Deep-Symmetry/beat-link/issues) or
+submit a pull request so we can all improve our understanding
+together.
+
+If something isn&rsquo;t working with your hardware and you don&rsquo;t yet know
+the details why, but are willing to learn a little and help figure it
+out, look at the
+[dysentery project](https://github.com/Deep-Symmetry/dysentery#dysentery),
+which is where we are organizing the research tools and results which
+made programs like Beat Link possible.
 
 ## Usage
 
