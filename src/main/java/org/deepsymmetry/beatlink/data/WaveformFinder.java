@@ -591,9 +591,13 @@ public class WaveformFinder extends LifecycleParticipant {
                 Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
                         client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
-                return new WaveformDetail(new DataReference(slot, rekordboxId), response);
+                if (response.knownType != Message.KnownType.UNAVAILABLE) {
+                    return new WaveformDetail(new DataReference(slot, rekordboxId), response);
+                } else {
+                    logger.info("No color waveform available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.");
+                }
             } catch (Exception e) {
-                logger.info("No color waveform available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.", e);
+                logger.info("Problem requesting color waveform for slot " + slot + ", id " + rekordboxId + "; requesting blue version.", e);
             }
         }
 

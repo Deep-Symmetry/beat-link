@@ -6,7 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far
+### Changed
+
+- No longer log a stack trace for the expected situation of a color
+  waveform being unavailable.
 
 ## [0.6.0] - 2019-11-24
 
