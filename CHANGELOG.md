@@ -6,6 +6,12 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+### Added
+
+- Error messages reported when parsing an ANLZ or EXT file fails now include
+  the path to the file in the source media, to help find it for forensic
+  analysis.
+
 ### Changed
 
 - No longer log a stack trace for the expected situation of a color

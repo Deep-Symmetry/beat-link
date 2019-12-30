@@ -399,6 +399,10 @@ public class CrateDigger {
                         fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
                         return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                     }
+                } catch (Exception e) {  // We can give a more specific error including the file path.
+                    logger.error("Problem parsing analysis file " + trackRow.analyzePath() + " for track " + track + " from database " + database, e);
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
                 } finally {
                     Util.freeNamedLock(filePath);
                 }
@@ -432,18 +436,22 @@ public class CrateDigger {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
                         "track-" + track.rekordboxId + "-anlz.ext");
                 final String filePath = file.getCanonicalPath();
+                final String analyzePath = Database.getText(trackRow.analyzePath());
+                final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
                 try {
                     synchronized (Util.allocateNamedLock(filePath)) {
                         if (file.canRead()) {  // We have already downloaded it.
                             return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                         }
                         file.deleteOnExit();  // Prepare to download it.
-                        final String analyzePath = Database.getText(trackRow.analyzePath());
-                        final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
 
                         fetchFile(track.getSlotReference(), extendedPath, file);
                         return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                     }
+                } catch (Exception e) {  // We can give a more specific error including the file path.
+                    logger.error("Problem parsing extended analysis file " + extendedPath + " for track " + track + " from database " + database, e);
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
                 } finally {
                     Util.freeNamedLock(filePath);
                 }
