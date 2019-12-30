@@ -390,17 +390,18 @@ public class CrateDigger {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
                         "track-" + track.rekordboxId + "-anlz.dat");
                 final String filePath = file.getCanonicalPath();
+                final String analyzePath = Database.getText(trackRow.analyzePath());
                 try {
                     synchronized (Util.allocateNamedLock(filePath)) {
                         if (file.canRead()) {  // We have already downloaded it.
                             return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                         }
                         file.deleteOnExit();  // Prepare to download it.
-                        fetchFile(track.getSlotReference(), Database.getText(trackRow.analyzePath()), file);
+                        fetchFile(track.getSlotReference(), analyzePath, file);
                         return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                     }
                 } catch (Exception e) {  // We can give a more specific error including the file path.
-                    logger.error("Problem parsing analysis file " + trackRow.analyzePath() + " for track " + track + " from database " + database, e);
+                    logger.error("Problem parsing analysis file " + analyzePath + " for track " + track + " from database " + database, e);
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
                 } finally {
