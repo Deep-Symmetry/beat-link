@@ -37,6 +37,11 @@ public abstract class DeviceUpdate {
     final byte[] packetBytes;
 
     /**
+     * Does this appear to come from a pre-nexus CDJ?
+     */
+    final boolean preNexusCdj;
+
+    /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
      *
      * @param packet the device update packet that was received
@@ -53,6 +58,7 @@ public abstract class DeviceUpdate {
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         deviceName = new String(packetBytes, 11, 20).trim();
+        preNexusCdj = deviceName.startsWith("CDJ") && deviceName.endsWith("0");
         deviceNumber = Util.unsign(packetBytes[33]);
     }
 
@@ -81,6 +87,18 @@ public abstract class DeviceUpdate {
      */
     public String getDeviceName() {
         return deviceName;
+    }
+
+    /**
+     * Check whether this packet seems to have come from a CDJ older
+     * than the original Nexus series (which means, for example, that
+     * beat numbers will not be available, so the {@link org.deepsymmetry.beatlink.data.TimeFinder}
+     * can't work with it.
+     *
+     * @return {@code true} if the device name starts with "CDJ" and ends with "0".
+     */
+    public boolean isPreNexusCdj() {
+        return preNexusCdj;
     }
 
     /**

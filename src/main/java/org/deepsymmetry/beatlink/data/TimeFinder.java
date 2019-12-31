@@ -526,20 +526,19 @@ public class TimeFinder extends LifecycleParticipant {
                 if (beatGrid != null) {
                     TrackPositionUpdate lastPosition = positions.get(beat.getDeviceNumber());
                     int beatNumber;
-                    boolean definitive;
                     if (lastPosition == null || lastPosition.beatGrid != beatGrid) {
-                        // Crazy! We somehow got a beat before any other status update from the player. We have
-                        // to assume it was the first beat of the track, we will recover soon.
-                        beatNumber = 1;
-                        definitive = false;
+                        // We don’t handle beat packets received before any status packets for the player. This will
+                        // probably never happen except in cases where we can't use the status packets because the
+                        // player is a pre-nexus model that does not send beat numbers, so we don't want to be tricked
+                        // into guessing a position for that player based on no valid information.
+                        return;
                     } else {
                         beatNumber = Math.min(lastPosition.beatNumber + 1, beatGrid.beatCount);  // Handle loop at end
-                        definitive = true;
                     }
 
                     // We know the player is playing forward because otherwise we don't get beats.
                     final TrackPositionUpdate newPosition = new TrackPositionUpdate(beat.getTimestamp(),
-                            timeOfBeat(beatGrid, beatNumber, beat), beatNumber, definitive, true,
+                            timeOfBeat(beatGrid, beatNumber, beat), beatNumber, true, true,
                             Util.pitchToMultiplier(beat.getPitch()), false, beatGrid);
                     positions.put(beat.getDeviceNumber(), newPosition);
                     updateListenersIfNeeded(beat.getDeviceNumber(), newPosition, beat);

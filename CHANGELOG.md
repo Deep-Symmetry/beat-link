@@ -6,11 +6,20 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+### Fixed
+
+- The TimeFinder is no longer tricked by beat packets from pre-nexus
+  players into thinking that it might know where in the track that
+  player is. Track position detection is only possible with nexus and
+  later hardware, because only they report beat numbers.
+
 ### Added
 
 - Error messages reported when parsing an ANLZ or EXT file fails now include
   the path to the file in the source media, to help find it for forensic
   analysis.
+- A flag on the DeviceUpdate class that indicates whether it seems to
+  have been sent by a pre-nexus player (CDJ-900 or CDJ-2000).
 
 ### Changed
 
