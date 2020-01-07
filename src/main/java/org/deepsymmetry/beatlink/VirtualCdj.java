@@ -628,7 +628,8 @@ public class VirtualCdj extends LifecycleParticipant {
                         // Don't log a warning if the exception was due to the socket closing at shutdown.
                         if (isRunning()) {
                             // We did not expect to have a problem; log a warning and shut down.
-                            logger.warn("Problem reading from DeviceStatus socket, stopping", e);
+                            logger.warn("Problem reading from DeviceStatus socket, flushing DeviceFinder due to likely network change and shutting down.", e);
+                            DeviceFinder.getInstance().flush();
                             stop();
                         }
                         received = false;
@@ -769,7 +770,8 @@ public class VirtualCdj extends LifecycleParticipant {
             socket.get().send(announcement);
             Thread.sleep(getAnnounceInterval());
         } catch (Throwable t) {
-            logger.warn("Unable to send announcement packet, shutting down", t);
+            logger.warn("Unable to send announcement packet, flushing DeviceFinder due to likely network change and shutting down.", t);
+            DeviceFinder.getInstance().flush();
             stop();
         }
     }

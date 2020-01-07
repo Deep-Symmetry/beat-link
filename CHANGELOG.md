@@ -12,6 +12,14 @@ This change log follows the conventions of
   players into thinking that it might know where in the track that
   player is. Track position detection is only possible with nexus and
   later hardware, because only they report beat numbers.
+- When the VirtualCdj is forced to shut down because of apparent network
+  changes, it now also flushes the DeviceFinder’s list of known DJ Link
+  devices, because they are probably no longer reachable. This will allow
+  for immediate recovery attempts by telling the VirtualCdj to restart
+  itself (without this change, restarting it within ten seconds or so
+  would fail because it would complain about being unable to communicate
+  with the ghost devices on a no-longer reachable network, until they
+  disappeared due to lack of recent packets).
 
 ### Added
 

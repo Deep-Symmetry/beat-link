@@ -245,26 +245,36 @@ public class DeviceFinder extends LifecycleParticipant {
     }
 
     /**
+     * Discard any knowledge we have about current devices. Called when shutting down, and also by the
+     * {@link VirtualCdj} when it believes the network has changed in a way that makes them no longer
+     * reachable.
+     */
+    synchronized void flush() {
+        final Set<DeviceAnnouncement> lastDevices = new HashSet<DeviceAnnouncement>(devices.values());
+        devices.clear();
+        firstDeviceTime.set(0);
+
+        // Report the loss of all our devices, on the proper thread, also outside our lock.
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                for (DeviceAnnouncement announcement : lastDevices) {
+                    deliverLostAnnouncement(announcement);
+                }
+            }
+        });
+    }
+
+    /**
      * Stop listening for device announcements. Also discard any announcements which had been received, and
      * notify any registered listeners that those devices have been lost.
      */
     @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
-            final Set<DeviceAnnouncement> lastDevices = getCurrentDevices();
             socket.get().close();
             socket.set(null);
-            devices.clear();
-            firstDeviceTime.set(0);
-            // Report the loss of all our devices, on the proper thread, outside our lock
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (DeviceAnnouncement announcement : lastDevices) {
-                        deliverLostAnnouncement(announcement);
-                    }
-                }
-            });
+            flush();
             deliverLifecycleAnnouncement(logger, false);
         }
     }
