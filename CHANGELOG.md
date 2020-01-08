@@ -52,6 +52,12 @@ This change log follows the conventions of
   returned to the network with a different USB, has been resolved. Thanks
   to [@ben-xo](https://github.com/ben-xo) for discovering and reporting
   this!
+- Players report themselves as stopped when they reach the end of the
+  track playing forwards, but they don't when they reach the start
+  playing backwards. This caused weird display in the Player Status
+  window, and weird generated time code with expressions. The
+  `TimeFinder` now compensates for this buggy behavior by reporting
+  playback as stopped when it is stuck at 0 milliseconds.
 
 ### Changed
 

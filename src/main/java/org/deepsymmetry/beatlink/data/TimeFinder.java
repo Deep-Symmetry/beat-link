@@ -228,7 +228,7 @@ public class TimeFinder extends LifecycleParticipant {
         long elapsedMillis = (newDeviceUpdate.getTimestamp() - lastTrackUpdate.timestamp) / 1000000;
         long moved = Math.round(lastTrackUpdate.pitch * elapsedMillis);
         long interpolated = (lastTrackUpdate.reverse)?
-                (lastTrackUpdate.milliseconds - moved) : lastTrackUpdate.milliseconds + moved;
+                Math.max(lastTrackUpdate.milliseconds - moved, 0) : lastTrackUpdate.milliseconds + moved;
         if (Math.abs(beatGrid.findBeatAtTime(interpolated) - beatNumber) < 2) {
             return interpolated;  // Our calculations still look plausible
         }
@@ -450,11 +450,15 @@ public class TimeFinder extends LifecycleParticipant {
                                     Util.pitchToMultiplier(update.getPitch()),
                                     ((CdjStatus) update).isPlayingBackwards(), beatGrid);
                         } else {
-                            newPosition = new TrackPositionUpdate(update.getTimestamp(),
-                                    interpolateTimeFromUpdate(lastPosition, (CdjStatus) update, beatGrid),
-                                    beatNumber, false, ((CdjStatus) update).isPlaying(),
-                                    Util.pitchToMultiplier(update.getPitch()),
-                                    ((CdjStatus) update).isPlayingBackwards(), beatGrid);
+                            final long newTime = interpolateTimeFromUpdate(lastPosition, (CdjStatus) update, beatGrid);
+                            final boolean newReverse = ((CdjStatus) update).isPlayingBackwards();
+                            // Although the players report themselves stopped when they hit the end of the track playing forward,
+                            // they don't do that when they hit the beginning playing backward! That makes for weird timecode and
+                            // track waveform positioning, so we make up for it by synthesizing a stopped state here.
+                            final boolean newPlaying = ((CdjStatus) update).isPlaying() && (!newReverse || newTime > 0);
+                            newPosition = new TrackPositionUpdate(update.getTimestamp(), newTime, beatNumber,
+                                    false, newPlaying, Util.pitchToMultiplier(update.getPitch()),
+                                    newReverse, beatGrid);
                         }
                         if (lastPosition == null) {
                             done = (positions.putIfAbsent(update.getDeviceNumber(), newPosition) == null);
