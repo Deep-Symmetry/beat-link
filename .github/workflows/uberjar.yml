@@ -1,0 +1,65 @@
+name: Create überjar and native installers
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  bl_name: Beat Link
+  bl_copyright: © 2016-2020 Deep Symmetry, LLC
+  bl_description: Trigger events and automate shows in response to events on Pioneer CDJs
+  bl_vendor: Deep Symmetry, LLC
+
+jobs:
+  build_uberjar:
+    name: Build cross-platform überjar
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+
+      - uses: Deep-Symmetry/github-version-action@v1
+
+      - name: Determine release tag, überjar name, and snapshot status
+        run: |
+          RELEASE_TAG=$(git describe --abbrev=0)
+          echo "::set-env name=release_tag::$RELEASE_TAG"
+          echo "::set-env name=uberjar_name::beat-link-trigger-$git_version.jar"
+          if [[ $RELEASE_TAG =~ .*-SNAPSHOT ]]
+          then
+            echo "::set-env name=release_snapshot::true"
+          else
+            echo "::set-env name=release_snapshot::false"
+          fi
+      - name: Cache Leiningen dependencies
+        uses: actions/cache@v1
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-lein-${{ hashFiles('**/project.clj') }}
+          restore-keys: |
+            ${{ runner.os }}-lein-
+      - name: Install dependencies
+        run: lein deps
+
+      - name: Install antora
+        run: sudo npm i -g @antora/cli @antora/site-generator-default
+
+      - name: Build überjar
+        run: |
+          lein uberjar
+          mv target/beat-link-trigger.jar "./$uberjar_name"
+      - name: Upload überjar
+        if: success()
+        uses: Xotl/cool-github-releases@v1
+        with:
+          mode: update
+          tag_name: ${{ env.release_tag }}
+          isPrerelease: true
+          assets: ${{ env.uberjar_name }}
+          github_token: ${{ github.token }}
