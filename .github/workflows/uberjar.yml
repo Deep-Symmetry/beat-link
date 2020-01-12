@@ -5,15 +5,9 @@ on:
     branches:
       - master
 
-env:
-  bl_name: Beat Link
-  bl_copyright: © 2016-2020 Deep Symmetry, LLC
-  bl_description: Trigger events and automate shows in response to events on Pioneer CDJs
-  bl_vendor: Deep Symmetry, LLC
-
 jobs:
-  build_uberjar:
-    name: Build cross-platform überjar
+  build_jar:
+    name: Build library jar
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
 
@@ -30,30 +24,29 @@ jobs:
         run: |
           RELEASE_TAG=$(git describe --abbrev=0)
           echo "::set-env name=release_tag::$RELEASE_TAG"
-          echo "::set-env name=uberjar_name::beat-link-trigger-$git_version.jar"
+          echo "::set-env name=jar_name::target/beat-link-$git_version.jar"
           if [[ $RELEASE_TAG =~ .*-SNAPSHOT ]]
           then
             echo "::set-env name=release_snapshot::true"
           else
             echo "::set-env name=release_snapshot::false"
           fi
-      - name: Cache Leiningen dependencies
+
+      - name: Cache Maven dependencies
         uses: actions/cache@v1
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-lein-${{ hashFiles('**/project.clj') }}
+          key: ${{ runner.os }}-mvn-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
-            ${{ runner.os }}-lein-
-      - name: Install dependencies
-        run: lein deps
+            ${{ runner.os }}-mvn-
 
-      - name: Install antora
-        run: sudo npm i -g @antora/cli @antora/site-generator-default
+      - name: Install dependencies and compile
+        run: mvn compile
 
-      - name: Build überjar
+      - name: Build library jar
         run: |
-          lein uberjar
-          mv target/beat-link-trigger.jar "./$uberjar_name"
+          mvn package
+
       - name: Upload überjar
         if: success()
         uses: Xotl/cool-github-releases@v1
@@ -61,5 +54,5 @@ jobs:
           mode: update
           tag_name: ${{ env.release_tag }}
           isPrerelease: true
-          assets: ${{ env.uberjar_name }}
+          assets: ${{ env.jar_name }}
           github_token: ${{ github.token }}
