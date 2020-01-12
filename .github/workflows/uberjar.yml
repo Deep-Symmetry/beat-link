@@ -1,4 +1,4 @@
-name: Create überjar and native installers
+name: Create library jar
 
 on:
   push:
