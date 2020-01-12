@@ -58,7 +58,13 @@
         <dependency>
             <groupId>org.deepsymmetry</groupId>
             <artifactId>crate-digger</artifactId>
-            <version>0.1.2</version>
+            <version>0.1.3-SNAPSHOT</version>
+        </dependency>
+        <!-- Kaitai Struct Compiler runtime for Java, since we refer to parts of it directly -->
+        <dependency>
+            <groupId>io.kaitai</groupId>
+            <artifactId>kaitai-struct-runtime</artifactId>
+            <version>0.8</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

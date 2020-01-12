@@ -652,6 +652,21 @@ public class CueList {
     }
 
     /**
+     * Attempt to load a color byte from the end of an extended cue entry. Since these are sometimes missing, will
+     * return 0 when asked for a value past the end of the entry.
+     *
+     * @param entryBytes the bytes of the extended cue entry
+     * @param address the index of the byte that might hold color information
+     * @return the unsigned byte value found at the specified location, or 0 if it was past the end of the entry.
+     */
+    private int safelyFetchColorByte(byte[] entryBytes, int address) {
+        if (address < entryBytes.length) {
+            return Util.unsign(entryBytes[address]);
+        }
+        return 0;
+    }
+
+    /**
      * Parse the memory points, loops, and hot cues from an extended nxs2 style cue list response
      *
      * @param message the response holding the cue list information
@@ -683,10 +698,10 @@ public class CueList {
                 }
 
                 // See if there is a color.
-                final int colorCode = Util.unsign(entryBytes[offset + commentSize + 0x4e]);
-                final int red = Util.unsign(entryBytes[offset + commentSize + 0x4f]);
-                final int green = Util.unsign(entryBytes[offset + commentSize + 0x50]);
-                final int blue = Util.unsign(entryBytes[offset + commentSize + 0x51]);
+                final int colorCode = safelyFetchColorByte(entryBytes, offset + commentSize + 0x4e);
+                final int red = safelyFetchColorByte(entryBytes, offset + commentSize + 0x4f);
+                final int green = safelyFetchColorByte(entryBytes, offset + commentSize + 0x50);
+                final int blue = safelyFetchColorByte(entryBytes, offset + commentSize + 0x51);
                 final Color rekordboxColor = findRekordboxColor(colorCode);
                 final Color expectedColor = expectedEmbeddedColor(colorCode);
                 final Color embeddedColor = (red == 0 && green == 0 && blue == 0)? null : new Color(red, green, blue);

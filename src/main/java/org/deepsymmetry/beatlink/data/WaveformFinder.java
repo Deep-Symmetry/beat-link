@@ -488,11 +488,14 @@ public class WaveformFinder extends LifecycleParticipant {
                 Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
                         client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_PREVIEW), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
-                return new WaveformPreview(new DataReference(slot, rekordboxId), response);
+                if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
+                    return new WaveformPreview(new DataReference(slot, rekordboxId), response);
+                } else {
+                    logger.info("No color waveform preview available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.");
+                }
             } catch (Exception e) {
                 logger.info("No color waveform preview available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.", e);
             }
-
         }
 
         Message response = client.simpleRequest(Message.KnownType.WAVE_PREVIEW_REQ, Message.KnownType.WAVE_PREVIEW,
@@ -591,7 +594,7 @@ public class WaveformFinder extends LifecycleParticipant {
                 Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
                         client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
-                if (response.knownType != Message.KnownType.UNAVAILABLE) {
+                if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformDetail(new DataReference(slot, rekordboxId), response);
                 } else {
                     logger.info("No color waveform available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.");

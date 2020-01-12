@@ -8,31 +8,37 @@ This change log follows the conventions of
 
 ### Fixed
 
-- The TimeFinder is no longer tricked by beat packets from pre-nexus
+- The `TimeFinder` is no longer tricked by beat packets from pre-nexus
   players into thinking that it might know where in the track that
   player is. Track position detection is only possible with nexus and
   later hardware, because only they report beat numbers.
-- When the VirtualCdj is forced to shut down because of apparent network
-  changes, it now also flushes the DeviceFinder’s list of known DJ Link
+- When the `VirtualCdj` is forced to shut down because of apparent network
+  changes, it now also flushes the `DeviceFinder`’s list of known DJ Link
   devices, because they are probably no longer reachable. This will allow
-  for immediate recovery attempts by telling the VirtualCdj to restart
+  for immediate recovery attempts by telling the `VirtualCdj` to restart
   itself (without this change, restarting it within ten seconds or so
   would fail because it would complain about being unable to communicate
   with the ghost devices on a no-longer reachable network, until they
   disappeared due to lack of recent packets).
+- The `crate-digger` library was updated to fix a misunderstanding of the
+  structure of cue list entries which could crash the parser.
+- Our own parsing of cue list entries fetched using the `dbserver`
+  protocol is now robust against missing color bytes, which also seems
+  to happen in the wild.
 
 ### Added
 
 - Error messages reported when parsing an ANLZ or EXT file fails now include
   the path to the file in the source media, to help find it for forensic
-  analysis.
+  analysis. This enabled the `crate-digger` fix mentioned above.
 - A flag on the DeviceUpdate class that indicates whether it seems to
   have been sent by a pre-nexus player (CDJ-900 or CDJ-2000).
 
 ### Changed
 
 - No longer log a stack trace for the expected situation of a color
-  waveform being unavailable.
+  waveform (or waveform preview) being unavailable. Also handle the
+  case where it is reported available, but has zero size.
 
 ## [0.6.0] - 2019-11-24
 
