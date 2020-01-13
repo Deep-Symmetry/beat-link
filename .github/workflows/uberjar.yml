@@ -24,7 +24,7 @@ jobs:
         run: |
           RELEASE_TAG=$(git describe --abbrev=0)
           echo "::set-env name=release_tag::$RELEASE_TAG"
-          echo "::set-env name=jar_name::target/beat-link-$git_version.jar"
+          echo "::set-env name=jar_name::beat-link-$git_version.jar"
           if [[ $RELEASE_TAG =~ .*-SNAPSHOT ]]
           then
             echo "::set-env name=release_snapshot::true"
@@ -46,6 +46,7 @@ jobs:
       - name: Build library jar
         run: |
           mvn package
+          mv target/beat-link-${release_tag#v}.jar ./$jar_name
 
       - name: Upload überjar
         if: success()
