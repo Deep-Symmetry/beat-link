@@ -48,7 +48,7 @@ jobs:
           mvn package
           mv target/beat-link-${release_tag#v}.jar ./$jar_name
 
-      - name: Upload überjar
+      - name: Upload library jar
         if: success()
         uses: Xotl/cool-github-releases@v1
         with:
