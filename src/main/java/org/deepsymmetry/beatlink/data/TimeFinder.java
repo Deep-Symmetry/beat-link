@@ -26,7 +26,8 @@ public class TimeFinder extends LifecycleParticipant {
     private static final Logger logger = LoggerFactory.getLogger(TimeFinder.class);
 
     /**
-     * Keeps track of the latest position information we have from each player, indexed by player number.
+     * Keeps track of the latest position information we have from each player, indexed by player number. When nothing
+     * is known for a player, the entry will be missing.
      */
     private final ConcurrentHashMap<Integer, TrackPositionUpdate> positions = new ConcurrentHashMap<Integer, TrackPositionUpdate>();
 
@@ -273,7 +274,8 @@ public class TimeFinder extends LifecycleParticipant {
     /**
      * Keeps track of the listeners that have registered interest in closely following track playback for a particular
      * player. The keys are the listener interface, and the values are the last update that was sent to that
-     * listener.
+     * listener. If no information was known during the last update, the special value {@link #NO_INFORMATION} is
+     * used to represent it, rather than trying to store a {@code null} value in the hash map.
      */
     private final ConcurrentHashMap<TrackPositionListener, TrackPositionUpdate> trackPositionListeners =
             new ConcurrentHashMap<TrackPositionListener, TrackPositionUpdate>();
@@ -296,18 +298,21 @@ public class TimeFinder extends LifecycleParticipant {
      * as soon as there is an initial {@link TrackPositionUpdate} for the specified player, and whenever there is an
      * unexpected change in playback position, speed, or state on that player.
      *
+     * To help the listener orient itself, it is sent a {@link TrackPositionListener#movementChanged(TrackPositionUpdate)}
+     * message immediately upon registration to report the current playback position, even if none is known (in which
+     * case it will be called with the value {@code null}.
+     *
+     * If the same listener was previously registered (for example, to listen to a different player), this call
+     * replaces the former registration with the new one.
+     *
      * @param player the player number that the listener is interested in
      * @param listener the interface that will be called when there are changes in track playback on the player
      */
     public void addTrackPositionListener(int player, TrackPositionListener listener) {
         listenerPlayerNumbers.put(listener, player);
         TrackPositionUpdate currentPosition = positions.get(player);
-        if (currentPosition !=  null) {
-            listener.movementChanged(currentPosition);
-            trackPositionListeners.put(listener, currentPosition);
-        } else {
-            trackPositionListeners.put(listener, NO_INFORMATION);
-        }
+        trackPositionListeners.put(listener, currentPosition == null? NO_INFORMATION : currentPosition);
+        listener.movementChanged(currentPosition);  // If this throws an exception, the caller will catch it.
     }
 
     /**

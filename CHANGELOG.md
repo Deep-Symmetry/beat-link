@@ -49,6 +49,11 @@ This change log follows the conventions of
   required a more sophisticated approach to device matching. Thanks to
   patient and detailed reports, experiments, packet captures, and
   videos from [Teo Tormo](https://djtechtools.com/?s=teo+tormo).
+- The `TrackPositionListener` now always sends an initial track
+  position update to newly registered listeners, even if the update
+  is `null` (meaning nothing is known) to help them get initialized.
+  This is especially useful if their registration is being moved to
+  a different player.
 
 ### Fixed
 
