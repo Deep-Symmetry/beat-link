@@ -20,7 +20,7 @@ for examples of what you can do with this.
 > 0.5.0 are not API-compatible with prior releases, and any code which
 > compiled against an old release will require some rewriting.
 >
-> :octocat: Since, as far as I know, I am still the only consumer of
+> :octocat: Since, as far as I know, I was still the only consumer of
 > this API, this seemed like a good time to make these breaking
 > changes. If you are using it and want me to slow down, get in touch!
 
