@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.DatagramPacket;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represents a status update sent by a CDJ (or perhaps other player) on a DJ Link network.
@@ -559,7 +560,18 @@ public class CdjStatus extends DeviceUpdate {
      * Contains the sizes we expect CDJ status packets to have so we can log a warning if we get an unusual
      * one. We will then add the new size to the list so it only gets logged once per run.
      */
-    private static final Set<Integer> expectedStatusPacketSizes = new HashSet<Integer>(Arrays.asList(0xd0, 0xd4, 0x11c, 0x124));
+    private static final Set<Integer> expectedStatusPacketSizes = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    static {
+        expectedStatusPacketSizes.addAll(Arrays.asList(0xd0, 0xd4, 0x11c, 0x124));
+    }
+
+    /**
+     * It turns out that some players, notably the XDJ-1000, send status packets which report one payload size but
+     * actually have a different payload size. I know, right? This keeps track of such combinations (the reported
+     * size, a comma, and the actual size), so we can report it just once and don’t fill up the log file with endless
+     * copies or the same warning.
+     */
+    private static final Set<String> misreportedPacketSizes = Collections.newSetFromMap(new HashMap<String, Boolean>());
 
     /**
      * The smallest packet size from which we can be constructed. Anything less than this and we are missing
@@ -581,14 +593,18 @@ public class CdjStatus extends DeviceUpdate {
         }
 
         final int payloadLength = (int)Util.bytesToNumber(packetBytes, 0x22, 2);
-        if (packetBytes.length != payloadLength + 0x24) {
-            logger.warn("Received CDJ status packet with reported payload length of " + payloadLength + " and actual payload length of " +
-                    (packetBytes.length - 0x24));
+        final int reportedPacketSize = payloadLength + 0x24;
+        if (packetBytes.length != reportedPacketSize) {
+            final String reportedKey = reportedPacketSize + "," + packetBytes.length;
+            if (misreportedPacketSizes.add(reportedKey)) {
+                logger.warn("Received CDJ status packet with reported payload length of " + payloadLength + " and actual payload length of " +
+                        (packetBytes.length - 0x24));
+
+            }
         }
 
-        if (!expectedStatusPacketSizes.contains(packetBytes.length)) {
+        if (expectedStatusPacketSizes.add(packetBytes.length)) {
             logger.warn("Processing CDJ Status packets with unexpected lengths " + packetBytes.length + ".");
-            expectedStatusPacketSizes.add(packetBytes.length);
         }
         trackSourcePlayer = packetBytes[40];
         trackSourceSlot = findTrackSourceSlot();

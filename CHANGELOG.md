@@ -39,6 +39,10 @@ This change log follows the conventions of
 - No longer log a stack trace for the expected situation of a color
   waveform (or waveform preview) being unavailable. Also handle the
   case where it is reported available, but has zero size.
+- Because the XDJ-1000 seems to calculate the payload size value for
+  its status packets incorrectly (subtracting the header size twice)
+  we now only report that one time, to stop flooding the logs with
+  warnings for each status packet received.
 
 ## [0.6.0] - 2019-11-24
 
