@@ -24,6 +24,7 @@ jobs:
           RELEASE_TAG="v$PROJECT_VERSION"
           HUMAN_VERSION=${PROJECT_VERSION/SNAPSHOT/Preview}
           echo "::set-env name=release_tag::$RELEASE_TAG"
+          echo "::set-env name=release_name::$PROJECT_VERSION"
           echo "::set-env name=jar_name::beat-link-$HUMAN_VERSION.jar"
           if [[ $RELEASE_TAG =~ .*-SNAPSHOT ]]
           then
@@ -54,6 +55,7 @@ jobs:
         with:
           mode: update
           tag_name: ${{ env.release_tag }}
+          release_name: ${{ env.release_name }}
           isPrerelease: true
           replace_assets: ${{ env.release_snapshot }}
           assets: ${{ env.jar_name }}
