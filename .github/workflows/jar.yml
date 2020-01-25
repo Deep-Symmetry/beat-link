@@ -69,7 +69,7 @@ jobs:
           replace_assets: ${{ env.release_snapshot }}
           assets: ${{ env.artifact_name }}
           github_token: ${{ github.token }}
-  <        initial_mrkdwn: ${{ env.initial_description }}
+          initial_mrkdwn: ${{ env.initial_description }}
 
   succeed_if_skipped:
     name: Skipping CI
