@@ -5,6 +5,14 @@ on:
     branches:
       - master
 
+env:
+  initial_description: |
+    :construction: This is pre-release code for people who want to help test [what is going into the next release](https://github.com/Deep-Symmetry/beat-link/blob/master/CHANGELOG.md).
+
+    > Don’t download this if you aren’t comfortable testing code while it is under active development! Instead, look at the [latest release](https:///github.com/Deep-Symmetry/beat-link/releases/latest).
+
+    Please note that since it’s a snapshot release, the library jar below (you may need to click to expand the Assets) will change frequently—whenever new code is pushed to the project—so you will want to _download the latest version every time you work with it_.
+
 jobs:
   build_jar:
     name: Build library jar
@@ -25,7 +33,8 @@ jobs:
           HUMAN_VERSION=${PROJECT_VERSION/SNAPSHOT/Preview}
           echo "::set-env name=release_tag::$RELEASE_TAG"
           echo "::set-env name=release_name::$PROJECT_VERSION"
-          echo "::set-env name=jar_name::beat-link-$HUMAN_VERSION.jar"
+          echo "::set-env name=built_name::beat-link-$PROJECT_VERSION.jar"
+          echo "::set-env name=artifact_name::beat-link-$HUMAN_VERSION.jar"
           if [[ $RELEASE_TAG =~ .*-SNAPSHOT ]]
           then
             echo "::set-env name=release_snapshot::true"
@@ -47,7 +56,7 @@ jobs:
       - name: Build library jar
         run: |
           mvn package
-          mv target/beat-link-${release_tag#v}.jar ./$jar_name
+          mv target/$built_name ./$artifact_name
 
       - name: Upload library jar
         if: success()
@@ -58,8 +67,9 @@ jobs:
           release_name: ${{ env.release_name }}
           isPrerelease: true
           replace_assets: ${{ env.release_snapshot }}
-          assets: ${{ env.jar_name }}
+          assets: ${{ env.artifact_name }}
           github_token: ${{ github.token }}
+  <        initial_mrkdwn: ${{ env.initial_description }}
 
   succeed_if_skipped:
     name: Skipping CI
