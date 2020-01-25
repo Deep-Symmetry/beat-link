@@ -57,6 +57,8 @@ put it on your project&rsquo;s class path, along with
 [`slf4j-api.jar`](http://www.slf4j.org/download.html) and the slf4j
 binding to the logging framework you would like to use.
 
+![Create library jar](https://github.com/Deep-Symmetry/beat-link/workflows/Create%20library%20jar/badge.svg)
+
 You will also need
 [ConcurrentLinkedHashMap](https://github.com/ben-manes/concurrentlinkedhashmap)
 for maintaining album art caches, and
