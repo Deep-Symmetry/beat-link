@@ -10,7 +10,7 @@ See
 [beat-carabiner](https://github.com/Deep-Symmetry/beat-carabiner)
 for examples of what you can do with this.
 
-[![License](https://img.shields.io/badge/License-Eclipse%20Public%20License%201.0-blue.svg)](#license)
+[![License](https://img.shields.io/badge/License-Eclipse%20Public%20License%201.0-blue.svg)](#licenses)
 
 > :warning: Because beat-link grew so much in 0.3.0 (and 0.5.0), it
 > was time to split some classes apart, and even split it into
@@ -407,7 +407,7 @@ To illustrate the kind of interface that you can now put
 together from the elements offered by Beat Link, here is the Player
 Status window from Beat Link Trigger:
 
-<image src="assets/PlayerStatus.png" alt="Player Status window" width="538">
+<img src="assets/PlayerStatus.png" alt="Player Status window" width="538">
 
 ### Media Details
 
