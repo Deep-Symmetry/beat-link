@@ -6,6 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+
+## [0.6.1] - 2020-02-09
+
 ### Fixed
 
 - The `TimeFinder` is no longer tricked by beat packets from pre-nexus
@@ -602,7 +607,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.5...v0.6.0
 [0.5.5]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.2...v0.5.5
 [0.5.2]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.1...v0.5.2
