@@ -6,7 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Fixed
+
+- The interpretation of byte `0x37` in the CDJ status packet has been
+  updated, which forced fixes of the `isDiscSlotEmpty()` and
+  `getDiscTrackCount()` methods in `CdjStatus`.
 
 
 ## [0.6.1] - 2020-02-09

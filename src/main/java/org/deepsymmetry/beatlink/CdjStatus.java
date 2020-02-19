@@ -823,11 +823,13 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Is disc media absent from this particular CDJ? Also returns {@code true} if the CD drive has powered off
      * from being unused for too long, in which case {@link #isDiscSlotAsleep()} will also return {@code true}.
+     * Note that it's not really accurate to call the slot “empty” because it might still have a disc in it, but
+     * it is unmounted when the player is using a playlist or menu of tracks loaded from somewhere else.
      *
      * @return true if there is no disc mounted or the disc drive has powered off
      */
     public boolean isDiscSlotEmpty() {
-        return (packetBytes[0x37] == 0) || isDiscSlotAsleep();
+        return (packetBytes[0x37] != 0x1e) && (packetBytes[0x37] != 0x11);
     }
 
     /**
@@ -841,15 +843,16 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * How many tracks are on the mounted disc? Audio CDs will reflect the audio track count, while data discs
+     * How many tracks are on the mounted disc (or in the playlist or player menu from which the current track was loaded)?
+     * Audio CDs will reflect the audio track count, while data discs
      * will generally have one track regardless of how many usable audio files they contain when mounted. Also,
-     * if the CD drive has powered off because of an extended period of not being used, this seems to return 1
-     * (you can check for that condition by calling {@link #isDiscSlotAsleep()}.
+     * if the CD drive has powered off because of an extended period of not being used, when a track had been loaded
+     * from that disc, this seems to return 1 (you can check for that condition by calling {@link #isDiscSlotAsleep()}.
      *
-     * @return the number of tracks found on the mounted disc, or zero if no disc is mounted.
+     * @return the number of tracks found on the mounted disc or loaded playlist/player menu, or zero if no disc is mounted nor is a playlist/menu in use
      */
     public int getDiscTrackCount() {
-        return Util.unsign(packetBytes[0x47]);
+        return (int)Util.bytesToNumber(packetBytes, 0x46, 2);
     }
 
     /**

@@ -8,6 +8,11 @@ import java.net.DatagramPacket;
  * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
  * as long as the Virtual CDJ is active.
  *
+ * They also provide information about the timing of a variety upcoming beats and bars, which would be helpful
+ * for implementing Sync in a player, but since the full {@link org.deepsymmetry.beatlink.data.BeatGrid} can be
+ * used for that purpose just as well, access has not been provided to those values. If they would be useful to
+ * you, please open an Issue.
+ *
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
