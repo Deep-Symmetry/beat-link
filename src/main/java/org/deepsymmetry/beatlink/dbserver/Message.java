@@ -12,7 +12,7 @@ import java.util.*;
 /**
  * <p>Encapsulates a full dbserver message, made up of a list of {@link Field} objects,
  * and having a particular structure, as described in the
- * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis</a> paper.</p>
+ * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/track_metadata.html#messages">Packet Analysis</a> document.</p>
  *
  * <p>Known message types are found in {@link Message.KnownType}. Many requests return a series of messages that
  * represent menu items; the known versions of these are reflected in {@link Message.MenuItemType}.</p>

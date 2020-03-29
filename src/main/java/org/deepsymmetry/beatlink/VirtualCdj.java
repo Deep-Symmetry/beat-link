@@ -190,8 +190,8 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Used to construct the announcement packet we broadcast in order to participate in the DJ Link network.
      * Some of these bytes are fixed, some get replaced by things like our device name and number, MAC address,
-     * and IP address, as described in Figure 8 in the
-     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * and IP address, as described in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-keep-alive">Packet Analysis document</a>.
      */
     private static final byte[] announcementBytes = {
             0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x06, 0x00,  0x62, 0x65, 0x61, 0x74,

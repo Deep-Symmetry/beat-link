@@ -67,8 +67,8 @@ public class WaveformDetail {
     /**
      * Get the raw bytes of the waveform detail data
      *
-     * @return the bytes from which the detail can be drawn, as described in Section 5.8 of the
-     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * @return the bytes from which the detail can be drawn, as described in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/track_metadata.html#_detailed_waveforms">Packet Analysis document</a>.
      */
     public ByteBuffer getData() {
         detailBuffer.rewind();
