@@ -11,6 +11,18 @@ This change log follows the conventions of
 - The interpretation of byte `0x37` in the CDJ status packet has been
   updated, which forced fixes of the `isDiscSlotEmpty()` and
   `getDiscTrackCount()` methods in `CdjStatus`.
+- An update to Crate Digger avoids crashes when trying to parse track
+  analysis files created with mal-formed vestigial waveform preview
+  tags.
+- Links in the JavaDoc now directly take you to the relevant sections
+  of the new Antora documentation site that replaced the old PDF
+  protocol analysis document.
+
+### Added
+
+- Another bit has been explained in the main `CdjStatus` flags byte:
+  we can now tell when a DJ has forced a player into degraded BPM-only
+  sync mode (by nudging the jog wheel of a synced player).
 
 
 ## [0.6.1] - 2020-02-09

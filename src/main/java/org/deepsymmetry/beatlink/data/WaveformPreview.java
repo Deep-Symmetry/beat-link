@@ -153,8 +153,8 @@ public class WaveformPreview {
             }
             if (section.body() instanceof RekordboxAnlz.WavePreviewTag) {
                 RekordboxAnlz.WavePreviewTag tag = (RekordboxAnlz.WavePreviewTag) section.body();
-                if (tag.lenPreview() < 400) {
-                    continue;  // We want to ignore the tiny previews
+                if (tag.lenPreview() < 400 || tag.data() == null) {
+                    continue;  // We want to ignore the tiny previews, and not crash for vestigial tags without data.
                 }
                 byte[] tagBytes = tag.data();
                 byte[] bytes = new byte[tagBytes.length * 2];
