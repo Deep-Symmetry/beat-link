@@ -17,6 +17,10 @@ This change log follows the conventions of
 - Links in the JavaDoc now directly take you to the relevant sections
   of the new Antora documentation site that replaced the old PDF
   protocol analysis document.
+- Track Load packets now need to have an extra value to tell the
+  recipient on which deck the track should be loaded, because the
+  XDJ-XZ has two decks but only one network address on which to receive
+  these commands.
 
 ### Added
 

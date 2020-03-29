@@ -1342,6 +1342,7 @@ public class VirtualCdj extends LifecycleParticipant {
         payload[0x09] = (byte)sourcePlayer;
         payload[0x0a] = sourceSlot.protocolValue;
         payload[0x0b] = sourceType.protocolValue;
+        payload[0x21] = (byte)(target.getDeviceNumber() - 1);
         Util.numberToBytes(rekordboxId, payload, 0x0d, 4);
         assembleAndSendPacket(Util.PacketType.LOAD_TRACK_COMMAND, payload, target.getAddress(), UPDATE_PORT);
     }
