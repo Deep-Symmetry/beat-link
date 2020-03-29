@@ -36,8 +36,15 @@ public class CdjStatus extends DeviceUpdate {
     public static final int MASTER_HAND_OFF = 0x9f;
 
     /**
-     * The bit within the status flag that indicates the player is on the air, as illustrated in Figure 12 of the
-     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * The bit within the status flag that indicates the player has degraded to BPM Sync mode, as described in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-flag-bits">Packet Analysis document</a>.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public static final int BPM_SYNC_FLAG = 0x02;
+
+    /**
+     * The bit within the status flag that indicates the player is on the air, as illustrated in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-flag-bits">Packet Analysis document</a>.
      * A player is considered to be on the air when it is connected to a mixer channel that is not faded out.
      * Only Nexus mixers seem to support this capability.
      */
@@ -45,21 +52,21 @@ public class CdjStatus extends DeviceUpdate {
     public static final int ON_AIR_FLAG = 0x08;
 
     /**
-     * The bit within the status flag that indicates the player is synced, as illustrated in Figure 12 of the
-     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * The bit within the status flag that indicates the player is synced, as illustrated in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-flag-bits">Packet Analysis document</a>.
      */
     @SuppressWarnings("WeakerAccess")
     public static final int SYNCED_FLAG = 0x10;
 
     /**
-     * The bit within the status flag that indicates the player is the tempo master, as illustrated in Figure 12 of
-     * the <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * The bit within the status flag that indicates the player is the tempo master, as illustrated in
+     * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-flag-bits">Packet Analysis document</a>.
      */
     public static final int MASTER_FLAG = 0x20;
 
     /**
-     * The bit within the status flag that indicates the player is playing, as illustrated in Figure 12 of the
-     * <a href="https://github.com/Deep-Symmetry/dysentery/blob/master/doc/Analysis.pdf">Packet Analysis document</a>.
+     * The bit within the status flag that indicates the player is playing, as illustrated in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-flag-bits">Packet Analysis document</a>.
      */
     @SuppressWarnings("WeakerAccess")
     public static final int PLAYING_FLAG = 0x40;
@@ -741,6 +748,18 @@ public class CdjStatus extends DeviceUpdate {
             return  state == PlayState1.PLAYING || state == PlayState1.LOOPING ||
                     (state == PlayState1.SEARCHING && getPlayState2() == PlayState2.MOVING);
         }
+    }
+
+    /**
+     * Was the CDJ in degraded BPM Sync mode when this update was sent? This indicates that the player had
+     * been in Sync mode, but the DJ used pitch bend (for example by nudging the jog wheel), so while it is
+     * still tracking the tempo of the master player, it is no longer aligning beats.
+     *
+     * @return true if the bpm-sync flag was set
+     */
+    @SuppressWarnings("WeakerAccess")
+    public boolean isBpmOnlySynced() {
+        return (packetBytes[STATUS_FLAGS] & BPM_SYNC_FLAG) > 0;
     }
 
     /**
