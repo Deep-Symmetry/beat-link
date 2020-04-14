@@ -27,6 +27,8 @@ This change log follows the conventions of
 - Another bit has been explained in the main `CdjStatus` flags byte:
   we can now tell when a DJ has forced a player into degraded BPM-only
   sync mode (by nudging the jog wheel of a synced player).
+- We now know that beat grid entries also report the tempo of the
+  track at that beat, so this is properly exposed in the API.
 
 
 ## [0.6.1] - 2020-02-09

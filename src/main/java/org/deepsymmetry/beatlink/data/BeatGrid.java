@@ -55,6 +55,11 @@ public class BeatGrid {
     private final int[] beatWithinBarValues;
 
     /**
+     * Holds the reported tempo of each beat.
+     */
+    private final int[] bpmValues;
+
+    /**
      * Holds the reported start time of each beat in milliseconds.
      */
     private final long[] timeWithinTrackValues;
@@ -82,11 +87,13 @@ public class BeatGrid {
         rawData.get(gridBytes);
         beatCount = Math.max(0, (gridBytes.length - 20) / 16);  // Handle the case of an empty beat grid
         beatWithinBarValues = new int[beatCount];
+        bpmValues = new int[beatCount];
         timeWithinTrackValues = new long[beatCount];
         for (int beatNumber = 0; beatNumber < beatCount; beatNumber++) {
             final int base = 20 + beatNumber * 16;  // Data for the current beat starts here
-            beatWithinBarValues[beatNumber] = Util.unsign(gridBytes[base]);
             // For some reason, unlike nearly every other number in the protocol, beat timings are little-endian
+            beatWithinBarValues[beatNumber] = (int)Util.bytesToNumberLittleEndian(gridBytes, base, 2);
+            bpmValues[beatNumber] = (int)Util.bytesToNumberLittleEndian(gridBytes, base + 2, 2);
             timeWithinTrackValues[beatNumber] = Util.bytesToNumberLittleEndian(gridBytes, base + 4, 4);
         }
     }
@@ -119,10 +126,12 @@ public class BeatGrid {
         RekordboxAnlz.BeatGridTag tag = findTag(anlzFile);
         beatCount = (int)tag.lenBeats();
         beatWithinBarValues = new int[beatCount];
+        bpmValues = new int[beatCount];
         timeWithinTrackValues = new long[beatCount];
         for (int beatNumber = 0; beatNumber < beatCount; beatNumber++) {
             RekordboxAnlz.BeatGridBeat beat = tag.beats().get(beatNumber);
             beatWithinBarValues[beatNumber] = beat.beatNumber();
+            bpmValues[beatNumber] = beat.tempo();
             timeWithinTrackValues[beatNumber] = beat.time();
         }
     }
@@ -132,9 +141,10 @@ public class BeatGrid {
      *
      * @param reference the unique database reference that was used to request this waveform detail
      * @param beatWithinBarValues the musical time on which each beat in the grid falls
+     * @param bpmValues the tempo of the track at each beat, as beats per minute multiplied by 100
      * @param timeWithinTrackValues the time, in milliseconds, at which each beat occurs in the track
      */
-    public BeatGrid(DataReference reference, int[] beatWithinBarValues, long[] timeWithinTrackValues) {
+    public BeatGrid(DataReference reference, int[] beatWithinBarValues, int[] bpmValues, long[] timeWithinTrackValues) {
         dataReference = reference;
         rawData = null;
         beatCount = beatWithinBarValues.length;
@@ -143,6 +153,8 @@ public class BeatGrid {
         }
         this.beatWithinBarValues = new int[beatCount];
         System.arraycopy(beatWithinBarValues, 0, this.beatWithinBarValues, 0, beatCount);
+        this.bpmValues = new int[beatCount];
+        System.arraycopy(bpmValues, 0, this.bpmValues, 0, beatCount);
         this.timeWithinTrackValues = new long[beatCount];
         System.arraycopy(timeWithinTrackValues, 0, this.timeWithinTrackValues, 0, beatCount);
     }
@@ -196,6 +208,16 @@ public class BeatGrid {
      */
     public int getBeatWithinBar(int beatNumber) {
         return beatWithinBarValues[beatOffset(beatNumber)];
+    }
+
+    /**
+     * Get the track BPM at the time of a beat. This is an integer representing the BPM times 100, so a track running
+     * at 120.5 BPM would be represented by the value 12050.
+     *
+     * @return the track BPM at the specified beat number to two decimal places multiplied by 100
+     */
+    public int getBpm(int beatNumber) {
+        return bpmValues[beatOffset(beatNumber)];
     }
 
     /**
