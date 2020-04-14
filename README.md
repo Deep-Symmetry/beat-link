@@ -574,7 +574,7 @@ that’s fantastic! Please take a look at the
 
 ## Licenses
 
-<img style="float: right" alt="Deep Symmetry" src="assets/DS-logo-bw-200-padded-left.png">
+<img align="right" alt="Deep Symmetry" src="assets/DS-logo-bw-200-padded-left.png">
 
 Copyright © 2016–2020 [Deep Symmetry, LLC](http://deepsymmetry.org)
 
