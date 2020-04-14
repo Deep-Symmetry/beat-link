@@ -214,6 +214,8 @@ public class BeatGrid {
      * Get the track BPM at the time of a beat. This is an integer representing the BPM times 100, so a track running
      * at 120.5 BPM would be represented by the value 12050.
      *
+     * @param beatNumber the beat number desired, must fall within the range 1..beatCount
+     *
      * @return the track BPM at the specified beat number to two decimal places multiplied by 100
      */
     public int getBpm(int beatNumber) {
