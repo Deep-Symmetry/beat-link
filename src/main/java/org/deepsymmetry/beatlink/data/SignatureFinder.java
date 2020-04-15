@@ -316,6 +316,7 @@ public class SignatureFinder extends LifecycleParticipant {
             for (int i = 1; i <= beatGrid.beatCount; i++) {
                 digestInteger(digest, beatGrid.getBeatWithinBar(i));
                 digestInteger(digest, (int)beatGrid.getTimeWithinTrack(i));
+                // For historical reasons, the tempo at each beat is not considered in calculating the signature.
             }
             byte[] result = digest.digest();
 
