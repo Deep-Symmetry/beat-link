@@ -16,8 +16,12 @@ import java.io.File;
  * {@code false}, the creation of the cache file will be canceled.
  *
  * @author James Elliott
+ * @deprecated
+ * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+ * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
  */
 @SuppressWarnings("WeakerAccess")
+@Deprecated
 public interface MetadataCacheCreationListener {
     /**
      * Called to inform the listener that another track has been added to the metadata cache file being created.

@@ -11,8 +11,12 @@ package org.deepsymmetry.beatlink.data;
  * </p>
  *
  * @author James Elliott
+ * @deprecated
+ * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+ * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
  */
 @SuppressWarnings("WeakerAccess")
+@Deprecated
 public interface MetadataCacheListener {
     /**
      * <p>Invoked whenever a metadata cache is attached, so the player does not need to be queried when metadata

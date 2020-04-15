@@ -30,6 +30,11 @@ This change log follows the conventions of
 - We now know that beat grid entries also report the tempo of the
   track at that beat, so this is properly exposed in the API.
 
+### Deprecated
+
+- The classes and methods relating to creating and using metadata caches
+  are no longer needed because we can reliably obtain metadata no matter
+  how many CDJs are on the network.
 
 ## [0.6.1] - 2020-02-09
 
@@ -70,6 +75,7 @@ This change log follows the conventions of
   its status packets incorrectly (subtracting the header size twice)
   we now only report that one time, to stop flooding the logs with
   warnings for each status packet received.
+
 
 ## [0.6.0] - 2019-11-24
 

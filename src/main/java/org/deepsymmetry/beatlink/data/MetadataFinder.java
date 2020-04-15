@@ -90,7 +90,7 @@ public class MetadataFinder extends LifecycleParticipant {
     private TrackMetadata requestMetadataInternal(final DataReference track, final CdjStatus.TrackType trackType,
                                                   final boolean failIfPassive) {
         // First check if we are using cached data for this request.
-        MetadataCache cache = getMetadataCache(SlotReference.getSlotReference(track));
+        @SuppressWarnings("deprecation") MetadataCache cache = getMetadataCache(SlotReference.getSlotReference(track));
         if (cache != null && trackType == CdjStatus.TrackType.REKORDBOX) {
             return cache.getTrackMetadata(null, track);
         }
@@ -527,7 +527,13 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Keeps track of any metadata caches that have been attached for the slots of players on the network,
      * keyed by slot reference.
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
     private final Map<SlotReference, MetadataCache> metadataCacheFiles = new ConcurrentHashMap<SlotReference, MetadataCache>();
 
     /**
@@ -543,7 +549,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * @throws IOException if there is a problem reading the cache file
      * @throws IllegalArgumentException if an invalid player number or slot is supplied
      * @throws IllegalStateException if the metadata finder is not running
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     public void attachMetadataCache(SlotReference slot, File file)
             throws IOException {
         ensureRunning();
@@ -574,7 +585,12 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param slot the slot to which the cache should be attached
      * @param cache the opened, validated metadata cache file
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     void attachMetadataCacheInternal(SlotReference slot, MetadataCache cache) {
         MetadataCache oldCache = metadataCacheFiles.put(slot, cache);
         if (oldCache != null) {
@@ -593,7 +609,13 @@ public class MetadataFinder extends LifecycleParticipant {
      * will be looked up from the player itself.
      *
      * @param slot the media slot to which a meta data cache is to be attached
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
     public void detachMetadataCache(SlotReference slot) {
         MetadataCache oldCache = metadataCacheFiles.remove(slot);
         if (oldCache != null) {
@@ -609,7 +631,12 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Keep track of the cache files that we are supposed to automatically attach when we find media in a slot that
      * seems to match them.
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     private final Set<File> autoAttachCacheFiles = Collections.newSetFromMap(new ConcurrentHashMap<File, Boolean>());
 
     /**
@@ -622,7 +649,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param metadataCacheFile the file to be auto-attached when matching media is seen on the network
      *
      * @throws IOException if the specified file cannot be read or is not a valid metadata cache
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     public void addAutoAttachCacheFile(File metadataCacheFile) throws IOException {
         MetadataCache opened = new MetadataCache(metadataCacheFile);  // Make sure it is readable and valid.
         try {
@@ -658,7 +690,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * {@link #detachMetadataCache(SlotReference)}.
      *
      * @param metadataCacheFile the file that should no longer be auto-attached when matching media is seen
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     public void removeAutoAttacheCacheFile(File metadataCacheFile) {
         autoAttachCacheFiles.remove(metadataCacheFile);
     }
@@ -668,7 +705,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * mounted in a player on the network.
      *
      * @return the current auto-attache cache files, sorted by name
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     public List<File> getAutoAttachCacheFiles() {
         ArrayList<File> currentFiles = new ArrayList<File>(autoAttachCacheFiles);
         Collections.sort(currentFiles, new Comparator<File>() {
@@ -682,7 +724,12 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * The number of tracks that will be examined when considering a metadata cache file for auto-attachment.
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     private final AtomicInteger autoAttachProbeCount = new AtomicInteger(5);
 
     /**
@@ -693,7 +740,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * details of the media database itself.
      *
      * @param numTracks the number of tracks that will be compared between the cache files and the media in the player
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     public void setAutoAttachProbeCount(int numTracks) {
         if (numTracks < 1) {
             throw new IllegalArgumentException("numTracks must be positive");
@@ -709,7 +761,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * itself.
      *
      * @return  the number of tracks that will be compared between the cache files and the media in the player
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     public int getAutoAttachProbeCount() {
         return autoAttachProbeCount.get();
     }
@@ -735,7 +792,13 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param slot the media slot to which a meta data cache is to be attached
      *
      * @return the metadata cache for that player and slot, or {@code null} if no cache has been attached
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @SuppressWarnings("DeprecatedIsStillUsed")
+    @Deprecated
     public MetadataCache getMetadataCache(SlotReference slot) {
         return metadataCacheFiles.get(slot);
     }
@@ -899,13 +962,19 @@ public class MetadataFinder extends LifecycleParticipant {
             }
         }
         if (mounted) {
+            //noinspection deprecation
             MetadataCache.tryAutoAttaching(slot);
         }
     }
 
     /**
      * Keeps track of the registered cache update listeners.
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     private final Set<MetadataCacheListener> cacheListeners =
             Collections.newSetFromMap(new ConcurrentHashMap<MetadataCacheListener, Boolean>());
 
@@ -924,7 +993,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param listener the cache update listener to add
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     public void addCacheListener(MetadataCacheListener listener) {
         if (listener != null) {
             cacheListeners.add(listener);
@@ -937,7 +1011,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * in the set of registered listeners, no exception is thrown and no action is performed.
      *
      * @param listener the cache update listener to remove
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     public void removeCacheListener(MetadataCacheListener listener) {
         if (listener != null) {
             cacheListeners.remove(listener);
@@ -948,7 +1027,12 @@ public class MetadataFinder extends LifecycleParticipant {
      * Get the set of currently-registered metadata cache update listeners.
      *
      * @return the listeners that are currently registered for metadata cache updates
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     @SuppressWarnings("WeakerAccess")
     public Set<MetadataCacheListener> getCacheListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
@@ -960,7 +1044,12 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param slot the media slot whose cache status has changed
      * @param cache the cache which has been attached, or, if {@code null}, the previous cache has been detached
+     *
+     * @deprecated
+     * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
+     * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
      */
+    @Deprecated
     private void deliverCacheUpdate(SlotReference slot, MetadataCache cache) {
         for (final MetadataCacheListener listener : getCacheListeners()) {
             try {
@@ -1067,9 +1156,10 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param provider the object that can supply metadata about tracks
      *
-     * @throws IllegalArgumentException if you pass in a {@link MetadataCache}.
+     * @throws IllegalArgumentException if you pass in a MetadataCache.
      */
     public void addMetadataProvider(MetadataProvider provider) {
+        //noinspection deprecation
         if (provider instanceof MetadataCache) {
             throw new IllegalArgumentException("Do not register MetadataCache instances using addMetadataProvider(), use attachMetadataCache() or addAutoAttachCacheFile() instead.");
         }
