@@ -688,7 +688,10 @@ public class CueList {
 
                 // See if there is a comment.
                 String comment = "";
-                final int commentSize = (int) Util.bytesToNumberLittleEndian(entryBytes, offset + 0x48, 2);
+                int commentSize = 0;
+                if (entrySize > 0x49) {  // This entry is large enough to have a comment.
+                    commentSize = (int) Util.bytesToNumberLittleEndian(entryBytes, offset + 0x48, 2);
+                }
                 if (commentSize > 0) {
                     try {
                         comment = new String(entryBytes, offset + 0x4a, commentSize - 2, "UTF-16LE");

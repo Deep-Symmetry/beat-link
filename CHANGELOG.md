@@ -54,9 +54,11 @@ This change log follows the conventions of
   disappeared due to lack of recent packets).
 - The `crate-digger` library was updated to fix a misunderstanding of the
   structure of cue list entries which could crash the parser.
-- Our own parsing of cue list entries fetched using the `dbserver`
+- Our own parsing of nxs2 cue list entries fetched using the `dbserver`
   protocol is now robust against missing color bytes, which also seems
   to happen in the wild.
+- Some nxs2 cue list entries are so short that they don't even have
+  space for comments/labels, which we now handle properly too.
 
 ### Added
 
