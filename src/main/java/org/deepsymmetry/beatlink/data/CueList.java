@@ -525,11 +525,12 @@ public class CueList {
                 logger.warn("Was expecting embedded color " + expectedColor +
                         " for rekordbox color code " + cueEntry.colorCode() + ", but found color " + embeddedColor);
             }
+            final String comment = (cueEntry.comment() != null)? cueEntry.comment() : "";  // Normalize missing comments to empty strings.
             if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
                 entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
-                        Util.timeToHalfFrame(cueEntry.loopTime()), cueEntry.comment(), embeddedColor, rekordboxColor));
+                        Util.timeToHalfFrame(cueEntry.loopTime()), comment, embeddedColor, rekordboxColor));
             } else {
-                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), cueEntry.comment(), embeddedColor, rekordboxColor));
+                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), comment, embeddedColor, rekordboxColor));
             }
         }
     }
