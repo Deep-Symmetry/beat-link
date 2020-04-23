@@ -9,7 +9,6 @@ import org.deepsymmetry.cratedigger.pdb.RekordboxPdb;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.awt.*;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -159,74 +158,6 @@ public class TrackMetadata {
     }
 
     /**
-     * Creates a color item that represents a color field found for a track based on a dbserver message.
-     *
-     * @param menuItem the rendered menu item containing the color metadata field
-     *
-     * @return the color metadata field
-     */
-    private ColorItem buildColorItem(Message menuItem) {
-        final int colorId = (int) ((NumberField) menuItem.arguments.get(1)).getValue();
-        final String label = ((StringField) menuItem.arguments.get(3)).getValue();
-        return buildColorItem(colorId, label);
-    }
-
-    /**
-     * Creates a color item that represents a color field fond for a track.
-     *
-     * @param colorId the key of the color as found in the database
-     * @param label the corresponding color label as found in the database (or sent in the dbserver message)
-     *
-     * @return the color metadata field
-     */
-    private ColorItem buildColorItem(int colorId, String label) {
-        Color color;
-        String colorName;
-        switch (colorId) {
-            case 0:
-                color = new Color(0, 0, 0, 0);
-                colorName = "No Color";
-                break;
-            case 1:
-                color = Color.PINK;
-                colorName = "Pink";
-                break;
-            case 2:
-                color = Color.RED;
-                colorName = "Red";
-                break;
-            case 3:
-                color = Color.ORANGE;
-                colorName = "Orange";
-                break;
-            case 4:
-                color = Color.YELLOW;
-                colorName = "Yellow";
-                break;
-            case 5:
-                color = Color.GREEN;
-                colorName = "Green";
-                break;
-            case 6:
-                color = Color.CYAN;
-                colorName = "Aqua";
-                break;
-            case 7:
-                color = Color.BLUE;
-                colorName = "Blue";
-                break;
-            case 8:
-                color = new Color(128, 0, 128);
-                colorName = "Purple";
-                break;
-            default:
-                color = new Color(0, 0, 0, 0);
-                colorName = "Unknown Color";
-        }
-        return new ColorItem(colorId, label, color, colorName);
-    }
-
-    /**
      * Constructor for when reading from a rekordbox export file. Finds the desired track in the exported
      * database, along with all of the related records, and sets all the interpreted fields based on the parsed
      * database structures.
@@ -295,9 +226,9 @@ public class TrackMetadata {
         // Associate the track color, if there is one.
         RekordboxPdb.ColorRow colorRow = database.colorIndex.get((long)rawRow.colorId());
         if (colorRow != null) {
-            color = buildColorItem(rawRow.colorId(), Database.getText(colorRow.name()));
+            color = new ColorItem(rawRow.colorId(), Database.getText(colorRow.name()));
         } else {
-            color = buildColorItem(rawRow.colorId(), "");  // For backwards compatibility with "No Color".
+            color = new ColorItem(rawRow.colorId(), "");  // For backwards compatibility with "No Color".
         }
 
         // Look up the genre, if there is one.
@@ -402,7 +333,9 @@ public class TrackMetadata {
             case COLOR_PURPLE:
             case COLOR_RED:
             case COLOR_YELLOW:
-                color = buildColorItem(item);
+                final int colorId = (int) ((NumberField) item.arguments.get(1)).getValue();
+                final String label = ((StringField) item.arguments.get(3)).getValue();
+                color = new ColorItem(colorId, label);
                 break;
 
             case GENRE:

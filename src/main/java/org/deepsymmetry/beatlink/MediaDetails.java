@@ -1,9 +1,11 @@
 package org.deepsymmetry.beatlink;
 
+import org.deepsymmetry.beatlink.data.ColorItem;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.*;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
@@ -48,6 +50,17 @@ public class MediaDetails {
      * The number of rekordbox playlists in the media database. Will be zero if {@link #mediaType} is not rekordbox.
      */
     public final int playlistCount;
+
+    /**
+     * The color tint that should be applied to the user interface when a player mounts this media.
+     */
+    public final Color color;
+
+    /**
+     * Indicates that the DJ has stored device setting preferences on the media, so the player should display
+     * an alert showing how to apply them when at the root menu.
+     */
+    public final boolean hasMySettings;
 
     /**
      * The size of the storage space, in bytes.
@@ -148,7 +161,9 @@ public class MediaDetails {
         }
 
         trackCount = (int)Util.bytesToNumber(packetCopy, 0xa6, 2);
+        color = ColorItem.colorForId(packetCopy[0xa8]);
         playlistCount = (int)Util.bytesToNumber(packetCopy, 0xae, 2);
+        hasMySettings = packetCopy[0xab] != 0;
         totalSize = Util.bytesToNumber(packetCopy, 0xb0, 8);
         freeSpace = Util.bytesToNumber(packetCopy, 0xb8, 8);
     }
