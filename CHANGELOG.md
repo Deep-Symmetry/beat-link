@@ -8,12 +8,16 @@ This change log follows the conventions of
 
 ### Fixed
 
-- The interpretation of byte `0x37` in the CDJ status packet has been
-  updated, which forced fixes of the `isDiscSlotEmpty()` and
-  `getDiscTrackCount()` methods in `CdjStatus`.
+- It turns out that nxs2 cue list entries are not always complete,
+  they are sometimes missing color information or even the comment
+  information that precedes it. We no longer crash when we encounter
+  such partial cues.
 - An update to Crate Digger avoids crashes when trying to parse track
   analysis files created with mal-formed vestigial waveform preview
   tags.
+- The interpretation of byte `0x37` in the CDJ status packet has been
+  updated, which forced fixes of the `isDiscSlotEmpty()` and
+  `getDiscTrackCount()` methods in `CdjStatus`.
 - Links in the JavaDoc now directly take you to the relevant sections
   of the new Antora documentation site that replaced the old PDF
   protocol analysis document.
@@ -114,7 +118,7 @@ This change log follows the conventions of
 - `tempoChanged` events are no longer sent to the `MasterListener`
   interface when the tempo is meaningless (i.e. the new master has
   no track loaded).
-  
+
 ## [0.5.5] - 2019-10-25
 
 ### Fixed
