@@ -211,7 +211,7 @@ public class DeviceFinder extends LifecycleParticipant {
                             received = false;
                         }
                         try {
-                            if (received && (packet.getLength() == 54)) {
+                            if (received) {
                                 final Util.PacketType kind = Util.validateHeader(packet, ANNOUNCEMENT_PORT);
                                 if (kind == Util.PacketType.DEVICE_KEEP_ALIVE) {
                                     // Looks like the kind of packet we need
@@ -230,6 +230,10 @@ public class DeviceFinder extends LifecycleParticipant {
                                             deliverFoundAnnouncement(announcement);
                                         }
                                     }
+                                } else if (kind == Util.PacketType.DEVICE_HELLO) {
+                                    logger.debug("Received device hello packet.");
+                                } else if (kind != null) {
+                                    VirtualCdj.getInstance().handleSpecialAnnouncementPacket(kind, packet);
                                 }
                             }
                             expireDevices();
