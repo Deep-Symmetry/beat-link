@@ -37,6 +37,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     @SuppressWarnings("WeakerAccess")
     public static final int UPDATE_PORT = 50002;
+    public static final int MAC_ADDRESS_OFFSET = 38;
 
     /**
      * The socket used to receive device status packets while we are active.
@@ -612,93 +613,48 @@ public class VirtualCdj extends LifecycleParticipant {
     private final AtomicBoolean claimRejected = new AtomicBoolean(false);
 
     /**
-     * If a mixer has told us that it is going to assign us a number, this value will get set to the mixer's address.
+     * If a mixer has assigned us a device number, this will be that non-zero value.
      */
-    private final AtomicReference<InetAddress> mixerWillAssign = new AtomicReference<InetAddress>(null);
+    private final AtomicInteger mixerAssigned = new AtomicInteger(0);
 
     /**
      * Implement the process of requesting a device number from a mixer that has told us it is responsible for
      * assigning it to us as described in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-startup">protocol analysis</a>.
      *
-     * @param hardwareAddress the network address from which we are communicating with the DJ Link network
-     *
-     * @return true iff a device number was successfully obtained and startup can proceed
+     * @param mixerAddress the address from which we received a mixer device number assignment offer
      */
-    private boolean requestNumberFromMixer(byte[] hardwareAddress) {
-        claimingNumber.set(0);  // We are no longer trying to claim something, the mixer will give us a number.
-
-        // Send up to three packets directly to the mixer telling it we are ready for its device assignment.
+    private void requestNumberFromMixer(InetAddress mixerAddress) {
+        final DatagramSocket currentSocket = socket.get();
+        if (currentSocket == null) {
+            return;  // We've already given up.
+        }
+        // Send a packet directly to the mixer telling it we are ready for its device assignment.
         Arrays.fill(assignmentRequestBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
         System.arraycopy(getDeviceName().getBytes(), 0, assignmentRequestBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, assignmentRequestBytes, 0x24, 4);
-        System.arraycopy(hardwareAddress, 0, assignmentRequestBytes, 0x28, 6);
+        System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, assignmentRequestBytes, 0x28, 6);
         assignmentRequestBytes[0x31] = (getDeviceNumber() == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
-        for (int i = 1; i <= 3 && claimingNumber.get() == 0; i++) {
-            assignmentRequestBytes[0x2f] = (byte)i;  // The packet counter.
-            try {
-                DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
-                        mixerWillAssign.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                socket.get().send(announcement);
-                Thread.sleep(300);
-            } catch (Exception e) {
-                logger.warn("Unable to send device number request to mixer, failing to go online.", e);
-                return false;
-            }
+        assignmentRequestBytes[0x2f] = 1;  // The packet counter.
+        try {
+            DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
+                    mixerAddress, DeviceFinder.ANNOUNCEMENT_PORT);
+            currentSocket.send(announcement);
+        } catch (Exception e) {
+            logger.warn("Unable to send device number request to mixer.", e);
         }
-
-        mixerWillAssign.set(null);  // We are done sending directly to the mixer.
-        if (claimingNumber.get() == 0) {
-            logger.error("The mixer failed to assign us a number; failing to go online.");
-            return false;
-        }
-
-        // Accept the device assignment.
-        final int assignedNumber = claimingNumber.getAndSet(0);
-
-        // Broadcast up to three final claim packets, telling everyone we have accepted the mixer's device assignment.
-        Arrays.fill(claimStage3bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
-        System.arraycopy(getDeviceName().getBytes(), 0, claimStage3bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-        claimStage3bytes[0x24] = (byte)assignedNumber;
-        for (int i = 1; i <= 3 && claimingNumber.get() == 0; i++) {
-            claimStage3bytes[0x25] = (byte)i;  // The packet counter.
-            try {
-                DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
-                        broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                socket.get().send(announcement);
-                Thread.sleep(300);
-            } catch (Exception e) {
-                logger.warn("Unable to send device number claim stage 3 packet to network, failing to go online.", e);
-                return false;
-            }
-            if (claimRejected.get()) {  // Some other player is defending the number the mixer gave us?!
-                logger.error("Unable to use mixer-assigned device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
-                return false;
-            }
-        }
-
-        if (claimingNumber.get() == 0) {  // The mixer never acknowledged our acceptance of the number
-            logger.warn("Mixer never finalized assignment of device number " + getDeviceNumber() + ", using anyway.");
-        } else {
-            claimingNumber.set(0);  // Everything went the way we expected.
-        }
-
-        setDeviceNumber((byte) assignedNumber);
-        return true;
     }
 
     /**
      * Implement the device-number claim protocol described in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-startup">protocol analysis</a>.
      *
-     * @param hardwareAddress the network address from which we are communicating with the DJ Link network
-     *
      * @return true iff a device number was successfully established and startup can proceed
      */
-    private boolean claimDeviceNumber(byte[] hardwareAddress) {
+    private boolean claimDeviceNumber() {
         // Set up our state trackers for device assignment negotiation.
         claimRejected.set(false);
-        mixerWillAssign.set(null);
+        mixerAssigned.set(0);
 
         // Send the initial series of three "coming online" packets.
         Arrays.fill(helloBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
@@ -732,8 +688,8 @@ public class VirtualCdj extends LifecycleParticipant {
             // or a mixer assigning us a specific number.
             Arrays.fill(claimStage1bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
             System.arraycopy(getDeviceName().getBytes(), 0, claimStage1bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-            System.arraycopy(hardwareAddress, 0, claimStage1bytes, 0x26, 6);
-            for (int i = 1; i <= 3; i++) {
+            System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, claimStage1bytes, 0x26, 6);
+            for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage1bytes[0x24] = (byte)i;  // The packet counter.
                 try {
                     DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
@@ -753,9 +709,6 @@ public class VirtualCdj extends LifecycleParticipant {
                     claimingNumber.set(0);
                     return false;
                 }
-                if (mixerWillAssign.get() != null) {
-                    return requestNumberFromMixer(hardwareAddress);
-                }
             }
 
             // Send the middle series of device claim packets, unless we are interrupted by a defense
@@ -763,10 +716,10 @@ public class VirtualCdj extends LifecycleParticipant {
             Arrays.fill(claimStage2bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
             System.arraycopy(getDeviceName().getBytes(), 0, claimStage2bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
             System.arraycopy(matchedAddress.getAddress().getAddress(), 0, claimStage2bytes, 0x24, 4);
-            System.arraycopy(hardwareAddress, 0, claimStage2bytes, 0x28, 6);
+            System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, claimStage2bytes, 0x28, 6);
             claimStage2bytes[0x2e] = (byte)claimingNumber.get();  // The number we are claiming.
             claimStage2bytes[0x31] = (getDeviceNumber() == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
-            for (int i = 1; i <= 3; i++) {
+            for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage2bytes[0x2f] = (byte)i;  // The packet counter.
                 try {
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
@@ -786,16 +739,20 @@ public class VirtualCdj extends LifecycleParticipant {
                     claimingNumber.set(0);
                     return false;
                 }
-                if (mixerWillAssign.get() != null) {
-                    return requestNumberFromMixer(hardwareAddress);
-                }
             }
 
-            // Send the final series of device claim packets, unless we are interrupted by a defense.
+            // If the mixer assigned us a number, use it.
+            final int assigned = mixerAssigned.getAndSet(0);
+            if (assigned > 0) {
+                claimingNumber.set(assigned);
+            }
+
+            // Send the final series of device claim packets, unless we are interrupted by a defense, or the mixer
+            // acknowledges our acceptance of its assignment.
             Arrays.fill(claimStage3bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
             System.arraycopy(getDeviceName().getBytes(), 0, claimStage3bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
             claimStage3bytes[0x24] = (byte)claimingNumber.get();  // The number we are claiming.
-            for (int i = 1; i <= 3; i++) {
+            for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage3bytes[0x25] = (byte)i;  // The packet counter.
                 try {
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
@@ -820,6 +777,7 @@ public class VirtualCdj extends LifecycleParticipant {
             claimed = true;  // If we finished all our loops, the number we wanted is ours.
         }
         setDeviceNumber((byte)claimingNumber.getAndSet(0));
+        mixerAssigned.set(0);
         return true;  // Huzzah, we found the right device number to use!
     }
 
@@ -862,8 +820,7 @@ public class VirtualCdj extends LifecycleParticipant {
         }
 
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template
-        final byte[] hardwareAddress = matchingInterfaces.get(0).getHardwareAddress();
-        System.arraycopy(hardwareAddress, 0, keepAliveBytes, 38, 6);
+        System.arraycopy(matchingInterfaces.get(0).getHardwareAddress(), 0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, keepAliveBytes, 44, 4);
         broadcastAddress.set(matchedAddress.getBroadcast());
 
@@ -874,7 +831,7 @@ public class VirtualCdj extends LifecycleParticipant {
         DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
 
         // Determine the device number we are supposed to use, and make sure it can be claimed by us.
-        if (!claimDeviceNumber(hardwareAddress)) {
+        if (!claimDeviceNumber()) {
             // We couldn't get a device number, so clean up and report failure.
             DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
             socket.get().close();
@@ -2417,22 +2374,16 @@ public class VirtualCdj extends LifecycleParticipant {
         } else if (kind == Util.PacketType.DEVICE_NUMBER_WILL_ASSIGN) {
             logger.info("The mixer at address " + packet.getAddress().getHostAddress() + " wants to assign us a specific device number.");
             if (claimingNumber.get() != 0) {
-                mixerWillAssign.set(packet.getAddress());
+                requestNumberFromMixer(packet.getAddress());
             } else {
                 logger.warn("Ignoring mixer device number assignment offer; we are not claiming a device number!");
             }
         } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGN) {
-            if (mixerWillAssign.get() != null) {
-                claimingNumber.set(packet.getData()[0x24]);
-            } else {
-                logger.warn("Ignoring mixer device assignment attempt, we have not requested one!");
-            }
+            mixerAssigned.set(packet.getData()[0x24]);
+            logger.info("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use device number " + mixerAssigned.get());
         } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGNMENT_FINISHED) {
-            if (mixerWillAssign.get() != null) {
-                claimingNumber.set(packet.getData()[0x24]);
-            } else {
-                logger.warn("Ignoring mixer device assignment conclusion, we have not requested one!");
-            }
+            mixerAssigned.set(packet.getData()[0x24]);
+            logger.info("Mixer confirmed device assignment of " + mixerAssigned.get());
         } else if (kind == Util.PacketType.DEVICE_NUMBER_IN_USE) {
             final int defendedDevice = packet.getData()[0x24];
             if (defendedDevice == 0) {
