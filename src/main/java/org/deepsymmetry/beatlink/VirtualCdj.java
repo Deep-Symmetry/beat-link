@@ -627,6 +627,7 @@ public class VirtualCdj extends LifecycleParticipant {
     private void requestNumberFromMixer(InetAddress mixerAddress) {
         final DatagramSocket currentSocket = socket.get();
         if (currentSocket == null) {
+            logger.warn("Gave up before sending device number request to mixer.");
             return;  // We've already given up.
         }
         // Send a packet directly to the mixer telling it we are ready for its device assignment.
@@ -634,11 +635,14 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(getDeviceName().getBytes(), 0, assignmentRequestBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, assignmentRequestBytes, 0x24, 4);
         System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, assignmentRequestBytes, 0x28, 6);
-        assignmentRequestBytes[0x31] = (getDeviceNumber() == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
+        // Can't call getDeviceNumber() on next line because that's synchronized!
+        assignmentRequestBytes[0x31] = (keepAliveBytes[DEVICE_NUMBER_OFFSET] == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
         assignmentRequestBytes[0x2f] = 1;  // The packet counter.
         try {
             DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
                     mixerAddress, DeviceFinder.ANNOUNCEMENT_PORT);
+            logger.debug("Sending device number request to mixer at address " + announcement.getAddress().getHostAddress() +
+                    ", port " + announcement.getPort());
             currentSocket.send(announcement);
         } catch (Exception e) {
             logger.warn("Unable to send device number request to mixer.", e);
@@ -661,6 +665,7 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(getDeviceName().getBytes(), 0, helloBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         for (int i = 1; i <= 3; i++) {
             try {
+                logger.debug("Sending hello packet " + i);
                 DatagramPacket announcement = new DatagramPacket(helloBytes, helloBytes.length,
                         broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                 socket.get().send(announcement);
@@ -692,6 +697,7 @@ public class VirtualCdj extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage1bytes[0x24] = (byte)i;  // The packet counter.
                 try {
+                    logger.debug("Sending claim stage 1 packet " + i);
                     DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -722,6 +728,7 @@ public class VirtualCdj extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage2bytes[0x2f] = (byte)i;  // The packet counter.
                 try {
+                    logger.debug("Sending claim stage 2 packet " + i);
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -755,6 +762,7 @@ public class VirtualCdj extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage3bytes[0x25] = (byte)i;  // The packet counter.
                 try {
+                    logger.debug("Sending claim stage 3 packet " + i);
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -833,6 +841,7 @@ public class VirtualCdj extends LifecycleParticipant {
         // Determine the device number we are supposed to use, and make sure it can be claimed by us.
         if (!claimDeviceNumber()) {
             // We couldn't get a device number, so clean up and report failure.
+            logger.warn("Unable to allocate a device number for the Virtual CDJ, giving up.");
             DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
             socket.get().close();
             socket.set(null);
@@ -2372,7 +2381,7 @@ public class VirtualCdj extends LifecycleParticipant {
         } else if (kind == Util.PacketType.DEVICE_NUMBER_STAGE_3) {
             handleDeviceClaimPacket(packet, 0x24);
         } else if (kind == Util.PacketType.DEVICE_NUMBER_WILL_ASSIGN) {
-            logger.info("The mixer at address " + packet.getAddress().getHostAddress() + " wants to assign us a specific device number.");
+            logger.debug("The mixer at address " + packet.getAddress().getHostAddress() + " wants to assign us a specific device number.");
             if (claimingNumber.get() != 0) {
                 requestNumberFromMixer(packet.getAddress());
             } else {
@@ -2380,7 +2389,11 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGN) {
             mixerAssigned.set(packet.getData()[0x24]);
-            logger.info("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use device number " + mixerAssigned.get());
+            if (mixerAssigned.get() == 0) {
+                logger.debug("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use any device.");
+            } else {
+                logger.info("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use device number " + mixerAssigned.get());
+            }
         } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGNMENT_FINISHED) {
             mixerAssigned.set(packet.getData()[0x24]);
             logger.info("Mixer confirmed device assignment of " + mixerAssigned.get());
