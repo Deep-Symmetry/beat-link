@@ -12,18 +12,6 @@ for examples of what you can do with this.
 
 [![License](https://img.shields.io/badge/License-Eclipse%20Public%20License%201.0-blue.svg)](#licenses)
 
-> :warning: Because beat-link grew so much in 0.3.0 (and 0.5.0), it
-> was time to split some classes apart, and even split it into
-> multiple packages, so I also took the opportunity to make some basic
-> changes to the API to position it for future growth and better
-> reliability. This means versions 0.3.0 and (to a lesser extent)
-> 0.5.0 are not API-compatible with prior releases, and any code which
-> compiled against an old release will require some rewriting.
->
-> :octocat: Since, as far as I know, I was still the only consumer of
-> this API, this seemed like a good time to make these breaking
-> changes. If you are using it and want me to slow down, get in touch!
-
 ## Installing
 
 Beat-link is available through Maven Central, so to use it in your
