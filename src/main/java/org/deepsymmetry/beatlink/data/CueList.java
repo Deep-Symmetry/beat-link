@@ -448,7 +448,8 @@ public class CueList {
      * @return the embedded color value, or {@code null} if there is none present
      */
     private Color findEmbeddedColor(RekordboxAnlz.CueExtendedEntry entry) {
-        if (entry.colorRed() == 0 && entry.colorGreen() == 0 && entry.colorBlue() == 0) {
+        if (entry.colorRed() == null || entry.colorGreen() == null || entry.colorBlue() == null ||
+                (entry.colorRed() == 0 && entry.colorGreen() == 0 && entry.colorBlue() == 0)) {
             return null;
         }
         return new Color(entry.colorRed(), entry.colorGreen(), entry.colorBlue());
