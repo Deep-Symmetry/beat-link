@@ -518,13 +518,14 @@ public class CueList {
     private void addEntriesFromTag(List<Entry> entries, RekordboxAnlz.CueExtendedTag tag) {
         for (RekordboxAnlz.CueExtendedEntry cueEntry : tag.cues()) {
             final Color embeddedColor = findEmbeddedColor(cueEntry);
-            final Color expectedColor = expectedEmbeddedColor(cueEntry.colorCode());
-            final Color rekordboxColor = findRekordboxColor(cueEntry.colorCode());
+            final int colorCode = cueEntry.colorCode() == null? 0 : cueEntry.colorCode();
+            final Color expectedColor = expectedEmbeddedColor(colorCode);
+            final Color rekordboxColor = findRekordboxColor(colorCode);
             if (((embeddedColor == null && expectedColor != null) ||
                     (embeddedColor != null && !embeddedColor.equals(expectedColor))) &&
-                    (cueEntry.colorCode() != 0 || embeddedColor != null)) {
+                    (colorCode != 0 || embeddedColor != null)) {
                 logger.warn("Was expecting embedded color " + expectedColor +
-                        " for rekordbox color code " + cueEntry.colorCode() + ", but found color " + embeddedColor);
+                        " for rekordbox color code " + colorCode + ", but found color " + embeddedColor);
             }
             final String comment = (cueEntry.comment() != null)? cueEntry.comment() : "";  // Normalize missing comments to empty strings.
             if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
