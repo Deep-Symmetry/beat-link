@@ -77,7 +77,7 @@ public class DeviceAnnouncement {
      *
      * @return the device name
      */
-    public String getName() {
+    public String getDeviceName() {
         return name;
     }
 
@@ -86,6 +86,28 @@ public class DeviceAnnouncement {
      *
      * @return the player number found in the device announcement packet
      */
+    public int getDeviceNumber() {
+        return number;
+    }
+
+    /**
+     * Get the name reported by the device.
+     *
+     * @return the device name
+     * @deprecated use {@link #getDeviceName()} instead for consistency with the device update classes
+     */
+    @Deprecated
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Get the player/device number reported by the device.
+     *
+     * @return the player number found in the device announcement packet
+     * @deprecated use {@link #getDeviceNumber()} instead for consistency with the device update classes
+     */
+    @Deprecated
     public int getNumber() {
         return number;
     }

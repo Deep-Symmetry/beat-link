@@ -82,6 +82,7 @@ class BeatSender {
                 final long sleepMilliseconds = nextBeatDue - System.currentTimeMillis();
                 if (sleepMilliseconds > SLEEP_THRESHOLD) {  // Long enough to try actually sleeping until we are closer to due
                     try {
+                        //noinspection BusyWait
                         Thread.sleep(sleepMilliseconds - SLEEP_THRESHOLD);
                     } catch (InterruptedException e) {
                         logger.info("BeatSender thread interrupted, re-evaluating time until next beat.");

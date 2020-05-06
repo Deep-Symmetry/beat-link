@@ -240,7 +240,7 @@ public class ConnectionManager extends LifecycleParticipant {
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
-            dbServerPorts.remove(announcement.getNumber());
+            dbServerPorts.remove(announcement.getDeviceNumber());
         }
     };
 
@@ -297,15 +297,15 @@ public class ConnectionManager extends LifecycleParticipant {
                 if (response.length == 2) {
                     final int portReturned = (int)Util.bytesToNumber(response, 0, 2);
                     if (portReturned == 65535) {
-                        logger.info("Player " + announcement.getNumber() + " reported dbserver port of " + portReturned +
+                        logger.info("Player " + announcement.getDeviceNumber() + " reported dbserver port of " + portReturned +
                                 ", not yet ready?");
                     } else {
-                        setPlayerDBServerPort(announcement.getNumber(), portReturned);
+                        setPlayerDBServerPort(announcement.getDeviceNumber(), portReturned);
                         return;  // Success!
                     }
                 }
             } catch (java.net.ConnectException ce) {
-                logger.info("Player " + announcement.getNumber() +
+                logger.info("Player " + announcement.getDeviceNumber() +
                         " doesn't answer rekordbox port queries, connection refused, not yet ready?");
             } catch (Throwable t) {
                 logger.warn("Problem requesting database server port number", t);
@@ -320,7 +320,7 @@ public class ConnectionManager extends LifecycleParticipant {
             }
         }
 
-        logger.info("Player " + announcement.getNumber() +
+        logger.info("Player " + announcement.getDeviceNumber() +
                 " never responded with a valid rekordbox dbserver port. Won't attempt to request metadata.");
     }
 
@@ -412,12 +412,12 @@ public class ConnectionManager extends LifecycleParticipant {
         }
 
         for (DeviceAnnouncement candidate : DeviceFinder.getInstance().getCurrentDevices()) {
-            final int realDevice = candidate.getNumber();
+            final int realDevice = candidate.getDeviceNumber();
             if (realDevice != targetPlayer && realDevice >= 1 && realDevice <= 4) {
                 final DeviceUpdate lastUpdate =  VirtualCdj.getInstance().getLatestStatusFor(realDevice);
                 if (lastUpdate instanceof CdjStatus &&
                         ((CdjStatus) lastUpdate).getTrackSourcePlayer() != targetPlayer) {
-                    return candidate.getNumber();
+                    return candidate.getDeviceNumber();
                 }
             }
         }
@@ -491,6 +491,7 @@ public class ConnectionManager extends LifecycleParticipant {
                 public void run() {
                     while (isRunning()) {
                         try {
+                            //noinspection BusyWait
                             Thread.sleep(500);
                         } catch (InterruptedException e) {
                             logger.warn("Interrupted sleeping to close idle dbserver clients");

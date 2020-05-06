@@ -348,11 +348,11 @@ public class MetadataFinder extends LifecycleParticipant {
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
-            logger.info("Processing device found, number:" + announcement.getNumber() + ", name:\"" + announcement.getName() + "\".");
-            if ((((announcement.getNumber() > 0x0f) && announcement.getNumber() < 0x20) || announcement.getNumber() > 40) &&
-                    (announcement.getName().startsWith("rekordbox"))) {  // Looks like rekordbox.
+            logger.info("Processing device found, number:" + announcement.getDeviceNumber() + ", name:\"" + announcement.getDeviceName() + "\".");
+            if ((((announcement.getDeviceNumber() > 0x0f) && announcement.getDeviceNumber() < 0x20) || announcement.getDeviceNumber() > 40) &&
+                    (announcement.getDeviceName().startsWith("rekordbox"))) {  // Looks like rekordbox.
                 logger.info("Recording rekordbox collection mount.");
-                recordMount(SlotReference.getSlotReference(announcement.getNumber(),
+                recordMount(SlotReference.getSlotReference(announcement.getDeviceNumber(),
                         CdjStatus.TrackSourceSlot.COLLECTION));  // Report the rekordbox collection as mounted media.
             }
         }
@@ -360,15 +360,15 @@ public class MetadataFinder extends LifecycleParticipant {
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
             clearMetadata(announcement);
-            if (announcement.getNumber() < 0x10) {  // Looks like a player, clear the whole panoply of caches.
-                removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.CD_SLOT));
-                removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
-                removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
-                detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
-                detachMetadataCache(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
-            } else if ((((announcement.getNumber() > 0x0f) && announcement.getNumber() < 0x20) || announcement.getNumber() > 40) &&
-                    (announcement.getName().startsWith("rekordbox"))) {  // Looks like rekordbox, clear "mounted" database.
-                removeMount(SlotReference.getSlotReference(announcement.getNumber(), CdjStatus.TrackSourceSlot.COLLECTION));
+            if (announcement.getDeviceNumber() < 0x10) {  // Looks like a player, clear the whole panoply of caches.
+                removeMount(SlotReference.getSlotReference(announcement.getDeviceNumber(), CdjStatus.TrackSourceSlot.CD_SLOT));
+                removeMount(SlotReference.getSlotReference(announcement.getDeviceNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
+                removeMount(SlotReference.getSlotReference(announcement.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
+                detachMetadataCache(SlotReference.getSlotReference(announcement.getDeviceNumber(), CdjStatus.TrackSourceSlot.USB_SLOT));
+                detachMetadataCache(SlotReference.getSlotReference(announcement.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT));
+            } else if ((((announcement.getDeviceNumber() > 0x0f) && announcement.getDeviceNumber() < 0x20) || announcement.getDeviceNumber() > 40) &&
+                    (announcement.getDeviceName().startsWith("rekordbox"))) {  // Looks like rekordbox, clear "mounted" database.
+                removeMount(SlotReference.getSlotReference(announcement.getDeviceNumber(), CdjStatus.TrackSourceSlot.COLLECTION));
             }
         }
     };
@@ -448,7 +448,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param announcement the packet which reported the device’s disappearance
      */
     private void clearMetadata(DeviceAnnouncement announcement) {
-        final int player = announcement.getNumber();
+        final int player = announcement.getDeviceNumber();
         // Iterate over a copy to avoid concurrent modification issues
         for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
             if (deck.player == player) {

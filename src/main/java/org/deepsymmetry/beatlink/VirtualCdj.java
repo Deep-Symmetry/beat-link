@@ -556,7 +556,7 @@ public class VirtualCdj extends LifecycleParticipant {
         // Record what numbers we have already seen, since there is no point trying one of them.
         Set<Integer> numbersUsed = new HashSet<Integer>();
         for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
-            numbersUsed.add(device.getNumber());
+            numbersUsed.add(device.getDeviceNumber());
         }
 
         // Try next available player number less than mixers use.
@@ -701,6 +701,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
+                    //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
                     logger.warn("Unable to send device number claim stage 1 packet to network, failing to go online.", e);
@@ -732,6 +733,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
+                    //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
                     logger.warn("Unable to send device number claim stage 2 packet to network, failing to go online.", e);
@@ -766,6 +768,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
+                    //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
                     logger.warn("Unable to send device number claim stage 3 packet to network, failing to go online.", e);
@@ -958,6 +961,7 @@ public class VirtualCdj extends LifecycleParticipant {
             DeviceFinder.getInstance().start();
             for (int i = 0; DeviceFinder.getInstance().getCurrentDevices().isEmpty() && i < 20; i++) {
                 try {
+                    //noinspection BusyWait
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     logger.warn("Interrupted waiting for devices, giving up", e);
@@ -1758,6 +1762,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     while (stillRunning.get()) {
                         sendStatus();
                         try {
+                            //noinspection BusyWait
                             Thread.sleep(getStatusInterval());
                         } catch (InterruptedException e) {
                             logger.warn("beat-link VirtualCDJ status sender thread was interrupted; continuing");
@@ -2174,6 +2179,7 @@ public class VirtualCdj extends LifecycleParticipant {
                 (((distance < 0.0) && (Math.abs(distance) <= BeatSender.SLEEP_THRESHOLD)) ||
                 ((distance >= 0.0) && (distance <= (BeatSender.BEAT_THRESHOLD + 1))))) {
             try {
+                //noinspection BusyWait
                 Thread.sleep(2);
             } catch (InterruptedException e) {
                 logger.warn("Interrupted while sleeping to avoid beat packet; ignoring.", e);

@@ -39,6 +39,9 @@ This change log follows the conventions of
 - The classes and methods relating to creating and using metadata caches
   are no longer needed because we can reliably obtain metadata no matter
   how many CDJs are on the network.
+- The `getName` and `getNumber` methods in `DeviceAnnouncement`
+  were inconsistent with the `getDeviceName` and `getDeviceNumber`
+  naming convention used in the entire device update packet hierarchy.
 
 ## [0.6.1] - 2020-02-09
 

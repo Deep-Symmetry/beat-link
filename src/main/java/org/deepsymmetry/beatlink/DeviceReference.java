@@ -75,7 +75,7 @@ public class DeviceReference {
      */
     @SuppressWarnings("WeakerAccess")
     public static DeviceReference getDeviceReference(DeviceAnnouncement announcement) {
-        return getDeviceReference(announcement.getNumber(), announcement.getAddress());
+        return getDeviceReference(announcement.getDeviceNumber(), announcement.getAddress());
     }
 
     /**

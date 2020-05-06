@@ -314,7 +314,7 @@ public class DeviceFinder extends LifecycleParticipant {
     public DeviceAnnouncement getLatestAnnouncementFrom(int deviceNumber) {
         ensureRunning();
         for (DeviceAnnouncement announcement : getCurrentDevices()) {
-            if (announcement.getNumber() == deviceNumber) {
+            if (announcement.getDeviceNumber() == deviceNumber) {
                 return announcement;
             }
         }

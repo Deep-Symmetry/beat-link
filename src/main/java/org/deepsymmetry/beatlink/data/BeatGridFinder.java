@@ -140,7 +140,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @param announcement the packet which reported the device’s disappearance
      */
     private void clearBeatGrids(DeviceAnnouncement announcement) {
-        final int player = announcement.getNumber();
+        final int player = announcement.getDeviceNumber();
         // Iterate over a copy to avoid concurrent modification issues
         for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
             if (deck.player == player) {
@@ -231,7 +231,7 @@ public class BeatGridFinder extends LifecycleParticipant {
     private BeatGrid requestBeatGridInternal(final DataReference trackReference, final boolean failIfPassive) {
 
         // First check if we are using cached data for this slot
-        MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
+        @SuppressWarnings("deprecation") MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
         if (cache != null) {
             return cache.getBeatGrid(null, trackReference);
         }
