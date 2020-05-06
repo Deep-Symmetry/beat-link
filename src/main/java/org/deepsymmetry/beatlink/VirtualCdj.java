@@ -534,14 +534,37 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Try to choose a device number, which we have not seen on the network. If we have already tried one, it must
+     * The number of milliseconds for which the {@link DeviceFinder} needs to have been watching the network in order
+     * for us to be confident we can choose a device number that will not conflict.
+     */
+    private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 4000;
+
+    /**
+     * <p>Try to choose a device number, which we have not seen on the network. If we have already tried one, it must
      * have been defended, so increment to the next one we can try (we stop at 15). If we have not yet tried one,
      * pick the first appropriate one to try, honoring the value of {@link #useStandardPlayerNumber} to determine
-     * if we start at 1 or 5. Set the number we are going to try next in {@link #claimingNumber}.
+     * if we start at 1 or 5. Set the number we are going to try next in {@link #claimingNumber}.</p>
+     *
+     * <p>Even though in theory we should be able to rely on the protocol to tell us if we are claiming a
+     * number that belongs to another player, it turns out the XDJ-XZ is buggy and tells us to go ahead and
+     * use whatever we were claiming, and further fails to defend the device numbers that it is using. So
+     * we still need to make sure the {@link DeviceFinder} has been running long enough to see all devices
+     * so we can avoid trying to claim a number that some other device is already using.</p>
      *
      * @return true if there was a number available for us to try claiming
      */
     private boolean selfAssignDeviceNumber() {
+        final long now = System.currentTimeMillis();
+        final long started = DeviceFinder.getInstance().getFirstDeviceTime();
+        if (now - started < SELF_ASSIGNMENT_WATCH_PERIOD) {
+            try {
+                Thread.sleep(SELF_ASSIGNMENT_WATCH_PERIOD - (now - started));  // Sleep until we hit the right time
+            } catch (InterruptedException e) {
+                logger.warn("Interrupted waiting to self-assign device number, giving up.");
+                return false;
+            }
+        }
+
         if (claimingNumber.get() == 0) {
             // We have not yet tried a number. If we are not supposed to use standard player numbers, make sure
             // the first one we try is 5.
@@ -761,7 +784,7 @@ public class VirtualCdj extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage3bytes[0x25] = (byte)i;  // The packet counter.
                 try {
-                    logger.debug("Sending claim stage 3 packet " + i);
+                    logger.debug("Sending claim stage 3 packet " + i + " for device " + claimStage3bytes[0x24]);
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -784,7 +807,8 @@ public class VirtualCdj extends LifecycleParticipant {
 
             claimed = true;  // If we finished all our loops, the number we wanted is ours.
         }
-        setDeviceNumber((byte)claimingNumber.getAndSet(0));
+        // Set the device number we claimed.
+        keepAliveBytes[DEVICE_NUMBER_OFFSET] = (byte)claimingNumber.getAndSet(0);
         mixerAssigned.set(0);
         return true;  // Huzzah, we found the right device number to use!
     }
@@ -974,6 +998,29 @@ public class VirtualCdj extends LifecycleParticipant {
             return createVirtualCdj();
         }
         return true;  // We were already active
+    }
+
+    /**
+     * <p>Start announcing ourselves as a specific device number (if we can claim it) and listening for status packets.
+     * If already active, has no effect. Requires the {@link DeviceFinder} to be active in order to find out how to
+     * communicate with other devices, so will start that if it is not already. </p>
+     *
+     * <p>This version is shorthand for calling {@link #setDeviceNumber(byte)} with the specified device number and
+     * then immediately calling {@link #start()}, but avoids the race condition which can occur if startup is already
+     * in progress, which would lead to an {@link IllegalStateException}. This is not uncommon when startup is being
+     * driven by receipt of device announcement packets.</p>
+     *
+     * @param deviceNumber the device number to try to claim
+     *
+     * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
+     * @throws SocketException if the socket to listen on port 50002 cannot be created
+     */
+    public synchronized boolean start(byte deviceNumber) throws SocketException {
+        if (!isRunning()) {
+            setDeviceNumber(deviceNumber);
+            return start();
+        }
+        return true;  // We are already running.
     }
 
     /**
@@ -2398,8 +2445,8 @@ public class VirtualCdj extends LifecycleParticipant {
                 logger.info("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use device number " + mixerAssigned.get());
             }
         } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGNMENT_FINISHED) {
-            mixerAssigned.set(packet.getData()[0x24]);
-            logger.info("Mixer confirmed device assignment of " + mixerAssigned.get());
+            mixerAssigned.set(claimingNumber.get());
+            logger.info("Mixer confirmed device assignment.");
         } else if (kind == Util.PacketType.DEVICE_NUMBER_IN_USE) {
             final int defendedDevice = packet.getData()[0x24];
             if (defendedDevice == 0) {

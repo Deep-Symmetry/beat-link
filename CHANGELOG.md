@@ -33,6 +33,10 @@ This change log follows the conventions of
   sync mode (by nudging the jog wheel of a synced player).
 - We now know that beat grid entries also report the tempo of the
   track at that beat, so this is properly exposed in the API.
+- We now fully support the device number assignment phase of the
+  Pro DJ Link protocol, so when Beat Link is connected to an ethernet
+  port on a mixer that is assigned a dedicated channel number, it will
+  use that device number.
 
 ### Deprecated
 
