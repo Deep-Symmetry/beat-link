@@ -253,7 +253,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param announcement the packet which reported the device’s disappearance
      */
     private void clearWaveforms(DeviceAnnouncement announcement) {
-        final int player = announcement.getNumber();
+        final int player = announcement.getDeviceNumber();
         // Iterate over a copy to avoid concurrent modification issues
         for (DeckReference deck : new HashSet<DeckReference>(previewHotCache.keySet())) {
             if (deck.player == player) {
@@ -410,7 +410,7 @@ public class WaveformFinder extends LifecycleParticipant {
     private WaveformPreview requestPreviewInternal(final DataReference trackReference, final boolean failIfPassive) {
 
         // First check if we are using cached data for this slot
-        MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
+        @SuppressWarnings("deprecation") MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
         if (cache != null) {
             return cache.getWaveformPreview(null, trackReference);
         }
@@ -517,7 +517,7 @@ public class WaveformFinder extends LifecycleParticipant {
     private WaveformDetail requestDetailInternal(final DataReference trackReference, final boolean failIfPassive) {
 
         // First check if we are using cached data for this slot
-        MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
+        @SuppressWarnings("deprecation") MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
         if (cache != null) {
             return cache.getWaveformDetail(null, trackReference);
         }

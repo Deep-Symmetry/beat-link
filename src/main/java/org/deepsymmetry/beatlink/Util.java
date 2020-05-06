@@ -23,7 +23,7 @@ public class Util {
     private static final Logger logger = LoggerFactory.getLogger(Util.class);
 
     /**
-     * The sequence of nine bytes which begins all UDP packets sent in the protocol.
+     * The sequence of ten bytes which begins all UDP packets sent in the protocol.
      */
     private static final byte[] MAGIC_HEADER = {0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c};
 
@@ -70,9 +70,56 @@ public class Util {
         MEDIA_RESPONSE(0x06, "Media Response", VirtualCdj.UPDATE_PORT),
 
         /**
+         * An initial series of three of these packets is sent when a device first joins the network, at 300ms
+         * intervals.
+         */
+        DEVICE_HELLO(0x0a, "Device Hello", DeviceFinder.ANNOUNCEMENT_PORT),
+
+        /**
+         * A series of three of these is sent at 300ms intervals when a device is starting to establish its
+         * device number.
+         */
+        DEVICE_NUMBER_STAGE_1(0x00, "Device Number Claim Stage 1", DeviceFinder.ANNOUNCEMENT_PORT),
+
+        /**
+         * This packet is sent by a mixer directly to a device which has just sent a device number self-assignment
+         * packet when that device is plugged into a channel-specific Ethernet jack on the mixer (or XDJ-XZ) to let
+         * the device know the sender of this packet is responsible for assigning its number.
+         */
+        DEVICE_NUMBER_WILL_ASSIGN(0x01, "Device Number Will Be Assigned", DeviceFinder.ANNOUNCEMENT_PORT),
+
+        /**
+         * A second series of three packets sent at 300ms intervals when the device is claiming its device number.
+         */
+        DEVICE_NUMBER_STAGE_2(0x02, "Device Number Claim Stage 2", DeviceFinder.ANNOUNCEMENT_PORT),
+
+        /**
+         * This packet is sent by a mixer (or XDJ-XZ) when a player has acknowledged that it is ready to be assigned
+         * the device number that belongs to the jack to which it is connected.
+         */
+        DEVICE_NUMBER_ASSIGN(0x03, "Device Number Assignment", DeviceFinder.ANNOUNCEMENT_PORT),
+
+        /**
+         * Third and final series of three packets sent at 300ms intervals when a device is claiming its device number.
+         * If the device is configured to use a specific number, only one is sent.
+         */
+        DEVICE_NUMBER_STAGE_3(0x04, "Device Number Claim Stage 3", DeviceFinder.ANNOUNCEMENT_PORT),
+
+        /**
+         * This packet is sent by a mixer (or XDJ-XZ) once it sees that device number assignment has concluded
+         * successfully, to the player plugged into a channel-specific jack.
+         */
+        DEVICE_NUMBER_ASSIGNMENT_FINISHED(0x05, "Device Number Assignment Finished", DeviceFinder.ANNOUNCEMENT_PORT),
+
+        /**
          * Used to report that a device is still present on the DJ Link network.
          */
         DEVICE_KEEP_ALIVE(0x06, "Device Keep-Alive", DeviceFinder.ANNOUNCEMENT_PORT),
+
+        /**
+         * Used to defend a device number that is already in use.
+         */
+        DEVICE_NUMBER_IN_USE(0x08, "Device Number In Use", DeviceFinder.ANNOUNCEMENT_PORT),
 
         /**
          * A status update from a player, with a great many status flags, pitch, tempo, and beat-within-bar details.
@@ -201,7 +248,7 @@ public class Util {
         }
 
         if (!getMagicHeader().equals(ByteBuffer.wrap(data, 0, MAGIC_HEADER.length))) {
-            logger.warn("Packet did not have correct nine-byte header for the Pro DJ Link protocol.");
+            logger.warn("Packet did not have correct ten-byte header for the Pro DJ Link protocol.");
             return null;
         }
 

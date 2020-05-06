@@ -259,6 +259,7 @@ public class CrateDigger {
                 if (triesMade < getRetryLimit()) {
                     logger.warn("Attempt to fetch file from player failed, tries left: " + (getRetryLimit() - triesMade), e);
                     try {
+                        //noinspection BusyWait
                         Thread.sleep(Math.min(MAX_RETRY_INTERVAL, triesMade * RETRY_BACKOFF));
                     } catch (InterruptedException ie) {
                         logger.warn("Interrupted while sleeping between file fetch attempts. Retrying immediately.");

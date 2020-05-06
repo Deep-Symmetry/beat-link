@@ -49,8 +49,8 @@ public class TimeFinder extends LifecycleParticipant {
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
             logger.info("Clearing position information in response to the loss of a device, {}", announcement);
-            positions.remove(announcement.getNumber());
-            updates.remove(announcement.getNumber());
+            positions.remove(announcement.getDeviceNumber());
+            updates.remove(announcement.getDeviceNumber());
         }
     };
 

@@ -89,7 +89,7 @@ Issue](https://github.com/Deep-Symmetry/beat-link/issues) or
 submit a pull request so we can all improve our understanding
 together.
 
-If something isn&rsquo;t working with your hardware and you don&rsquo;t yet know
+If something isn&rsquo;t working with your hardware, and you don&rsquo;t yet know
 the details why, but are willing to learn a little and help figure it
 out, look at the
 [dysentery project](https://github.com/Deep-Symmetry/dysentery#dysentery),

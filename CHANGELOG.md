@@ -33,12 +33,19 @@ This change log follows the conventions of
   sync mode (by nudging the jog wheel of a synced player).
 - We now know that beat grid entries also report the tempo of the
   track at that beat, so this is properly exposed in the API.
+- We now fully support the device number assignment phase of the
+  Pro DJ Link protocol, so when Beat Link is connected to an ethernet
+  port on a mixer that is assigned a dedicated channel number, it will
+  use that device number.
 
 ### Deprecated
 
 - The classes and methods relating to creating and using metadata caches
   are no longer needed because we can reliably obtain metadata no matter
   how many CDJs are on the network.
+- The `getName` and `getNumber` methods in `DeviceAnnouncement`
+  were inconsistent with the `getDeviceName` and `getDeviceNumber`
+  naming convention used in the entire device update packet hierarchy.
 
 ## [0.6.1] - 2020-02-09
 

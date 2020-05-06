@@ -453,6 +453,7 @@ public class WaveformDetailComponent extends JComponent {
                         public void run() {
                             while (animating.get()) {
                                 try {
+                                    //noinspection BusyWait
                                     Thread.sleep(33);  // Animate at 30 fps
                                 } catch (InterruptedException e) {
                                     logger.warn("Waveform animation thread interrupted; ending");

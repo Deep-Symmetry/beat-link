@@ -37,7 +37,7 @@ import java.util.zip.ZipOutputStream;
  * Since the discovery of how to download rekordbox track analysis files from players using Crate Digger, there
  * is a reliable way to obtain metadata even with four real players in use, so this workaround is no longer needed.
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({"WeakerAccess", "DeprecatedIsStillUsed"})
 @Deprecated
 public class MetadataCache implements MetadataProvider {
 

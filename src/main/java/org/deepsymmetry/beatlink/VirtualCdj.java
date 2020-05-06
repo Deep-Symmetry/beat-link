@@ -37,6 +37,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     @SuppressWarnings("WeakerAccess")
     public static final int UPDATE_PORT = 50002;
+    public static final int MAC_ADDRESS_OFFSET = 38;
 
     /**
      * The socket used to receive device status packets while we are active.
@@ -49,7 +50,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
     public boolean isRunning() {
-        return socket.get() != null;
+        return socket.get() != null && claimingNumber.get() == 0;
     }
 
     /**
@@ -128,15 +129,16 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the virtual player number
      */
     public synchronized byte getDeviceNumber() {
-        return announcementBytes[DEVICE_NUMBER_OFFSET];
+        return keepAliveBytes[DEVICE_NUMBER_OFFSET];
     }
 
     /**
      * <p>Set the device number to be used when sending presence announcements on the network to pose as a virtual CDJ.
-     * If this is set to zero before {@link #start()} is called, the {@code VirtualCdj} will watch the network to
-     * look for an unused device number, and assign itself that number during startup. If you
-     * explicitly assign a non-zero value, it will use that device number instead. Setting the value to zero while
-     * already up and running reassigns it to an unused value immediately. If {@link #getUseStandardPlayerNumber()}
+     * Used during the startup process; cannot be set while running. If set to zero, will attempt to claim any free
+     * device number, otherwise will try to claim the number specified. If the mixer tells us that we are plugged
+     * into a channel-specific Ethernet port, we will honor that and use the device number specified by the mixer.</p>
+     *
+     * <p>If {@link #getUseStandardPlayerNumber()}
      * returns {@code true}, self-assignment will try to find a value in the range 1 to 4. Otherwise (or if those
      * values are all used by other players), it will try to find a value in the range 5 to 15.</p>
      *
@@ -144,18 +146,14 @@ public class VirtualCdj extends LifecycleParticipant {
      * {@code VirtualCdj} is stopped.</p>
      *
      * @param number the virtual player number
-     * @throws IllegalStateException if we are currently sending status updates
+     * @throws IllegalStateException if we are currently running
      */
     @SuppressWarnings("WeakerAccess")
     public synchronized void setDeviceNumber(byte number) {
-        if (isSendingStatus()) {
-            throw new IllegalStateException("Can't change device number while sending status packets.");
+        if (isRunning()) {
+            throw new IllegalStateException("Can't change device number once started.");
         }
-        if (number == 0 && isRunning()) {
-            selfAssignDeviceNumber();
-        } else {
-            announcementBytes[DEVICE_NUMBER_OFFSET] = number;
-        }
+        keepAliveBytes[DEVICE_NUMBER_OFFSET] = number;
     }
 
     /**
@@ -188,12 +186,12 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Used to construct the announcement packet we broadcast in order to participate in the DJ Link network.
+     * Used to construct the keep-alive packet we broadcast in order to participate in the DJ Link network.
      * Some of these bytes are fixed, some get replaced by things like our device name and number, MAC address,
      * and IP address, as described in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-keep-alive">Packet Analysis document</a>.
      */
-    private static final byte[] announcementBytes = {
+    private static final byte[] keepAliveBytes = {
             0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x06, 0x00,  0x62, 0x65, 0x61, 0x74,
             0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
             0x01, 0x02, 0x00, 0x36,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
@@ -221,7 +219,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the device name reported in our presence announcement packets
      */
     public static String getDeviceName() {
-        return new String(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).trim();
+        return new String(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).trim();
     }
 
     /**
@@ -234,9 +232,56 @@ public class VirtualCdj extends LifecycleParticipant {
         if (name.getBytes().length > DEVICE_NAME_LENGTH) {
             throw new IllegalArgumentException("name cannot be more than " + DEVICE_NAME_LENGTH + " bytes long");
         }
-        Arrays.fill(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
-        System.arraycopy(name.getBytes(), 0, announcementBytes, DEVICE_NAME_OFFSET, name.getBytes().length);
+        Arrays.fill(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        System.arraycopy(name.getBytes(), 0, keepAliveBytes, DEVICE_NAME_OFFSET, name.getBytes().length);
     }
+
+    /**
+     * The initial packet sent three times when coming online.
+     */
+    private static final byte[] helloBytes = {
+            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x0a, 0x00,  0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x25,  0x01
+    };
+
+    /**
+     * The first-stage device number claim packet series.
+     */
+    private static final byte[] claimStage1bytes = {
+            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x00, 0x00,  0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x2c,  0x0d, 0x01, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00
+    };
+
+    /**
+     * The second-stage device number claim packet series.
+     */
+    private static final byte[] claimStage2bytes = {
+            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x02, 0x00,  0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x32,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x0d, 0x00,
+            0x01, 0x00
+    };
+
+    /**
+     * The third-stage (final) device number claim packet series.
+     */
+    private static final byte[] claimStage3bytes = {
+            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x04, 0x00,  0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x26,  0x0d, 0x00
+    };
+
+    /**
+     * Packet used to acknowledge a mixer's intention to assign us a device number.
+     */
+    private static final byte[] assignmentRequestBytes = {
+            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x02, 0x01,  0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x32,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x00
+    };
 
     /**
      * Keep track of which device has reported itself as the current tempo master.
@@ -495,10 +540,18 @@ public class VirtualCdj extends LifecycleParticipant {
     private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 4000;
 
     /**
-     * Try to choose a device number, which we have not seen on the network. Start by making sure
-     * we have been watching long enough to have seen the other devices. Then, if {@link #useStandardPlayerNumber} is
-     * {@code true}, try to use a standard player number in the range 1-4 if possible. Otherwise (or if all those
-     * numbers are already in use), pick a number from 5 to 15.
+     * <p>Try to choose a device number, which we have not seen on the network. If we have already tried one, it must
+     * have been defended, so increment to the next one we can try (we stop at 15). If we have not yet tried one,
+     * pick the first appropriate one to try, honoring the value of {@link #useStandardPlayerNumber} to determine
+     * if we start at 1 or 5. Set the number we are going to try next in {@link #claimingNumber}.</p>
+     *
+     * <p>Even though in theory we should be able to rely on the protocol to tell us if we are claiming a
+     * number that belongs to another player, it turns out the XDJ-XZ is buggy and tells us to go ahead and
+     * use whatever we were claiming, and further fails to defend the device numbers that it is using. So
+     * we still need to make sure the {@link DeviceFinder} has been running long enough to see all devices
+     * so we can avoid trying to claim a number that some other device is already using.</p>
+     *
+     * @return true if there was a number available for us to try claiming
      */
     private boolean selfAssignDeviceNumber() {
         final long now = System.currentTimeMillis();
@@ -511,18 +564,28 @@ public class VirtualCdj extends LifecycleParticipant {
                 return false;
             }
         }
-        Set<Integer> numbersUsed = new HashSet<Integer>();
-        for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
-            numbersUsed.add(device.getNumber());
+
+        if (claimingNumber.get() == 0) {
+            // We have not yet tried a number. If we are not supposed to use standard player numbers, make sure
+            // the first one we try is 5.
+            if (!getUseStandardPlayerNumber()) {
+                claimingNumber.set(4);
+            }
         }
 
-        // Try all player numbers less than mixers use, only including the real player range if we are configured to.
-        final int startingNumber = (getUseStandardPlayerNumber() ? 1 : 5);
+        // Record what numbers we have already seen, since there is no point trying one of them.
+        Set<Integer> numbersUsed = new HashSet<Integer>();
+        for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
+            numbersUsed.add(device.getDeviceNumber());
+        }
+
+        // Try next available player number less than mixers use.
+        final int startingNumber = claimingNumber.get() + 1;
         for (int result = startingNumber; result < 16; result++) {
             if (!numbersUsed.contains(result)) {  // We found one that is not used, so we can use it
-                setDeviceNumber((byte) result);
+                claimingNumber.set(result);
                 if (getUseStandardPlayerNumber() && (result > 4)) {
-                    logger.warn("Unable to self-assign a standard player number, all are in use. Using number " +
+                    logger.warn("Unable to self-assign a standard player number, all are in use. Trying number " +
                             result + ".");
                 }
                 return true;
@@ -556,6 +619,199 @@ public class VirtualCdj extends LifecycleParticipant {
      * so we can check if there are any unreachable ones.
      */
     private InterfaceAddress matchedAddress = null;
+
+    /**
+     * If we are in the process of trying to establish a device number, this will hold the number we are
+     * currently trying to claim. Otherwise it will hold the value 0.
+     */
+    private final AtomicInteger claimingNumber = new AtomicInteger(0);
+
+    /**
+     * If another player defends the number we tried to claim, this value will get set to true, and we will either
+     * have to try another number, or fail to start up, as appropriate.
+     */
+    private final AtomicBoolean claimRejected = new AtomicBoolean(false);
+
+    /**
+     * If a mixer has assigned us a device number, this will be that non-zero value.
+     */
+    private final AtomicInteger mixerAssigned = new AtomicInteger(0);
+
+    /**
+     * Implement the process of requesting a device number from a mixer that has told us it is responsible for
+     * assigning it to us as described in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-startup">protocol analysis</a>.
+     *
+     * @param mixerAddress the address from which we received a mixer device number assignment offer
+     */
+    private void requestNumberFromMixer(InetAddress mixerAddress) {
+        final DatagramSocket currentSocket = socket.get();
+        if (currentSocket == null) {
+            logger.warn("Gave up before sending device number request to mixer.");
+            return;  // We've already given up.
+        }
+        // Send a packet directly to the mixer telling it we are ready for its device assignment.
+        Arrays.fill(assignmentRequestBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        System.arraycopy(getDeviceName().getBytes(), 0, assignmentRequestBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
+        System.arraycopy(matchedAddress.getAddress().getAddress(), 0, assignmentRequestBytes, 0x24, 4);
+        System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, assignmentRequestBytes, 0x28, 6);
+        // Can't call getDeviceNumber() on next line because that's synchronized!
+        assignmentRequestBytes[0x31] = (keepAliveBytes[DEVICE_NUMBER_OFFSET] == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
+        assignmentRequestBytes[0x2f] = 1;  // The packet counter.
+        try {
+            DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
+                    mixerAddress, DeviceFinder.ANNOUNCEMENT_PORT);
+            logger.debug("Sending device number request to mixer at address " + announcement.getAddress().getHostAddress() +
+                    ", port " + announcement.getPort());
+            currentSocket.send(announcement);
+        } catch (Exception e) {
+            logger.warn("Unable to send device number request to mixer.", e);
+        }
+    }
+
+    /**
+     * Implement the device-number claim protocol described in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-startup">protocol analysis</a>.
+     *
+     * @return true iff a device number was successfully established and startup can proceed
+     */
+    private boolean claimDeviceNumber() {
+        // Set up our state trackers for device assignment negotiation.
+        claimRejected.set(false);
+        mixerAssigned.set(0);
+
+        // Send the initial series of three "coming online" packets.
+        Arrays.fill(helloBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        System.arraycopy(getDeviceName().getBytes(), 0, helloBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
+        for (int i = 1; i <= 3; i++) {
+            try {
+                logger.debug("Sending hello packet " + i);
+                DatagramPacket announcement = new DatagramPacket(helloBytes, helloBytes.length,
+                        broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
+                socket.get().send(announcement);
+                Thread.sleep(300);
+            } catch (Exception e) {
+                logger.warn("Unable to send hello packet to network, failing to go online.", e);
+                return false;
+            }
+        }
+
+        // Establish the device number we want to claim; if zero that means we will try to self-assign.
+        claimingNumber.set(getDeviceNumber());
+        boolean claimed = false;  // Indicates we have successfully claimed a number and can be done.
+
+        selfAssignLoop:
+        while (!claimed) {
+            // If we are supposed to self-assign a number, find the next one we can try.
+            if (getDeviceNumber() == 0 && !selfAssignDeviceNumber()) {
+                // There are no addresses left for us to try, give up and report failure.
+                claimingNumber.set(0);
+                return false;
+            }
+
+            // Send the series of three initial device number claim packets, unless we are interrupted by a defense
+            // or a mixer assigning us a specific number.
+            Arrays.fill(claimStage1bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+            System.arraycopy(getDeviceName().getBytes(), 0, claimStage1bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
+            System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, claimStage1bytes, 0x26, 6);
+            for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
+                claimStage1bytes[0x24] = (byte)i;  // The packet counter.
+                try {
+                    logger.debug("Sending claim stage 1 packet " + i);
+                    DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
+                            broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
+                    socket.get().send(announcement);
+                    //noinspection BusyWait
+                    Thread.sleep(300);
+                } catch (Exception e) {
+                    logger.warn("Unable to send device number claim stage 1 packet to network, failing to go online.", e);
+                    claimingNumber.set(0);
+                    return false;
+                }
+                if (claimRejected.get()) {  // Some other player is defending the number we tried to claim.
+                    if (getDeviceNumber() == 0) {  // We are trying to pick a number.
+                        continue selfAssignLoop;  // Try the next available number, if any.
+                    }
+                    logger.warn("Unable to use device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
+                    claimingNumber.set(0);
+                    return false;
+                }
+            }
+
+            // Send the middle series of device claim packets, unless we are interrupted by a defense
+            // or a mixer assigning us a specific number.
+            Arrays.fill(claimStage2bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+            System.arraycopy(getDeviceName().getBytes(), 0, claimStage2bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
+            System.arraycopy(matchedAddress.getAddress().getAddress(), 0, claimStage2bytes, 0x24, 4);
+            System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, claimStage2bytes, 0x28, 6);
+            claimStage2bytes[0x2e] = (byte)claimingNumber.get();  // The number we are claiming.
+            claimStage2bytes[0x31] = (getDeviceNumber() == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
+            for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
+                claimStage2bytes[0x2f] = (byte)i;  // The packet counter.
+                try {
+                    logger.debug("Sending claim stage 2 packet " + i + " for device " + claimStage2bytes[0x2e]);
+                    DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
+                            broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
+                    socket.get().send(announcement);
+                    //noinspection BusyWait
+                    Thread.sleep(300);
+                } catch (Exception e) {
+                    logger.warn("Unable to send device number claim stage 2 packet to network, failing to go online.", e);
+                    claimingNumber.set(0);
+                    return false;
+                }
+                if (claimRejected.get()) {  // Some other player is defending the number we tried to claim.
+                    if (getDeviceNumber() == 0) {  // We are trying to pick a number.
+                        continue selfAssignLoop;  // Try the next available number, if any.
+                    }
+                    logger.warn("Unable to use device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
+                    claimingNumber.set(0);
+                    return false;
+                }
+            }
+
+            // If the mixer assigned us a number, use it.
+            final int assigned = mixerAssigned.getAndSet(0);
+            if (assigned > 0) {
+                claimingNumber.set(assigned);
+            }
+
+            // Send the final series of device claim packets, unless we are interrupted by a defense, or the mixer
+            // acknowledges our acceptance of its assignment.
+            Arrays.fill(claimStage3bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+            System.arraycopy(getDeviceName().getBytes(), 0, claimStage3bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
+            claimStage3bytes[0x24] = (byte)claimingNumber.get();  // The number we are claiming.
+            for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
+                claimStage3bytes[0x25] = (byte)i;  // The packet counter.
+                try {
+                    logger.debug("Sending claim stage 3 packet " + i + " for device " + claimStage3bytes[0x24]);
+                    DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
+                            broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
+                    socket.get().send(announcement);
+                    //noinspection BusyWait
+                    Thread.sleep(300);
+                } catch (Exception e) {
+                    logger.warn("Unable to send device number claim stage 3 packet to network, failing to go online.", e);
+                    claimingNumber.set(0);
+                    return false;
+                }
+                if (claimRejected.get()) {  // Some other player is defending the number we tried to claim.
+                    if (getDeviceNumber() == 0) {  // We are trying to pick a number.
+                        continue selfAssignLoop;  // Try the next available number, if any.
+                    }
+                    logger.warn("Unable to use device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
+                    claimingNumber.set(0);
+                    return false;
+                }
+            }
+
+            claimed = true;  // If we finished all our loops, the number we wanted is ours.
+        }
+        // Set the device number we claimed.
+        keepAliveBytes[DEVICE_NUMBER_OFFSET] = (byte)claimingNumber.getAndSet(0);
+        mixerAssigned.set(0);
+        return true;  // Huzzah, we found the right device number to use!
+    }
 
     /**
      * Once we have seen some DJ Link devices on the network, we can proceed to create a virtual player on that
@@ -595,23 +851,28 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         }
 
-        if (getDeviceNumber() == 0) {
-            if (!selfAssignDeviceNumber()) {
-                return false;
-            }
-        }
-
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template
-        System.arraycopy(matchingInterfaces.get(0).getHardwareAddress(), 0, announcementBytes, 38, 6);
-        System.arraycopy(matchedAddress.getAddress().getAddress(), 0, announcementBytes, 44, 4);
+        System.arraycopy(matchingInterfaces.get(0).getHardwareAddress(), 0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
+        System.arraycopy(matchedAddress.getAddress().getAddress(), 0, keepAliveBytes, 44, 4);
         broadcastAddress.set(matchedAddress.getBroadcast());
 
-        // Looking good. Open our communication socket and set up our threads.
+        // Open our communication socket.
         socket.set(new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress()));
 
         // Inform the DeviceFinder to ignore our own device announcement packets.
         DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
 
+        // Determine the device number we are supposed to use, and make sure it can be claimed by us.
+        if (!claimDeviceNumber()) {
+            // We couldn't get a device number, so clean up and report failure.
+            logger.warn("Unable to allocate a device number for the Virtual CDJ, giving up.");
+            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
+            socket.get().close();
+            socket.set(null);
+            return false;
+        }
+
+        // Set up our buffer and packet to receive incoming messages.
         final byte[] buffer = new byte[512];
         final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
@@ -721,6 +982,7 @@ public class VirtualCdj extends LifecycleParticipant {
             DeviceFinder.getInstance().start();
             for (int i = 0; DeviceFinder.getInstance().getCurrentDevices().isEmpty() && i < 20; i++) {
                 try {
+                    //noinspection BusyWait
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     logger.warn("Interrupted waiting for devices, giving up", e);
@@ -736,6 +998,29 @@ public class VirtualCdj extends LifecycleParticipant {
             return createVirtualCdj();
         }
         return true;  // We were already active
+    }
+
+    /**
+     * <p>Start announcing ourselves as a specific device number (if we can claim it) and listening for status packets.
+     * If already active, has no effect. Requires the {@link DeviceFinder} to be active in order to find out how to
+     * communicate with other devices, so will start that if it is not already. </p>
+     *
+     * <p>This version is shorthand for calling {@link #setDeviceNumber(byte)} with the specified device number and
+     * then immediately calling {@link #start()}, but avoids the race condition which can occur if startup is already
+     * in progress, which would lead to an {@link IllegalStateException}. This is not uncommon when startup is being
+     * driven by receipt of device announcement packets.</p>
+     *
+     * @param deviceNumber the device number to try to claim
+     *
+     * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
+     * @throws SocketException if the socket to listen on port 50002 cannot be created
+     */
+    public synchronized boolean start(byte deviceNumber) throws SocketException {
+        if (!isRunning()) {
+            setDeviceNumber(deviceNumber);
+            return start();
+        }
+        return true;  // We are already running.
     }
 
     /**
@@ -765,7 +1050,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private void sendAnnouncement(InetAddress broadcastAddress) {
         try {
-            DatagramPacket announcement = new DatagramPacket(announcementBytes, announcementBytes.length,
+            DatagramPacket announcement = new DatagramPacket(keepAliveBytes, keepAliveBytes.length,
                     broadcastAddress, DeviceFinder.ANNOUNCEMENT_PORT);
             socket.get().send(announcement);
             Thread.sleep(getAnnounceInterval());
@@ -1098,7 +1383,7 @@ public class VirtualCdj extends LifecycleParticipant {
     @SuppressWarnings("SameParameterValue")
     private void assembleAndSendPacket(Util.PacketType kind, byte[] payload, InetAddress destination, int port) throws IOException {
         DatagramPacket packet = Util.buildPacket(kind,
-                ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
+                ByteBuffer.wrap(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
                 ByteBuffer.wrap(payload));
         packet.setAddress(destination);
         packet.setPort(port);
@@ -1128,7 +1413,7 @@ public class VirtualCdj extends LifecycleParticipant {
         byte[] payload = new byte[MEDIA_QUERY_PAYLOAD.length];
         System.arraycopy(MEDIA_QUERY_PAYLOAD, 0, payload, 0, MEDIA_QUERY_PAYLOAD.length);
         payload[2] = getDeviceNumber();
-        System.arraycopy(announcementBytes, 44, payload, 5, 4);  // Copy in our IP address.
+        System.arraycopy(keepAliveBytes, 44, payload, 5, 4);  // Copy in our IP address.
         payload[12] = (byte)slot.player;
         payload[16] = slot.slot.protocolValue;
         assembleAndSendPacket(Util.PacketType.MEDIA_QUERY, payload, announcement.getAddress(), UPDATE_PORT);
@@ -1521,6 +1806,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     while (stillRunning.get()) {
                         sendStatus();
                         try {
+                            //noinspection BusyWait
                             Thread.sleep(getStatusInterval());
                         } catch (InterruptedException e) {
                             logger.warn("beat-link VirtualCDJ status sender thread was interrupted; continuing");
@@ -1937,6 +2223,7 @@ public class VirtualCdj extends LifecycleParticipant {
                 (((distance < 0.0) && (Math.abs(distance) <= BeatSender.SLEEP_THRESHOLD)) ||
                 ((distance >= 0.0) && (distance <= (BeatSender.BEAT_THRESHOLD + 1))))) {
             try {
+                //noinspection BusyWait
                 Thread.sleep(2);
             } catch (InterruptedException e) {
                 logger.warn("Interrupted while sleeping to avoid beat packet; ignoring.", e);
@@ -1975,7 +2262,7 @@ public class VirtualCdj extends LifecycleParticipant {
         Util.numberToBytes(packetCounter.incrementAndGet(), payload, 0xa9, 4);
 
         DatagramPacket packet = Util.buildPacket(Util.PacketType.CDJ_STATUS,
-                ByteBuffer.wrap(announcementBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
+                ByteBuffer.wrap(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
                 ByteBuffer.wrap(payload));
         packet.setPort(UPDATE_PORT);
         for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
@@ -2110,6 +2397,76 @@ public class VirtualCdj extends LifecycleParticipant {
                 }
             }
         });
+    }
+
+    /**
+     * We have received a packet from a device trying to claim a device number, see if we should defend it.
+     *
+     * @param packet the packet received
+     * @param deviceOffset the index of the byte within the packet holding the device number being claimed
+     */
+    private void handleDeviceClaimPacket(DatagramPacket packet, int deviceOffset) {
+        if (packet.getData().length < deviceOffset + 1) {
+            logger.warn("Ignoring too-short device claim packet.");
+            return;
+        }
+        if (isRunning() && getDeviceNumber() == packet.getData()[deviceOffset]) {
+            // TODO: Implement!
+            logger.error("Should defend our device number, but this is not yet implemented!");
+        }
+    }
+
+    /**
+     * The {@link DeviceFinder} delegates packets it doesn't know how to deal with to us using this method, because
+     * they relate to claiming or defending device numbers, which is our responsibility.
+     *
+     * @param kind the kind of packet that was received
+     * @param packet the actual bytes of the packet
+     */
+    void handleSpecialAnnouncementPacket(Util.PacketType kind, DatagramPacket packet) {
+        if (kind == Util.PacketType.DEVICE_NUMBER_STAGE_1) {
+            logger.debug("Received device number claim stage 1 packet.");
+        } else if (kind == Util.PacketType.DEVICE_NUMBER_STAGE_2) {
+            handleDeviceClaimPacket(packet, 0x2e);
+        } else if (kind == Util.PacketType.DEVICE_NUMBER_STAGE_3) {
+            handleDeviceClaimPacket(packet, 0x24);
+        } else if (kind == Util.PacketType.DEVICE_NUMBER_WILL_ASSIGN) {
+            logger.debug("The mixer at address " + packet.getAddress().getHostAddress() + " wants to assign us a specific device number.");
+            if (claimingNumber.get() != 0) {
+                requestNumberFromMixer(packet.getAddress());
+            } else {
+                logger.warn("Ignoring mixer device number assignment offer; we are not claiming a device number!");
+            }
+        } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGN) {
+            mixerAssigned.set(packet.getData()[0x24]);
+            if (mixerAssigned.get() == 0) {
+                logger.debug("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use any device.");
+            } else {
+                logger.info("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use device number " + mixerAssigned.get());
+            }
+        } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGNMENT_FINISHED) {
+            mixerAssigned.set(claimingNumber.get());
+            logger.info("Mixer confirmed device assignment.");
+        } else if (kind == Util.PacketType.DEVICE_NUMBER_IN_USE) {
+            final int defendedDevice = packet.getData()[0x24];
+            if (defendedDevice == 0) {
+                logger.warn("Ignoring unexplained attempt to defend device 0.");
+            } else if (defendedDevice == claimingNumber.get()) {
+                logger.warn("Another device is defending device number " + defendedDevice + ", so we can't use it.");
+                claimRejected.set(true);
+            } else if (isRunning()) {
+                if (defendedDevice == getDeviceNumber()) {
+                    logger.warn("Another device has claimed it owns our device number, shutting down.");
+                    stop();
+                } else {
+                    logger.warn("Another device is defending a number we are not using, ignoring: " + defendedDevice);
+                }
+            } else {
+                logger.warn("Received device number defense message for device number " + defendedDevice +  " when we are not even running!");
+            }
+        } else {
+            logger.warn("Received unrecognized special announcement packet type: " + kind);
+        }
     }
 
     @Override

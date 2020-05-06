@@ -73,8 +73,6 @@ public class ColorItem extends SearchableItem {
      */
     public static Color colorForId(int colorId) {
         switch (colorId) {
-            case 0:
-                return new Color(0, 0, 0, 0);
 
             case 1:
                 return Color.PINK;
@@ -100,6 +98,7 @@ public class ColorItem extends SearchableItem {
             case 8:
                 return new Color(128, 0, 128);
 
+            case 0:
             default:
                 return new Color(0, 0, 0, 0);
         }
