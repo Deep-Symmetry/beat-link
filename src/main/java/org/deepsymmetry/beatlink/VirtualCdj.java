@@ -134,10 +134,11 @@ public class VirtualCdj extends LifecycleParticipant {
 
     /**
      * <p>Set the device number to be used when sending presence announcements on the network to pose as a virtual CDJ.
-     * If this is set to zero before {@link #start()} is called, the {@code VirtualCdj} will watch the network to
-     * look for an unused device number, and assign itself that number during startup. If you
-     * explicitly assign a non-zero value, it will use that device number instead. Setting the value to zero while
-     * already up and running reassigns it to an unused value immediately. If {@link #getUseStandardPlayerNumber()}
+     * Used during the startup process; cannot be set while running. If set to zero, will attempt to claim any free
+     * device number, otherwise will try to claim the number specified. If the mixer tells us that we are plugged
+     * into a channel-specific Ethernet port, we will honor that and use the device number specified by the mixer.</p>
+     *
+     * <p>If {@link #getUseStandardPlayerNumber()}
      * returns {@code true}, self-assignment will try to find a value in the range 1 to 4. Otherwise (or if those
      * values are all used by other players), it will try to find a value in the range 5 to 15.</p>
      *
@@ -145,18 +146,14 @@ public class VirtualCdj extends LifecycleParticipant {
      * {@code VirtualCdj} is stopped.</p>
      *
      * @param number the virtual player number
-     * @throws IllegalStateException if we are currently sending status updates
+     * @throws IllegalStateException if we are currently running
      */
     @SuppressWarnings("WeakerAccess")
     public synchronized void setDeviceNumber(byte number) {
-        if (isSendingStatus()) {
-            throw new IllegalStateException("Can't change device number while sending status packets.");
+        if (isRunning()) {
+            throw new IllegalStateException("Can't change device number once started.");
         }
-        if (number == 0 && isRunning()) {
-            selfAssignDeviceNumber();
-        } else {
-            keepAliveBytes[DEVICE_NUMBER_OFFSET] = number;
-        }
+        keepAliveBytes[DEVICE_NUMBER_OFFSET] = number;
     }
 
     /**
@@ -729,7 +726,7 @@ public class VirtualCdj extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage2bytes[0x2f] = (byte)i;  // The packet counter.
                 try {
-                    logger.debug("Sending claim stage 2 packet " + i);
+                    logger.debug("Sending claim stage 2 packet " + i + " for device " + claimStage2bytes[0x2e]);
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
