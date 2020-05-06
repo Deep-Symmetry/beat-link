@@ -1391,25 +1391,27 @@ public class MetadataFinder extends LifecycleParticipant {
                     }
                 }
 
-                // Not in the hot cache so try actually retrieving it.
-                if (activeRequests.add(update.getTrackSourcePlayer())) {
-                    // We had to make sure we were not already asking for this track.
-                    clearDeck(update);  // We won't know what it is until our request completes.
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                TrackMetadata data = requestMetadataInternal(trackReference, update.getTrackType(), true);
-                                if (data != null) {
-                                    updateMetadata(update, data);
+                // Not in the hot cache so try actually retrieving it, if possible.
+                if (ConnectionManager.getInstance().getPlayerDBServerPort(update.getTrackSourcePlayer()) > 0) {
+                    if (activeRequests.add(update.getTrackSourcePlayer())) {
+                        // We had to make sure we were not already asking for this track.
+                        clearDeck(update);  // We won't know what it is until our request completes.
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    TrackMetadata data = requestMetadataInternal(trackReference, update.getTrackType(), true);
+                                    if (data != null) {
+                                        updateMetadata(update, data);
+                                    }
+                                } catch (Exception e) {
+                                    logger.warn("Problem requesting track metadata from update" + update, e);
+                                } finally {
+                                    activeRequests.remove(update.getTrackSourcePlayer());
                                 }
-                            } catch (Exception e) {
-                                logger.warn("Problem requesting track metadata from update" + update, e);
-                            } finally {
-                                activeRequests.remove(update.getTrackSourcePlayer());
                             }
-                        }
-                    }, "MetadataFinder metadata request").start();
+                        }, "MetadataFinder metadata request").start();
+                    }
                 }
             }
         }
