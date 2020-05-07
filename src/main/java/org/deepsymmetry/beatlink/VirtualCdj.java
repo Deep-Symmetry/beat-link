@@ -284,6 +284,15 @@ public class VirtualCdj extends LifecycleParticipant {
     };
 
     /**
+     * Packet used to tell another device we are already using a device number.
+     */
+    private static final byte[] deviceNumberDefenseBytes = {
+            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x08, 0x00,  0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x29,  0x00, 0x00, 0x00, 0x00,   0x00
+    };
+
+    /**
      * Keep track of which device has reported itself as the current tempo master.
      */
     private final AtomicReference<DeviceUpdate> tempoMaster = new AtomicReference<DeviceUpdate>();
@@ -650,6 +659,7 @@ public class VirtualCdj extends LifecycleParticipant {
             logger.warn("Gave up before sending device number request to mixer.");
             return;  // We've already given up.
         }
+
         // Send a packet directly to the mixer telling it we are ready for its device assignment.
         Arrays.fill(assignmentRequestBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
         System.arraycopy(getDeviceName().getBytes(), 0, assignmentRequestBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
@@ -666,6 +676,35 @@ public class VirtualCdj extends LifecycleParticipant {
             currentSocket.send(announcement);
         } catch (Exception e) {
             logger.warn("Unable to send device number request to mixer.", e);
+        }
+    }
+
+    /**
+     * Tell a device that is trying to use the same number that we have ownership of it.
+     *
+     * @param invaderAddress the address from which a rogue device claim or announcement was received for the same
+     *                       device number we are using
+     */
+    void defendDeviceNumber(InetAddress invaderAddress) {
+        final DatagramSocket currentSocket = socket.get();
+        if (currentSocket == null) {
+            logger.warn("Went offline before we could defend our device number.");
+            return;
+        }
+
+        // Send a packet to the interloper telling it that we are using that device number.
+        Arrays.fill(deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        System.arraycopy(getDeviceName().getBytes(), 0, deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
+        deviceNumberDefenseBytes[0x24] = keepAliveBytes[DEVICE_NUMBER_OFFSET];
+        System.arraycopy(matchedAddress.getAddress().getAddress(), 0, deviceNumberDefenseBytes, 0x25, 4);
+        try {
+            DatagramPacket defense = new DatagramPacket(deviceNumberDefenseBytes, deviceNumberDefenseBytes.length,
+                    invaderAddress, DeviceFinder.ANNOUNCEMENT_PORT);
+            logger.info("Sending device number defense packet to invader at address " + defense.getAddress().getHostAddress() +
+                    ", port " + defense.getPort());
+            currentSocket.send(defense);
+        } catch (Exception e) {
+            logger.error("Unable to send device defense packet.", e);
         }
     }
 
@@ -2411,8 +2450,7 @@ public class VirtualCdj extends LifecycleParticipant {
             return;
         }
         if (isRunning() && getDeviceNumber() == packet.getData()[deviceOffset]) {
-            // TODO: Implement!
-            logger.error("Should defend our device number, but this is not yet implemented!");
+            defendDeviceNumber(packet.getAddress());
         }
     }
 

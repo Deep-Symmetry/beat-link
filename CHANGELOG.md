@@ -36,7 +36,8 @@ This change log follows the conventions of
 - We now fully support the device number assignment phase of the
   Pro DJ Link protocol, so when Beat Link is connected to an ethernet
   port on a mixer that is assigned a dedicated channel number, it will
-  use that device number.
+  use that device number, and we defend our device number once we have
+  successully claimed it.
 
 ### Deprecated
 

@@ -229,6 +229,11 @@ public class DeviceFinder extends LifecycleParticipant {
                                         if (foundNewDevice) {
                                             deliverFoundAnnouncement(announcement);
                                         }
+                                        if (VirtualCdj.getInstance().isRunning() &&
+                                                announcement.getDeviceNumber() == VirtualCdj.getInstance().getDeviceNumber()) {
+                                            // Someone is using the same device number as we are! Try to defend it.
+                                            VirtualCdj.getInstance().defendDeviceNumber(announcement.getAddress());
+                                        }
                                     }
                                 } else if (kind == Util.PacketType.DEVICE_HELLO) {
                                     logger.debug("Received device hello packet.");
