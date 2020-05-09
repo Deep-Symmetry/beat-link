@@ -906,7 +906,7 @@ public class Message {
         if (!(argTypes instanceof BinaryField)) {
             throw new IOException("Did not find binary field reading argument types of message, got: " + argTypes);
         }
-        byte[] argTags = new byte[12];
+        final byte[] argTags = new byte[argCount];
         ((BinaryField)argTypes).getValue().get(argTags);
 
         Field[] arguments = new Field[argCount];

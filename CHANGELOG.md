@@ -12,6 +12,11 @@ This change log follows the conventions of
   they are sometimes missing color information or even the comment
   information that precedes it. We no longer crash when we encounter
   such partial cues.
+- Fixes to the Beat Link and Crate Digger libraries allow them to work
+  properly with new formats for data that rekordbox 6 sends. We may
+  find more problems in the future, because testing with this new
+  version has been limited, but it is already working much better than
+  it did at first.
 - An update to Crate Digger avoids crashes when trying to parse track
   analysis files created with mal-formed vestigial waveform preview
   tags.
@@ -24,7 +29,9 @@ This change log follows the conventions of
 - Track Load packets now need to have an extra value to tell the
   recipient on which deck the track should be loaded, because the
   XDJ-XZ has two decks but only one network address on which to receive
-  these commands.
+  these commands. (Sadly for us, it refuses to load tracks from other
+  players even when this byte is sent correctly, it only loads tracks
+  from a rekordbox collection when rekordbox tells it to.)
 
 ### Added
 
