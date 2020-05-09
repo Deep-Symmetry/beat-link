@@ -1667,6 +1667,25 @@ public class VirtualCdj extends LifecycleParticipant {
         payload[0x0a] = sourceSlot.protocolValue;
         payload[0x0b] = sourceType.protocolValue;
         payload[0x21] = (byte)(target.getDeviceNumber() - 1);
+        if (target.deviceName.startsWith("XDJ-XZ")) {
+            // Use the packet variant that seems to be necessary for the XDJ-XZ to accept it.
+            payload[0x01] = 1;
+            payload[0x2c] = 0x32;
+            // See if we can find a rekordbox instance to pose as, which is also necessary to make this work.
+            for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
+                final byte number = (byte)device.getDeviceNumber();
+                if (number >= 0x11 && number < 0x20) {  // Aha! We can see a regular rekordbox instance, this will work.
+                    payload[0x02] = number;
+                    payload[0x05] = number;
+                    break;
+                }
+                if (number >= 0x29 && number < 0x30) { // We can see rekordbox mobile, this will work too.
+                    payload[0x02] = number;
+                    payload[0x05] = number;
+                    break;
+                }
+            }
+        }
         Util.numberToBytes(rekordboxId, payload, 0x0d, 4);
         assembleAndSendPacket(Util.PacketType.LOAD_TRACK_COMMAND, payload, target.getAddress(), UPDATE_PORT);
     }
