@@ -1679,10 +1679,15 @@ public class VirtualCdj extends LifecycleParticipant {
                     payload[0x05] = number;
                     break;
                 }
-                if (number >= 0x29 && number < 0x30) { // We can see rekordbox mobile, this will work too.
-                    payload[0x02] = number;
-                    payload[0x05] = number;
-                    break;
+            }
+            if (payload[0x02] == getDeviceNumber()) {  // We did not find a laptop rekordbox, see if there's a mobile one.
+                for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
+                    final byte number = (byte)device.getDeviceNumber();
+                    if (number >= 0x29 && number < 0x30) { // We can see rekordbox mobile, this will work too.
+                        payload[0x02] = number;
+                        payload[0x05] = number;
+                        break;
+                    }
                 }
             }
         }
