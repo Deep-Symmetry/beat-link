@@ -63,9 +63,21 @@ public class ColorItem extends SearchableItem {
     }
 
     /**
+     * Checks whether a color value corresponds to the "No Color" choice in rekordbox. This is implemented via
+     * transparency; the no-color choice is fully transparent.
+     *
+     * @param color a color to be examined
+     * @return {@code true} if the color represents the lack of a color assignment
+     */
+    public static boolean isNoColor(Color color) {
+        return color.getAlpha() == 0;
+    }
+
+    /**
      * Returns the color represented by a color label assigned to a track in rekordbox. This is also used in the user
      * interface color tint settings that can be set up for an exported media library (and returned in the
-     * {@link org.deepsymmetry.beatlink.MediaDetails} response).
+     * {@link org.deepsymmetry.beatlink.MediaDetails} response). If no color has been assigned, a fully-transparent
+     * black is returned, which can be tested for
      *
      * @param colorId the id of the color label assigned to a track or the <i>col</i> value in the {@link org.deepsymmetry.beatlink.MediaDetails}
      *

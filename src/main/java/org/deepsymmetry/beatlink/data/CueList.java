@@ -94,7 +94,7 @@ public class CueList {
      * @return the cue whose start time is closest to the specified time but not after it
      */
     public Entry findEntryBefore(long milliseconds) {
-        final Entry target = new Entry(0, Util.timeToHalfFrameRounded(milliseconds), "", null, null);
+        final Entry target = new Entry(Util.timeToHalfFrameRounded(milliseconds), "", 0);
         int index = Collections.binarySearch(entries, target, TIME_ONLY_COMPARATOR);
         if (index >= 0) {  // An exact match
             return entries.get(index);
@@ -122,7 +122,7 @@ public class CueList {
      * @return the cue whose start time is closest to the specified time but not before it
      */
     public Entry findEntryAfter(long milliseconds) {
-        final Entry target = new Entry(0, Util.timeToHalfFrameRounded(milliseconds), "", null, null);
+        final Entry target = new Entry(Util.timeToHalfFrameRounded(milliseconds), "", 0);
         int index = Collections.binarySearch(entries, target, TIME_ONLY_COMPARATOR);
         if (index >= 0) {
             return entries.get(index);
@@ -210,26 +210,75 @@ public class CueList {
         public final String comment;
 
         /**
-         * The explicit color embedded into the cue, or {@code null} if there was none.
+         * The color table ID identifying the color assigned to a memory point or loop.
+         */
+        public final int colorId;
+
+        /**
+         * The explicit color embedded into the hot cue, or {@code null} if there was none.
          */
         public final Color embeddedColor;
 
         /**
-         * The color with which this cue will be displayed in rekordbox, if it is a hot cue with a recognized
+         * The color with which this hot cue will be displayed in rekordbox, if it is a hot cue with a recognized
          * color code, or {@code null} if that does not apply.
          */
         public final Color rekordboxColor;
 
         /**
-         * Constructor for non-loop entries.
+         * Constructor for non-loop memory point entries.
          *
-         * @param number if non-zero, this is a hot cue, with the specified identifier
          * @param position the position of this cue/memory point in half-frame units, which are 1/150 of a second
          * @param comment the DJ-assigned comment, or an empty string if none was assigned
-         * @param embeddedColor the explicit color embedded in the cue, if any
-         * @param rekordboxColor the color that rekordbox will display for this cue, if available
+         * @param colorId the row in the color table representing the color assigned this cue, or zero if none
+         */
+        public Entry(long position, String comment, int colorId) {
+            if (comment == null) throw new NullPointerException("comment must not be null");
+            hotCueNumber = 0;
+            cuePosition = position;
+            cueTime = Util.halfFrameToTime(position);
+            isLoop = false;
+            loopPosition = 0;
+            loopTime = 0;
+            this.colorId = colorId;
+            this.comment = comment.trim();
+            this.embeddedColor = null;
+            this.rekordboxColor = null;
+        }
+
+        /**
+         * Constructor for loop hot cue entries.
+         *
+         * @param startPosition the position of the start of this loop in half-frame units, which are 1/150 of a second
+         * @param endPosition the position of the end of this loop in half-frame units
+         * @param comment the DJ-assigned comment, or an empty string if none was assigned
+         * @param colorId the row in the color table representing the color assigned this loop, or zero if none
+         */
+        public Entry(long startPosition, long endPosition, String comment, int colorId) {
+            if (comment == null) throw new NullPointerException("comment must not be null");
+            hotCueNumber = 0;
+            cuePosition = startPosition;
+            cueTime = Util.halfFrameToTime(startPosition);
+            isLoop = true;
+            loopPosition = endPosition;
+            loopTime = Util.halfFrameToTime(endPosition);
+            this.colorId = colorId;
+            this.comment = comment.trim();
+            this.embeddedColor = null;
+            this.rekordboxColor = null;
+        }
+
+        /**
+         * Constructor for non-loop hot cue entries.
+         *
+         * @param number the non-zero hot cue identifier
+         * @param position the position of this cue/memory point in half-frame units, which are 1/150 of a second
+         * @param comment the DJ-assigned comment, or an empty string if none was assigned
+         * @param embeddedColor the explicit color embedded in the hot cue, if any
+         * @param rekordboxColor the color that rekordbox will display for this hot cue, if available
          */
         public Entry(int number, long position, String comment, Color embeddedColor, Color rekordboxColor) {
+            if (number == 0) throw new IllegalArgumentException("Hot cues must have non-zero numbers");
             if (comment == null) throw new NullPointerException("comment must not be null");
             hotCueNumber = number;
             cuePosition = position;
@@ -237,15 +286,16 @@ public class CueList {
             isLoop = false;
             loopPosition = 0;
             loopTime = 0;
+            colorId = 0;
             this.comment = comment.trim();
             this.embeddedColor = embeddedColor;
             this.rekordboxColor = rekordboxColor;
         }
 
         /**
-         * Constructor for loop entries.
+         * Constructor for loop hot cue entries.
          *
-         * @param number if non-zero, this is a hot cue, with the specified identifier
+         * @param number the non-zero hot cue identifier
          * @param startPosition the position of the start of this loop in half-frame units, which are 1/150 of a second
          * @param endPosition the position of the end of this loop in half-frame units
          * @param comment the DJ-assigned comment, or an empty string if none was assigned
@@ -253,6 +303,7 @@ public class CueList {
          * @param rekordboxColor the color that rekordbox will display for this cue, if available
          */
         public Entry(int number, long startPosition, long endPosition, String comment, Color embeddedColor, Color rekordboxColor) {
+            if (number == 0) throw new IllegalArgumentException("Hot cues must have non-zero numbers");
             if (comment == null) throw new NullPointerException("comment must not be null");
             hotCueNumber = number;
             cuePosition = startPosition;
@@ -260,6 +311,7 @@ public class CueList {
             isLoop = true;
             loopPosition = endPosition;
             loopTime = Util.halfFrameToTime(endPosition);
+            colorId = 0;
             this.comment = comment.trim();
             this.embeddedColor = embeddedColor;
             this.rekordboxColor = rekordboxColor;
@@ -282,13 +334,26 @@ public class CueList {
         }
 
         /**
-         * Determine the best color to be used to display this cue. If there is an indexed rekordbox color in the cue,
-         * use that; otherwise, if there is an explicit color embedded, use that, and if neither of those is available,
-         * delegate to {@link #getNexusColor()}.
+         * <p>Determine the best color to be used to display this cue. If it is a memory point, its color will be
+         * a reference to the standard colors table, as implemented by {@link ColorItem#colorForId(int)}.</p>
+         *
+         * <p>If it is a hot cue, things are more complex:
+         * If there is an indexed rekordbox color in the cue, use that; otherwise, if there is an explicit color
+         * embedded, use that, and if neither of those is available, delegate to {@link #getNexusColor()}.</p>
          *
          * @return the most suitable available display color for the cue
          */
         public Color getColor() {
+            // This is an ordinary memory point or loop.
+            if (hotCueNumber == 0) {
+                final Color assigned = ColorItem.colorForId(colorId);
+                if (ColorItem.isNoColor(assigned)) {
+                    return getNexusColor();
+                }
+                return assigned;
+            }
+
+            // This is a hot cue or loop.
             if (rekordboxColor != null) {
                 return rekordboxColor;
             }
@@ -317,6 +382,7 @@ public class CueList {
             if (!comment.isEmpty()) {
                 sb.append(", comment ").append(comment);
             }
+            sb.append(", ").append(getColor());
             sb.append(']');
             return sb.toString();
         }
@@ -379,11 +445,20 @@ public class CueList {
      */
     private void addEntriesFromTag(List<Entry> entries, RekordboxAnlz.CueTag tag) {
         for (RekordboxAnlz.CueEntry cueEntry : tag.cues()) {  // TODO: Need to figure out how to identify deleted entries to ignore.
-            if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
-                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
-                        Util.timeToHalfFrame(cueEntry.loopTime()), "", null, null));
-            } else {
-                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), "", null, null));
+            if (cueEntry.hotCue() == 0) {  // This is an ordinary memory point or loop.
+                if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
+                    entries.add(new Entry(Util.timeToHalfFrame(cueEntry.time()),
+                            Util.timeToHalfFrame(cueEntry.loopTime()), "", 0));
+                } else {
+                    entries.add(new Entry(Util.timeToHalfFrame(cueEntry.time()), "", 0));
+                }
+            } else {  // This is a hot cue or loop.
+                if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
+                    entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
+                            Util.timeToHalfFrame(cueEntry.loopTime()), "", null, null));
+                } else {
+                    entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), "", null, null));
+                }
             }
         }
     }
@@ -517,22 +592,32 @@ public class CueList {
      */
     private void addEntriesFromTag(List<Entry> entries, RekordboxAnlz.CueExtendedTag tag) {
         for (RekordboxAnlz.CueExtendedEntry cueEntry : tag.cues()) {
-            final Color embeddedColor = findEmbeddedColor(cueEntry);
-            final int colorCode = cueEntry.colorCode() == null? 0 : cueEntry.colorCode();
-            final Color expectedColor = expectedEmbeddedColor(colorCode);
-            final Color rekordboxColor = findRekordboxColor(colorCode);
-            if (((embeddedColor == null && expectedColor != null) ||
-                    (embeddedColor != null && !embeddedColor.equals(expectedColor))) &&
-                    (colorCode != 0 || embeddedColor != null)) {
-                logger.warn("Was expecting embedded color " + expectedColor +
-                        " for rekordbox color code " + colorCode + ", but found color " + embeddedColor);
-            }
-            final String comment = (cueEntry.comment() != null)? cueEntry.comment() : "";  // Normalize missing comments to empty strings.
-            if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
-                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
-                        Util.timeToHalfFrame(cueEntry.loopTime()), comment, embeddedColor, rekordboxColor));
-            } else {
-                entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), comment, embeddedColor, rekordboxColor));
+            if (cueEntry.hotCue() == 0) {  // This is an ordinary memory point or loop.
+                final String comment = (cueEntry.comment() != null)? cueEntry.comment() : "";  // Normalize missing comments to empty strings.
+                if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
+                    entries.add(new Entry(Util.timeToHalfFrame(cueEntry.time()),
+                            Util.timeToHalfFrame(cueEntry.loopTime()), comment, cueEntry.colorId()));
+                } else {
+                    entries.add(new Entry(Util.timeToHalfFrame(cueEntry.time()), comment, cueEntry.colorId()));
+                }
+            } else {  // This is a hot cue or loop.
+                final Color embeddedColor = findEmbeddedColor(cueEntry);
+                final int colorCode = cueEntry.colorCode() == null? 0 : cueEntry.colorCode();
+                final Color expectedColor = expectedEmbeddedColor(colorCode);
+                final Color rekordboxColor = findRekordboxColor(colorCode);
+                if (((embeddedColor == null && expectedColor != null) ||
+                        (embeddedColor != null && !embeddedColor.equals(expectedColor))) &&
+                        (colorCode != 0 || embeddedColor != null)) {
+                    logger.warn("Was expecting embedded color " + expectedColor +
+                            " for rekordbox color code " + colorCode + ", but found color " + embeddedColor);
+                }
+                final String comment = (cueEntry.comment() != null)? cueEntry.comment() : "";  // Normalize missing comments to empty strings.
+                if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
+                    entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()),
+                            Util.timeToHalfFrame(cueEntry.loopTime()), comment, embeddedColor, rekordboxColor));
+                } else {
+                    entries.add(new Entry((int)cueEntry.hotCue(), Util.timeToHalfFrame(cueEntry.time()), comment, embeddedColor, rekordboxColor));
+                }
             }
         }
     }
@@ -703,26 +788,36 @@ public class CueList {
                     }
                 }
 
-                // See if there is a color.
-                final int colorCode = safelyFetchColorByte(entryBytes, offset + commentSize + 0x4e);
-                final int red = safelyFetchColorByte(entryBytes, offset + commentSize + 0x4f);
-                final int green = safelyFetchColorByte(entryBytes, offset + commentSize + 0x50);
-                final int blue = safelyFetchColorByte(entryBytes, offset + commentSize + 0x51);
-                final Color rekordboxColor = findRekordboxColor(colorCode);
-                final Color expectedColor = expectedEmbeddedColor(colorCode);
-                final Color embeddedColor = (red == 0 && green == 0 && blue == 0)? null : new Color(red, green, blue);
-                if (((embeddedColor == null && expectedColor != null) ||
-                        (embeddedColor != null && !embeddedColor.equals(expectedColor))) &&
-                        (colorCode != 0 || embeddedColor != null)) {
-                    logger.warn("Was expecting embedded color " + expectedColor +
-                            " for rekordbox color code " + colorCode + ", but found color " + embeddedColor);
-                }
+                if (hotCueNumber == 0) {  // This is an ordinary memory point or loop.
+                    final int colorId = entryBytes[offset + 0x22];
+                    if (cueFlag == 2) {  // This is a loop
+                        final long endPosition = Util.timeToHalfFrame(Util.bytesToNumberLittleEndian(entryBytes, offset + 16, 4));
+                        mutableEntries.add(new Entry(position, endPosition, comment, colorId));
+                    } else {
+                        mutableEntries.add(new Entry(position, comment, colorId));
+                    }
+                } else {  // This is a hot cue or loop.
+                    // See if there is a color.
+                    final int colorCode = safelyFetchColorByte(entryBytes, offset + commentSize + 0x4e);
+                    final int red = safelyFetchColorByte(entryBytes, offset + commentSize + 0x4f);
+                    final int green = safelyFetchColorByte(entryBytes, offset + commentSize + 0x50);
+                    final int blue = safelyFetchColorByte(entryBytes, offset + commentSize + 0x51);
+                    final Color rekordboxColor = findRekordboxColor(colorCode);
+                    final Color expectedColor = expectedEmbeddedColor(colorCode);
+                    final Color embeddedColor = (red == 0 && green == 0 && blue == 0) ? null : new Color(red, green, blue);
+                    if (((embeddedColor == null && expectedColor != null) ||
+                            (embeddedColor != null && !embeddedColor.equals(expectedColor))) &&
+                            (colorCode != 0 || embeddedColor != null)) {
+                        logger.warn("Was expecting embedded color " + expectedColor +
+                                " for rekordbox color code " + colorCode + ", but found color " + embeddedColor);
+                    }
 
-                if (cueFlag == 2) {  // This is a loop
-                    final long endPosition = Util.timeToHalfFrame(Util.bytesToNumberLittleEndian(entryBytes, offset + 16, 4));
-                    mutableEntries.add(new Entry(hotCueNumber, position, endPosition, comment, embeddedColor, rekordboxColor));
-                } else {
-                    mutableEntries.add(new Entry(hotCueNumber, position, comment, embeddedColor, rekordboxColor));
+                    if (cueFlag == 2) {  // This is a loop
+                        final long endPosition = Util.timeToHalfFrame(Util.bytesToNumberLittleEndian(entryBytes, offset + 16, 4));
+                        mutableEntries.add(new Entry(hotCueNumber, position, endPosition, comment, embeddedColor, rekordboxColor));
+                    } else {
+                        mutableEntries.add(new Entry(hotCueNumber, position, comment, embeddedColor, rekordboxColor));
+                    }
                 }
             }
             offset += entrySize;  // Move on to the next entry.

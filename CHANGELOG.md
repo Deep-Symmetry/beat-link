@@ -8,6 +8,10 @@ This change log follows the conventions of
 
 ### Fixed
 
+- The interpretation of colors for memory points and loops (as opposed
+  to hot cues) has been fixed, thanks to
+  [@ehendrikd](https://github.com/ehendrikd) in
+  https://github.com/Deep-Symmetry/crate-digger/pull/13
 - It turns out that nxs2 cue list entries are not always complete,
   they are sometimes missing color information or even the comment
   information that precedes it. We no longer crash when we encounter
