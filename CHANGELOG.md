@@ -6,12 +6,17 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+
+## [0.6.2] - 2020-05-10
+
 ### Fixed
 
 - The interpretation of colors for memory points and loops (as opposed
   to hot cues) has been fixed, thanks to
-  [@ehendrikd](https://github.com/ehendrikd) in
-  https://github.com/Deep-Symmetry/crate-digger/pull/13
+  [a contribution](https://github.com/Deep-Symmetry/crate-digger/pull/13)
+  by [@ehendrikd](https://github.com/ehendrikd)
 - It turns out that nxs2 cue list entries are not always complete,
   they are sometimes missing color information or even the comment
   information that precedes it. We no longer crash when we encounter
@@ -58,6 +63,7 @@ This change log follows the conventions of
 - The `getName` and `getNumber` methods in `DeviceAnnouncement`
   were inconsistent with the `getDeviceName` and `getDeviceNumber`
   naming convention used in the entire device update packet hierarchy.
+
 
 ## [0.6.1] - 2020-02-09
 
@@ -660,7 +666,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.1...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.5...v0.6.0
 [0.5.5]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.2...v0.5.5

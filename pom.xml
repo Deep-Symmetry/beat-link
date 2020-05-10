@@ -4,7 +4,7 @@
 
     <groupId>org.deepsymmetry</groupId>
     <artifactId>beat-link</artifactId>
-    <version>0.6.2-SNAPSHOT</version>
+    <version>0.6.2</version>
     <packaging>jar</packaging>
 
     <name>beat-link</name>
@@ -69,7 +69,7 @@
         <dependency>
             <groupId>org.deepsymmetry</groupId>
             <artifactId>crate-digger</artifactId>
-            <version>0.1.4-SNAPSHOT</version>
+            <version>0.1.4</version>
         </dependency>
         <!-- Kaitai Struct Compiler runtime for Java, since we refer to parts of it directly -->
         <dependency>
