@@ -53,12 +53,18 @@ public class WaveformDetailComponent extends JComponent {
     private static final int PLAYBACK_MARKER_WIDTH = 2;
 
     /**
-     * The color to draw the playback position when playing; a slightly transparent white.
+     * The color to draw the playback position when playing; a slightly transparent red. Note that if the indicator
+     * color has been changed, only the transparency from this is used.
+     *
+     * @see #getIndicatorColor()
      */
     static final Color PLAYBACK_MARKER_PLAYING = new Color(255, 0, 0, 235);
 
     /**
-     * The color to draw the playback position when playing; a slightly transparent red.
+     * The color to draw the playback position when stopped; a slightly transparent white. Note that if the indicator
+     * color has been changed, only the transparency from this is used.
+     *
+     * @see #getIndicatorColor()
      */
     static final Color PLAYBACK_MARKER_STOPPED = new Color(255, 255, 255, 235);
 
@@ -82,6 +88,24 @@ public class WaveformDetailComponent extends JComponent {
      * control what is visible.
      */
     private final AtomicBoolean autoScroll = new AtomicBoolean(true);
+
+    /**
+     * The color to which the background is cleared before drawing the waveform. The default is black,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     */
+    private final AtomicReference<Color> backgroundColor = new AtomicReference<Color>(Color.BLACK);
+
+    /**
+     * The color with which the playback position and tick markers are drawn. The default is white,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     */
+    private final AtomicReference<Color> indicatorColor = new AtomicReference<Color>(Color.WHITE);
+
+    /**
+     * The color with which the playback position is drawn while playback is active. The default is red,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     */
+    private final AtomicReference<Color> emphasisColor = new AtomicReference<Color>(Color.RED);
 
     /**
      * Determines the font to use when drawing hot cue, memory point, and loop labels. If {@code null}, they are
@@ -145,6 +169,66 @@ public class WaveformDetailComponent extends JComponent {
      */
     public boolean getAutoScroll() {
         return autoScroll.get();
+    }
+
+    /**
+     * Examine the color to which the background is cleared before drawing the waveform. The default is black,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     *
+     * @return the color used to draw the component background
+     */
+    public Color getBackgroundColor() {
+        return backgroundColor.get();
+    }
+
+    /**
+     * Change the color to which the background is cleared before drawing the waveform. The default is black,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     *
+     * @param color the color used to draw the component background
+     */
+    public void setBackgroundColor(Color color) {
+        backgroundColor.set(color);
+    }
+
+    /**
+     * Examine the color with which the playback position and tick markers are drawn. The default is white,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     *
+     * @return the color used to draw the playback and tick markers
+     */
+    public Color getIndicatorColor() {
+        return indicatorColor.get();
+    }
+
+    /**
+     * Change the color with which the playback position and tick markers are drawn. The default is white,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+
+     * @param color the color used to draw the playback marker when actively playing
+     */
+    public void setIndicatorColor(Color color) {
+        indicatorColor.set(color);
+    }
+
+    /**
+     * Examine the color with which the playback position is drawn when playback is active. The default is red,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     *
+     * @return the color used to draw the playback and tick markers
+     */
+    public Color getEmphasisColor() {
+        return emphasisColor.get();
+    }
+
+    /**
+     * Change the color with which the playback position is drawn when playback is active. The default is red,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+
+     * @param color the color used to draw the playback marker when actively playing
+     */
+    public void setEmphasisColor(Color color) {
+        emphasisColor.set(color);
     }
 
     /**
@@ -737,7 +821,7 @@ public class WaveformDetailComponent extends JComponent {
     @Override
     protected void paintComponent(Graphics g) {
         Rectangle clipRect = g.getClipBounds();  // We only need to draw the part that is visible or dirty
-        g.setColor(Color.BLACK);  // Black out the background
+        g.setColor(backgroundColor.get());  // Clear the background
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
         CueList currentCueList = cueList.get();  // Avoid crashes if the value changes mid-render.
@@ -775,7 +859,7 @@ public class WaveformDetailComponent extends JComponent {
                     final int beatWithinBar = beatGrid.get().getBeatWithinBar(inBeat);
                     if (scale.get() <= MAX_BEAT_SCALE || beatWithinBar == 1) {
                         // Once scale gets large enough, we only draw the down beats, like CDJs.
-                        g.setColor((beatWithinBar == 1) ? Color.RED : Color.WHITE);
+                        g.setColor((beatWithinBar == 1) ? emphasisColor.get() : indicatorColor.get());
                         g.drawLine(x, axis - maxHeight - 2 - BEAT_MARKER_HEIGHT, x, axis - maxHeight - 2);
                         g.drawLine(x, axis + maxHeight + 2, x, axis + maxHeight + BEAT_MARKER_HEIGHT + 2);
                     }
@@ -791,7 +875,7 @@ public class WaveformDetailComponent extends JComponent {
         }
 
         // Draw the non-playing markers first, so the playing ones will be seen if they are in the same spot.
-        g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_STOPPED);
+        g.setColor(Util.buildColor(indicatorColor.get(), WaveformDetailComponent.PLAYBACK_MARKER_STOPPED));
         for (PlaybackState state : playbackStateMap.values()) {
             if (!state.playing) {
                 g.fillRect(millisecondsToX(state.position) - (PLAYBACK_MARKER_WIDTH / 2), 0,
@@ -800,7 +884,7 @@ public class WaveformDetailComponent extends JComponent {
         }
 
         // Then draw the playing markers on top of the non-playing ones.
-        g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_PLAYING);
+        g.setColor(Util.buildColor(emphasisColor.get(), WaveformDetailComponent.PLAYBACK_MARKER_PLAYING));
         for (PlaybackState state : playbackStateMap.values()) {
             if (state.playing) {
                 g.fillRect(millisecondsToX(state.position) - (PLAYBACK_MARKER_WIDTH / 2), 0,

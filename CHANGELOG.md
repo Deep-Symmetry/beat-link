@@ -6,7 +6,12 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Added
+
+- The ability to set a background color for the `WaveformDetailComponent`
+  and `WaveformPreviewComponent`, for use by the OBS overlay server in Beat Link
+  Trigger. You can also now change the colors used to draw the playback
+  position indicator and tick and beat marks to go with your overall look.
 
 
 ## [0.6.2] - 2020-05-10

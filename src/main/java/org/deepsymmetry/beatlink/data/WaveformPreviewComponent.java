@@ -111,28 +111,49 @@ public class WaveformPreviewComponent extends JComponent {
     private static final int WAVEFORM_MARGIN = 4;
 
     /**
-     * The color for brighter sections of the already-played section of the playback progress bar.
+     * The color for brighter sections of the already-played section of the playback progress bar. Note that
+     * if the indicator color has been changed, only the transparency (alpha) channel of this is used.
      */
     @SuppressWarnings("WeakerAccess")
-    public static final Color BRIGHT_PLAYED = new Color(75, 75, 75);
+    public static final Color BRIGHT_PLAYED = new Color(255, 255, 255, 75);
 
     /**
-     * The color for darker sections of the already-played section of the playback progress bar.
+     * The color for darker sections of the already-played section of the playback progress bar. Note that
+     * if the indicator color has been changed, only the transparency (alpha) channel of this is used.
      */
     @SuppressWarnings("WeakerAccess")
-    public static final Color DIM_PLAYED = new Color(35, 35, 35);
+    public static final Color DIM_PLAYED = new Color(255, 255, 255, 35);
 
     /**
-     * The color for the darker sections of hte not-yet-played sections of the playback progress bar.
+     * The color for the darker sections of the not-yet-played sections of the playback progress bar. Note that
+     * if the indicator color has been changed, only the transparency (alpha) channel of this is used.
      */
     @SuppressWarnings("WeakerAccess")
-    public static final Color DIM_UNPLAYED = new Color(170, 170, 170);
+    public static final Color DIM_UNPLAYED = new Color(255, 255, 255, 170);
 
     /**
      * If not zero, automatically update the waveform, position, and metadata in response to the activity of the
      * specified player number.
      */
     private final AtomicInteger monitoredPlayer = new AtomicInteger(0);
+
+    /**
+     * The color to which the background is cleared before drawing the waveform. The default is black,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     */
+    private final AtomicReference<Color> backgroundColor = new AtomicReference<Color>(Color.BLACK);
+
+    /**
+     * The color with which the playback position and tick markers are drawn. The default is white,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     */
+    private final AtomicReference<Color> indicatorColor = new AtomicReference<Color>(Color.WHITE);
+
+    /**
+     * The color with which the playback position is drawn while playback is active. The default is red,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     */
+    private final AtomicReference<Color> emphasisColor = new AtomicReference<Color>(Color.RED);
 
     /**
      * The waveform preview that we are drawing.
@@ -188,6 +209,67 @@ public class WaveformPreviewComponent extends JComponent {
      */
     public void setOverlayPainter(OverlayPainter painter) {
         overlayPainter.set(painter);
+    }
+
+    /**
+     * Examine the color to which the background is cleared before drawing the waveform. The default is black,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     *
+     * @return the color used to draw the component background
+     */
+    public Color getBackgroundColor() {
+        return backgroundColor.get();
+    }
+
+    /**
+     * Change the color to which the background is cleared before drawing the waveform. The default is black,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     *
+     * @param color the color used to draw the component background
+     */
+    public void setBackgroundColor(Color color) {
+        backgroundColor.set(color);
+        updateWaveform(preview.get());
+    }
+
+    /**
+     * Examine the color with which the playback position and tick markers are drawn. The default is white,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     *
+     * @return the color used to draw the playback and tick markers
+     */
+    public Color getIndicatorColor() {
+        return indicatorColor.get();
+    }
+
+    /**
+     * Change the color with which the playback position and tick markers are drawn. The default is white,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+
+     * @param color the color used to draw the playback marker when actively playing
+     */
+    public void setIndicatorColor(Color color) {
+        indicatorColor.set(color);
+    }
+
+    /**
+     * Examine the color with which the playback position is drawn when playback is active. The default is red,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+     *
+     * @return the color used to draw the active playback marker
+     */
+    public Color getEmphasisColor() {
+        return emphasisColor.get();
+    }
+
+    /**
+     * Change the color with which the playback position is drawn when playback is active. The default is red,
+     * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
+
+     * @param color the color used to draw the playback marker when actively playing
+     */
+    public void setEmphasisColor(Color color) {
+        emphasisColor.set(color);
     }
 
     /**
@@ -408,11 +490,13 @@ public class WaveformPreviewComponent extends JComponent {
     }
 
     /**
-     * Set whether the player holding the waveform is playing, which changes the indicator color to white from red.
+     * Set whether the player holding the waveform is playing, which changes the indicator color to white from red
+     * (assuming the indicator and emphasis colors have not changed).
+     *
      * This method can only be used in situations where the component is tied to a single player, and therefore has
      * a single playback position.
      *
-     * @param playing if {@code true}, draw the position marker in white, otherwise red
+     * @param playing if {@code true}, draw the position marker in the indicator color, otherwise the emphasis color
      *
      * @see #setPlaybackState
      */
@@ -423,6 +507,8 @@ public class WaveformPreviewComponent extends JComponent {
         }
     }
 
+    private static final Color TRANSPARENT = new Color(0,0,0,0);
+
     /**
      * Create an image of the proper size to hold a new waveform preview image and draw it.
      */
@@ -431,9 +517,9 @@ public class WaveformPreviewComponent extends JComponent {
         if (preview == null) {
             waveformImage.set(null);
         } else {
-            BufferedImage image = new BufferedImage(preview.segmentCount, preview.maxHeight, BufferedImage.TYPE_INT_RGB);
+            BufferedImage image = new BufferedImage(preview.segmentCount, preview.maxHeight, BufferedImage.TYPE_INT_ARGB);
             Graphics g = image.getGraphics();
-            g.setColor(Color.BLACK);
+            g.setColor(TRANSPARENT);
             g.fillRect(0, 0, preview.segmentCount, preview.maxHeight);
             for (int segment = 0; segment < preview.segmentCount; segment++) {
                 g.setColor(preview.segmentColor(segment, false));
@@ -740,7 +826,7 @@ public class WaveformPreviewComponent extends JComponent {
     protected synchronized void paintComponent(Graphics g) {
 
         Rectangle clipRect = g.getClipBounds();  // We only need to draw the part that is visible or dirty
-        g.setColor(Color.BLACK);  // Black out the background
+        g.setColor(backgroundColor.get());  // Clear the background
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
         // Draw our precomputed waveform image scaled and positioned to fit the component
@@ -750,6 +836,9 @@ public class WaveformPreviewComponent extends JComponent {
         }
 
         // Draw the other preview elements that are visible or dirty
+        final Color brightPlayed = Util.buildColor(indicatorColor.get(), BRIGHT_PLAYED);
+        final Color dimPlayed = Util.buildColor(indicatorColor.get(), DIM_PLAYED);
+        final Color dimUnplayed = Util.buildColor(indicatorColor.get(), DIM_UNPLAYED);
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = x - WAVEFORM_MARGIN;
             if ((segment >= 0) && (segment < waveformWidth())) {
@@ -760,7 +849,7 @@ public class WaveformPreviewComponent extends JComponent {
                         maxPosition = furthestState.position;
                     }
                     if (x < millisecondsToX(maxPosition) - 1) {  // The played section
-                        g.setColor((x % 2 == 0)? BRIGHT_PLAYED : DIM_PLAYED);
+                        g.setColor((x % 2 == 0)? brightPlayed : dimPlayed);
                         if (x == WAVEFORM_MARGIN) {
                             g.drawLine(x, playbackBarTop(), x, playbackBarTop() + PLAYBACK_BAR_HEIGHT);
                         } else {
@@ -768,7 +857,7 @@ public class WaveformPreviewComponent extends JComponent {
                             g.drawLine(x, playbackBarTop() + PLAYBACK_BAR_HEIGHT, x, playbackBarTop() + PLAYBACK_BAR_HEIGHT);
                         }
                     } else if (x > millisecondsToX(maxPosition) + 1) {  // The unplayed section
-                        g.setColor((x % 2 == 0)? Color.WHITE : DIM_UNPLAYED);
+                        g.setColor((x % 2 == 0)? indicatorColor.get() : dimUnplayed);
                         g.drawLine(x, playbackBarTop(), x, playbackBarTop() + PLAYBACK_BAR_HEIGHT);
                     }
                 }
@@ -776,14 +865,14 @@ public class WaveformPreviewComponent extends JComponent {
         }
 
         if (duration.get() > 0) {  // Draw the minute marks and playback position
-            g.setColor(Color.WHITE);
+            g.setColor(indicatorColor.get());
             for (int time = 60; time < duration.get(); time += 60) {
                 final int x = millisecondsToX(time * 1000);
                 g.drawLine(x, minuteMarkerTop(), x, minuteMarkerTop() + MINUTE_MARKER_HEIGHT);
             }
 
             // Draw the non-playing markers first, so the playing ones will be seen if they are in the same spot.
-            g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_STOPPED);
+            g.setColor(Util.buildColor(indicatorColor.get(), WaveformDetailComponent.PLAYBACK_MARKER_STOPPED));
             for (PlaybackState state : playbackStateMap.values()) {
                 if (!state.playing) {
                     g.fillRect(millisecondsToX(state.position) - 1, POSITION_MARKER_TOP, 2, positionMarkerHeight());
@@ -791,7 +880,7 @@ public class WaveformPreviewComponent extends JComponent {
             }
 
             // Then draw the playing markers on top of the non-playing ones.
-            g.setColor(WaveformDetailComponent.PLAYBACK_MARKER_PLAYING);
+            g.setColor(Util.buildColor(emphasisColor.get(), WaveformDetailComponent.PLAYBACK_MARKER_PLAYING));
             for (PlaybackState state : playbackStateMap.values()) {
                 if (state.playing) {
                     g.fillRect(millisecondsToX(state.position) - 1, POSITION_MARKER_TOP, 2, positionMarkerHeight());

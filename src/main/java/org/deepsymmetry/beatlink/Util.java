@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink;
 
+import java.awt.*;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -483,6 +484,18 @@ public class Util {
             namedLocks.remove(name);
             namedLockUseCounts.remove(name);
         }
+    }
+
+    /**
+     * Helper method that combines the hue value of one color with the transparency of another.
+     *
+     * @param hueColor the color that specifies the actual hue to be drawn
+     * @param alphaColor the color whose transparency will determine the transparency of the result
+     *
+     * @return a color with hue components from hueColor and alpho from alphaColor
+     */
+    public static Color buildColor(Color hueColor, Color alphaColor) {
+        return new Color(hueColor.getRed(), hueColor.getGreen(), hueColor.getBlue(), alphaColor.getAlpha());
     }
 
     /**
