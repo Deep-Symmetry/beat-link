@@ -13,6 +13,11 @@ This change log follows the conventions of
   Trigger. You can also now change the colors used to draw the playback
   position indicator and tick and beat marks to go with your overall look.
 
+### Fixed
+
+- Some Unicode strings were [not being properly
+  read](https://github.com/Deep-Symmetry/crate-digger/issues/14) by Crate Digger.
+
 
 ## [0.6.2] - 2020-05-10
 

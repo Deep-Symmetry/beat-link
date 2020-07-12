@@ -69,7 +69,7 @@
         <dependency>
             <groupId>org.deepsymmetry</groupId>
             <artifactId>crate-digger</artifactId>
-            <version>0.1.4</version>
+            <version>0.1.5-SNAPSHOT</version>
         </dependency>
         <!-- Kaitai Struct Compiler runtime for Java, since we refer to parts of it directly -->
         <dependency>
