@@ -110,4 +110,76 @@ public class PlayerSettings {
      */
     public AutoCueLevel autoCueLevel = AutoCueLevel.MEMORY;
 
+    /**
+     * The options for the player user interface language.
+     */
+    public enum Language {
+        ENGLISH("English", (byte)0x81),
+        FRENCH("French", (byte)0x82),
+        GERMAN("German", (byte)0x83),
+        ITALIAN("Italian", (byte)0x84),
+        DUTCH("Dutch", (byte)0x85),
+        SPANISH("Spanish", (byte)0x86),
+        RUSSIAN("Russian", (byte)0x87),
+        KOREAN("Korean", (byte)0x88),
+        CHINESE_SIMPLIFIED("Chinese (simplified)", (byte)0x89),
+        CHINESE_TRADITIONAL("Chinese (traditional)", (byte)0x8a),
+        JAPANESE("Japanese", (byte)0x8b),
+        PORTUGUESE("Portuguese", (byte)0x8c),
+        SWEDISH("Swedish", (byte)0x8d),
+        CZECH("Czech", (byte)0x8e),
+        MAGYAR("Magyar", (byte)0x8f),
+        DANISH("Danish", (byte)0x90),
+        GREEK("Greek", (byte)0x91),
+        TURKISH("Turkish", (byte)0x92);
+
+        /**
+         * The value displayed in the rekordbox interface for each language setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each language setting.
+         */
+        public final byte protocolValue;
+
+        Language(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls the language displayed in the player user interface.
+     */
+    public Language language = Language.ENGLISH;
+
+    /**
+     * The brightness choices for optional illumination (for example of the jog ring or disc slot).
+     */
+    public enum Illumination {
+        OFF("0 (Off)", (byte)0x80),
+        DARK("1 (Dark)", (byte)0x81),
+        BRIGHT("2 (Bright)", (byte)0x82);
+
+        /**
+         * The value displayed in the rekordbox interface for each illumination setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each illumination setting.
+         */
+        public final byte protocolValue;
+
+        Illumination(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls the illumination of the player's jog ring.
+     */
+    public Illumination jogRingIllumination = Illumination.BRIGHT;
 }
