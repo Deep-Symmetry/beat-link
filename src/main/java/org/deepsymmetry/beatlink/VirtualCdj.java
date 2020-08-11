@@ -1769,8 +1769,10 @@ public class VirtualCdj extends LifecycleParticipant {
         Util.setPayloadByte(payload, 0x47, settings.masterTempo.protocolValue);
         Util.setPayloadByte(payload, 0x48, settings.tempoRange.protocolValue);
         Util.setPayloadByte(payload, 0x49, settings.phaseMeterType.protocolValue);
-
-        // TODO: finish
+        Util.setPayloadByte(payload, 0x4c, settings.vinylSpeedAdjust.protocolValue);
+        Util.setPayloadByte(payload, 0x4d, settings.jogWheelDisplay.protocolValue);
+        Util.setPayloadByte(payload, 0x4e, settings.padButtonBrightness.protocolValue);
+        Util.setPayloadByte(payload, 0x4f, settings.jogWheelLcdBrightness.protocolValue);
         assembleAndSendPacket(Util.PacketType.LOAD_SETTINGS_COMMAND, payload, target.getAddress(), UPDATE_PORT);
     }
 

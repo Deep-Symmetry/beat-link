@@ -215,12 +215,12 @@ public class PlayerSettings {
         CONTINUE("Continue", (byte)0x80),
         SINGLE("Single", (byte)0x81);
         /**
-         * The value displayed in the rekordbox interface for each illumination setting.
+         * The value displayed in the rekordbox interface for each play mode setting.
          */
         public final String displayValue;
 
         /**
-         * The value sent in the Load Settings packet which establishes each illumination setting.
+         * The value sent in the Load Settings packet which establishes each play mode setting.
          */
         public final byte protocolValue;
 
@@ -245,12 +245,12 @@ public class PlayerSettings {
         EIGHTH("Eighth Beat", (byte)0x83);
 
         /**
-         * The value displayed in the rekordbox interface for each illumination setting.
+         * The value displayed in the rekordbox interface for each quantize mode setting.
          */
         public final String displayValue;
 
         /**
-         * The value sent in the Load Settings packet which establishes each illumination setting.
+         * The value sent in the Load Settings packet which establishes each quantize mode setting.
          */
         public final byte protocolValue;
 
@@ -273,12 +273,12 @@ public class PlayerSettings {
         ON("On", (byte)0x81),
         REKORDBOX("rekordbox", (byte)0x82);
         /**
-         * The value displayed in the rekordbox interface for each illumination setting.
+         * The value displayed in the rekordbox interface for each auto load setting.
          */
         public final String displayValue;
 
         /**
-         * The value sent in the Load Settings packet which establishes each illumination setting.
+         * The value sent in the Load Settings packet which establishes each auto load setting.
          */
         public final byte protocolValue;
 
@@ -310,12 +310,12 @@ public class PlayerSettings {
         ELAPSED("Elapsed", (byte)0x80),
         REMAINING("Remaining", (byte)0x81);
         /**
-         * The value displayed in the rekordbox interface for each illumination setting.
+         * The value displayed in the rekordbox interface for each time display setting.
          */
         public final String displayValue;
 
         /**
-         * The value sent in the Load Settings packet which establishes each illumination setting.
+         * The value sent in the Load Settings packet which establishes each time display setting.
          */
         public final byte protocolValue;
 
@@ -337,12 +337,12 @@ public class PlayerSettings {
         CDJ("CDJ", (byte)0x80),
         VINYL("Vinyl", (byte)0x81);
         /**
-         * The value displayed in the rekordbox interface for each illumination setting.
+         * The value displayed in the rekordbox interface for each jog mode setting.
          */
         public final String displayValue;
 
         /**
-         * The value sent in the Load Settings packet which establishes each illumination setting.
+         * The value sent in the Load Settings packet which establishes each jog mode setting.
          */
         public final byte protocolValue;
 
@@ -376,12 +376,12 @@ public class PlayerSettings {
         PLUS_MINUS_16("±16", (byte)0x82),
         WIDE("Wide", (byte)0x83);
         /**
-         * The value displayed in the rekordbox interface for each illumination setting.
+         * The value displayed in the rekordbox interface for each tempo range setting.
          */
         public final String displayValue;
 
         /**
-         * The value sent in the Load Settings packet which establishes each illumination setting.
+         * The value sent in the Load Settings packet which establishes each tempo range setting.
          */
         public final byte protocolValue;
 
@@ -403,12 +403,12 @@ public class PlayerSettings {
         TYPE_1("Type 1", (byte)0x80),
         TYPE_2("Type 2", (byte)0x81);
         /**
-         * The value displayed in the rekordbox interface for each illumination setting.
+         * The value displayed in the rekordbox interface for each phase meter setting.
          */
         public final String displayValue;
 
         /**
-         * The value sent in the Load Settings packet which establishes each illumination setting.
+         * The value sent in the Load Settings packet which establishes each phase meter setting.
          */
         public final byte protocolValue;
 
@@ -422,4 +422,96 @@ public class PlayerSettings {
      * Controls the phase meter type displayed.
      */
     public PhaseMeterType phaseMeterType = PhaseMeterType.TYPE_1;
+
+    /**
+     * The options for the phase meter type.
+     */
+    public enum VinylSpeedAdjust {
+        TOUCH_RELEASE("Touch and Release", (byte)0x80),
+        TOUCH("Touch", (byte)0x81),
+        RELEASE("Release", (byte)0x82);
+        /**
+         * The value displayed in the rekordbox interface for each vinyl speed adjust setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each vinyl speed adjust setting.
+         */
+        public final byte protocolValue;
+
+        VinylSpeedAdjust(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls when vinyl speed adjustment is used.
+     */
+    public VinylSpeedAdjust vinylSpeedAdjust = VinylSpeedAdjust.TOUCH_RELEASE;
+
+    /**
+     * The options for what to display in the jog wheel display screens.
+     */
+    public enum JogWheelDisplay {
+        AUTO("Auto", (byte)0x80),
+        INFO("Info", (byte)0x81),
+        SIMPLE("Simple", (byte)0x82),
+        ARTWORK("Artwork", (byte)0x83);
+        /**
+         * The value displayed in the rekordbox interface for each jog wheel display setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each jog wheel display setting.
+         */
+        public final byte protocolValue;
+
+        JogWheelDisplay(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls what is shown in the jog wheel display screens.
+     */
+    public JogWheelDisplay jogWheelDisplay = JogWheelDisplay.AUTO;
+
+    /**
+     * The brightness options for the player's performance pads and buttons.
+     */
+    public enum PadButtonBrightness {
+        DIMMEST(1, (byte)0x81),
+        DIM(2, (byte)0x82),
+        BRIGHT(3, (byte)0x83),
+        BRIGHTEST(4, (byte)0x84);
+
+        /**
+         * The value displayed in the rekordbox interface for each brightness setting.
+         */
+        public final int displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each brightness setting.
+         */
+        public final byte protocolValue;
+
+        PadButtonBrightness(int displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls the brightness of the performance pads and buttons.
+     */
+    public PadButtonBrightness padButtonBrightness = PadButtonBrightness.BRIGHT;
+
+    /**
+     * Controls the brightness of the jog wheel LCD display.
+     */
+    public LcdBrightness jogWheelLcdBrightness = LcdBrightness.MEDIUM;
 }

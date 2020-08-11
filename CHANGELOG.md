@@ -8,6 +8,8 @@ This change log follows the conventions of
 
 ### Added
 
+- The ability to set a player's My Settings configuration by sending
+  a newly-discovered packet.
 - The ability to set a background color for the `WaveformDetailComponent`
   and `WaveformPreviewComponent`, for use by the OBS overlay server in Beat Link
   Trigger. You can also now change the colors used to draw the playback
