@@ -182,4 +182,114 @@ public class PlayerSettings {
      * Controls the illumination of the player's jog ring.
      */
     public Illumination jogRingIllumination = Illumination.BRIGHT;
+
+    /**
+     * Controls the jog ring indicator feature.
+     */
+    public Toggle jogRingIndicator = Toggle.ON;
+
+    /**
+     * Controls the Slip Flashing feature.
+     */
+    public Toggle slipFlashing = Toggle.ON;
+
+    /**
+     * Controls the illumination of the player's jog ring.
+     */
+    public Illumination discSlotIllumination = Illumination.DARK;
+
+    /**
+     * Controls the eject/load lock feature.
+     */
+    public Toggle ejectLoadLock = Toggle.ON;
+
+    /**
+     * Controls the Sync feature.
+     */
+    public Toggle sync = Toggle.ON;
+
+    /**
+     * The options for whether to keep playing when a track ends.
+     */
+    public enum PlayMode {
+        CONTINUE("Continue", (byte)0x80),
+        SINGLE("Single", (byte)0x81);
+        /**
+         * The value displayed in the rekordbox interface for each illumination setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each illumination setting.
+         */
+        public final byte protocolValue;
+
+        PlayMode(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls what to do when a track ends.
+     */
+    public PlayMode autoPlayMode;
+
+    /**
+     * The options the quantization size.
+     */
+    public enum QuantizeMode {
+        BEAT("Beat", (byte)0x80),
+        HALF("Half Beat", (byte)0x81),
+        QUARTER("Quarter Beat", (byte)0x82),
+        EIGHTH("Eighth Beat", (byte)0x83);
+
+        /**
+         * The value displayed in the rekordbox interface for each illumination setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each illumination setting.
+         */
+        public final byte protocolValue;
+
+        QuantizeMode(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls the scale at which quantization is applied, when it is active.
+     */
+    public QuantizeMode quantizeBeatValue = QuantizeMode.BEAT;
+
+    /**
+     * The options for whether to auto-load hot cues when loading a track.
+     */
+    public enum AutoLoadMode {
+        OFF("Off", (byte)0x80),
+        ON("On", (byte)0x81),
+        REKORDBOX("rekordbox", (byte)0x82);
+        /**
+         * The value displayed in the rekordbox interface for each illumination setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each illumination setting.
+         */
+        public final byte protocolValue;
+
+        AutoLoadMode(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls whether hot cues are auto-loaded when loading tracks.
+     */
+    public AutoLoadMode autoLoadMode = AutoLoadMode.REKORDBOX;
 }

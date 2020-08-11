@@ -1753,6 +1753,14 @@ public class VirtualCdj extends LifecycleParticipant {
         Util.setPayloadByte(payload, 0x2f, settings.autoCueLevel.protocolValue);
         Util.setPayloadByte(payload, 0x30, settings.language.protocolValue);
         Util.setPayloadByte(payload, 0x32, settings.jogRingIllumination.protocolValue);
+        Util.setPayloadByte(payload, 0x33, settings.jogRingIndicator.protocolValue);
+        Util.setPayloadByte(payload, 0x34, settings.slipFlashing.protocolValue);
+        Util.setPayloadByte(payload, 0x38, settings.discSlotIllumination.protocolValue);
+        Util.setPayloadByte(payload, 0x39, settings.ejectLoadLock.protocolValue);
+        Util.setPayloadByte(payload, 0x3a, settings.sync.protocolValue);
+        Util.setPayloadByte(payload, 0x3b, settings.autoPlayMode.protocolValue);
+        Util.setPayloadByte(payload, 0x3c, settings.quantizeBeatValue.protocolValue);
+        Util.setPayloadByte(payload, 0x3d, settings.autoLoadMode.protocolValue);
 
         // TODO: finish
         assembleAndSendPacket(Util.PacketType.LOAD_SETTINGS_COMMAND, payload, target.getAddress(), UPDATE_PORT);
