@@ -292,4 +292,134 @@ public class PlayerSettings {
      * Controls whether hot cues are auto-loaded when loading tracks.
      */
     public AutoLoadMode autoLoadMode = AutoLoadMode.REKORDBOX;
+
+    /**
+     * Controls whether hot cue colors are displayed.
+     */
+    public Toggle hotCueColor = Toggle.ON;
+
+    /**
+     * Controls the Needle Lock feature.
+     */
+    public Toggle needleLock = Toggle.ON;
+
+    /**
+     * The options for how time is displayed on the player.
+     */
+    public enum TimeDisplayMode {
+        ELAPSED("Elapsed", (byte)0x80),
+        REMAINING("Remaining", (byte)0x81);
+        /**
+         * The value displayed in the rekordbox interface for each illumination setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each illumination setting.
+         */
+        public final byte protocolValue;
+
+        TimeDisplayMode(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls how time is displayed on the player.
+     */
+    public TimeDisplayMode timeDisplayMode = TimeDisplayMode.REMAINING;
+
+    /**
+     * The options for how the jog wheel affects playback.
+     */
+    public enum JogMode {
+        CDJ("CDJ", (byte)0x80),
+        VINYL("Vinyl", (byte)0x81);
+        /**
+         * The value displayed in the rekordbox interface for each illumination setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each illumination setting.
+         */
+        public final byte protocolValue;
+
+        JogMode(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls how the jog wheel affects playback.
+     */
+    public JogMode jogMode = JogMode.VINYL;
+
+    /**
+     * Controls the Auto Cue feature.
+     */
+    public Toggle autoCue = Toggle.ON;
+
+    /**
+     * Controls the Master Tempo feature.
+     */
+    public Toggle masterTempo = Toggle.ON;
+
+    /**
+     * The options for tempo range limits.
+     */
+    public enum TempoRange {
+        PLUS_MINUS_6("±6", (byte)0x80),
+        PLUS_MINUS_10("±10", (byte)0x81),
+        PLUS_MINUS_16("±16", (byte)0x82),
+        WIDE("Wide", (byte)0x83);
+        /**
+         * The value displayed in the rekordbox interface for each illumination setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each illumination setting.
+         */
+        public final byte protocolValue;
+
+        TempoRange(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls the range of the tempo fader.
+     */
+    public TempoRange tempoRange = TempoRange.PLUS_MINUS_6;
+
+    /**
+     * The options for the phase meter type.
+     */
+    public enum PhaseMeterType {
+        TYPE_1("Type 1", (byte)0x80),
+        TYPE_2("Type 2", (byte)0x81);
+        /**
+         * The value displayed in the rekordbox interface for each illumination setting.
+         */
+        public final String displayValue;
+
+        /**
+         * The value sent in the Load Settings packet which establishes each illumination setting.
+         */
+        public final byte protocolValue;
+
+        PhaseMeterType(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
+            this.protocolValue = protocolValue;
+        }
+    }
+
+    /**
+     * Controls the phase meter type displayed.
+     */
+    public PhaseMeterType phaseMeterType = PhaseMeterType.TYPE_1;
 }
