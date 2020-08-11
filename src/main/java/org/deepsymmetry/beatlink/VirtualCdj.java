@@ -1430,7 +1430,7 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * The bytes at the end of a media query packet.
+     * The bytes after the device name in a media query packet.
      */
     private final static byte[] MEDIA_QUERY_PAYLOAD = { 0x01,
     0x00, 0x0d, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -1459,7 +1459,7 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * The bytes at the end of a sync control command packet.
+     * The bytes after the device name in a sync control command packet.
      */
     private final static byte[] SYNC_CONTROL_PAYLOAD = { 0x01,
             0x00, 0x0d, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x0f };
@@ -1546,7 +1546,7 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * The bytes at the end of a fader start command packet.
+     * The bytes after the device name in a fader start command packet.
      */
     private final static byte[] FADER_START_PAYLOAD = { 0x01,
             0x00, 0x0d, 0x00, 0x04, 0x02, 0x02, 0x02, 0x02 };
@@ -1580,7 +1580,7 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * The bytes at the end of a channels on-air report packet.
+     * The bytes after the device name in a channels on-air report packet.
      */
     private final static byte[] CHANNELS_ON_AIR_PAYLOAD = { 0x01,
             0x00, 0x0d, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -1612,7 +1612,7 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * The bytes at the end of a load-track command packet.
+     * The bytes after the device name in a load-track command packet.
      */
     private final static byte[] LOAD_TRACK_PAYLOAD = { 0x01,
             0x00, 0x0d, 0x00, 0x34,  0x0d, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
@@ -1696,11 +1696,65 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * The bytes at the end of a load-track command packet.
+     * The bytes after the device name in a load-track acknowledgment packet.
      */
     private final static byte[] YIELD_ACK_PAYLOAD = { 0x01,
             0x00, 0x0d, 0x00, 0x08,  0x00, 0x00, 0x00, 0x0d,   0x00, 0x00, 0x00, 0x01
     };
+
+    /**
+     * The bytes after the device name in a load-settings command packet.
+     */
+    private final static byte[] LOAD_SETTINGS_PAYLOAD = { 0x02,
+            0x0d, 0x0d, 0x00, 0x50,  0x12, 0x34, 0x56, 0x78,   0x00, 0x00, 0x00, 0x03,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x01, 0x00, 0x00,  0x00, 0x01, 0x01, 0x01,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00
+    };
+
+    /**
+     * Send a packet to the target player telling it to load the specified settings.
+     *
+     * @param targetPlayer the device number of the player that you want to have load a track
+     * @param settings the device settings that should be loaded
+     *
+     * @throws IOException if there is a problem sending the command
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active or the target device cannot be found
+     */
+    public void sendLoadSettingsCommand(int targetPlayer, PlayerSettings settings)
+            throws IOException {
+        final DeviceUpdate update = getLatestStatusFor(targetPlayer);
+        if (update == null) {
+            throw new IllegalArgumentException("Device " + targetPlayer + " not found on network.");
+        }
+        sendLoadSettingsCommand(update, settings);
+    }
+
+    /**
+     * Send a packet to the target device telling it to load the specified track from the specified source player.
+     *
+     * @param target an update from the player that you want to have load a track
+     * @param settings the device settings that should be loaded
+     *
+     * @throws IOException if there is a problem sending the command
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     */
+    public void sendLoadSettingsCommand(DeviceUpdate target, PlayerSettings settings) throws IOException {
+        ensureRunning();
+        byte[] payload = new byte[LOAD_SETTINGS_PAYLOAD.length];
+        System.arraycopy(LOAD_SETTINGS_PAYLOAD, 0, payload, 0, LOAD_SETTINGS_PAYLOAD.length);
+        Util.setPayloadByte(payload, 0x20, getDeviceNumber());
+        Util.setPayloadByte(payload, 0x21, (byte)target.getDeviceNumber());
+        Util.setPayloadByte(payload, 0x2c, settings.onAirDisplay.protocolValue);
+        Util.setPayloadByte(payload, 0x2d, settings.lcdBrightness.protocolValue);
+        Util.setPayloadByte(payload, 0x2e, settings.quantize.protocolValue);
+        Util.setPayloadByte(payload, 0x2f, settings.autoCueLevel.protocolValue);
+
+        // TODO: finish
+        assembleAndSendPacket(Util.PacketType.LOAD_SETTINGS_COMMAND, payload, target.getAddress(), UPDATE_PORT);
+    }
 
     /**
      * The number of milliseconds that we will wait between sending status packets, when we are sending them.

@@ -162,7 +162,12 @@ public class Util {
         /**
          * Used to tell a player to turn sync on or off, or that it should become the tempo master.
          */
-        SYNC_CONTROL(0x2a, "Sync Control", BeatFinder.BEAT_PORT);
+        SYNC_CONTROL(0x2a, "Sync Control", BeatFinder.BEAT_PORT),
+
+        /**
+         * A command to apply settings to a player; usually sent by rekordbox
+         */
+        LOAD_SETTINGS_COMMAND(0x34, "Load Settings Command", VirtualCdj.UPDATE_PORT);
 
         /**
          * The value that appears in the type byte which identifies this type of packet.
@@ -228,6 +233,20 @@ public class Util {
         content.put(deviceName);
         content.put(payload);
         return new DatagramPacket(content.array(), content.capacity());
+    }
+
+    /**
+     * Helper function to create the payload for a packet being sent to port 50001 or 50002,
+     * while working with the byte addresses shown in the protocol analysis document (adjusts
+     * the address to account for the fact that the standard packet header up through the device
+     * name has not yet been prepended).
+     *
+     * @param payload the array in which the packet payload is being built
+     * @param address the overall packet address (taking account the header) of the byte to be set
+     * @param value the byte value to store at that packet address
+     */
+    public static void setPayloadByte(byte[] payload, int address, byte value) {
+        payload[address - 0x1f] = value;
     }
 
     /**
@@ -492,7 +511,7 @@ public class Util {
      * @param hueColor the color that specifies the actual hue to be drawn
      * @param alphaColor the color whose transparency will determine the transparency of the result
      *
-     * @return a color with hue components from hueColor and alpho from alphaColor
+     * @return a color with hue components from hueColor and alpha from alphaColor
      */
     public static Color buildColor(Color hueColor, Color alphaColor) {
         return new Color(hueColor.getRed(), hueColor.getGreen(), hueColor.getBlue(), alphaColor.getAlpha());
