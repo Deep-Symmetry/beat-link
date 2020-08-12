@@ -1715,9 +1715,9 @@ public class VirtualCdj extends LifecycleParticipant {
     };
 
     /**
-     * Send a packet to the target player telling it to load the specified settings.
+     * Send a packet to the target player telling it to apply the supplied settings.
      *
-     * @param targetPlayer the device number of the player that you want to have load a track
+     * @param targetPlayer the device number of the player that you want to configure
      * @param settings the device settings that should be loaded
      *
      * @throws IOException if there is a problem sending the command
@@ -1733,9 +1733,9 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Send a packet to the target device telling it to load the specified track from the specified source player.
+     * Send a packet to the target device telling it to apply the supplied settings.
      *
-     * @param target an update from the player that you want to have load a track
+     * @param target an update from the player that you want to configure
      * @param settings the device settings that should be loaded
      *
      * @throws IOException if there is a problem sending the command
