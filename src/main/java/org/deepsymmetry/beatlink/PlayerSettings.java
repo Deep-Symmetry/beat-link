@@ -233,7 +233,7 @@ public class PlayerSettings {
     /**
      * Controls what to do when a track ends.
      */
-    public PlayMode autoPlayMode;
+    public PlayMode autoPlayMode = PlayMode.SINGLE;
 
     /**
      * The options the quantization size.
