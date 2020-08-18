@@ -20,15 +20,21 @@ public class PlayerSettings {
      * A standard on/off choice which is used in many settings.
      */
     public enum Toggle {
-        OFF((byte)0x80),
-        ON((byte)0x81);
+        OFF("Off", (byte)0x80),
+        ON ("On", (byte)0x81);
+
+        /**
+         * The value displayed in the rekordbox interface for each brightness setting.
+         */
+        public final String displayValue;
 
         /**
          * The value in the Load Settings packet which corresponds to the chosen state.
          */
         public final byte protocolValue;
 
-        Toggle(byte protocolValue) {
+        Toggle(String displayValue, byte protocolValue) {
+            this.displayValue = displayValue;
             this.protocolValue = protocolValue;
         }
     }
