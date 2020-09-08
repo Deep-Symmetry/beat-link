@@ -430,6 +430,16 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
+     * Check the zoom scale of the view. a value of 1 (the smallest allowed) draws the waveform at full scale.
+     * Larger values combine more and more segments into a single column of pixels, zooming out to see more at once.
+     *
+     * @return the current zoom scale.
+     */
+    public int getScale() {
+        return scale.get();
+    }
+
+    /**
      * Set whether the player holding the waveform is playing, which changes the indicator color to white from red.
      * This method can only be used in situations where the component is tied to a single player, and therefore has
      * a single playback position.
