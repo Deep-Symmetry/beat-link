@@ -148,12 +148,21 @@ public class MediaDetails {
         }
         mediaType = type;
 
+        // Media name length is 0x40 or UTF-16 NUL, which ever comes first.
+        int mediaNameLength = 0x40;
+        for (int i=0x2c; i<0x6b; i+=2) {
+            if (packetCopy[i] == 0x00 && packetCopy[i+1] == 0x00) {
+                mediaNameLength = i-0x2c;
+                break;
+            }
+        }
+
         if (hostPlayer >= 40) {  // Rekordbox mobile does not send media name or creation date.
             name = "rekordbox mobile";
             creationDate = "";
         } else {
             try {
-                name = new String(packetCopy, 0x2c, 0x40, "UTF-16BE").trim();
+                name = new String(packetCopy, 0x2c, mediaNameLength, "UTF-16BE").trim();
                 creationDate = new String(packetCopy, 0x6c, 0x18, "UTF-16BE").trim();
             } catch (UnsupportedEncodingException e) {
                 throw new IllegalStateException("Java no longer supports UTF-16BE encoding?!", e);
