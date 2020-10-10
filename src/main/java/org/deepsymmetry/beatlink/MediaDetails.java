@@ -100,17 +100,20 @@ public class MediaDetails {
     public static final int MINIMUM_PACKET_SIZE = 0xc0;
 
     /**
-     * Given a source array, return the UTF-16 string length in bytes by finding UTF-16 NUL sequence.
-     * If UTF-16 NUL sequence is not found, maxLength is returned.
+     * Given a source byte array, return the UTF-16 string length in bytes by finding a UTF-16 NUL sequence.
+     * If a UTF-16 NUL sequence is not found, maxLength or source.length-offset is returned, which ever is smaller.
      * 
      * @param source the source byte array representing a UTF-16 string
      * @param offset the byte offset to start at in the source byte array
      * @param maxLength the maximum length of the UTF-16 string (in bytes)
-     * @return the length in number of bytes excluding the UTF-16 NUL sequence, else maxLength
+     * 
+     * @return the length in number of bytes excluding the UTF-16 NUL sequence, else maxLength or source.length-offset, which ever is smaller.
      */
     private int getUTF16StringLength(byte[] source, int offset, int maxLength) {
         int numBytes = maxLength;
-        for (int i=offset; i<offset+maxLength-1; i+=2) {
+        int clampedMaxLength = Math.min(maxLength, source.length-offset);
+        
+        for (int i=offset; i<offset+clampedMaxLength-1; i+=2) {
             if (source[i] == 0x00 && source[i+1] == 0x00) {
                 numBytes = i-offset;
                 break;
