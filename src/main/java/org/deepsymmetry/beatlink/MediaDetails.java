@@ -100,6 +100,29 @@ public class MediaDetails {
     public static final int MINIMUM_PACKET_SIZE = 0xc0;
 
     /**
+     * Given a source byte array, return the UTF-16 string length in bytes by finding a UTF-16 NUL sequence.
+     * If a UTF-16 NUL sequence is not found, maxLength or source.length-offset is returned, which ever is smaller.
+     * 
+     * @param source the source byte array representing a UTF-16 string
+     * @param offset the byte offset to start at in the source byte array
+     * @param maxLength the maximum length of the UTF-16 string (in bytes)
+     * 
+     * @return the length in number of bytes excluding the UTF-16 NUL sequence, else maxLength or source.length-offset, which ever is smaller.
+     */
+    private int getUTF16StringLength(byte[] source, int offset, int maxLength) {
+        int numBytes = maxLength;
+        int clampedMaxLength = Math.min(maxLength, source.length-offset);
+        
+        for (int i=offset; i<offset+clampedMaxLength-1; i+=2) {
+            if (source[i] == 0x00 && source[i+1] == 0x00) {
+                numBytes = i-offset;
+                break;
+            }
+        }
+        return numBytes;
+    }
+
+    /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
      *
      * @param packet the media response packet that was received
@@ -153,8 +176,11 @@ public class MediaDetails {
             creationDate = "";
         } else {
             try {
-                name = new String(packetCopy, 0x2c, 0x40, "UTF-16BE").trim();
-                creationDate = new String(packetCopy, 0x6c, 0x18, "UTF-16BE").trim();
+                int mediaNameLength = getUTF16StringLength(packetCopy, 0x2c, 0x40);
+                int creationDateLength = getUTF16StringLength(packetCopy, 0x6c, 0x18);
+
+                name = new String(packetCopy, 0x2c, mediaNameLength, "UTF-16BE").trim();
+                creationDate = new String(packetCopy, 0x6c, creationDateLength, "UTF-16BE").trim();
             } catch (UnsupportedEncodingException e) {
                 throw new IllegalStateException("Java no longer supports UTF-16BE encoding?!", e);
             }
