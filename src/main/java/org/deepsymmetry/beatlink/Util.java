@@ -9,6 +9,8 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -250,6 +252,16 @@ public class Util {
     }
 
     /**
+     * Used to keep track of when we report seeing a packet to an unexpected port, so we only do that once.
+     */
+    private static final Set<Integer> unknownPortsReported = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+
+    /**
+     * Used to keep track of when we report seeing a packet of an unknown type reported to a port, so we do that only once.
+     */
+    private static final Map<Integer, Set<Byte>> unknownPortTypesReported = new ConcurrentHashMap<Integer, Set<Byte>>();
+
+    /**
      * Check to see whether a packet starts with the standard header bytes, followed by a known byte identifying it.
      * If so, return the kind of packet that has been recognized.
      *
@@ -273,15 +285,27 @@ public class Util {
         }
 
         final Map<Byte, PacketType> portMap = PACKET_TYPE_MAP.get(port);
-        if (portMap == null) {
-            logger.warn("Do not know any Pro DJ Link packets that are received on port " + port + ".");
+        if (portMap == null) {  // Warn about unrecognized port, once, and return null for packet type.
+            if (!unknownPortsReported.contains(port)) {
+                logger.warn("Do not know any Pro DJ Link packets that are received on port " + port +
+                        " (this will be reported only once).");
+                unknownPortsReported.add(port);
+            }
             return null;
         }
 
         final PacketType result = portMap.get(data[PACKET_TYPE_OFFSET]);
-        if (result == null) {
-            logger.warn("Do not know any Pro DJ Link packets received on port " + port + " with type " +
-                    String.format("0x%02x", data[PACKET_TYPE_OFFSET]) + ".");
+        if (result == null) {  // Warn about unrecognized type, once.
+            Set<Byte> typesReportedForPort = unknownPortTypesReported.get(port);
+            if (typesReportedForPort == null) {  // First problem we have seen for this port, set up set for it.
+                typesReportedForPort = Collections.newSetFromMap(new ConcurrentHashMap<Byte, Boolean>());
+                unknownPortTypesReported.put(port, typesReportedForPort);
+            }
+           if (!typesReportedForPort.contains(data[PACKET_TYPE_OFFSET])) {
+               logger.warn("Do not know any Pro DJ Link packets received on port " + port + " with type " +
+                       String.format("0x%02x", data[PACKET_TYPE_OFFSET]) + " (this will be reported only once).");
+               typesReportedForPort.add(data[PACKET_TYPE_OFFSET]);
+           }
         }
 
         return result;
