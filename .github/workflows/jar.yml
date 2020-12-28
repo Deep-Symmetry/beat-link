@@ -31,15 +31,15 @@ jobs:
           PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           RELEASE_TAG="v$PROJECT_VERSION"
           HUMAN_VERSION=${PROJECT_VERSION/SNAPSHOT/Preview}
-          echo "::set-env name=release_tag::$RELEASE_TAG"
-          echo "::set-env name=release_name::$PROJECT_VERSION"
-          echo "::set-env name=built_name::beat-link-$PROJECT_VERSION.jar"
-          echo "::set-env name=artifact_name::beat-link-$HUMAN_VERSION.jar"
+          echo "release_tag=$RELEASE_TAG" >> $GITHUB_ENV
+          echo "release_name=$PROJECT_VERSION" >> $GITHUB_ENV
+          echo "built_name=beat-link-$PROJECT_VERSION.jar" >> $GITHUB_ENV
+          echo "artifact_name=beat-link-$HUMAN_VERSION.jar" >> $GITHUB_ENV
           if [[ $RELEASE_TAG =~ .*-SNAPSHOT ]]
           then
-            echo "::set-env name=release_snapshot::true"
+            echo "release_snapshot=true" >> $GITHUB_ENV
           else
-            echo "::set-env name=release_snapshot::false"
+            echo "release_snapshot=false" >> $GITHUB_ENV
           fi
 
       - name: Cache Maven dependencies
@@ -65,7 +65,7 @@ jobs:
           mode: update
           tag_name: ${{ env.release_tag }}
           release_name: ${{ env.release_name }}
-          isPrerelease: true
+          isPrerelease: ${{ env.release_snapshot }}
           replace_assets: ${{ env.release_snapshot }}
           assets: ${{ env.artifact_name }}
           github_token: ${{ github.token }}
