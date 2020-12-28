@@ -6,6 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [0.6.3] - 2020-12-28
+
 ### Added
 
 - The ability to set a player's My Settings configuration by sending
@@ -65,7 +69,7 @@ This change log follows the conventions of
   Pro DJ Link protocol, so when Beat Link is connected to an ethernet
   port on a mixer that is assigned a dedicated channel number, it will
   use that device number, and we defend our device number once we have
-  successully claimed it.
+  successfully claimed it.
 
 ### Deprecated
 
@@ -678,7 +682,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.2...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.5.5...v0.6.0
