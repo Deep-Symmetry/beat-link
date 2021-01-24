@@ -89,6 +89,13 @@ Issue](https://github.com/Deep-Symmetry/beat-link/issues) or
 submit a pull request so we can all improve our understanding
 together.
 
+:construction: We are currently working on adding support for new
+features introduced with the CDJ-3000 and DJM-V10, including the
+fact that there can now be up to six devices online and on mixer
+channels. This will take some time, since Deep Symmetry does not
+own any of this hardware, and so is reliant on the help of others
+who can experiment and contribute traffic captures and information.
+
 If something isn&rsquo;t working with your hardware, and you don&rsquo;t yet know
 the details why, but are willing to learn a little and help figure it
 out, look at the

@@ -4,10 +4,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -61,6 +58,37 @@ public class BeatFinder extends LifecycleParticipant {
     }
 
     /**
+     * Keeps track of the warnings we have already issued for packets of a given type with a given unexpected size,
+     * so we only issue them once.
+     */
+    private static final Map<String, Set<Integer>> sizeWarningsIssued = new HashMap<String, Set<Integer>>();
+
+    /**
+     * Checks whether this is the first time we have seen a particular bad size for a given packet type, and returns
+     * {@code true} in that circumstance, making note that we have now seen this combination, so we will return
+     * {@code false} for it in the future.
+     *
+     * @param packetName the type of packet to be warned about
+     * @param unexpectedLength the number of bytes in this packet, which we did not expect to see
+     *
+     * @return true if this is the first time we have seen a packet like this
+     */
+    private static synchronized boolean shouldWarn(String packetName, int unexpectedLength) {
+        Set<Integer> sizeSet = sizeWarningsIssued.get(packetName);
+        if (sizeSet == null) { // This is the first time we have seen this packet at all.
+            sizeSet = new HashSet<Integer>();
+            sizeSet.add(unexpectedLength);
+            sizeWarningsIssued.put(packetName, sizeSet);
+            return true;
+        } else if (sizeSet.contains(unexpectedLength)) {
+            return false;  // We have seen this before.
+        }
+        // We have seen this packet type before, but not this particular length.
+        sizeSet.add(unexpectedLength);
+        return true;
+    }
+
+    /**
      * Helper method to check that we got the right size packet.
      *
      * @param packet a packet that has been received
@@ -71,13 +99,13 @@ public class BeatFinder extends LifecycleParticipant {
      */
     private boolean isPacketLongEnough(DatagramPacket packet, int expectedLength, String name) {
         final int length = packet.getLength();
-        if (length < expectedLength) {
+        if (length < expectedLength && shouldWarn(name, length)) {
             logger.warn("Ignoring too-short " + name + " packet; expecting " + expectedLength + " bytes and got " +
                     length + ".");
             return false;
         }
 
-        if (length > expectedLength) {
+        if (length > expectedLength && shouldWarn(name, length)) {
             logger.warn("Processing too-long " + name + " packet; expecting " + expectedLength +
                     " bytes and got " + length + ".");
         }
@@ -126,12 +154,20 @@ public class BeatFinder extends LifecycleParticipant {
                                             break;
 
                                         case CHANNELS_ON_AIR:
-                                            if (isPacketLongEnough(packet, 0x2d, "channels on-air")) {
+                                            if (packet.getLength() == 0x35 ||  // New DJM-V10 packet with six channels
+                                                    isPacketLongEnough(packet, 0x2d, "channels on-air")) {
                                                 byte[] data = packet.getData();
                                                 Set<Integer> audibleChannels = new TreeSet<Integer>();
                                                 for (int channel = 1; channel <= 4; channel++) {
                                                     if (data[0x23 + channel] != 0) {
                                                         audibleChannels.add(channel);
+                                                    }
+                                                }
+                                                if (packet.getLength() >= 0x35) {
+                                                    for (int channel = 5; channel <= 6; channel++) {
+                                                        if (data[0x28 + channel] != 0) {
+                                                            audibleChannels.add(channel);
+                                                        }
                                                     }
                                                 }
                                                 audibleChannels = Collections.unmodifiableSet(audibleChannels);
