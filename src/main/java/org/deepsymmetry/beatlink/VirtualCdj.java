@@ -95,7 +95,8 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * When self-assigning a player number, should we try to use a value that is legal for a standard CDJ, in
      * the range 1 to 4? By default, we do not, to avoid any potential conflict with real players. However, if
-     * the user is intending to use the {@link MetadataFinder}, and will always have fewer than four real players
+     * the user is intending to use features (like becoming tempo master) which require Beat Link to operate with
+     * a device number in the standard range, and will always have fewer than four real players
      * on the network, this can be set to {@code true}, and a device number in this range will be chosen if it
      * is not in use on the network during startup.
      *
@@ -108,7 +109,8 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * When self-assigning a player number, should we try to use a value that is legal for a standard CDJ, in
      * the range 1 to 4? By default, we do not, to avoid any potential conflict with real players. However, if
-     * the user is intending to use the {@link MetadataFinder}, and will always have fewer than four real players
+     * the user is intending to use features (like becoming tempo master) which require Beat Link to operate with
+     * a device number in the standard range, and will always have fewer than four real players
      * on the network, this can be set to {@code true}, and a device number in this range will be chosen if it
      * is not in use on the network during startup.
      *
@@ -123,8 +125,9 @@ public class VirtualCdj extends LifecycleParticipant {
      * This starts out being zero unless you explicitly assign another value, which means that the <code>VirtualCdj</code>
      * should assign itself an unused device number by watching the network when you call
      * {@link #start()}. If {@link #getUseStandardPlayerNumber()} returns {@code true}, self-assignment will try to
-     * find a value in the range 1 to 4. Otherwise (or if those values are all used by other players), it will try to
-     * find a value in the range 5 to 15.
+     * find a value in the range 1 to 4. Otherwise it will try to find a value in the range 7 to 15. Even when told
+     * to use a standard player number, if all device numbers in that range are already in use, we will be forced to
+     * use a larger number.
      *
      * @return the virtual player number
      */
@@ -552,7 +555,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * <p>Try to choose a device number, which we have not seen on the network. If we have already tried one, it must
      * have been defended, so increment to the next one we can try (we stop at 15). If we have not yet tried one,
      * pick the first appropriate one to try, honoring the value of {@link #useStandardPlayerNumber} to determine
-     * if we start at 1 or 5. Set the number we are going to try next in {@link #claimingNumber}.</p>
+     * if we start at 1 or 7. Set the number we are going to try next in {@link #claimingNumber}.</p>
      *
      * <p>Even though in theory we should be able to rely on the protocol to tell us if we are claiming a
      * number that belongs to another player, it turns out the XDJ-XZ is buggy and tells us to go ahead and
@@ -576,9 +579,9 @@ public class VirtualCdj extends LifecycleParticipant {
 
         if (claimingNumber.get() == 0) {
             // We have not yet tried a number. If we are not supposed to use standard player numbers, make sure
-            // the first one we try is 5.
+            // the first one we try is 7 (to accommodate the CDJ-3000, which can use channels 5 and 6.
             if (!getUseStandardPlayerNumber()) {
-                claimingNumber.set(4);
+                claimingNumber.set(6);
             }
         }
 
