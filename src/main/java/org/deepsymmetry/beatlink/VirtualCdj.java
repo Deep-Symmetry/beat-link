@@ -1587,6 +1587,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
     /**
      * Broadcast a packet that tells the players which channels are on the air (audible in the mixer output).
+     * This version sends the packet which was used by mixers older than the DJM-V10, and supports devices 1-4.
      * Numbers outside the range 1 to 4 are ignored. If there is an actual DJM mixer on the network, it will
      * be sending these packets several times per second, so the results of calling this method will be quickly
      * overridden.
@@ -1605,6 +1606,46 @@ public class VirtualCdj extends LifecycleParticipant {
         for (int i = 1; i <= 4; i++) {
             if (deviceNumbersOnAir.contains(i)) {
                 payload[i + 4] = 1;
+            }
+        }
+
+        assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, getBroadcastAddress(), BeatFinder.BEAT_PORT);
+    }
+
+    /**
+     * The bytes after the device name in an extended channels on-air report packet.
+     */
+    private final static byte[] CHANNELS_ON_AIR_EXTENDED_PAYLOAD = { 0x01,
+            0x03, 0x0d, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00 };
+
+    /**
+     * Broadcast a packet that tells the players which channels are on the air (audible in the mixer output).
+     * This version sends the packet used by the DJM-V10 mixer, and supports devices 1-6.
+     * Numbers outside the range 1 to 6 are ignored. If there is an actual DJM mixer on the network, it will
+     * be sending these packets several times per second, so the results of calling this method will be quickly
+     * overridden.
+     *
+     * @param deviceNumbersOnAir the players whose channels are currently on the air
+     *
+     * @throws IOException if there is a problem broadcasting the command to the players
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     */
+    public void sendOnAirExtendedCommand(Set<Integer> deviceNumbersOnAir) throws IOException {
+        ensureRunning();
+        byte[] payload = new byte[CHANNELS_ON_AIR_EXTENDED_PAYLOAD.length];
+        System.arraycopy(CHANNELS_ON_AIR_EXTENDED_PAYLOAD, 0, payload, 0, CHANNELS_ON_AIR_EXTENDED_PAYLOAD.length);
+        payload[2] = getDeviceNumber();
+
+        for (int i = 1; i <= 4; i++) {
+            if (deviceNumbersOnAir.contains(i)) {
+                payload[i + 4] = 1;
+            }
+        }
+
+        for (int i = 5; i <= 6; i++) {
+            if (deviceNumbersOnAir.contains(i)) {
+                payload[i + 9] = 1;
             }
         }
 

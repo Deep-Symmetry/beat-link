@@ -9,7 +9,9 @@ This change log follows the conventions of
 ### Added
 
 - Support for channels 5 and 6 in the DJM-V10 channels-on-air messages,
-  [#47](https://github.com/Deep-Symmetry/beat-link/issues/47).
+  [#47](https://github.com/Deep-Symmetry/beat-link/issues/47) for
+  receiving, and [#46](https://github.com/Deep-Symmetry/beat-link/issues/47)
+  for sending.
 
 ## [0.6.3] - 2020-12-28
 
