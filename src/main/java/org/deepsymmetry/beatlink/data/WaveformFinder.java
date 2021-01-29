@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * <p>Watches for new metadata to become available for tracks loaded on players, and queries the
  * appropriate player for track waveforms when that happens. Can be configured to load only the small waveform
- *  previews, or both those and the full scrollable waveform details.</p>
+ * previews, or both those and the full scrollable waveform details.</p>
  *
  * <p>Maintains a hot cache of waveforms for any track currently loaded in a player, either on the main playback
  * deck, or as a hot cue, since those tracks could start playing instantly.</p>
@@ -30,14 +30,14 @@ public class WaveformFinder extends LifecycleParticipant {
     private static final Logger logger = LoggerFactory.getLogger(WaveformFinder.class);
 
     /**
-     * Keeps track of the current waveform previews cached for each player. We hot cache art for any track which is
+     * Keeps track of the current waveform previews cached for each player. We hot cache data for any track which is
      * currently on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
     private final Map<DeckReference, WaveformPreview> previewHotCache =
             new ConcurrentHashMap<DeckReference, WaveformPreview>();
 
     /**
-     * Keeps track of the current waveform details cached for each player. We hot cache art for any track which is
+     * Keeps track of the current waveform details cached for each player. We hot cache data for any track which is
      * currently on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
     private final Map<DeckReference, WaveformDetail> detailHotCache =
