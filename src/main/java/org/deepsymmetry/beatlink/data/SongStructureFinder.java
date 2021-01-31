@@ -264,9 +264,10 @@ public class SongStructureFinder extends LifecycleParticipant  {
         // First see if any registered metadata providers can offer it for us (i.e. Crate Digger, probably).
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
         if (sourceDetails !=  null) {
-            final RekordboxAnlz.SongStructureTag provided = null; // TODO: MetadataFinder.getInstance().allMetadataProviders.getAnalysisSection(sourceDetails, trackReference, "EXT", "PSSI");
+            final RekordboxAnlz.TaggedSection provided = MetadataFinder.getInstance().allMetadataProviders.getAnalysisSection(
+                    sourceDetails, trackReference, "EXT", "PSSI");
             if (provided != null) {
-                return provided;
+                return (RekordboxAnlz.SongStructureTag) provided.body();
             }
         }
 

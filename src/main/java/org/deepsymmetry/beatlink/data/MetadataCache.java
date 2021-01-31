@@ -7,6 +7,7 @@ import org.deepsymmetry.beatlink.dbserver.Client;
 import org.deepsymmetry.beatlink.dbserver.ConnectionManager;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -675,6 +676,12 @@ public class MetadataCache implements MetadataProvider {
                 }
             }
         }
+        return null;
+    }
+
+    @Override
+    public RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag) {
+        // TODO: We are not planning to implement this, so it is really time to remove this entire deprecated mechanism.
         return null;
     }
 

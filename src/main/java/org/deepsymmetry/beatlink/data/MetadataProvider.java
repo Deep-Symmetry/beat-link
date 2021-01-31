@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.MediaDetails;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 
 import java.util.List;
 
@@ -96,4 +97,19 @@ public interface MetadataProvider {
      * @return the waveform detail corresponding to that track, or {@code null} if we don't have one to offer
      */
     WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track);
+
+    /**
+     * Get an arbitrary analysis file element, given its file extension and type tag.
+     *
+     * @param sourceMedia the media to which the track belongs, for use by providers which store metadata from multiple
+     *                    sources
+     * @param track identifies the track whose waveform detail is desired; since beat grids always have a player and
+     *              slot associated with them, those are needed as well as the rekordbox ID in order to create one
+     * @param fileExtension identifies which analysis file contains the desired data (we currently understand elements
+     *                      in the .dat and .ext files).
+     * @param typeTag the four-character code identifying the specific section of the analysis file desired.
+     *
+     * @return the Kaitai Struct object representing the parsed matching section of the file, if one is found.
+     */
+    RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag);
 }

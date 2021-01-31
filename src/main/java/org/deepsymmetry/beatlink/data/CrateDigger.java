@@ -330,7 +330,7 @@ public class CrateDigger {
                             Database database = new Database(file);
                             duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
                             logger.info("Parsing database took " + duration + "ms, " +
-                                            (database.trackIndex.size() * 1000 / duration) + " tracks/s");
+                                            (database.trackIndex.size() * 1000L / duration) + " tracks/s");
                             databases.put(details.slotReference, database);
                             deliverDatabaseUpdate(details.slotReference, database, true);
                         } catch (Throwable t) {
@@ -615,6 +615,52 @@ public class CrateDigger {
                     }
                 } catch (Exception e) {
                     logger.error("Problem fetching waveform preview for track " + track + " from database " + database, e);
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag) {
+            Database database = findDatabase(track);
+            if (database != null) {
+                try {
+                    if ((typeTag.length()) > 4) {
+                        throw new IllegalArgumentException("typeTag cannot be longer than four characters");
+                    }
+
+                    int fourcc = 0;  // Convert the type tag to an integer as found in the analysis file.
+                    for (int i = 0; i < 4; i++) {
+                        fourcc = fourcc * 256;
+                        if (i < (typeTag.length())) {
+                            fourcc = fourcc + typeTag.charAt(i);
+                        }
+                    }
+
+                    RekordboxAnlz file = null;  // Open the desired file to scan.
+                    if (fileExtension.equalsIgnoreCase("dat")) {
+                        file = findTrackAnalysis(track, database);
+                    } else if (fileExtension.equalsIgnoreCase("ext")) {
+                        file = findExtendedAnalysis(track, database);
+                    } else {
+                        logger.warn("Don't know to find track analysis file with extension " + fileExtension);
+                    }
+
+                    if (file != null) {
+                        try {  // Scan for the requested tag type.
+                            for (RekordboxAnlz.TaggedSection section : file.sections()) {
+                                if (section.fourcc() == fourcc) {
+                                    return section;
+                                }
+                            }
+                        } finally {
+                            file._io().close();
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching analysis file ." + fileExtension + " section " + typeTag +
+                            " for track " + track + " from database " + database, e);
+
                 }
             }
             return null;

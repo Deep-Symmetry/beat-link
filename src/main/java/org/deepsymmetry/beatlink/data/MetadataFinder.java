@@ -2,6 +2,7 @@ package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.*;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1322,6 +1323,23 @@ public class MetadataFinder extends LifecycleParticipant {
             }
             for (MetadataProvider provider : getMetadataProviders(null)) {
                 WaveformDetail result = provider.getWaveformDetail(sourceMedia, track);
+                if (result != null) {
+                    return result;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag) {
+            for (MetadataProvider provider : getMetadataProviders(sourceMedia)) {
+                RekordboxAnlz.TaggedSection result = provider.getAnalysisSection(sourceMedia, track, fileExtension, typeTag);
+                if (result != null) {
+                    return result;
+                }
+            }
+            for (MetadataProvider provider : getMetadataProviders(null)) {
+                RekordboxAnlz.TaggedSection result = provider.getAnalysisSection(sourceMedia, track, fileExtension, typeTag);
                 if (result != null) {
                     return result;
                 }
