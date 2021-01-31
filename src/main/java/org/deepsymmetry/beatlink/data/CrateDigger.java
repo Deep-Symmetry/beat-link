@@ -384,41 +384,7 @@ public class CrateDigger {
      * @return the parsed file containing the track analysis
      */
     private RekordboxAnlz findTrackAnalysis(DataReference track, Database database) {
-        File file = null;
-        try {
-            RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
-            if (trackRow != null) {
-                file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
-                        "track-" + track.rekordboxId + "-anlz.dat");
-                final String filePath = file.getCanonicalPath();
-                final String analyzePath = Database.getText(trackRow.analyzePath());
-                try {
-                    synchronized (Util.allocateNamedLock(filePath)) {
-                        if (file.canRead()) {  // We have already downloaded it.
-                            return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
-                        }
-                        file.deleteOnExit();  // Prepare to download it.
-                        fetchFile(track.getSlotReference(), analyzePath, file);
-                        return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
-                    }
-                } catch (Exception e) {  // We can give a more specific error including the file path.
-                    logger.error("Problem parsing analysis file " + analyzePath + " for track " + track + " from database " + database, e);
-                    //noinspection ResultOfMethodCallIgnored
-                    file.delete();
-                } finally {
-                    Util.freeNamedLock(filePath);
-                }
-            } else {
-                logger.warn("Unable to find track " + track + " in database " + database);
-            }
-        } catch (Exception e) {
-            logger.error("Problem fetching analysis file for track " + track + " from database " + database, e);
-            if (file != null) {
-                //noinspection ResultOfMethodCallIgnored
-                file.delete();
-            }
-        }
-        return null;
+        return findTrackAnalysis(track, database, ".DAT");
     }
 
     /**
@@ -431,27 +397,42 @@ public class CrateDigger {
      * @return the parsed file containing the track analysis
      */
     private RekordboxAnlz findExtendedAnalysis(DataReference track, Database database) {
+        return findTrackAnalysis(track, database, ".EXT");
+    }
+
+    /**
+     * Find an analysis file for the specified track, with the specified file extension, downloading it from the player
+     * if we have not already done so. Be sure to call {@code _io().close()} when you are done using the returned struct.
+     *
+     * @param track the track whose extended analysis file is desired
+     * @param database the parsed database export from which the analysis path can be determined
+     * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type file to be retrieved.
+     *
+     * @return the parsed file containing the track analysis
+     */
+    private RekordboxAnlz findTrackAnalysis(DataReference track, Database database, String extension) {
         File file = null;
         try {
             RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
             if (trackRow != null) {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
-                        "track-" + track.rekordboxId + "-anlz.ext");
+                        "track-" + track.rekordboxId + "-anlz" + extension.toLowerCase());
                 final String filePath = file.getCanonicalPath();
                 final String analyzePath = Database.getText(trackRow.analyzePath());
-                final String extendedPath = analyzePath.replaceAll("\\.DAT$", ".EXT");
+                final String requestedPath = analyzePath.replaceAll("\\.DAT$", extension.toUpperCase());
                 try {
                     synchronized (Util.allocateNamedLock(filePath)) {
                         if (file.canRead()) {  // We have already downloaded it.
                             return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                         }
-                        file.deleteOnExit();  // Prepare to download it.
-
-                        fetchFile(track.getSlotReference(), extendedPath, file);
+                        // Prepare to download it.
+                        file.deleteOnExit();
+                        fetchFile(track.getSlotReference(), requestedPath, file);
                         return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                     }
                 } catch (Exception e) {  // We can give a more specific error including the file path.
-                    logger.error("Problem parsing extended analysis file " + extendedPath + " for track " + track + " from database " + database, e);
+                    logger.error("Problem parsing requested analysis file " + requestedPath + " for track " + track +
+                            " from database " + database, e);
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
                 } finally {
@@ -461,7 +442,8 @@ public class CrateDigger {
                 logger.warn("Unable to find track " + track + " in database " + database);
             }
         } catch (Exception e) {
-            logger.error("Problem fetching extended analysis file for track " + track + " from database " + database, e);
+            logger.error("Problem fetching analysis file with extension " + extension.toUpperCase() +
+                    " for track " + track + " from database " + database, e);
             if (file != null) {
                 //noinspection ResultOfMethodCallIgnored
                 file.delete();
@@ -637,15 +619,7 @@ public class CrateDigger {
                         }
                     }
 
-                    RekordboxAnlz file = null;  // Open the desired file to scan.
-                    if (fileExtension.equalsIgnoreCase("dat")) {
-                        file = findTrackAnalysis(track, database);
-                    } else if (fileExtension.equalsIgnoreCase("ext")) {
-                        file = findExtendedAnalysis(track, database);
-                    } else {
-                        logger.warn("Don't know to find track analysis file with extension " + fileExtension);
-                    }
-
+                    final RekordboxAnlz file = findTrackAnalysis(track, database, fileExtension);  // Open the desired file to scan.
                     if (file != null) {
                         try {  // Scan for the requested tag type.
                             for (RekordboxAnlz.TaggedSection section : file.sections()) {
@@ -658,7 +632,7 @@ public class CrateDigger {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching analysis file ." + fileExtension + " section " + typeTag +
+                    logger.error("Problem fetching analysis file " + fileExtension + " section " + typeTag +
                             " for track " + track + " from database " + database, e);
 
                 }

@@ -106,7 +106,7 @@ public interface MetadataProvider {
      * @param track identifies the track whose waveform detail is desired; since beat grids always have a player and
      *              slot associated with them, those are needed as well as the rekordbox ID in order to create one
      * @param fileExtension identifies which analysis file contains the desired data (we currently understand elements
-     *                      in the .dat and .ext files).
+     *                      in the ".DAT" and ".EXT" files).
      * @param typeTag the four-character code identifying the specific section of the analysis file desired.
      *
      * @return the Kaitai Struct object representing the parsed matching section of the file, if one is found.

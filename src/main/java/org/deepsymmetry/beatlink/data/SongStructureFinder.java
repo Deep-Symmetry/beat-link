@@ -265,7 +265,7 @@ public class SongStructureFinder extends LifecycleParticipant  {
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
         if (sourceDetails !=  null) {
             final RekordboxAnlz.TaggedSection provided = MetadataFinder.getInstance().allMetadataProviders.getAnalysisSection(
-                    sourceDetails, trackReference, "EXT", "PSSI");
+                    sourceDetails, trackReference, ".EXT", "PSSI");
             if (provided != null) {
                 return (RekordboxAnlz.SongStructureTag) provided.body();
             }
