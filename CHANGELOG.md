@@ -12,6 +12,8 @@ This change log follows the conventions of
   [#47](https://github.com/Deep-Symmetry/beat-link/issues/47) for
   receiving, and [#46](https://github.com/Deep-Symmetry/beat-link/issues/47)
   for sending.
+- Support for obtaining song structure (phrase analysis) information
+  from players, now that rekordbox 6 and later export it.
 
 ## [0.6.3] - 2020-12-28
 

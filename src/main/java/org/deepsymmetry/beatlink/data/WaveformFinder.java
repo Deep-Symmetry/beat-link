@@ -890,7 +890,7 @@ public class WaveformFinder extends LifecycleParticipant {
             queueHandler.interrupt();
             queueHandler = null;
 
-            // Report the loss of our waveforms, on the proper thread, outside our lock
+            // Report the loss of our waveforms, on the proper thread, outside our lock.
             final Set<DeckReference> dyingPreviewCache = new HashSet<DeckReference>(previewHotCache.keySet());
             previewHotCache.clear();
             final Set<DeckReference> dyingDetailCache = new HashSet<DeckReference>(detailHotCache.keySet());

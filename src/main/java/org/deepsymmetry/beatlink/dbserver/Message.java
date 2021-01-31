@@ -436,6 +436,12 @@ public class Message {
 
     /**
      * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
+     * the song structure information data. (The characters "PSSI" as a byte-swapped integer.)
+     */
+    public static final int ANLZ_FILE_TAG_SONG_STRUCTURE = 0x49535350;
+
+    /**
+     * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
      * the enhanced cue and loop data, but does not seem to work. (The characters "PCO2" as a byte-swapped integer.)
      */
     public static final int ANLZ_FILE_TAG_CUE_COMMENT = 0x324f4350;
