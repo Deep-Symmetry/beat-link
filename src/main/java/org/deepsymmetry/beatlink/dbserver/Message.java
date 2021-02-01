@@ -1081,7 +1081,7 @@ public class Message {
     }
 
     /**
-     * Writes the message to the specified channel, for example when creating metadata cache files.
+     * Writes the message to the specified channel, for example when saving to a file (like a Beat Link Trigger show).
      *
      * @param channel the channel to which it should be written
      *

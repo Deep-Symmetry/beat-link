@@ -8,9 +8,7 @@ import java.util.List;
 /**
  * A class that is able to provide metadata for a loaded track without the need to query the source player can
  * implement this interface and register itself with the {@link MetadataFinder#addMetadataProvider(MetadataProvider)}.
- * Examples include cue lists that store their own copies of the metadata. Metadata caches created by Beat Link
- * as ZIP files also implement this interface, but they are treated specially because they existed before it, and
- * for backwards compatibility need to support files that do not know what media they were created from.
+ * Examples include cue lists that store their own copies of the metadata.
  *
  * @since 0.5.0
  */

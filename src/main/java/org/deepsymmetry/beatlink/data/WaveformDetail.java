@@ -46,8 +46,8 @@ public class WaveformDetail {
 
     /**
      * The message holding the detail as it was read over the network. This can be used to analyze fields
-     * that have not yet been reliably understood, and is also used for storing the cue list in a cache file.
-     * This will be null if the data was obtained from Crate Digger.
+     * that have not yet been reliably understood, and is also used for storing the cue list in a file.
+     * This will be {@code null} if the data was obtained from Crate Digger.
      */
     @SuppressWarnings("WeakerAccess")
     public final Message rawMessage;
@@ -116,7 +116,7 @@ public class WaveformDetail {
     }
 
     /**
-     * Constructor when reading from the network or a cache file.
+     * Constructor when reading from the network or a file.
      *
      * @param reference the unique database reference that was used to request this waveform detail
      * @param message the response that contains the preview

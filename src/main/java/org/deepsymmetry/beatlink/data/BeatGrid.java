@@ -29,7 +29,7 @@ public class BeatGrid {
 
     /**
      * Get the raw bytes of the beat grid as it was read over the network. This can be used to analyze fields
-     * that have not yet been reliably understood, and is also used for storing the beat grid in a cache file.
+     * that have not yet been reliably understood, and is also used for storing the beat grid in a file.
      * This is not available when the beat grid was loaded by Crate Digger.
      *
      * @return the bytes that make up the beat grid
@@ -75,7 +75,7 @@ public class BeatGrid {
     }
 
     /**
-     * Constructor for reading from a cache file.
+     * Constructor for reading from a file.
      *
      * @param reference the unique database reference that was used to request this waveform detail
      * @param buffer the raw bytes representing the beat grid
@@ -137,7 +137,7 @@ public class BeatGrid {
     }
 
     /**
-     * Constructor for use by an external cache system.
+     * Constructor for use by an external storage system.
      *
      * @param reference the unique database reference that was used to request this waveform detail
      * @param beatWithinBarValues the musical time on which each beat in the grid falls

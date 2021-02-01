@@ -35,7 +35,7 @@ public class WaveformPreview {
     /**
      * The message holding the preview as it was read over the network, if it came from the dbserver.
      * This can be used to analyze fields that have not yet been reliably understood, and is also used for storing
-     * the cue list in a cache file.
+     * the cue list in a file.
      */
     @SuppressWarnings("WeakerAccess")
     public final Message rawMessage;
@@ -116,7 +116,7 @@ public class WaveformPreview {
     }
 
     /**
-     * Constructor when reading from the network or a cache file.
+     * Constructor when reading from the network or a file.
      *
      * @param reference the unique database reference that was used to request this waveform preview
      * @param message the response that contains the preview

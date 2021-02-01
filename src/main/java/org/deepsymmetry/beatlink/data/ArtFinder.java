@@ -268,29 +268,19 @@ public class ArtFinder extends LifecycleParticipant {
 
     /**
      * Ask the specified player for the album art in the specified slot with the specified rekordbox ID,
-     * using cached media instead if it is available, and possibly giving up if we are in passive mode.
+     * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param artReference uniquely identifies the desired album art
      * @param trackType the kind of track that owns the art
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
-     *                      artwork updates will use available caches only
+     *                      artwork updates will use available caches and downloaded metadata exports only
      *
      * @return the album art found, if any
      */
     private AlbumArt requestArtworkInternal(final DataReference artReference, final CdjStatus.TrackType trackType,
                                             final boolean failIfPassive) {
 
-        // First check if we are using cached data for this slot.
-        @SuppressWarnings("deprecation") MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(artReference));
-        if (cache != null) {
-            final AlbumArt result = cache.getAlbumArt(null, artReference);
-            if (result != null) {
-                artCache.put(artReference, result);
-            }
-            return result;
-        }
-
-        // Then see if any registered metadata providers can offer it for us.
+        // First see if any registered metadata providers can offer it for us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(artReference.getSlotReference());
         if (sourceDetails != null) {
             final AlbumArt provided = MetadataFinder.getInstance().allMetadataProviders.getAlbumArt(sourceDetails, artReference);
@@ -315,7 +305,7 @@ public class ArtFinder extends LifecycleParticipant {
 
         try {
             AlbumArt artwork = ConnectionManager.getInstance().invokeWithClientSession(artReference.player, task, "requesting artwork");
-            if (artwork != null) {  // Our cache file load or network request succeeded, so add to the level 2 cache.
+            if (artwork != null) {  // Our file load or network request succeeded, so add to the level 2 cache.
                 artCache.put(artReference, artwork);
             }
             return artwork;

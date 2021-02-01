@@ -742,7 +742,7 @@ public class CrateDigger {
      * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
-     * @param listener the cache update listener to add
+     * @param listener the database update listener to add
      */
     public void addDatabaseListener(DatabaseListener listener) {
         if (listener != null) {
@@ -755,7 +755,7 @@ public class CrateDigger {
      * are changes to the available set of rekordbox databases. If {@code listener} is {@code null} or not present
      * in the set of registered listeners, no exception is thrown and no action is performed.
      *
-     * @param listener the cache update listener to remove
+     * @param listener the database update listener to remove
      */
     public void removeDatabaseListener(DatabaseListener listener) {
         if (listener != null) {

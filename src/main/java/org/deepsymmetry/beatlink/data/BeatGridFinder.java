@@ -105,7 +105,7 @@ public class BeatGridFinder extends LifecycleParticipant {
     /**
      * Check whether we are currently running. Unless the {@link MetadataFinder} is in passive mode, we will
      * automatically request beat grids from the appropriate player when a new track is loaded that is not found
-     * in the hot cache or an attached metadata cache file.
+     * in the hot cache or a downloaded metadata export file.
      *
      * @return true if beat grids are being kept track of for all active players
      *
@@ -220,23 +220,17 @@ public class BeatGridFinder extends LifecycleParticipant {
 
     /**
      * Ask the specified player for the beat grid in the specified slot with the specified rekordbox ID,
-     * using cached media instead if it is available, and possibly giving up if we are in passive mode.
+     * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param trackReference uniquely identifies the desired beat grid
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
-     *                      beat grid updates will use available caches only
+     *                      beat grid updates will use available caches and downloaded metadata exports only
      *
      * @return the beat grid found, if any
      */
     private BeatGrid requestBeatGridInternal(final DataReference trackReference, final boolean failIfPassive) {
 
-        // First check if we are using cached data for this slot
-        @SuppressWarnings("deprecation") MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
-        if (cache != null) {
-            return cache.getBeatGrid(null, trackReference);
-        }
-
-        // Then see if any registered metadata providers can offer it to us.
+        // First see if any registered metadata providers can offer it to us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
         if (sourceDetails !=  null) {
             final BeatGrid provided = MetadataFinder.getInstance().allMetadataProviders.getBeatGrid(sourceDetails, trackReference);

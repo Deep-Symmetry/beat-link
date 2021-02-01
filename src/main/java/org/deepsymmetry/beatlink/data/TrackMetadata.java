@@ -38,7 +38,7 @@ public class TrackMetadata {
     /**
      * The raw dbserver messages containing the metadata when it was read over the network.
      * Can be used to analyze fields that have not yet been reliably understood,
-     * and is also used for storing the metadata in a cache file. Will be {@code null} if
+     * and is also used for storing the metadata in a file. Will be {@code null} if
      * the metadata was constructed from a {@link org.deepsymmetry.cratedigger.pdb.RekordboxPdb.TrackRow}.
      *
      * @see #rawRow
@@ -243,7 +243,7 @@ public class TrackMetadata {
     }
 
     /**
-     * Constructor for when reading from the network or from a cache file.
+     * Constructor for when reading from the network or from a file.
      * Sets all the interpreted fields based on the received response messages.
      *
      * @param reference the unique track reference that was used to request this track metadata

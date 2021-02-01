@@ -27,7 +27,7 @@ public class CueList {
 
     /**
      * The message holding the cue list information as it was read over the network. This can be used to analyze fields
-     * that have not yet been reliably understood, and is also used for storing the cue list in a cache file. This will
+     * that have not yet been reliably understood, and is also used for storing the cue list in a file. This will
      * be {@code null} if the cue list was not obtained from a dbserver query.
      */
     public final Message rawMessage;
@@ -428,7 +428,7 @@ public class CueList {
      * Sorts the entries into the order we want to present them in, which is by position, with hot cues coming after
      * ordinary memory points if both exist at the same position, which often happens.
      *
-     * @param loadedEntries the unsorted entries we have loaded from a dbserver message, metadata cache, or rekordbox
+     * @param loadedEntries the unsorted entries we have loaded from a dbserver message or rekordbox
      *                database export
      * @return an immutable list of the collections in the proper order
      */
@@ -659,7 +659,7 @@ public class CueList {
     }
 
     /**
-     * Constructor for when recreating from cache files containing the raw tag bytes if there were no nxs2-style
+     * Constructor for when recreating from files containing the raw tag bytes if there were no nxs2-style
      * extended cue tags. Included for backwards compatibility.
 
      * @param rawTags the un-parsed ANLZ file tags holding the cue list entries
@@ -669,7 +669,7 @@ public class CueList {
     }
 
     /**
-     * Constructor for when recreating from cache files containing the raw tag bytes and raw nxs2-style
+     * Constructor for when recreating from files containing the raw tag bytes and raw nxs2-style
      * cue comment tag bytes.
 
      * @param rawTags the un-parsed ANLZ file tags holding the cue list entries
@@ -695,7 +695,7 @@ public class CueList {
     }
 
     /**
-     * Constructor when reading from the network or a cache file.
+     * Constructor when reading from the network or a file.
      *
      * @param message the response holding the cue list information, in either original nexus or extended nxs2 format
      */

@@ -193,7 +193,7 @@ public class WaveformFinder extends LifecycleParticipant {
     /**
      * Check whether we are currently running. Unless the {@link MetadataFinder} is in passive mode, we will
      * automatically request waveforms from the appropriate player when a new track is loaded that is not found
-     * in the hot cache or an attached metadata cache file.
+     * in the hot cache.
      *
      * @return true if waveforms are being kept track of for all active players
      *
@@ -399,23 +399,17 @@ public class WaveformFinder extends LifecycleParticipant {
 
     /**
      * Ask the specified player for the waveform preview in the specified slot with the specified rekordbox ID,
-     * using cached media instead if it is available, and possibly giving up if we are in passive mode.
+     * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param trackReference uniquely identifies the desired waveform preview
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
-     *                      waveform updates will use available caches only
+     *                      waveform updates will use available caches and downloaded metadata exports only
      *
      * @return the waveform preview found, if any
      */
     private WaveformPreview requestPreviewInternal(final DataReference trackReference, final boolean failIfPassive) {
 
-        // First check if we are using cached data for this slot
-        @SuppressWarnings("deprecation") MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
-        if (cache != null) {
-            return cache.getWaveformPreview(null, trackReference);
-        }
-
-        // Then see if any registered metadata providers can offer it for us.
+        // First see if any registered metadata providers can offer it for us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
         if (sourceDetails !=  null) {
             final WaveformPreview provided = MetadataFinder.getInstance().allMetadataProviders.getWaveformPreview(sourceDetails, trackReference);
@@ -506,23 +500,17 @@ public class WaveformFinder extends LifecycleParticipant {
 
     /**
      * Ask the specified player for the waveform detail in the specified slot with the specified rekordbox ID,
-     * using cached media instead if it is available, and possibly giving up if we are in passive mode.
+     * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param trackReference uniquely identifies the desired waveform detail
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
-     *                      artwork updates will use available caches only
+     *                      artwork updates will use available caches and downloaded metadata exports only
      *
      * @return the waveform preview found, if any
      */
     private WaveformDetail requestDetailInternal(final DataReference trackReference, final boolean failIfPassive) {
 
-        // First check if we are using cached data for this slot
-        @SuppressWarnings("deprecation") MetadataCache cache = MetadataFinder.getInstance().getMetadataCache(SlotReference.getSlotReference(trackReference));
-        if (cache != null) {
-            return cache.getWaveformDetail(null, trackReference);
-        }
-
-        // Then see if any registered metadata providers can offer it to us.
+        // First see if any registered metadata providers can offer it to us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
         if (sourceDetails !=  null) {
             final WaveformDetail provided = MetadataFinder.getInstance().allMetadataProviders.getWaveformDetail(sourceDetails, trackReference);

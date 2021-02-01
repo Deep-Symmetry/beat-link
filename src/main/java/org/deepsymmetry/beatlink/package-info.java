@@ -16,8 +16,7 @@
  * the whole-track preview, and full detailed waveform for scrolling through. The
  * {@link org.deepsymmetry.beatlink.data.MetadataFinder} is the main coordinator for obtaining and caching this
  * information, and it keeps track of the track metadata for all tracks loaded on decks, either for current playback,
- * or as hot cues. It also supports creating metadata cache files to avoid the need to query players for this
- * information during busy shows with a full complement of four CDJs.</p>
+ * or as hot cues.</p>
  *
  * <p>The metadata queries are performed with the help of the {@link org.deepsymmetry.beatlink.dbserver} package,
  * which knows how to locate and communicate with the database servers running on the players.</p>
