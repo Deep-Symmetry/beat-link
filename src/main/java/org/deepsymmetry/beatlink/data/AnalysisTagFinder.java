@@ -36,30 +36,30 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     private static final Logger logger = LoggerFactory.getLogger(AnalysisTagFinder.class);
 
     /**
-     * Wraps values we store in our hot cache so we can keep track of the player, slot, and track it was associated
-     * with.
+     * Wraps values we store in our hot cache so we can keep track of the player, slot, track, file extension,
+     * and type tag the analysis section was associated with.
      */
     public static class CacheEntry {
 
         /**
          * Identifies the track to which the analysis section belongs.
          */
-        final DataReference dataReference;
+        public final DataReference dataReference;
 
         /**
          * Identifies the specific analysis file from which the cached section was loaded.
          */
-        final String fileExtension;
+        public final String fileExtension;
 
         /**
          * The four-character type code identifying the specific section of the analysis file that was cached.
          */
-        final String typeTag;
+        public final String typeTag;
 
         /**
          * The parsed analysis file section itself.
          */
-        final RekordboxAnlz.TaggedSection taggedSection;
+        public final RekordboxAnlz.TaggedSection taggedSection;
 
         /**
          * Constructor simply sets the immutable fields.

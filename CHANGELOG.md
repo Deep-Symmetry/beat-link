@@ -14,6 +14,25 @@ This change log follows the conventions of
   for sending.
 - Support for obtaining song structure (phrase analysis) information
   from players, now that rekordbox 6 and later export it.
+- Support for obtaining any new type of track analysis which we can
+  create definitions for in Crate Digger and obtain using the general
+  track-analysis section `dbserver` request.
+
+### Removed
+
+- The ability to create and use metadata caches has not been useful
+  for a couple of years now, since we figured out how to use Crate
+  Digger to reliably obtain track metadata even when there are a full
+  set of real players on the network. So the complicated code
+  which supported it has been removed, rather than trying to update it
+  to keep up with new features like phrase analysis.
+
+### Changed
+
+- The versioning numbering scheme has been made more reasonable. This
+  is now version 7.0.0 instead of 0.7.0, to reflect the fact that
+  there have been many releases in active production use.
+
 
 ## [0.6.3] - 2020-12-28
 
