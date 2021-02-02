@@ -623,7 +623,7 @@ public class CrateDigger {
                     if (file != null) {
                         try {  // Scan for the requested tag type.
                             for (RekordboxAnlz.TaggedSection section : file.sections()) {
-                                if (section.fourcc() == fourcc) {
+                                if (section.fourcc() == RekordboxAnlz.SectionTags.byId(fourcc)) {
                                     return section;
                                 }
                             }
