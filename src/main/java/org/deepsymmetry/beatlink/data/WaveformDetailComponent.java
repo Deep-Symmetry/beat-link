@@ -2,6 +2,7 @@ package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.*;
 
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +74,11 @@ public class WaveformDetailComponent extends JComponent {
      */
     private static final Color LOOP_BACKGROUND = new Color(204, 121, 29);
 
+    /**
+     * The transparency with which phrase bars are drawn.
+     */
+    private static final Color PHRASE_TRANSPARENCY = new Color(255, 255, 255, 220);
+
    /**
      * If not zero, automatically update the waveform, position, and metadata in response to the activity of the
      * specified player number.
@@ -138,6 +144,17 @@ public class WaveformDetailComponent extends JComponent {
      * Information about where all the beats in the track fall, so we can draw them.
      */
     private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
+
+    /**
+     * Controls whether we should obtain and display song structure information (phrases) at the bottom of the
+     * waveform.
+     */
+    private final AtomicBoolean fetchSongStructures = new AtomicBoolean(true);
+
+    /**
+     * Information about the musical phrases that make up the current track, if we have it, so we can draw them.
+     */
+    private final AtomicReference<RekordboxAnlz.SongStructureTag> songStructure = new AtomicReference<RekordboxAnlz.SongStructureTag>();
 
     /**
      * The overlay painter that has been registered, if any.
@@ -250,6 +267,61 @@ public class WaveformDetailComponent extends JComponent {
      */
     public Font getLabelFont() {
         return labelFont.get();
+    }
+
+    /**
+     * Establish a song structure (phrase analysis) to be displayed on the waveform. If we are configured to monitor
+     * a player, then this will be overwritten the next time a track loads.
+     *
+     * @param songStructure the phrase information to be painted at the bottom of the waveform, or {@code null} to display none
+     */
+    public void setSongStructure(RekordboxAnlz.SongStructureTag songStructure) {
+        this.songStructure.set(songStructure);
+        repaint();
+    }
+
+    /**
+     * Unwrap the tagged section to find the song structure inside it if it is not null, otherwise set our song
+     * structure to null.
+     *
+     * @param taggedSection a possible tagged section holding song structure information.
+     */
+    private void setSongStructureWrapper(RekordboxAnlz.TaggedSection taggedSection) {
+        if (taggedSection == null) {
+            setSongStructure(null);
+        } else if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
+            setSongStructure((RekordboxAnlz.SongStructureTag) taggedSection.body());
+        } else {
+            logger.warn("Received unexpected analysis tag type:" + taggedSection);
+        }
+    }
+
+    /**
+     * Determine whether we should try to obtain the song structure for tracks that we are displaying, and paint
+     * the phrase information at the bottom of the waveform. Only has effect if we are monitoring a player.
+     *
+     * @param fetchSongStructures {@code true} if we should try to obtain and display phrase analysis information
+     */
+    public synchronized void setFetchSongStructures(boolean fetchSongStructures) {
+        this.fetchSongStructures.set(fetchSongStructures);
+        if (fetchSongStructures && monitoredPlayer.get() > 0) {
+            AnalysisTagFinder.getInstance().addAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");
+            if (AnalysisTagFinder.getInstance().isRunning()) {
+                setSongStructureWrapper(AnalysisTagFinder.getInstance().getLatestTrackAnalysisFor(monitoredPlayer.get(), ".EXT", "PSSI"));
+            }
+        } else {
+            AnalysisTagFinder.getInstance().removeAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");
+        }
+    }
+
+    /**
+     * Check whether we are supposed to obtain the song structure for tracks we are displaying when we are monitoring
+     * a player.
+     *
+     * @return {@code true} if we should try to obtain and display phrase analysis information
+     */
+    public boolean getFetchSongStructures() {
+        return fetchSongStructures.get();
     }
 
     /**
@@ -538,6 +610,12 @@ public class WaveformDetailComponent extends JComponent {
             } else {
                 beatGrid.set(null);
             }
+            if (fetchSongStructures.get()) {
+                AnalysisTagFinder.getInstance().addAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");
+                if (AnalysisTagFinder.getInstance().isRunning()) {
+                    setSongStructureWrapper(AnalysisTagFinder.getInstance().getLatestTrackAnalysisFor(player, ".EXT", "PSSI"));
+                }
+            }
             try {
                 TimeFinder.getInstance().start();
                 if (!animating.getAndSet(true)) {
@@ -567,9 +645,11 @@ public class WaveformDetailComponent extends JComponent {
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
+            AnalysisTagFinder.getInstance().removeAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");
             cueList.set(null);
             waveform.set(null);
             beatGrid.set(null);
+            songStructure.set(null);
         }
         if (!autoScroll.get()) {
             invalidate();
@@ -648,6 +728,15 @@ public class WaveformDetailComponent extends JComponent {
                     (cueList.get() != null) && (beatGrid.get() != null)) {
                 CdjStatus status = (CdjStatus) update;
                 setPlaying(status.isPlaying());
+            }
+        }
+    };
+
+    private final AnalysisTagListener analysisTagListener = new AnalysisTagListener() {
+        @Override
+        public void analysisChanged(AnalysisTagUpdate update) {
+            if (update.player == getMonitoredPlayer()) {
+                setSongStructureWrapper(update.taggedSection);
             }
         }
     };
@@ -835,6 +924,7 @@ public class WaveformDetailComponent extends JComponent {
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
 
         CueList currentCueList = cueList.get();  // Avoid crashes if the value changes mid-render.
+        RekordboxAnlz.SongStructureTag currentSongStructure = songStructure.get();  // Same.
 
         // Draw the loop regions of any visible loops
         final int axis = getHeight() / 2;
@@ -882,6 +972,11 @@ public class WaveformDetailComponent extends JComponent {
         // the same place and we want the hot cues to stand out.
         if (currentCueList != null) {
             paintCueList(g, clipRect, currentCueList, axis, maxHeight);
+        }
+
+        // Draw the song structure if we have one for the track.
+        if (currentSongStructure != null) {
+            paintPhrases(g, clipRect, currentSongStructure, axis, maxHeight);
         }
 
         // Draw the non-playing markers first, so the playing ones will be seen if they are in the same spot.
@@ -964,10 +1059,54 @@ public class WaveformDetailComponent extends JComponent {
         }
     }
 
+    /**
+     * Draw the visible phrases if the track has a structure analysis.
+     *
+     * @param g the graphics object in which we are being rendered
+     * @param clipRect the region that is being currently rendered
+     * @param songStructure contains the phrases to be drawn
+     * @param axis the base on which the waveform is being drawn
+     * @param maxHeight the highest waveform segment
+     */
+    private void paintPhrases(Graphics g, Rectangle clipRect, RekordboxAnlz.SongStructureTag songStructure, int axis, int maxHeight) {
+        if (songStructure == null) {
+            return;
+        }
+        for (int i = 0; i < songStructure.lenEntries(); i++) {
+            final RekordboxAnlz.SongStructureEntry entry = songStructure.body().entries().get(i);
+            final int endBeat = (i == songStructure.lenEntries() - 1) ? songStructure.body().endBeat() : songStructure.body().entries().get(i + 1).beat();
+            final int x1 = getXForBeat(entry.beat());
+            final int x2 = getXForBeat(endBeat) - 1;
+            if ((x1 >= clipRect.x && x1 <= clipRect.x + clipRect.width) || (x2 >= clipRect.x && x2 <= clipRect.x + clipRect.width) ||
+                    (x1 < clipRect.x && x2 > clipRect.x + clipRect.width)) {  // Is any of this phrase visible?
+                g.setColor(Util.buildColor(Util.phraseColor(entry), PHRASE_TRANSPARENCY));  // Render slightly transparently.
+                final String label = Util.phraseLabel(entry);
+                final Font font = labelFont.get();
+                if (font != null && !label.isEmpty()) {
+                    Graphics2D g2 = (Graphics2D)g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setFont(font);
+                    FontRenderContext renderContext = g2.getFontRenderContext();
+                    LineMetrics metrics = g2.getFont().getLineMetrics(label, renderContext);
+                    int textHeight = (int)Math.ceil(metrics.getAscent() + metrics.getDescent());
+                    Rectangle2D phraseRect = new Rectangle2D.Double(x1, axis + maxHeight + 2 - textHeight, x2 - x1, textHeight + 2);
+                    g2.fill(phraseRect);
+                    Shape oldClip = g2.getClip();
+                    g2.setClip(phraseRect);
+                    g2.setColor(Util.buildColor(Util.phraseTextColor(entry), PHRASE_TRANSPARENCY));
+                    g2.drawString(label, Math.max(x1, clipRect.x) + 2, axis + maxHeight);
+                    g2.setClip(oldClip);
+                }
+            }
+        }
+    }
+
+
+
     @Override
     public String toString() {
         return"WaveformDetailComponent[cueList=" + cueList.get() + ", waveform=" + waveform.get() + ", beatGrid=" +
                 beatGrid.get() + ", playbackStateMap=" + playbackStateMap + ", monitoredPlayer=" +
-                getMonitoredPlayer() + "]";
+                getMonitoredPlayer() + "fetchSongStructures=" + fetchSongStructures.get() + "]";
     }
 }

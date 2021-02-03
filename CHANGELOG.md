@@ -14,6 +14,7 @@ This change log follows the conventions of
   for sending.
 - Support for obtaining song structure (phrase analysis) information
   from players, now that rekordbox 6 and later export it.
+- Ability to display analyzed phrases on track waveforms.
 - Support for obtaining any new type of track analysis which we can
   create definitions for in Crate Digger and obtain using the general
   track-analysis section `dbserver` request.

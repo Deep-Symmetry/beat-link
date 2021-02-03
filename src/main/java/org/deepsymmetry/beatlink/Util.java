@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz.SongStructureEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -401,7 +403,7 @@ public class Util {
         if (logger.isDebugEnabled()) {
             logger.debug("Comparing address " + address1.getHostAddress() + " with " + address2.getHostAddress() + ", prefixLength=" + prefixLength);
         }
-        long prefixMask = 0xffffffffL & (-1 << (32 - prefixLength));
+        long prefixMask = 0xffffffffL & (-1L << (32 - prefixLength));
         return (addressToLong(address1) & prefixMask) == (addressToLong(address2) & prefixMask);
     }
 
@@ -540,6 +542,386 @@ public class Util {
     public static Color buildColor(Color hueColor, Color alphaColor) {
         return new Color(hueColor.getRed(), hueColor.getGreen(), hueColor.getBlue(), alphaColor.getAlpha());
     }
+
+    /**
+     * The color of an intro phrase in a track with a low mood.
+     */
+    public static final Color LOW_INTRO_COLOR = new Color(255, 170, 180);
+
+    /**
+     * The color of a verse 1 phrase in a track with a low mood.
+     */
+    public static final Color LOW_VERSE_1_COLOR = new Color(165, 160, 255);
+
+    /**
+     * The color of a verse 2 phrase in a track with a low mood.
+     */
+    public static final Color LOW_VERSE_2_COLOR = new Color(190, 160, 255);
+
+    /**
+     * The color of a bridge phrase in a track with a low mood.
+     */
+    public static final Color LOW_BRIDGE_COLOR = new Color(255, 250, 165);
+
+    /**
+     * The color of a chorus phrase in a track with a low mood.
+     */
+    public static final Color LOW_CHORUS_COLOR = new Color(185, 225, 185);
+
+    /**
+     * The color of an outro phrase in a track with a low mood.
+     */
+    public static final Color LOW_OUTRO_COLOR = new Color(145, 160, 180);
+
+
+    /**
+     * The color of an intro phrase in a track with a mid mood.
+     */
+    public static final Color MID_INTRO_COLOR = new Color(225, 70, 70);
+
+    /**
+     * The color of a verse 1 phrase in a track with a mid mood.
+     */
+    public static final Color MID_VERSE_1_COLOR = new Color(80, 110, 255);
+
+    /**
+     * The color of a verse 2 phrase in a track with a mid mood.
+     */
+    public static final Color MID_VERSE_2_COLOR = new Color(80, 85, 255);
+
+    /**
+     * The color of a verse 3 phrase in a track with a mid mood.
+     */
+    public static final Color MID_VERSE_3_COLOR = new Color(100, 80, 255);
+
+    /**
+     * The color of a verse 4 phrase in a track with a mid mood.
+     */
+    public static final Color MID_VERSE_4_COLOR = new Color(120, 80, 255);
+
+    /**
+     * The color of a verse 5 phrase in a track with a mid mood.
+     */
+    public static final Color MID_VERSE_5_COLOR = new Color(140, 80, 255);
+
+    /**
+     * The color of a verse 6 phrase in a track with a mid mood.
+     */
+    public static final Color MID_VERSE_6_COLOR = new Color(160, 80, 255);
+
+    /**
+     * The color of a bridge phrase in a track with a mid mood.
+     */
+    public static final Color MID_BRIDGE_COLOR = new Color(225, 215, 65);
+
+    /**
+     * The color of a chorus phrase in a track with a mid mood.
+     */
+    public static final Color MID_CHORUS_COLOR = new Color(120, 195, 125);
+
+    /**
+     * The color of an outro phrase in a track with a mid mood.
+     */
+    public static final Color MID_OUTRO_COLOR = new Color(115, 130, 150);
+
+
+    /**
+     * The color of an intro 1 phrase in a track with a high mood.
+     */
+    public static final Color HIGH_INTRO_1_COLOR = new Color(200, 0, 0);
+
+    /**
+     * The color of an intro 2 phrase in a track with a high mood.
+     */
+    public static final Color HIGH_INTRO_2_COLOR = new Color(200, 50, 0);
+
+    /**
+     * The color of an up 1 phrase in a track with a high mood.
+     */
+    public static final Color HIGH_UP_1_COLOR = new Color(140, 50, 255);
+
+    /**
+     * The color of an up 2 phrase in a track with a high mood.
+     */
+    public static final Color HIGH_UP_2_COLOR = new Color(105, 50, 255);
+
+    /**
+     * The color of an up 3 phrase in a track with a high mood.
+     */
+    public static final Color HIGH_UP_3_COLOR = new Color(90, 50, 255);
+
+    /**
+     * The color of a down phrase in a track with a high mood.
+     */
+    public static final Color HIGH_DOWN_COLOR = new Color(155, 115, 45);
+
+    /**
+     * The color of a chorus 1 phrase in a track with a high mood.
+     */
+    public static final Color HIGH_CHORUS_1_COLOR = new Color(15, 170, 0);
+
+    /**
+     * The color of a chorus 2 phrase in a track with a high mood.
+     */
+    public static final Color HIGH_CHORUS_2_COLOR = new Color(15, 170, 0);
+
+    /**
+     * The color of an outro 1 phrase in a track with a high mood.
+     */
+    public static final Color HIGH_OUTRO_1_COLOR = new Color(80, 135, 195);
+
+    /**
+     * The color of an outro 2 phrase in a track with a high mood.
+     */
+    public static final Color HIGH_OUTRO_2_COLOR = new Color(95, 135, 175);
+
+
+    /**
+     * Get the color that should be used for the bar representing a phrase being painted on a waveform.
+     *
+     * @param phrase the song structure entry representing a phrase being painted
+     *
+     * @return the color with which to paint the box that identifies the phrase
+     */
+    public static Color phraseColor(final SongStructureEntry phrase) {
+
+        switch (phrase._parent().mood()) {
+
+            case LOW:
+                final RekordboxAnlz.PhraseLow phraseLow = (RekordboxAnlz.PhraseLow)phrase.kind();
+                if (phraseLow == null) return Color.white;  // We don't recognize this phrase.
+
+                switch (phraseLow.id()) {
+                    case INTRO:
+                        return LOW_INTRO_COLOR;
+
+                    case VERSE_1:
+                    case VERSE_1B:
+                    case VERSE_1C:
+                        return LOW_VERSE_1_COLOR;
+
+                    case VERSE_2:
+                    case VERSE_2B:
+                    case VERSE_2C:
+                        return LOW_VERSE_2_COLOR;
+
+                    case BRIDGE:
+                        return LOW_BRIDGE_COLOR;
+
+                    case CHORUS:
+                        return LOW_CHORUS_COLOR;
+
+                    case OUTRO:
+                        return LOW_OUTRO_COLOR;
+                }
+
+            case MID:
+                final RekordboxAnlz.PhraseMid phraseMid = (RekordboxAnlz.PhraseMid)phrase.kind();
+                if (phraseMid == null) return Color.white;  // We don't recognize this phrase.
+
+                switch (phraseMid.id()) {
+                    case INTRO:
+                        return MID_INTRO_COLOR;
+
+                    case VERSE_1:
+                        return MID_VERSE_1_COLOR;
+
+                    case VERSE_2:
+                        return MID_VERSE_2_COLOR;
+
+                    case VERSE_3:
+                        return MID_VERSE_3_COLOR;
+
+                    case VERSE_4:
+                        return MID_VERSE_4_COLOR;
+
+                    case VERSE_5:
+                        return MID_VERSE_5_COLOR;
+
+                    case VERSE_6:
+                        return MID_VERSE_6_COLOR;
+
+                    case BRIDGE:
+                        return MID_BRIDGE_COLOR;
+
+                    case CHORUS:
+                        return MID_CHORUS_COLOR;
+
+                    case OUTRO:
+                        return MID_OUTRO_COLOR;
+                }
+
+            case HIGH:
+                final RekordboxAnlz.PhraseHigh phraseHigh = (RekordboxAnlz.PhraseHigh)phrase.kind();
+                if (phraseHigh == null) return Color.white;  // We don't recognize this phrase.
+
+                switch (phraseHigh.id()) {
+                    case INTRO:
+                        if (phrase.k1() == 1) {
+                            return HIGH_INTRO_1_COLOR;
+                        }
+                        return HIGH_INTRO_2_COLOR;
+
+                    case UP:
+                        if (phrase.k2() == 0) {
+                            if (phrase.k3() == 0) {
+                                return HIGH_UP_1_COLOR;
+                            }
+                            return  HIGH_UP_2_COLOR;
+                        }
+                        return HIGH_UP_3_COLOR;
+
+                    case DOWN:
+                        return HIGH_DOWN_COLOR;
+
+                    case CHORUS:
+                        if (phrase.k1() == 1) {
+                            return HIGH_CHORUS_1_COLOR;
+                        }
+                        return HIGH_CHORUS_2_COLOR;
+
+                    case OUTRO:
+                        if (phrase.k1() == 1) {
+                            return HIGH_OUTRO_1_COLOR;
+                        }
+                        return HIGH_OUTRO_2_COLOR;
+                }
+
+            default:
+                return Color.WHITE;  // We don't recognize this mood.
+        }
+    }
+
+    /**
+     * Returns the color that should be used for the text of a phrase label, for legibility on the phrase background.
+     *
+     * @param phrase the song structure entry representing a phrase being painted
+     *
+     * @return the color that should be used for painting the label
+     */
+    public static Color phraseTextColor(final SongStructureEntry phrase) {
+        if (phrase._parent().mood() == RekordboxAnlz.TrackMood.HIGH) {
+            return Color.white;
+        }
+        return Color.black;
+    }
+
+    /**
+     * Get the text that should be used for the label representing a phrase being painted on a waveform.
+     *
+     * @param phrase the song structure entry representing a phrase being painted
+     *
+     * @return the color with which to paint the box that identifies the phrase
+     */
+    public static String phraseLabel(final SongStructureEntry phrase) {
+
+        switch (phrase._parent().mood()) {
+
+            case LOW:
+                final RekordboxAnlz.PhraseLow phraseLow = (RekordboxAnlz.PhraseLow)phrase.kind();
+                if (phraseLow == null) return "Unknown Low";  // We don't recognize this phrase.
+
+                switch (phraseLow.id()) {
+                    case INTRO:
+                        return "Intro";
+
+                    case VERSE_1:
+                    case VERSE_1B:
+                    case VERSE_1C:
+                        return "Verse 1";
+
+                    case VERSE_2:
+                    case VERSE_2B:
+                    case VERSE_2C:
+                        return "Verse 2";
+
+                    case BRIDGE:
+                        return "Bridge";
+
+                    case CHORUS:
+                        return "Chorus";
+
+                    case OUTRO:
+                        return "Outro";
+                }
+
+            case MID:
+                final RekordboxAnlz.PhraseMid phraseMid = (RekordboxAnlz.PhraseMid)phrase.kind();
+                if (phraseMid == null) return "Unknown Mid";  // We don't recognize this phrase.
+
+                switch (phraseMid.id()) {
+                    case INTRO:
+                        return "Intro";
+
+                    case VERSE_1:
+                        return "Verse 1";
+
+                    case VERSE_2:
+                        return "Verse 2";
+
+                    case VERSE_3:
+                        return "Verse 3";
+
+                    case VERSE_4:
+                        return "Verse 4";
+
+                    case VERSE_5:
+                        return "Verse 5";
+
+                    case VERSE_6:
+                        return "Verse 6";
+
+                    case BRIDGE:
+                        return "Bridge";
+
+                    case CHORUS:
+                        return "Chorus";
+
+                    case OUTRO:
+                        return "Outro";
+                }
+
+            case HIGH:
+                final RekordboxAnlz.PhraseHigh phraseHigh = (RekordboxAnlz.PhraseHigh)phrase.kind();
+                if (phraseHigh == null) return "Unknown High";  // We don't recognize this phrase.
+
+                switch (phraseHigh.id()) {
+                    case INTRO:
+                        if (phrase.k1() == 1) {
+                            return "Intro 1";
+                        }
+                        return "Intro 2";
+
+                    case UP:
+                        if (phrase.k2() == 0) {
+                            if (phrase.k3() == 0) {
+                                return "Up 1";
+                            }
+                            return  "Up 2";
+                        }
+                        return "Up 3";
+
+                    case DOWN:
+                        return "Down";
+
+                    case CHORUS:
+                        if (phrase.k1() == 1) {
+                            return "Chorus 1";
+                        }
+                        return "Chorus 2";
+
+                    case OUTRO:
+                        if (phrase.k1() == 1) {
+                            return "Outro 1";
+                        }
+                        return "Outro 2";
+                }
+
+            default:
+                return "Unknown Mood";  // We don't recognize this mood.
+        }
+    }
+
 
     /**
      * Prevent instantiation.
