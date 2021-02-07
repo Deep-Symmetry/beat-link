@@ -1102,7 +1102,6 @@ public class WaveformDetailComponent extends JComponent {
     }
 
 
-
     @Override
     public String toString() {
         return"WaveformDetailComponent[cueList=" + cueList.get() + ", waveform=" + waveform.get() + ", beatGrid=" +

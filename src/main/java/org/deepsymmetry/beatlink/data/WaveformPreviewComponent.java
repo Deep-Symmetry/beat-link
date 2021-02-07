@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
 import org.deepsymmetry.beatlink.*;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,7 +179,7 @@ public class WaveformPreviewComponent extends JComponent {
 
     /**
      * Information about where all the beats in the track fall, so we can figure out our current position from
-     * player updates.
+     * player updates and draw phrase boundaries if we have song structure information.
      */
     private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
 
@@ -194,6 +195,72 @@ public class WaveformPreviewComponent extends JComponent {
      */
     public CueList getCueList() {
         return cueList.get();
+    }
+
+    /**
+     * Controls whether we should obtain and display song structure information (phrases) at the bottom of the
+     * waveform.
+     */
+    private final AtomicBoolean fetchSongStructures = new AtomicBoolean(true);
+
+    /**
+     * Information about the musical phrases that make up the current track, if we have it, so we can draw them.
+     */
+    private final AtomicReference<RekordboxAnlz.SongStructureTag> songStructure = new AtomicReference<RekordboxAnlz.SongStructureTag>();
+
+    /**
+     * Establish a song structure (phrase analysis) to be displayed on the waveform. If we are configured to monitor
+     * a player, then this will be overwritten the next time a track loads.
+     *
+     * @param songStructure the phrase information to be painted at the bottom of the waveform, or {@code null} to display none
+     */
+    public void setSongStructure(RekordboxAnlz.SongStructureTag songStructure) {
+        this.songStructure.set(songStructure);
+        repaint();
+    }
+
+    /**
+     * Unwrap the tagged section to find the song structure inside it if it is not null, otherwise set our song
+     * structure to null.
+     *
+     * @param taggedSection a possible tagged section holding song structure information.
+     */
+    private void setSongStructureWrapper(RekordboxAnlz.TaggedSection taggedSection) {
+        if (taggedSection == null) {
+            setSongStructure(null);
+        } else if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
+            setSongStructure((RekordboxAnlz.SongStructureTag) taggedSection.body());
+        } else {
+            logger.warn("Received unexpected analysis tag type:" + taggedSection);
+        }
+    }
+
+    /**
+     * Determine whether we should try to obtain the song structure for tracks that we are displaying, and paint
+     * the phrase information at the bottom of the waveform. Only has effect if we are monitoring a player.
+     *
+     * @param fetchSongStructures {@code true} if we should try to obtain and display phrase analysis information
+     */
+    public synchronized void setFetchSongStructures(boolean fetchSongStructures) {
+        this.fetchSongStructures.set(fetchSongStructures);
+        if (fetchSongStructures && monitoredPlayer.get() > 0) {
+            AnalysisTagFinder.getInstance().addAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");
+            if (AnalysisTagFinder.getInstance().isRunning()) {
+                setSongStructureWrapper(AnalysisTagFinder.getInstance().getLatestTrackAnalysisFor(monitoredPlayer.get(), ".EXT", "PSSI"));
+            }
+        } else {
+            AnalysisTagFinder.getInstance().removeAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");
+        }
+    }
+
+    /**
+     * Check whether we are supposed to obtain the song structure for tracks we are displaying when we are monitoring
+     * a player.
+     *
+     * @return {@code true} if we should try to obtain and display phrase analysis information
+     */
+    public boolean getFetchSongStructures() {
+        return fetchSongStructures.get();
     }
 
     /**
@@ -611,6 +678,12 @@ public class WaveformPreviewComponent extends JComponent {
             } else {
                 beatGrid.set(null);
             }
+            if (fetchSongStructures.get()) {
+                AnalysisTagFinder.getInstance().addAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");
+                if (AnalysisTagFinder.getInstance().isRunning()) {
+                    setSongStructureWrapper(AnalysisTagFinder.getInstance().getLatestTrackAnalysisFor(player, ".EXT", "PSSI"));
+                }
+            }
             VirtualCdj.getInstance().addUpdateListener(updateListener);
             try {
                 TimeFinder.getInstance().start();
@@ -641,9 +714,11 @@ public class WaveformPreviewComponent extends JComponent {
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
+            AnalysisTagFinder.getInstance().removeAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");
             duration.set(0);
             updateWaveform(null);
             beatGrid.set(null);
+            songStructure.set(null);
         }
         repaint();
     }
@@ -722,6 +797,15 @@ public class WaveformPreviewComponent extends JComponent {
         }
     };
 
+    private final AnalysisTagListener analysisTagListener = new AnalysisTagListener() {
+        @Override
+        public void analysisChanged(AnalysisTagUpdate update) {
+            if (update.player == getMonitoredPlayer()) {
+                setSongStructureWrapper(update.taggedSection);
+            }
+        }
+    };
+
     /**
      * Create a view which updates itself to reflect the track loaded on a particular player, and that player's
      * playback progress.
@@ -794,6 +878,21 @@ public class WaveformPreviewComponent extends JComponent {
     }
 
     /**
+     * Determine the X coordinate within the component at which the specified beat begins.
+     *
+     * @param beat the beat number whose position is desired
+     * @return the horizontal position within the component coordinate space where that beat begins
+     * @throws IllegalArgumentException if the beat number exceeds the number of beats in the track.
+     */
+    public int getXForBeat(int beat) {
+        BeatGrid grid = beatGrid.get();
+        if (grid != null) {
+            return millisecondsToX(grid.getTimeWithinTrack(beat));
+        }
+        return 0;
+    }
+
+    /**
      * Converts a time in milliseconds to the appropriate x coordinate for drawing something at that time.
      * Can only be called when we have {@link TrackMetadata}.
      *
@@ -805,7 +904,7 @@ public class WaveformPreviewComponent extends JComponent {
         if (duration.get() < 1) {  // Don't crash if we are missing duration information.
             return 0;
         }
-        long result = milliseconds * waveformWidth() / (duration.get() * 1000);
+        long result = milliseconds * waveformWidth() / (duration.get() * 1000L);
         return WAVEFORM_MARGIN + Math.max(0, Math.min(waveformWidth(), (int) result));
     }
 
@@ -819,7 +918,7 @@ public class WaveformPreviewComponent extends JComponent {
         if (duration.get() < 1) {  // Don't crash if we are missing duration information.
             return 0;
         }
-        return (x - WAVEFORM_MARGIN) * duration.get() * 1000 / waveformWidth();
+        return (x - WAVEFORM_MARGIN) * duration.get() * 1000L / waveformWidth();
     }
 
     @Override
@@ -828,6 +927,9 @@ public class WaveformPreviewComponent extends JComponent {
         Rectangle clipRect = g.getClipBounds();  // We only need to draw the part that is visible or dirty
         g.setColor(backgroundColor.get());  // Clear the background
         g.fillRect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+
+        CueList currentCueList = cueList.get();  // Avoid crashes if the value changes mid-render.
+        RekordboxAnlz.SongStructureTag currentSongStructure = songStructure.get();  // Same.
 
         // Draw our precomputed waveform image scaled and positioned to fit the component
         Image image = waveformImage.get();
@@ -864,10 +966,15 @@ public class WaveformPreviewComponent extends JComponent {
             }
         }
 
+        // Draw the song structure if we have one for the track.
+        if (currentSongStructure != null) {
+            paintPhrases(g, clipRect, currentSongStructure);
+        }
+
         if (duration.get() > 0) {  // Draw the minute marks and playback position
             g.setColor(indicatorColor.get());
             for (int time = 60; time < duration.get(); time += 60) {
-                final int x = millisecondsToX(time * 1000);
+                final int x = millisecondsToX(time * 1000L);
                 g.drawLine(x, minuteMarkerTop(), x, minuteMarkerTop() + MINUTE_MARKER_HEIGHT);
             }
 
@@ -889,8 +996,8 @@ public class WaveformPreviewComponent extends JComponent {
         }
 
         // Draw the cue points.
-        if (cueList.get() != null) {
-            drawCueList(g, clipRect);
+        if (currentCueList != null) {
+            drawCueList(g, currentCueList, clipRect);
         }
 
         // Finally, if an overlay painter has been attached, let it paint its overlay.
@@ -904,16 +1011,41 @@ public class WaveformPreviewComponent extends JComponent {
      * Draw the visible memory cue points or hot cues.
      *
      * @param g the graphics object in which we are being rendered
+     * @param cueList the memory cue point information to draw
      * @param clipRect the region that is being currently rendered
      */
-    private void drawCueList(Graphics g, Rectangle clipRect) {
-        for (CueList.Entry entry : cueList.get().entries) {
+    private void drawCueList(Graphics g, CueList cueList, Rectangle clipRect) {
+        for (CueList.Entry entry : cueList.entries) {
             final int x = millisecondsToX(entry.cueTime);
             if ((x > clipRect.x - 4) && (x < clipRect.x + clipRect.width + 4)) {
                 g.setColor(entry.getColor());
                 for (int i = 0; i < 4; i++) {
                     g.drawLine(x - 3 + i, CUE_MARKER_TOP + i, x + 3 - i, CUE_MARKER_TOP + i);
                 }
+            }
+        }
+    }
+
+    /**
+     * Draw the visible phrases if the track has a structure analysis.
+     *
+     * @param g the graphics object in which we are being rendered
+     * @param clipRect the region that is being currently rendered
+     * @param songStructure contains the phrases to be drawn
+     */
+    private void paintPhrases(Graphics g, Rectangle clipRect, RekordboxAnlz.SongStructureTag songStructure) {
+        if (songStructure == null) {
+            return;
+        }
+        for (int i = 0; i < songStructure.lenEntries(); i++) {
+            final RekordboxAnlz.SongStructureEntry entry = songStructure.body().entries().get(i);
+            final int endBeat = (i == songStructure.lenEntries() - 1) ? songStructure.body().endBeat() : songStructure.body().entries().get(i + 1).beat();
+            final int x1 = getXForBeat(entry.beat());
+            final int x2 = getXForBeat(endBeat) - 1;
+            if ((x1 >= clipRect.x && x1 <= clipRect.x + clipRect.width) || (x2 >= clipRect.x && x2 <= clipRect.x + clipRect.width) ||
+                    (x1 < clipRect.x && x2 > clipRect.x + clipRect.width)) {  // Is any of this phrase visible?
+                g.setColor(Util.phraseColor(entry));
+                g.fillRect(x1, minuteMarkerTop() - 1, x2 - x1, MINUTE_MARKER_HEIGHT - 1);
             }
         }
     }
