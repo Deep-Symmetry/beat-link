@@ -188,6 +188,17 @@ public class WaveformPreviewComponent extends JComponent {
     private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
 
     /**
+     * Establish a beat grid to use when translating between times and beat numbers, for example to paint the
+     * phrase bars. If we are configured to monitor a player, then this will be overwritten the next time a
+     * track loads.
+     *
+     * @param beatGrid the beat grid information for the displayed waveform, or {@code null} if none is available
+     */
+    public void setBeatGrid(BeatGrid beatGrid) {
+        this.beatGrid.set(beatGrid);
+    }
+
+    /**
      * Information about where all the cues are so we can draw them.
      */
     private final AtomicReference<CueList> cueList = new AtomicReference<CueList>();
@@ -220,7 +231,7 @@ public class WaveformPreviewComponent extends JComponent {
      */
     public void setSongStructure(RekordboxAnlz.SongStructureTag songStructure) {
         this.songStructure.set(songStructure);
-        repaint();
+        delegatingRepaint();
     }
 
     /**
@@ -373,6 +384,14 @@ public class WaveformPreviewComponent extends JComponent {
      */
     public void setRepaintDelegate(RepaintDelegate delegate) {
         repaintDelegate.set(delegate);
+    }
+
+    /**
+     * Determine whether we should use the normal repaint process, or delegate that to another component that is
+     * hosting us in a soft-loaded manner to save memory.
+     */
+    private void delegatingRepaint() {
+        delegatingRepaint(0, 0, getWidth(), getHeight());
     }
 
     /**
@@ -617,7 +636,7 @@ public class WaveformPreviewComponent extends JComponent {
         this.duration.set(metadata.getDuration());
         this.cueList.set(metadata.getCueList());
         clearPlaybackState();
-        repaint();
+        delegatingRepaint();
     }
 
     /**
@@ -634,7 +653,7 @@ public class WaveformPreviewComponent extends JComponent {
         this.duration.set(duration);
         this.cueList.set(cueList);
         clearPlaybackState();
-        repaint();
+        delegatingRepaint();
     }
 
     /**
@@ -724,7 +743,7 @@ public class WaveformPreviewComponent extends JComponent {
             beatGrid.set(null);
             songStructure.set(null);
         }
-        repaint();
+        delegatingRepaint();
     }
 
     /**
@@ -750,7 +769,7 @@ public class WaveformPreviewComponent extends JComponent {
                     duration.set(0);
                     cueList.set(null);
                 }
-                repaint();
+                delegatingRepaint();
             }
         }
     };
@@ -763,7 +782,7 @@ public class WaveformPreviewComponent extends JComponent {
         public void previewChanged(WaveformPreviewUpdate update) {
             if (update.player == getMonitoredPlayer()) {
                 updateWaveform(update.preview);
-                repaint();
+                delegatingRepaint();
             }
         }
 
@@ -782,7 +801,7 @@ public class WaveformPreviewComponent extends JComponent {
         public void beatGridChanged(BeatGridUpdate update) {
             if (update.player == getMonitoredPlayer()) {
                 beatGrid.set(update.beatGrid);
-                repaint();
+                delegatingRepaint();
             }
         }
     };
@@ -970,12 +989,14 @@ public class WaveformPreviewComponent extends JComponent {
             }
         }
 
-        // Draw the song structure if we have one for the track.
-        if (currentSongStructure != null) {
-            paintPhrases(g, clipRect, currentSongStructure);
-        }
+        if (duration.get() > 0) {  // We have time scale information available.
 
-        if (duration.get() > 0) {  // Draw the minute marks and playback position
+            // Draw the song structure if we have one for the track.
+            if (currentSongStructure != null) {
+                paintPhrases(g, clipRect, currentSongStructure);
+            }
+
+            // Draw the minute marks and playback position
             g.setColor(indicatorColor.get());
             for (int time = 60; time < duration.get(); time += 60) {
                 final int x = millisecondsToX(time * 1000L);
