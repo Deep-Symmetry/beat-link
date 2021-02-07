@@ -8,8 +8,12 @@ import org.slf4j.LoggerFactory;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -172,8 +176,8 @@ public class WaveformPreviewComponent extends JComponent {
     private final Map<Integer, PlaybackState> playbackStateMap = new ConcurrentHashMap<Integer, PlaybackState>(4);
 
     /**
-     * Information about the playback duration of the track whose waveform we are drawing, so we can translate times
-     * into positions.
+     * Information about the playback duration of the track (in seconds) whose waveform we are drawing, so we can
+     * translate times into positions.
      */
     private final AtomicInteger duration = new AtomicInteger(0);
 
@@ -1027,6 +1031,18 @@ public class WaveformPreviewComponent extends JComponent {
     }
 
     /**
+     * Return a rectangle that covers the location where the indicator triangle for the specified cue is drawn.
+     * Some padding around the indicator is included. This is used to check whether we want to return tool tip
+     * text describing the cue when asked about a point where the mouse is hovering.
+     *
+     * @param cue the cue whose indicator location is desired
+     * @return a rectangle that covers the specified cue's on-screen indicator
+     */
+    private Rectangle cueIndicatorRectangle(CueList.Entry cue) {
+        return new Rectangle(millisecondsToX(cue.cueTime) - 4, 0, 9, 12);
+    }
+
+    /**
      * Draw the visible phrases if the track has a structure analysis.
      *
      * @param g the graphics object in which we are being rendered
@@ -1048,6 +1064,59 @@ public class WaveformPreviewComponent extends JComponent {
                 g.fillRect(x1, minuteMarkerTop() - 1, x2 - x1, MINUTE_MARKER_HEIGHT - 1);
             }
         }
+    }
+
+    /**
+     * Checks whether we have anything that could reasonably be displayed as a tool tip when the mouse is hovering
+     * over the specified point, for programs that want to offer such a feature in their user interface.
+     *
+     * @param point the point where the mouse has been detected
+     * @return the text of a tool tip to describe that area of this component, or {@code null} if there's nothing
+     *         to say about that point
+     */
+    public String toolTipText(Point point) {
+        // Check if the point is over a cue indicator
+        final CueList currentCueList = cueList.get();
+        if (currentCueList != null) {
+            for (CueList.Entry entry : currentCueList.entries) {
+                if (cueIndicatorRectangle(entry).contains(point)) {
+                    return entry.getDescription();
+                }
+            }
+        }
+
+        if (point.y >= minuteMarkerTop() - 1 && point.y <= minuteMarkerTop() + MINUTE_MARKER_HEIGHT + 2) {
+            // Check if it's over a minute marker.
+            for (int minute = 1; TimeUnit.MINUTES.toSeconds(minute) < duration.get(); minute ++) {
+                int x = millisecondsToX(TimeUnit.MINUTES.toMillis(minute));
+                if (Math.abs(x - point.x) < 2) {
+                    if (minute > 59) {
+                        String minuteString = String.valueOf(minute % 60);
+                        if (minuteString.length() < 2) {
+                            minuteString = "0" + minuteString;
+                        }
+                        return (TimeUnit.MINUTES.toHours(minute) + ":" + minuteString + ":00");
+                    } else {
+                        return minute + ":00";
+                    }
+                }
+            }
+
+            // Check if it's over a phrase bar.
+            RekordboxAnlz.SongStructureTag currentSongStructure = songStructure.get();
+            if (currentSongStructure != null) {
+                for (int i = 0; i < currentSongStructure.lenEntries(); i++) {
+                    final RekordboxAnlz.SongStructureEntry entry = currentSongStructure.body().entries().get(i);
+                    final int endBeat = (i == currentSongStructure.lenEntries() - 1) ?
+                            currentSongStructure.body().endBeat() : currentSongStructure.body().entries().get(i + 1).beat();
+                    if (point.x >= getXForBeat(entry.beat()) && point.x <= getXForBeat(endBeat) - 1) {
+                        return Util.phraseLabel(entry);
+                    }
+                }
+            }
+        }
+
+        return  null;
     }
 
     @Override

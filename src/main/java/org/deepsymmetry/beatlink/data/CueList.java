@@ -363,6 +363,25 @@ public class CueList {
             return getNexusColor();
         }
 
+        /**
+         * Provides a brief description of the cue, suitable for a tool tip explaining its marker on a
+         * waveform preview.
+         *
+         * @return a terse label summarizing the cue's nature
+         */
+        public String getDescription() {
+            String kind;
+            if (hotCueNumber > 0) {
+                kind = "Hot " + (isLoop? "Loop " : "Cue ") + (char)(64 + hotCueNumber);
+            } else {
+                kind = (isLoop? "Loop" : "Memory");
+            }
+            if (comment.isEmpty()) {
+                return kind;
+            }
+            return kind + ": " + comment;
+        }
+
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
