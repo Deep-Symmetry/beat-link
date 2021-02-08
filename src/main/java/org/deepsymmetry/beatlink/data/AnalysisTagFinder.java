@@ -624,19 +624,22 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
 
     /**
      * Send ourselves "updates" about any tracks that were loaded before we started, or before we were requesting
-     * song structures, since we missed them.
+     * song structures, since we missed them. Do nothing if someone registered interest in a particular tag before
+     * we are actually running, though.
      */
     private void primeCache() {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-                    if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
-                        handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+        if (isRunning()) {
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+                        if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                            handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
     }
 
     /**
