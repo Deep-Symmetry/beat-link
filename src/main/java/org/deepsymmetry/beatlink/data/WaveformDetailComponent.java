@@ -1094,7 +1094,21 @@ public class WaveformDetailComponent extends JComponent {
                     Shape oldClip = g2.getClip();
                     g2.setClip(phraseRect);
                     g2.setColor(Util.buildColor(Util.phraseTextColor(entry), PHRASE_TRANSPARENCY));
-                    g2.drawString(label, Math.max(x1, clipRect.x) + 2, axis + maxHeight);
+                    // Have the phrase labels stick to the left edge of the viewable area as they scroll by.
+                    int labelX = x1;
+                    Container parent = getParent();
+                    while (parent != null) {
+                        if (parent instanceof JScrollPane) {
+                            int scrolledX = ((JScrollPane) parent).getViewport().getViewPosition().x;
+                            if (scrolledX > labelX) {  // We have scrolled past the start of the phrase.
+                                labelX += (scrolledX - labelX);  // Nudge the label back into view.
+                            }
+                            parent = null;  // We are done searching for our scroll pane.
+                        } else {
+                            parent = parent.getParent();
+                        }
+                    }
+                    g2.drawString(label, labelX + 2, axis + maxHeight);
                     g2.setClip(oldClip);
                 }
             }
