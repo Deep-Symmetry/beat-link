@@ -1072,6 +1072,20 @@ public class WaveformDetailComponent extends JComponent {
         if (songStructure == null) {
             return;
         }
+
+        // Have the phrase labels stick to the left edge of the viewable area as they scroll by.
+        // Start by finding our parent scroll pane, if there is one, so we can figure out its horizontal scroll position.
+        int scrolledX = 0;
+        Container parent = getParent();
+        while (parent != null) {
+            if (parent instanceof JScrollPane) {
+                scrolledX = ((JScrollPane) parent).getViewport().getViewPosition().x;
+                parent = null;  // We are done searching for our scroll pane.
+            } else {
+                parent = parent.getParent();
+            }
+        }
+
         for (int i = 0; i < songStructure.lenEntries(); i++) {
             final RekordboxAnlz.SongStructureEntry entry = songStructure.body().entries().get(i);
             final int endBeat = (i == songStructure.lenEntries() - 1) ? songStructure.body().endBeat() : songStructure.body().entries().get(i + 1).beat();
@@ -1094,19 +1108,10 @@ public class WaveformDetailComponent extends JComponent {
                     Shape oldClip = g2.getClip();
                     g2.setClip(phraseRect);
                     g2.setColor(Util.buildColor(Util.phraseTextColor(entry), PHRASE_TRANSPARENCY));
-                    // Have the phrase labels stick to the left edge of the viewable area as they scroll by.
+                    // See if the label for this phrase needs to be adjusted to stay visible as we scroll.
                     int labelX = x1;
-                    Container parent = getParent();
-                    while (parent != null) {
-                        if (parent instanceof JScrollPane) {
-                            int scrolledX = ((JScrollPane) parent).getViewport().getViewPosition().x;
-                            if (scrolledX > labelX) {  // We have scrolled past the start of the phrase.
-                                labelX += (scrolledX - labelX);  // Nudge the label back into view.
-                            }
-                            parent = null;  // We are done searching for our scroll pane.
-                        } else {
-                            parent = parent.getParent();
-                        }
+                    if (scrolledX > labelX) {  // We have scrolled past the start of the phrase.
+                        labelX += (scrolledX - labelX);  // Nudge the label back into view.
                     }
                     g2.drawString(label, labelX + 2, axis + maxHeight);
                     g2.setClip(oldClip);
