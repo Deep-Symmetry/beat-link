@@ -944,6 +944,9 @@ public class WaveformDetailComponent extends JComponent {
         if (beatGrid.get() != null) {  // Find what beat was represented by the column just before the first we draw.
             lastBeat = beatGrid.get().findBeatAtTime(Util.halfFrameToTime(getSegmentForX(clipRect.x - 1)));
         }
+        final Graphics2D g2 = (Graphics2D) g;
+        final Stroke standardStroke = g2.getStroke();
+        final Stroke wideStroke = new BasicStroke(2);
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = getSegmentForX(x);
             if (waveform.get() != null) { // Drawing the waveform itself
@@ -960,8 +963,10 @@ public class WaveformDetailComponent extends JComponent {
                     if (scale.get() <= MAX_BEAT_SCALE || beatWithinBar == 1) {
                         // Once scale gets large enough, we only draw the down beats, like CDJs.
                         g.setColor((beatWithinBar == 1) ? emphasisColor.get() : indicatorColor.get());
+                        g2.setStroke((beatWithinBar == 1) ? wideStroke : standardStroke);
                         g.drawLine(x, axis - maxHeight - 2 - BEAT_MARKER_HEIGHT, x, axis - maxHeight - 2);
                         g.drawLine(x, axis + maxHeight + 2, x, axis + maxHeight + BEAT_MARKER_HEIGHT + 2);
+                        g2.setStroke(standardStroke);
                     }
                     lastBeat = inBeat;
                 }
