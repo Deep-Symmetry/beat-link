@@ -1065,6 +1065,12 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
+     * The stroke pattern to use when marking the fill-in section of a phrase.
+     */
+    private static final BasicStroke fillStroke = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL,
+            0, new float[] { 3, 3}, 0);
+
+    /**
      * Draw the visible phrases if the track has a structure analysis.
      *
      * @param g the graphics object in which we are being rendered
@@ -1110,6 +1116,7 @@ public class WaveformDetailComponent extends JComponent {
                     int textHeight = (int)Math.ceil(metrics.getAscent() + metrics.getDescent());
                     Rectangle2D phraseRect = new Rectangle2D.Double(x1, axis + maxHeight + 2 - textHeight, x2 - x1, textHeight + 2);
                     g2.fill(phraseRect);
+
                     Shape oldClip = g2.getClip();
                     g2.setClip(phraseRect);
                     g2.setColor(Util.buildColor(Util.phraseTextColor(entry), PHRASE_TRANSPARENCY));
@@ -1119,6 +1126,16 @@ public class WaveformDetailComponent extends JComponent {
                         labelX += (scrolledX - labelX);  // Nudge the label back into view.
                     }
                     g2.drawString(label, labelX + 2, axis + maxHeight);
+
+                    if (entry.fill() != 0) {  // There is a fill section at the end to draw.
+                        final int xFill = getXForBeat(entry.beatFill());
+                        g2.setColor(Util.buildColor(Color.white, PHRASE_TRANSPARENCY));
+                        final Stroke oldStroke = g2.getStroke();
+                        g2.setStroke(fillStroke);
+                        g2.drawLine(xFill, axis + maxHeight - 1, x2, axis + maxHeight - 1);
+                        g2.setStroke(oldStroke);
+                    }
+
                     g2.setClip(oldClip);
                 }
             }
