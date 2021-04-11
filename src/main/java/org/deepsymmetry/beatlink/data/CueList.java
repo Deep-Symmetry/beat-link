@@ -490,49 +490,10 @@ public class CueList {
      * @return the color corresponding to the three bytes that are expected to follow it
      */
     private Color expectedEmbeddedColor(int colorCode) {
-        switch (colorCode) {
-            case 0x31:  // magenta
-                return new Color(0xff, 0x00, 0xa1);
-            case 0x38:  // violet
-                return new Color(0x83, 0x00, 0xff);
-            case 0x3c:  // fuchsia
-                return new Color(0x80, 0x00, 0xff);
-            case 0x3e:  // light slate blue
-                return new Color(0x33, 0x00, 0xff);
-
-            case 0x01:  // blue
-                return new Color(0x00, 0x00, 0xff);
-            case 0x05:  // steel blue
-                return new Color(0x50, 0x07, 0xff);
-            case 0x09:  // aqua
-                return new Color(0x00, 0xe0, 0xff);
-            case 0x0e:  // sea green
-                return new Color(0x1f, 0xff, 0xa3);
-
-            case 0x12:  // teal
-                return new Color(0x00, 0xff, 0x47);
-            case 0x16:  // green
-                return new Color(0x1a, 0xff, 0x00);
-            case 0x1a:  // lime
-                return new Color(0x80,0xff, 0x00);
-            case 0x1e:  // olive
-                return new Color(0xe6, 0xff, 0x00);
-
-            case 0x20:  // yellow
-                return new Color(0xff, 0xe8, 0x00);
-            case 0x26:  // orange
-                return new Color(0xff, 0x5e, 0x00);
-            case 0x2a:  // red
-                return new Color(0xff, 0x00, 0x00);
-            case 0x2d:  // pink
-                return new Color(0xff, 0x00, 0x73);
-
-            case 0: // Nothing, default to pure green
-                return Color.green;
-
-            default:
-                return null;
+        if (colorCode == 0) {
+            return Color.green;  // The default green color used by older CDJs.
         }
+        return findRekordboxColor(colorCode);
     }
 
     /**
