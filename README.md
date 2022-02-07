@@ -10,7 +10,8 @@ See
 [beat-carabiner](https://github.com/Deep-Symmetry/beat-carabiner)
 for examples of what you can do with this.
 
-[![License](https://img.shields.io/badge/License-Eclipse%20Public%20License%201.0-blue.svg)](#licenses)
+[![License](https://img.shields.io/github/license/Deep-Symmetry/beat-link?color=blue)](#licenses)
+
 
 ## Installing
 
@@ -569,16 +570,17 @@ that’s fantastic! Please take a look at the
 
 ## Licenses
 
-<img align="right" alt="Deep Symmetry" src="assets/DS-logo-bw-200-padded-left.png">
+<a href="http://deepsymmetry.org"><img align="right" alt="Deep Symmetry"
+ src="assets/DS-logo-github.png" width="250" height="150"></a>
 
-Copyright © 2016–2021 [Deep Symmetry, LLC](http://deepsymmetry.org)
+Copyright © 2016–2022 [Deep Symmetry, LLC](http://deepsymmetry.org)
 
-Distributed under the
-[Eclipse Public License 1.0](http://opensource.org/licenses/eclipse-1.0.php).
-By using this software in any fashion, you are agreeing to be bound by
-the terms of this license. You must not remove this notice, or any
-other, from this software.  A copy of the license can be found in
- [LICENSE](LICENSE) within this project.
+Distributed under the [Eclipse Public License
+2.0](https://opensource.org/licenses/EPL-2.0). By using this software
+in any fashion, you are agreeing to be bound by the terms of this
+license. You must not remove this notice, or any other, from this
+software. A copy of the license can be found in
+[LICENSE.md](LICENSE.md) within this project.
 
 ### Library Licenses
 

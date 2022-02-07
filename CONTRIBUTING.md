@@ -6,7 +6,7 @@ that has made it possible so far, and your help is key to keeping it
 great.
 
 Contributions to this project are [released][contributions-released]
-to the public under the [project's open source license](LICENSE).
+to the public under the [project's open source license](LICENSE.md).
 
 This project adheres to the
 [Contributor Covenant Code of Conduct][covenant].
@@ -46,15 +46,17 @@ Beat Link is primarily maintained by [@brunchboy][brunchboy].
 ## License
 
 <a href="http://deepsymmetry.org"><img align="right" alt="Deep Symmetry"
- src="assets/DS-logo-bw-200-padded-left.png" width="216" height="123"></a>
+ src="assets/DS-logo-github.png" width="250" height="150"></a>
 
-Copyright © 2016&ndash;2020 [Deep Symmetry, LLC](http://deepsymmetry.org)
+Copyright © 2016–2022 [Deep Symmetry, LLC](http://deepsymmetry.org)
 
-Distributed under the
-[Eclipse Public License 1.0](http://opensource.org/licenses/eclipse-1.0.php).
-By using this software in any fashion, you are agreeing to be bound by
-the terms of this license. You must not remove this notice, or any
-other, from this software.
+Distributed under the [Eclipse Public License
+2.0](https://opensource.org/licenses/EPL-2.0). By using this software
+in any fashion, you are agreeing to be bound by the terms of this
+license. You must not remove this notice, or any other, from this
+software. A copy of the license can be found in
+[LICENSE.md](LICENSE.md) within this project.
+
 
 [contributions-released]: https://help.github.com/articles/github-terms-of-service/#6-contributions-under-repository-license
 [covenant]: http://contributor-covenant.org/
