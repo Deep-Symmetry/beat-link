@@ -125,7 +125,8 @@ public class VirtualCdj extends LifecycleParticipant {
      * This starts out being zero unless you explicitly assign another value, which means that the <code>VirtualCdj</code>
      * should assign itself an unused device number by watching the network when you call
      * {@link #start()}. If {@link #getUseStandardPlayerNumber()} returns {@code true}, self-assignment will try to
-     * find a value in the range 1 to 4. Otherwise it will try to find a value in the range 7 to 15. Even when told
+     * find a value in the range 1 to 4. Otherwise it will try to find a value in the range 7 to 15 (so that it does
+     * not even conflict with newer CDJ-3000 networks, which can use channels 5 and 6). Even when told
      * to use a standard player number, if all device numbers in that range are already in use, we will be forced to
      * use a larger number.
      *
@@ -143,7 +144,8 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * <p>If {@link #getUseStandardPlayerNumber()}
      * returns {@code true}, self-assignment will try to find a value in the range 1 to 4. Otherwise (or if those
-     * values are all used by other players), it will try to find a value in the range 5 to 15.</p>
+     * values are all used by other players), it will try to find a value in the range 7 to 15 (so that it does
+     * not even conflict with newer CDJ-3000 networks, which can use channels 5 and 6).</p>
      *
      * <p>The device number defaults to 0, enabling self-assignment, and will be reset to that each time the
      * {@code VirtualCdj} is stopped.</p>
