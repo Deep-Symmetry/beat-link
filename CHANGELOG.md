@@ -18,6 +18,9 @@ This change log follows the conventions of
 - Support for obtaining any new type of track analysis which we can
   create definitions for in Crate Digger and obtain using the general
   track-analysis section `dbserver` request.
+- The BeatGrid can now tell you the bar number associated with a beat
+  number, accounting for the possibility of a partial bar at the start
+  of the track.
 - Information about the timing of upcoming beats and bars present within
   beat packets is now made available.
 
