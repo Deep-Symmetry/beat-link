@@ -8,6 +8,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.deepsymmetry.beatlink.data.TimeFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -254,7 +255,13 @@ public class BeatFinder extends LifecycleParticipant {
     }
 
     /**
-     * Keeps track of the registered beat listeners.
+     * Keeps track of the TimeFinder's beat listener when it is registered, so we can call it first.
+     */
+    private final AtomicReference<BeatListener> timeFinderBeatListener = new AtomicReference<BeatListener>();
+
+
+    /**
+     * Keeps track of the registered beat listeners, except the TimeFinder's.
      */
     private final Set<BeatListener> beatListeners =
             Collections.newSetFromMap(new ConcurrentHashMap<BeatListener, Boolean>());
@@ -276,7 +283,9 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the beat listener to add
      */
     public void addBeatListener(BeatListener listener) {
-        if (listener != null) {
+        if (TimeFinder.getInstance().isOwnBeatListener(listener)) {
+            timeFinderBeatListener.set(listener);
+        } else if (listener != null) {
             beatListeners.add(listener);
         }
     }
@@ -289,7 +298,9 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the beat listener to remove
      */
     public void removeBeatListener(BeatListener listener) {
-        if (listener != null) {
+        if (TimeFinder.getInstance().isOwnBeatListener(listener)) {
+            timeFinderBeatListener.set(null);
+        } else if (listener != null) {
             beatListeners.remove(listener);
         }
     }
@@ -301,7 +312,12 @@ public class BeatFinder extends LifecycleParticipant {
      */
     public Set<BeatListener> getBeatListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<BeatListener>(beatListeners));
+        final Set<BeatListener> result = new HashSet<BeatListener>(beatListeners);
+        final BeatListener timeFinderListener = timeFinderBeatListener.get();
+        if (timeFinderListener != null) {
+            result.add(timeFinderListener);
+        }
+        return Collections.unmodifiableSet(result);
     }
 
     /**
@@ -312,6 +328,14 @@ public class BeatFinder extends LifecycleParticipant {
      */
     private void deliverBeat(final Beat beat) {
         VirtualCdj.getInstance().processBeat(beat);
+        final BeatListener timeFinderListener = timeFinderBeatListener.get();
+        if (timeFinderListener != null) {
+            try {
+                timeFinderListener.newBeat(beat);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering beat announcement to TimeFinder listener", t);
+            }
+        }
         for (final BeatListener listener : getBeatListeners()) {
             try {
                 listener.newBeat(beat);

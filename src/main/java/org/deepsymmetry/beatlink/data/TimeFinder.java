@@ -37,7 +37,7 @@ public class TimeFinder extends LifecycleParticipant {
     private final ConcurrentHashMap<Integer, DeviceUpdate> updates = new ConcurrentHashMap<Integer, DeviceUpdate>();
 
     /**
-     * Our announcement listener watches for devices to disappear from the network so we can discard all information
+     * Our announcement listener watches for devices to disappear from the network, so we can discard all information
      * about them.
      */
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
@@ -72,7 +72,7 @@ public class TimeFinder extends LifecycleParticipant {
     /**
      * Get the latest track position reports available for all visible players.
      *
-     * @return the the track position information we have been able to calculate for all current players
+     * @return the track position information we have been able to calculate for all current players
      *
      * @throws IllegalStateException if the TimeFinder is not running
      */
@@ -217,7 +217,7 @@ public class TimeFinder extends LifecycleParticipant {
             } else {
                 if (noLongerPlaying) {  // Have jumped without playing.
                     if (beatNumber < 0) {
-                        return -1; // We don't know the position any more; weird to get into this state and still have a grid?
+                        return -1; // We don't know the position anymore; weird to get into this state and still have a grid?
                     }
                     // As a heuristic, assume we are right before the beat?
                     return timeOfBeat(beatGrid, beatNumber, newDeviceUpdate);
@@ -300,7 +300,7 @@ public class TimeFinder extends LifecycleParticipant {
      *
      * To help the listener orient itself, it is sent a {@link TrackPositionListener#movementChanged(TrackPositionUpdate)}
      * message immediately upon registration to report the current playback position, even if none is known (in which
-     * case it will be called with the value {@code null}.
+     * case it will be called with the value {@code null}).
      *
      * If the same listener was previously registered (for example, to listen to a different player), this call
      * replaces the former registration with the new one.
@@ -558,6 +558,20 @@ public class TimeFinder extends LifecycleParticipant {
             }
         }
     };
+
+    /**
+     * Checks whether the specified beat listener belongs to the TimeFinder. The {@link BeatFinder} uses this
+     * to notify the TimeFinder before any other listeners when a beat is received so that other listeners can
+     * rely on the TimeFinder having an up-to-date beat number when they want it. There's no reason for any
+     * other class to call this method (and the only reason it is public is that the BeatFinder is in a
+     * different package).
+     *
+     * @param listener the beat listener implementation to be checked
+     * @return {@code true} if the listener is ours
+     */
+    public boolean isOwnBeatListener(BeatListener listener) {
+        return listener == beatListener;
+    }
 
     /**
      * Set up to automatically stop if anything we depend on stops.

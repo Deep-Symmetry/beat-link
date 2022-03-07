@@ -35,6 +35,9 @@ This change log follows the conventions of
 - The versioning numbering scheme has been made more reasonable. This
   is now version 7.0.0 instead of 0.7.0, to reflect the fact that
   there have been many releases in active production use.
+- We now ensure that if the TimeFinder is running, it is informed about
+  new beats received before any other registered beat listeners, so they
+  can rely on it to provide the actual current beat number.
 
 
 ## [0.6.3] - 2020-12-28

@@ -14,7 +14,10 @@ public interface BeatListener {
      * <p>Invoked when a beat is reported on the network. Even though beats contain
      * far less detailed information than status updates, they can be passed to
      * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
-     * as long as the Virtual CDJ is active.</p>
+     * as long as the Virtual CDJ is active. Also, if the {@link org.deepsymmetry.beatlink.data.TimeFinder} is
+     * running, it will have been informed of the beat before any other beat lsteners, so you can use its
+     * {@link org.deepsymmetry.beatlink.data.TimeFinder#getTimeFor(DeviceUpdate)} method to find out the
+     * actual beat number even though it is not part of the packet itself.</p>
      *
      * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in this method, you need to use
