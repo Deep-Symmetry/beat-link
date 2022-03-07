@@ -3,7 +3,7 @@ name: Create library jar
 on:
   push:
     branches:
-      - master
+      - main
 
 env:
   initial_description: |
