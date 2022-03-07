@@ -6,6 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+
+## [7.0.0] - 2022-03-07
+
 ### Added
 
 - Support for channels 5 and 6 in the DJM-V10 channels-on-air messages,
@@ -717,7 +722,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.3...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.0...HEAD
+[7.0.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.3...v7.0.0
 [0.6.3]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.0...v0.6.1
