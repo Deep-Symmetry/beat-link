@@ -18,6 +18,8 @@ This change log follows the conventions of
 - Support for obtaining any new type of track analysis which we can
   create definitions for in Crate Digger and obtain using the general
   track-analysis section `dbserver` request.
+- Information about the timing of upcoming beats and bars present within
+  beat packets is now made available.
 
 ### Removed
 

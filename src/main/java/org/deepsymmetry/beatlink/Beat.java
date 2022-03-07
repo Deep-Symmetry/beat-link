@@ -8,10 +8,9 @@ import java.net.DatagramPacket;
  * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
  * as long as the Virtual CDJ is active.
  *
- * They also provide information about the timing of a variety upcoming beats and bars, which would be helpful
- * for implementing Sync in a player, but since the full {@link org.deepsymmetry.beatlink.data.BeatGrid} can be
- * used for that purpose just as well, access has not been provided to those values. If they would be useful to
- * you, please open an Issue.
+ * They also provide information about the timing of a variety upcoming beats and bars, which may be helpful
+ * for implementing Sync in a player, but the full {@link org.deepsymmetry.beatlink.data.BeatGrid} can be
+ * obtained as well.
  *
  * @author James Elliott
  */
@@ -34,9 +33,9 @@ public class Beat extends DeviceUpdate {
      * @param packet the beat announcement packet that was received
      */
     public Beat(DatagramPacket packet) {
-        super(packet, "Beat announcement", 96);
-        pitch = (int)Util.bytesToNumber(packetBytes, 85, 3);
-        bpm = (int)Util.bytesToNumber(packetBytes, 90, 2);
+        super(packet, "Beat announcement", 0x60);
+        pitch = (int)Util.bytesToNumber(packetBytes, 0x55, 3);
+        bpm = (int)Util.bytesToNumber(packetBytes, 0x5a, 2);
     }
 
     /**
@@ -64,14 +63,74 @@ public class Beat extends DeviceUpdate {
 
     /**
      * Get the position within a measure of music at which this beat falls (a value from 1 to 4, where 1 represents
-     * the down beat). This value will be accurate for players when the track was properly configured within rekordbox
+     * the downbeat). This value will be accurate for players when the track was properly configured within rekordbox
      * (and if the music follows a standard House 4/4 time signature). The mixer makes no effort to synchronize
-     * down beats with players, however, so this value is meaningless when coming from the mixer.
+     * downbeats with players, however, so this value is meaningless when coming from the mixer.
      *
      * @return the beat number within the current measure of music
      */
     public int getBeatWithinBar() {
-        return packetBytes[92];
+        return packetBytes[0x5c];
+    }
+
+    /**
+     * Get the time at which the next beat would arrive, in milliseconds, if the track were being played at
+     * normal speed (a pitch of +0%).
+     *
+     * @return the number of milliseconds after which the next beat is anticipated
+     */
+    public long getNextBeat() {
+        return Util.bytesToNumber(packetBytes, 0x24, 4);
+    }
+
+    /**
+     * Get the time at which the second upcoming beat would arrive, in milliseconds, if the track were being played at
+     * normal speed (a pitch of +0%).
+     *
+     * @return the number of milliseconds after which the beat after the next is anticipated
+     */
+    public long getSecondBeat() {
+        return Util.bytesToNumber(packetBytes, 0x28, 4);
+    }
+
+    /**
+     * Get the time at which the next bar would begin (the next downbeat would arrive), in milliseconds,
+     * if the track were being played at normal speed (a pitch of +0%).
+     *
+     * @return the number of milliseconds after which the next bar is anticipated
+     */
+    public long getNextBar() {
+        return Util.bytesToNumber(packetBytes, 0x2c, 4);
+    }
+
+    /**
+     * Get the time at which the fourth beat would arrive, in milliseconds, if the track were being played at
+     * normal speed (a pitch of +0%).
+     *
+     * @return the number of milliseconds at which the fourth upcoming beat is anticipated
+     */
+    public long getFourthBeat() {
+        return Util.bytesToNumber(packetBytes, 0x30, 4);
+    }
+
+    /**
+     * Get the time at which the second upcoming bar would begin (the second downbeat would arrive), in milliseconds,
+     * if the track were being played at normal speed (a pitch of +0%).
+     *
+     * @return the number of milliseconds after which the second upcoming bar is anticipated
+     */
+    public long getSecondBar() {
+        return Util.bytesToNumber(packetBytes, 0x34, 4);
+    }
+
+    /**
+     * Get the time at which the eighth beat would arrive, in milliseconds, if the track were being played at
+     * normal speed (a pitch of +0%).
+     *
+     * @return the number of milliseconds at which the eighth upcoming beat is anticipated
+     */
+    public long getEighthBeat() {
+        return Util.bytesToNumber(packetBytes, 0x38, 4);
     }
 
     /**
