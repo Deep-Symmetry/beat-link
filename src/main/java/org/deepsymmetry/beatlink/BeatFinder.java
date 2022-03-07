@@ -336,7 +336,7 @@ public class BeatFinder extends LifecycleParticipant {
                 logger.warn("Problem delivering beat announcement to TimeFinder listener", t);
             }
         }
-        for (final BeatListener listener : getBeatListeners()) {
+        for (final BeatListener listener : new LinkedList<BeatListener>(beatListeners)) {
             try {
                 listener.newBeat(beat);
             } catch (Throwable t) {
