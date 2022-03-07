@@ -198,7 +198,7 @@ public class BeatGrid {
     /**
      * Returns the musical count of the specified beat, represented by <i>B<sub>b</sub></i> in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
-     * A number from 1 to 4, where 1 is the down beat, or the start of a new measure.
+     * A number from 1 to 4, where 1 is the downbeat, or the start of a new measure.
      *
      * @param beatNumber the number of the beat of interest, must fall within the range 1..beatCount
      *
@@ -220,6 +220,18 @@ public class BeatGrid {
      */
     public int getBpm(int beatNumber) {
         return bpmValues[beatOffset(beatNumber)];
+    }
+
+    /**
+     * Return the bar number within which the specified beat falls. Like beats, bars are numbered starting at 1.
+     * Handles the case where the first bar is incomplete (the first beat is not a downbeat).
+     *
+     * @param beatNumber the beat number whose bar number is desired
+     * @return the bar within which the specified beat falls
+     */
+    public int getBarNumber(int beatNumber) {
+        final int offset = getBeatWithinBar(1) - 1;
+        return ((offset + beatOffset(beatNumber)) / 4) + 1;
     }
 
     /**
