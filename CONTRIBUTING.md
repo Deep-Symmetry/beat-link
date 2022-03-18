@@ -5,6 +5,14 @@ It has been generous collaboration from many people all over the world
 that has made it possible so far, and your help is key to keeping it
 great.
 
+First of all, we would *love* to hear from you! We have no way of
+knowing who has discovered, explored, downloaded and tried Beat Link.
+So if you have, please write a quick note on the [Beat Link Trigger Zulip
+stream](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger)
+to let us know! Even if it is only to explain why it didn&rsquo;t
+quite work for you.
+
+
 Contributions to this project are [released][contributions-released]
 to the public under the [project's open source license](LICENSE.md).
 

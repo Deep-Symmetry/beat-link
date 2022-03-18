@@ -1,5 +1,7 @@
 # beat-link
- <img align="right" width="275" height="250" alt="Beat Link"
+
+[![project chat](https://img.shields.io/badge/chat-on%20zulip-brightgreen)](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger)
+<img align="right" width="275" height="250" alt="Beat Link"
       src="assets/BeatLink-logo-padded-left.png">
 
 A Java library for synchronizing with beats from Pioneer DJ Link
