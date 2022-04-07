@@ -4,7 +4,7 @@
 
     <groupId>org.deepsymmetry</groupId>
     <artifactId>beat-link</artifactId>
-    <version>7.0.0</version>
+    <version>7.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>beat-link</name>
@@ -14,13 +14,13 @@
 
     <organization>
         <name>Deep Symmetry, LLC</name>
-        <url>http://deepsymmetry.org</url>
+        <url>https://deepsymmetry.org</url>
     </organization>
 
     <licenses>
       <license>
         <name>Eclipse Public License 1.0</name>
-        <url>http://opensource.org/licenses/eclipse-1.0.php</url>
+        <url>https://opensource.org/licenses/eclipse-1.0.php</url>
         <distribution>repo</distribution>
       </license>
     </licenses>
@@ -35,7 +35,7 @@
         <name>James Elliott</name>
         <email>james@deepsymmetry.org</email>
         <organization>Deep Symmetry, LLC</organization>
-        <organizationUrl>http://deepsymmetry.org</organizationUrl>
+        <organizationUrl>https://deepsymmetry.org</organizationUrl>
         <roles>
 	  <role>Project-Creator</role>
 	  <role>Developer</role>
@@ -46,7 +46,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <slf4jVersion>1.7.25</slf4jVersion>
+        <slf4jVersion>1.7.36</slf4jVersion>
     </properties>
 
     <repositories>
@@ -91,7 +91,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>

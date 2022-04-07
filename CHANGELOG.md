@@ -6,7 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Changed
+
+- The `BeatGrid` class no longer throws an exception when it is asked
+  for the offset of a nonexistent beat. Instead it logs a warning, and
+  returns the offset of the nearest beat.
 
 
 ## [7.0.0] - 2022-03-07

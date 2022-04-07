@@ -4,6 +4,8 @@ import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -16,6 +18,7 @@ import java.util.Arrays;
  */
 public class BeatGrid {
 
+    private static final Logger logger = LoggerFactory.getLogger(BeatGrid.class);
     /**
      * The unique identifier that was used to request this beat grid.
      */
@@ -172,8 +175,14 @@ public class BeatGrid {
         if (beatCount == 0) {
             throw new IllegalStateException("There are no beats in this beat grid.");
         }
-        if (beatNumber < 1 || beatNumber > beatCount) {
-            throw new IndexOutOfBoundsException("beatNumber (" + beatNumber + ") must be between 1 and " + beatCount);
+        if (beatNumber < 1 ) {
+            logger.warn("Offset for nonexistent beat, " + beatNumber + " requested; returning offset for beat 1");
+            return 0;
+        }
+        if (beatNumber > beatCount) {
+            logger.warn("Offset for nonexistent beat, " + beatNumber + " requested; returning offset for last beat, " +
+                    beatCount);
+            return beatCount - 1;
         }
         return beatNumber - 1;
     }
