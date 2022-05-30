@@ -6,6 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [7.0.1] - 2022-05-30
+
 ### Changed
 
 - The `BeatGrid` class no longer throws an exception when it is asked
@@ -726,7 +730,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.0...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.1...HEAD
+[7.0.1]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.0...v7.0.1
 [7.0.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.3...v7.0.0
 [0.6.3]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.1...v0.6.2
