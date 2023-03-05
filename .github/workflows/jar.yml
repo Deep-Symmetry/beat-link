@@ -11,7 +11,7 @@ env:
 
     > Don’t download this if you aren’t comfortable testing code while it is under active development! Instead, look at the [latest release](https:///github.com/Deep-Symmetry/beat-link/releases/latest).
 
-    Please note that since it’s a snapshot release, the library jar below (you may need to click to expand the Assets) will change frequently—whenever new code is pushed to the project—so you will want to _download the latest version every time you work with it_.
+        :calendar: **Ignore the “release date” above!** Because this is a snapshot release, the executables below (you may need to click to expand the Assets) will change frequently—whenever new code is pushed to the project—so you will want to _download the latest version every time you work with one_. The date you see _on each asset row_ shows you when it was last updated. Source code archive assets are not useful for snapshot releases, they will always reflect the state of the project when the snapshots began.
 
 jobs:
   build_jar:
@@ -20,9 +20,11 @@ jobs:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
 
     steps:
-      - uses: actions/checkout@v1
+      - name: Check out main branch
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-java@v1
+      - name: Prepare Java
+        uses: actions/setup-java@v3
         with:
           java-version: '11'
 
@@ -43,7 +45,7 @@ jobs:
           fi
 
       - name: Cache Maven dependencies
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-mvn-${{ hashFiles('**/pom.xml') }}
@@ -70,12 +72,3 @@ jobs:
           assets: ${{ env.artifact_name }}
           github_token: ${{ github.token }}
           initial_mrkdwn: ${{ env.initial_description }}
-
-  succeed_if_skipped:
-    name: Skipping CI
-    runs-on: ubuntu-latest
-    if: "contains(github.event.head_commit.message, '[skip ci]')"
-
-    steps:
-      - name: Placate GitHub Actions
-        run: echo "CI skipped but want action to succeed anyway."
