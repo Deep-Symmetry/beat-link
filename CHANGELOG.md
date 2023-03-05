@@ -6,7 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Added
+
+- The `ArtFinder` now tries to find high-resolution album art when it
+  is available (240x240 pixels rather than the original 80x80 pixels).
+  This can be turned off by calling `setRequestHighResolutionArt(false)`.
 
 ## [7.0.1] - 2022-05-30
 

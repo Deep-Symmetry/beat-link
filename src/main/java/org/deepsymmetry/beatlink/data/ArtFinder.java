@@ -267,6 +267,29 @@ public class ArtFinder extends LifecycleParticipant {
     }
 
     /**
+     * Controls whether we attempt to obtain high-resolution art when it is available.
+     */
+    private AtomicBoolean requestHighResolutionArt = new AtomicBoolean(true);
+
+    /**
+     * Check whether we are requesting high-resolution artwork when it is available.
+     * @return {@code true} if we attempt to obtain high-resolution versions of artwork, falling back to normal resolution when unavailable.
+     */
+    public boolean getRequestHighResolutionArt() {
+        return requestHighResolutionArt.get();
+    }
+
+    /**
+     * Set whether we should attempt to obtain high resolution art when it is available.
+     *
+     * @param shouldRequest if {@code true} we will try to obtain high-resolution art first, falling back to the
+     *                      ordinary resolution if it is not available.
+     */
+    public void setRequestHighResolutionArt(boolean shouldRequest) {
+        requestHighResolutionArt.set(shouldRequest);
+    }
+
+    /**
      * Ask the specified player for the album art in the specified slot with the specified rekordbox ID,
      * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
@@ -337,6 +360,8 @@ public class ArtFinder extends LifecycleParticipant {
 
     /**
      * Request the artwork with a particular artwork ID, given a connection to a player that has already been set up.
+     * Will request high resolution unless {@link #setRequestHighResolutionArt(boolean)} has been called with a
+     * {@code false} argument.
      *
      * @param artworkId identifies the album art to retrieve
      * @param slot the slot identifier from which the associated track was loaded
@@ -350,9 +375,17 @@ public class ArtFinder extends LifecycleParticipant {
     AlbumArt getArtwork(int artworkId, SlotReference slot, CdjStatus.TrackType trackType, Client client)
             throws IOException {
 
+        Message response;
+
         // Send the artwork request
-        Message response = client.simpleRequest(Message.KnownType.ALBUM_ART_REQ, Message.KnownType.ALBUM_ART,
-                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot, trackType), new NumberField(artworkId));
+        if (getRequestHighResolutionArt()) {
+            response = client.simpleRequest(Message.KnownType.ALBUM_ART_REQ, Message.KnownType.ALBUM_ART,
+                    client.buildRMST(Message.MenuIdentifier.DATA, slot.slot, trackType), new NumberField(artworkId),
+                    new NumberField(1));
+        } else {
+            response = client.simpleRequest(Message.KnownType.ALBUM_ART_REQ, Message.KnownType.ALBUM_ART,
+                    client.buildRMST(Message.MenuIdentifier.DATA, slot.slot, trackType), new NumberField(artworkId));
+        }
 
         // Create an image from the response bytes
         return new AlbumArt(new DataReference(slot, artworkId), ((BinaryField)response.arguments.get(3)).getValue());

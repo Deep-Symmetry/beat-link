@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -225,7 +226,8 @@ public class CrateDigger {
 
     /**
      * Helper method to call the {@link FileFetcher} with the right arguments to get a file for a particular slot. Also
-     * arranges for the file to be deleted when we are shutting down in case we fail to clean it up ourselves.
+     * arranges for the file to be deleted when we are shutting down in case we fail to clean it up ourselves. Will
+     * retry up to the number of tries configured in {@link #retryLimit}.
      *
      * @param slot the slot from which a file is desired
      * @param path the path to the file within the slot's mounted filesystem
@@ -234,6 +236,22 @@ public class CrateDigger {
      * @throws IOException if there is a problem fetching the file
      */
     private void fetchFile(SlotReference slot, String path, File destination) throws IOException {
+        fetchFile(slot, path, destination, getRetryLimit());
+    }
+
+    /**
+     * Helper method to call the {@link FileFetcher} with the right arguments to get a file for a particular slot. Also
+     * arranges for the file to be deleted when we are shutting down in case we fail to clean it up ourselves. Will
+     * retry up to the specific number of times passed in the {@code retryLimit} argument.
+     *
+     * @param slot the slot from which a file is desired
+     * @param path the path to the file within the slot's mounted filesystem
+     * @param destination where to write the file contents
+     * @param retryLimit the maximum number of tries that will be made to read the file
+     *
+     * @throws IOException if there is a problem fetching the file
+     */
+    private void fetchFile(SlotReference slot, String path, File destination, int retryLimit) throws IOException {
         destination.deleteOnExit();
         final DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
         if (player == null) {
@@ -243,7 +261,7 @@ public class CrateDigger {
         if (path.startsWith("PIONEER/") && mediaWithHiddenPioneerFolder.contains(slot)) {
             path = "." + path;  // We are dealing with HFS+ media, so skip the first, failed attempt to read it.
         }
-        while (triesMade < getRetryLimit()) {
+        while (triesMade < retryLimit) {
             try {
                 FileFetcher.getInstance().fetch(player.getAddress(), mountPath(slot.slot), path, destination);
                 return;
@@ -256,8 +274,8 @@ public class CrateDigger {
                     return;
                 }
                 triesMade++;
-                if (triesMade < getRetryLimit()) {
-                    logger.warn("Attempt to fetch file from player failed, tries left: " + (getRetryLimit() - triesMade), e);
+                if (triesMade < retryLimit) {
+                    logger.warn("Attempt to fetch file from player failed, tries left: " + (retryLimit - triesMade), e);
                     try {
                         //noinspection BusyWait
                         Thread.sleep(Math.min(MAX_RETRY_INTERVAL, triesMade * RETRY_BACKOFF));
@@ -406,7 +424,7 @@ public class CrateDigger {
      *
      * @param track the track whose extended analysis file is desired
      * @param database the parsed database export from which the analysis path can be determined
-     * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type file to be retrieved.
+     * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type file to be retrieved
      *
      * @return the parsed file containing the track analysis
      */
@@ -453,6 +471,16 @@ public class CrateDigger {
     }
 
     /**
+     * Transforms an album art path to the version that will contain high resolution art, if that is available.
+     *
+     * @param artPath standard resolution album art path
+     * @return path at which high resolution art might be found
+     */
+    private String highResolutionPath(String artPath) {
+        return artPath.replaceFirst("(\\.\\w+$)", "_m$1");
+    }
+
+    /**
      * This is the mechanism by which we offer metadata to the {@link MetadataProvider} while we are running.
      */
     private final MetadataProvider metadataProvider = new MetadataProvider() {
@@ -488,7 +516,19 @@ public class CrateDigger {
                             return new AlbumArt(art, file);
                         }
                         file.deleteOnExit();  // Prepare to download it.
-                        fetchFile(art.getSlotReference(), Database.getText(artworkRow.path()), file);
+                        if (ArtFinder.getInstance().getRequestHighResolutionArt()) {
+                            try {
+                                fetchFile(art.getSlotReference(), highResolutionPath(Database.getText(artworkRow.path())), file, 1);
+                            } catch (IOException e) {
+                                if (!(e instanceof FileNotFoundException)) {
+                                    logger.error("Unexpected exception type trying to load high resolution album art", e);
+                                }
+                                // Fall back to looking for the normal resolution art.
+                                fetchFile(art.getSlotReference(), Database.getText(artworkRow.path()), file);
+                            }
+                        } else {
+                            fetchFile(art.getSlotReference(), Database.getText(artworkRow.path()), file);
+                        }
                         return new AlbumArt(art, file);
                     } else {
                         logger.warn("Unable to find artwork " + art + " in database " + database);
