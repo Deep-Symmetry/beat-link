@@ -27,6 +27,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           java-version: '11'
+          distribution: 'corretto'
 
       - name: Determine release tag, library jar name, and snapshot status
         run: |
