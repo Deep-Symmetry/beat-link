@@ -542,9 +542,11 @@ Master changed at Sun May 08 20:49:55 CDT 2016: CDJ status: Device 3,
 ## Research
 
 This project is being developed with the help of
-[dysentery](https://github.com/Deep-Symmetry/dysentery). Check that out
-for details of the packets and protocol, and for ways you can help
-figure out more.
+[dysentery](https://github.com/Deep-Symmetry/dysentery). Check that
+out for details of the packets and protocol, and for ways you can help
+figure out more. You can also view [Snapshot API
+Documentation](http://deepsymmetry.org/beatlink/snapshot/apidocs/) to
+see what is available in the latest preview release.
 
 ### Funding
 
