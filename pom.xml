@@ -284,6 +284,20 @@
                     <release>8</release>
                     <additionalOptions>-html5</additionalOptions>
                     <additionalJOption>--no-module-directories</additionalJOption>
+                    <additionalJOption>--allow-script-in-comments</additionalJOption>
+                     <header>
+                       <![CDATA[
+                                <!-- Google tag (gtag.js) -->
+                                <script async src="https://www.googletagmanager.com/gtag/js?id=G-RF9JED08L1"></script>
+                                <script>
+                                window.dataLayer = window.dataLayer || [];
+                                function gtag(){dataLayer.push(arguments);}
+                                gtag('js', new Date());
+
+                                gtag('config', 'G-RF9JED08L1');
+                                </script>
+                       ]]>
+                     </header>
                 </configuration>
                 <executions>
                     <execution>
