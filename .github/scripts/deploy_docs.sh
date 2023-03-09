@@ -7,9 +7,9 @@ if [ "$GUIDE_SSH_KEY" != "" ]; then
 
     # Publish the JavaDoc to the right place on the Deep Symmetry web server.
     if [ "$release_snapshot" != "true" ]; then
-        rsync -avz target/apidocs deepsymmetry.org:/var/www/html/beatlink
+        rsync -avz target/apidocs guides@deepsymmetry.org:/var/www/html/beatlink
     else
-        rsync -avz target/apidocs deepsymmetry.org:/var/www/html/beatlink/snapshot
+        rsync -avz target/apidocs guides@deepsymmetry.org:/var/www/html/beatlink/snapshot
     fi
 else
     echo "No SSH key present, not building user guide."
