@@ -79,18 +79,17 @@ releases of hardware or even firmware updates from Pioneer.
 any project like it, on the same machine that you are running
 rekordbox, because they will compete over access to network ports.
 
-:white_check_mark: Beat Link seems to work great with CDJ-2000
-Nexus gear, and works fairly well (with less information available)
-with older CDJ-2000s. It has also been reported to work with XDJ-1000
-gear, and (starting with version 0.6.0) with the XDJ-XZ as well. If
-you can try it with anything else, *please* let us know what you learn
-in [Beat Link Trigger's Gitter chat
-room](https://gitter.im/brunchboy/beat-link-trigger), or if you have
-worked out actionable details about something that could be improved,
-[open an
-Issue](https://github.com/Deep-Symmetry/beat-link/issues) or
-submit a pull request so we can all improve our understanding
-together.
+:white_check_mark: Beat Link seems to work great with CDJ-2000 Nexus
+gear, and works fairly well (with less information available) with
+older CDJ-2000s. It has also been reported to work with XDJ-1000 gear,
+and (starting with version 0.6.0) with the XDJ-XZ as well. If you can
+try it with anything else, *please* let us know what you learn in
+[Beat Link Trigger's Zulip chat
+stream](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger),
+or if you have worked out actionable details about something that
+could be improved, [open an
+Issue](https://github.com/Deep-Symmetry/beat-link/issues) or submit a
+pull request so we can all improve our understanding together.
 
 :construction: We are currently working on refining support for new
 features introduced with the CDJ-3000 and DJM-V10, including the fact
@@ -107,6 +106,19 @@ out, look at the
 [dysentery project](https://github.com/Deep-Symmetry/dysentery#dysentery),
 which is where we are organizing the research tools and results which
 made programs like Beat Link possible.
+
+## Getting Help
+
+<a href="http://zulip.com"><img align="right" alt="Zulip logo"
+ src="assets/zulip-icon-circle.svg" width="128" height="128"></a>
+
+Deep Symmetry&rsquo;s projects are generously sponsored with hosting
+by <a href="https://zulip.com">Zulip</a>, an open-source modern team
+chat app designed to keep both live and asynchronous conversations
+organized. Thanks to them, you can <a
+href="https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger">chat
+with our community</a>, ask questions, get inspiration, and share your
+own ideas.
 
 ## Usage
 
