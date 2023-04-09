@@ -11,6 +11,8 @@ This change log follows the conventions of
 - The `ArtFinder` now tries to find high-resolution album art when it
   is available (240x240 pixels rather than the original 80x80 pixels).
   This can be turned off by calling `setRequestHighResolutionArt(false)`.
+- Some additional details of the upcoming beat/bar values in the `Beat`
+  object were clarified.
 
 ## [7.0.1] - 2022-05-30
 

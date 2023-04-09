@@ -75,9 +75,9 @@ public class Beat extends DeviceUpdate {
 
     /**
      * Get the time at which the next beat would arrive, in milliseconds, if the track were being played at
-     * normal speed (a pitch of +0%).
+     * normal speed (a pitch of +0%). If the track ends before that beat, returns {@code 0xffffffff}.
      *
-     * @return the number of milliseconds after which the next beat is anticipated
+     * @return the number of milliseconds after which the next beat occurs
      */
     public long getNextBeat() {
         return Util.bytesToNumber(packetBytes, 0x24, 4);
@@ -85,9 +85,9 @@ public class Beat extends DeviceUpdate {
 
     /**
      * Get the time at which the second upcoming beat would arrive, in milliseconds, if the track were being played at
-     * normal speed (a pitch of +0%).
+     * normal speed (a pitch of +0%). If the track ends before that beat, returns {@code 0xffffffff}.
      *
-     * @return the number of milliseconds after which the beat after the next is anticipated
+     * @return the number of milliseconds after which the beat after the next occurs
      */
     public long getSecondBeat() {
         return Util.bytesToNumber(packetBytes, 0x28, 4);
@@ -95,9 +95,10 @@ public class Beat extends DeviceUpdate {
 
     /**
      * Get the time at which the next bar would begin (the next downbeat would arrive), in milliseconds,
-     * if the track were being played at normal speed (a pitch of +0%).
+     * if the track were being played at normal speed (a pitch of +0%). If the track ends before that bar,
+     * returns {@code 0xffffffff}.
      *
-     * @return the number of milliseconds after which the next bar is anticipated
+     * @return the number of milliseconds after which the next bar occurs
      */
     public long getNextBar() {
         return Util.bytesToNumber(packetBytes, 0x2c, 4);
@@ -105,9 +106,9 @@ public class Beat extends DeviceUpdate {
 
     /**
      * Get the time at which the fourth beat would arrive, in milliseconds, if the track were being played at
-     * normal speed (a pitch of +0%).
+     * normal speed (a pitch of +0%). If the track ends before that beat, returns {@code 0xffffffff}.
      *
-     * @return the number of milliseconds at which the fourth upcoming beat is anticipated
+     * @return the number of milliseconds at which the fourth upcoming beat occurs
      */
     public long getFourthBeat() {
         return Util.bytesToNumber(packetBytes, 0x30, 4);
@@ -115,9 +116,10 @@ public class Beat extends DeviceUpdate {
 
     /**
      * Get the time at which the second upcoming bar would begin (the second downbeat would arrive), in milliseconds,
-     * if the track were being played at normal speed (a pitch of +0%).
+     * if the track were being played at normal speed (a pitch of +0%). If the track ends before that bar,
+     * returns {@code 0xffffffff}.
      *
-     * @return the number of milliseconds after which the second upcoming bar is anticipated
+     * @return the number of milliseconds after which the second upcoming bar occurs
      */
     public long getSecondBar() {
         return Util.bytesToNumber(packetBytes, 0x34, 4);
@@ -125,9 +127,9 @@ public class Beat extends DeviceUpdate {
 
     /**
      * Get the time at which the eighth beat would arrive, in milliseconds, if the track were being played at
-     * normal speed (a pitch of +0%).
+     * normal speed (a pitch of +0%). If the track ends before that beat, returns {@code 0xffffffff}.
      *
-     * @return the number of milliseconds at which the eighth upcoming beat is anticipated
+     * @return the number of milliseconds at which the eighth upcoming beat occurs
      */
     public long getEighthBeat() {
         return Util.bytesToNumber(packetBytes, 0x38, 4);
