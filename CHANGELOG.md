@@ -6,6 +6,10 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [7.1.0] - 2023-04-16
+
 ### Added
 
 - The `ArtFinder` now tries to find high-resolution album art when it
@@ -736,7 +740,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.1...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.1.0...HEAD
+[7.1.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.1...v7.1.0
 [7.0.1]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.0...v7.0.1
 [7.0.0]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.3...v7.0.0
 [0.6.3]: https://github.com/Deep-Symmetry/beat-link/compare/v0.6.2...v0.6.3
