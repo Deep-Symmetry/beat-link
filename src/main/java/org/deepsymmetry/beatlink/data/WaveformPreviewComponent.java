@@ -455,7 +455,7 @@ public class WaveformPreviewComponent extends JComponent {
     }
 
     /**
-     * Set the current playback state for a player. <p/>
+     * <p>Set the current playback state for a player.</p>
      *
      * Will cause part of the component to be redrawn if the player state has
      * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
@@ -560,8 +560,8 @@ public class WaveformPreviewComponent extends JComponent {
     }
 
     /**
-     * Set the current playback position. This method can only be used in situations where the component is
-     * tied to a single player, and therefore always has a single playback position. <p/>
+     * <p>≈Set the current playback position. This method can only be used in situations where the component is
+     * tied to a single player, and therefore always has a single playback position.</p>
      *
      * Will cause part of the component to be redrawn if the position has
      * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
@@ -580,8 +580,8 @@ public class WaveformPreviewComponent extends JComponent {
     }
 
     /**
-     * Set whether the player holding the waveform is playing, which changes the indicator color to white from red
-     * (assuming the indicator and emphasis colors have not changed). <p/>
+     * <p>Set whether the player holding the waveform is playing, which changes the indicator color to white from red
+     * (assuming the indicator and emphasis colors have not changed).</p>
      *
      * This method can only be used in situations where the component is tied to a single player, and therefore has
      * a single playback position.

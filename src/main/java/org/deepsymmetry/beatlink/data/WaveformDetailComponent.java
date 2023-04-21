@@ -373,7 +373,7 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
-     * Set the current playback state for a player. <p/>
+     * <p>Set the current playback state for a player.</p>
      *
      * Will cause part of the component to be redrawn if the player state has
      * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
@@ -462,8 +462,8 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
-     * Set the current playback position. This method can only be used in situations where the component is
-     * tied to a single player, and therefore always has a single playback position. <p/>
+     * <p>Set the current playback position. This method can only be used in situations where the component is
+     * tied to a single player, and therefore always has a single playback position.</p>
      *
      * Will cause part of the component to be redrawn if the position has
      * changed. This will be quickly overruled if a player is being monitored, but
@@ -970,7 +970,7 @@ public class WaveformDetailComponent extends JComponent {
                 if ((inBeat > 0) && (inBeat != lastBeat)) {  // Start of a new beat, so prepare to draw it
                     final int beatWithinBar = beatGrid.get().getBeatWithinBar(inBeat);
                     if (scale.get() <= MAX_BEAT_SCALE || beatWithinBar == 1) {
-                        // Once scale gets large enough, we only draw the down beats, like CDJs.
+                        // Once scale gets large enough, we only draw the downbeats, like CDJs.
                         g.setColor((beatWithinBar == 1) ? emphasisColor.get() : indicatorColor.get());
                         g2.setStroke((beatWithinBar == 1) ? wideStroke : standardStroke);
                         g.drawLine(x, axis - maxHeight - 2 - BEAT_MARKER_HEIGHT, x, axis - maxHeight - 2);
@@ -983,7 +983,7 @@ public class WaveformDetailComponent extends JComponent {
         }
 
         // Draw the cue and memory point markers, first the memory cues and then the hot cues, since some are in
-        // the same place and we want the hot cues to stand out.
+        // the same place, and we want the hot cues to stand out.
         if (currentCueList != null) {
             paintCueList(g, clipRect, currentCueList, axis, maxHeight);
         }
