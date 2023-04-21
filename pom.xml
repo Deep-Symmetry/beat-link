@@ -4,7 +4,7 @@
 
     <groupId>org.deepsymmetry</groupId>
     <artifactId>beat-link</artifactId>
-    <version>7.1.0</version>
+    <version>7.2.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>beat-link</name>

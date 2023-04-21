@@ -6,7 +6,11 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Added
+
+- The `WaveformPreviewComponent` and `WaveformDetailComponent` now have
+  accessors allowing callers to obtain the underlying waveform information
+  that is driving their display.
 
 ## [7.1.0] - 2023-04-16
 

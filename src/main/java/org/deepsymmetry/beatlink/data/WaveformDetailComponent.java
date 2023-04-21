@@ -373,7 +373,7 @@ public class WaveformDetailComponent extends JComponent {
     }
 
     /**
-     * Set the current playback state for a player.
+     * Set the current playback state for a player. <p/>
      *
      * Will cause part of the component to be redrawn if the player state has
      * changed (and we have the {@link TrackMetadata} we need to translate the time into a position in the
@@ -463,7 +463,7 @@ public class WaveformDetailComponent extends JComponent {
 
     /**
      * Set the current playback position. This method can only be used in situations where the component is
-     * tied to a single player, and therefore always has a single playback position.
+     * tied to a single player, and therefore always has a single playback position. <p/>
      *
      * Will cause part of the component to be redrawn if the position has
      * changed. This will be quickly overruled if a player is being monitored, but
@@ -567,6 +567,15 @@ public class WaveformDetailComponent extends JComponent {
         if (!autoScroll.get()) {
             invalidate();
         }
+    }
+
+    /**
+     * Obtain the waveform detail being drawn.
+     *
+     * @return the waveform detail being displayed by this component.
+     */
+    public WaveformDetail getWaveform() {
+        return this.waveform.get();
     }
 
     /**
