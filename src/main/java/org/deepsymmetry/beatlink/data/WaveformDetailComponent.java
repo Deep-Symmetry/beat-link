@@ -400,7 +400,7 @@ public class WaveformDetailComponent extends JComponent {
         PlaybackState oldFurthestState = getFurthestPlaybackState();
         PlaybackState newState = new PlaybackState(player, position, playing);
         PlaybackState oldState = playbackStateMap.put(player, newState);
-        if (oldState == null || oldState.position != newState.position) {
+        if (oldState == null || oldState.position != newState.position || oldState.playing != newState.playing) {
             repaintDueToPlaybackStateChange(oldState, newState, oldFurthestState);
         }
     }

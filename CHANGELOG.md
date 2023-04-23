@@ -12,6 +12,12 @@ This change log follows the conventions of
   accessors allowing callers to obtain the underlying waveform information
   that is driving their display.
 
+### Fixed
+
+- The `WaveformPreviewComponent` and `WaveformDetailComponent` were not correctly 
+  updating the color of their playback indicators if `setPlaybackState` was called
+  with a change in nothing but the `playing` boolean.
+
 ## [7.1.0] - 2023-04-16
 
 ### Added

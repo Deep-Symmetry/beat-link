@@ -441,12 +441,14 @@ public class WaveformPreviewComponent extends JComponent {
             }
 
             // Also refresh where the specific marker was moved from and/or to.
-            if (oldState != null && (newState == null || newState.position != oldState.position)) {
+            if (oldState != null && (newState == null || newState.position != oldState.position ||
+                    newState.playing != oldState.playing)) {
                 final int left = Math.max(0, Math.min(width, millisecondsToX(oldState.position) - 6));
                 final int right = Math.max(0, Math.min(width, millisecondsToX(oldState.position) + 6));
                 delegatingRepaint(left, 0, right - left, getHeight());
             }
-            if (newState != null && (oldState == null || newState.position != oldState.position)) {
+            if (newState != null && (oldState == null || newState.position != oldState.position ||
+                    newState.playing != oldState.playing)) {
                 final int left = Math.max(0, Math.min(width, millisecondsToX(newState.position) - 6));
                 final int right = Math.max(0, Math.min(width, millisecondsToX(newState.position) + 6));
                 delegatingRepaint(left, 0, right - left, getHeight());
