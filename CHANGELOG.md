@@ -18,6 +18,11 @@ This change log follows the conventions of
   updating the color of their playback indicators if `setPlaybackState` was called
   with a change in nothing but the `playing` boolean.
 
+### Changed
+
+- The `BeatGrid` reports requests for out-of-range beats at debug level now, rather
+  than warning, since they were quite noisy and meaningless in the log file.
+
 ## [7.1.0] - 2023-04-16
 
 ### Added

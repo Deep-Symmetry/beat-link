@@ -176,11 +176,11 @@ public class BeatGrid {
             throw new IllegalStateException("There are no beats in this beat grid.");
         }
         if (beatNumber < 1 ) {
-            logger.warn("Offset for nonexistent beat, " + beatNumber + " requested; returning offset for beat 1");
+            logger.debug("Offset for nonexistent beat, " + beatNumber + " requested; returning offset for beat 1");
             return 0;
         }
         if (beatNumber > beatCount) {
-            logger.warn("Offset for nonexistent beat, " + beatNumber + " requested; returning offset for last beat, " +
+            logger.debug("Offset for nonexistent beat, " + beatNumber + " requested; returning offset for last beat, " +
                     beatCount);
             return beatCount - 1;
         }
