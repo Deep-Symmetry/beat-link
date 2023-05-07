@@ -419,7 +419,7 @@ To illustrate the kind of interface that you can now put
 together from the elements offered by Beat Link, here is the Player
 Status window from Beat Link Trigger:
 
-<img src="assets/PlayerStatus.png" alt="Player Status window" width="538">
+<img src="assets/PlayerStatus.png" alt="Player Status window" width="599">
 
 ### Media Details
 
