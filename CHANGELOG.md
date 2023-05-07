@@ -22,6 +22,9 @@ This change log follows the conventions of
 
 - The `BeatGrid` reports requests for out-of-range beats at debug level now, rather
   than warning, since they were quite noisy and meaningless in the log file.
+- The `getBarNumber()` method in `BeatGrid` now follows the Rekordbox convention
+  of reporting a value of `-1` in any partial bar at the start of a track, and bar
+  `1` always begins with the first down beat.
 
 ## [7.1.0] - 2023-04-16
 

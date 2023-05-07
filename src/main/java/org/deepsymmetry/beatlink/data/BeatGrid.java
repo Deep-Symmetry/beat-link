@@ -233,14 +233,22 @@ public class BeatGrid {
 
     /**
      * Return the bar number within which the specified beat falls. Like beats, bars are numbered starting at 1.
-     * Handles the case where the first bar is incomplete (the first beat is not a downbeat).
+     * Handles the case where the first bar is incomplete (the first beat is not a downbeat); like rekordbox,
+     * in such cases bar 1 is the fist complete bar, and the preceding bar is bar -1.
      *
      * @param beatNumber the beat number whose bar number is desired
      * @return the bar within which the specified beat falls
      */
     public int getBarNumber(int beatNumber) {
         final int offset = getBeatWithinBar(1) - 1;
-        return ((offset + beatOffset(beatNumber)) / 4) + 1;
+        final int bar = ((offset + beatOffset(beatNumber)) / 4);
+        if (offset == 0) {
+            return bar + 1;
+        }
+        if (bar == 0) {
+            return -1;
+        }
+        return bar;
     }
 
     /**
