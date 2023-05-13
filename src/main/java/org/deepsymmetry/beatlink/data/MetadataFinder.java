@@ -227,8 +227,8 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Ask the connected dbserver for the playlist entries of the specified playlist (if {@code folder} is {@code false},
-     * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}.
+     * Ask the connected dbserver for the playlist entries of the specified playlist (if {@code folder} is {@code false}),
+     * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}).
      * Pulled into a separate method so it can be used from multiple different client transactions.
      *
      * @param slot the slot in which the playlist can be found
@@ -269,8 +269,8 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Ask the specified player's dbserver for the playlist entries of the specified playlist (if {@code folder} is {@code false},
-     * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}.
+     * Ask the specified player's dbserver for the playlist entries of the specified playlist (if {@code folder} is {@code false}),
+     * or the list of playlists and folders inside the specified playlist folder (if {@code folder} is {@code true}).
      *
      * @param player the player number whose playlist entries are of interest
      * @param slot the slot in which the playlist can be found
@@ -702,7 +702,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
      *
-     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
@@ -806,7 +806,7 @@ public class MetadataFinder extends LifecycleParticipant {
     }
 
     /**
-     * Removes a metadata provider so it will no longer be consulted to provide metadata for tracks loaded from any
+     * Removes a metadata provider, so it will no longer be consulted to provide metadata for tracks loaded from any
      * media.
      *
      * @param provider the metadata provider to remove.
@@ -967,13 +967,13 @@ public class MetadataFinder extends LifecycleParticipant {
     };
 
     /**
-     * Process an update packet from one of the CDJs. See if it has a valid track loaded; if not, clear any
+     * <p>Process an update packet from one of the CDJs. See if it has a valid track loaded; if not, clear any
      * metadata we had stored for that player. If so, see if it is the same track we already know about; if not,
-     * request the metadata associated with that track.
+     * request the metadata associated with that track.</p>
      *
-     * Also updates the sets of which players have media mounted in which slots.
+     * <p>Also updates the sets of which players have media mounted in which slots.</p>
      *
-     * If any of these reflect a change in state, any registered listeners will be informed.
+     * <p>If any of these reflect a change in state, any registered listeners will be informed.</p>
      *
      * @param update an update packet we received from a CDJ
      */

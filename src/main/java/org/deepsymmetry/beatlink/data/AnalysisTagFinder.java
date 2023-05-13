@@ -36,7 +36,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     private static final Logger logger = LoggerFactory.getLogger(AnalysisTagFinder.class);
 
     /**
-     * Wraps values we store in our hot cache so we can keep track of the player, slot, track, file extension,
+     * Wraps values we store in our hot cache, so we can keep track of the player, slot, track, file extension,
      * and type tag the analysis section was associated with.
      */
     public static class CacheEntry {
@@ -113,7 +113,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     private final MountListener mountListener = new MountListener() {
         @Override
         public void mediaMounted(SlotReference slot) {
-            logger.debug("SongStructureFinder doesn't yet need to do anything in response to a media mount.");
+            logger.debug("AnalysisTagFinder doesn't yet need to do anything in response to a media mount.");
         }
 
         @Override
@@ -137,7 +137,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     };
 
     /**
-     * Our announcement listener watches for devices to disappear from the network so we can discard all information
+     * Our announcement listener watches for devices to disappear from the network, so we can discard all information
      * about them.
      */
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
@@ -309,6 +309,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      */
     private RekordboxAnlz.TaggedSection requestAnalysisTagInternal(final DataReference trackReference, final String fileExtension,
                                                                       final String typeTag, final boolean failIfPassive) {
+        logger.debug("Trying to obtain: {} {}{}", trackReference, typeTag, fileExtension);
 
         // First see if any registered metadata providers can offer it for us (i.e. Crate Digger, probably).
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
@@ -320,9 +321,12 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
             }
         }
 
+        logger.debug("Did not obtain via registered metadata providers; sourceDetails: {}", sourceDetails);
+
         // At this point, unless we are allowed to actively request the data, we are done. We can always actively
         // request tracks from rekordbox.
         if (MetadataFinder.getInstance().isPassive() && failIfPassive && trackReference.slot != CdjStatus.TrackSourceSlot.COLLECTION) {
+            logger.debug("Giving up on trying to obtain: {} {}{}", trackReference, typeTag, fileExtension);
             return null;
         }
 
@@ -330,11 +334,13 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
         ConnectionManager.ClientTask<RekordboxAnlz.TaggedSection> task = new ConnectionManager.ClientTask<RekordboxAnlz.TaggedSection>() {
             @Override
             public RekordboxAnlz.TaggedSection useClient(Client client) {
+                logger.debug("tag task running");
                 return getTagViaDbServer(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), fileExtension, typeTag, client);
             }
         };
 
         try {
+            logger.debug("submitting tag task");
             return ConnectionManager.getInstance().invokeWithClientSession(trackReference.player, task,
                     "requesting analysis tag of type " + typeTag + " from file with extension " + fileExtension);
         } catch (Exception e) {
@@ -355,7 +361,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      *
      * @throws IllegalStateException if the AnalysisTagFinder is not running
      */
-    public RekordboxAnlz.TaggedSection requestSongStructureFrom(final DataReference dataReference,
+    public RekordboxAnlz.TaggedSection requestAnalysisTagFrom(final DataReference dataReference,
                                                                 final String fileExtension, final String typeTag) {
         ensureRunning();
         final String tagKey = typeTag + fileExtension;
@@ -377,7 +383,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * @return the numeric field the protocol uses to represent that string.
      */
     public NumberField stringToProtocolNumber(final String s) {
-        int fourcc = 0;  // Convert the type tag to a byte-reversed integer as used in the protocol.
+        long fourcc = 0;  // Convert the type tag to a byte-reversed integer as used in the protocol.
         for (int i = 3; i >= 0; i--) {
             fourcc = fourcc * 256;
             if (i < (s.length())) {
@@ -402,20 +408,24 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     RekordboxAnlz.TaggedSection getTagViaDbServer(final int rekordboxId, final SlotReference slot,
                                                   final String fileExtension, final String typeTag, final Client client) {
         final NumberField idField = new NumberField(rekordboxId);
-        final NumberField fileField = stringToProtocolNumber(fileExtension);
+        final NumberField fileField = stringToProtocolNumber(fileExtension.substring(1));  // Omit the "."
         final NumberField tagField = stringToProtocolNumber(typeTag);
 
         try {
+            logger.debug("Sending tag request to db server, tag: {}, file: {}", tagField.getValue(), fileField.getValue());
             Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
                     client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField, tagField, fileField);
             if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                 ByteBuffer data = ((BinaryField) response.arguments.get(3)).getValue();
-                data.position(4);  // Skip the length so we are at the tag four-character identifier.
+                data.position(4);  // Skip the length, so we are at the tag four-character identifier.
                 data = data.slice();
+                logger.debug("Received usable tag response from db server: {}", response);
                 return new RekordboxAnlz.TaggedSection(new ByteBufferKaitaiStream(data));
             }
+            logger.warn("Did not receive usable tag response from db server: {}", response);
+
         } catch (Exception e) {
-                logger.info("Problem requesting song structure information for slot " + slot + ", id " + rekordboxId, e);
+                logger.warn("Problem requesting song structure information for slot " + slot + ", id " + rekordboxId, e);
         }
         return null;
     }
@@ -437,9 +447,9 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * extension and tag type, no exception is thrown and no action is performed.</p>
      *
      * <p>Updates are delivered to listeners on the Swing Event Dispatch thread, so it is safe to interact with
-     * user interface elements within the event handler.
+     * user interface elements within the event handler.</p>
      *
-     * Even so, any code in the listener method <em>must</em> finish quickly, or it will freeze the user interface,
+     * <p>Even so, any code in the listener method <em>must</em> finish quickly, or it will freeze the user interface,
      * add latency for other listeners, and updates will back up. If you want to perform lengthy processing of any sort,
      * do so on another thread.</p>
      *
@@ -555,10 +565,11 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * @param update describes the new metadata we have for a player, if any
      */
     private void handleUpdate(final TrackMetadataUpdate update) {
+        logger.debug("handleUpdate: {}", update);
         if (update.metadata == null || update.metadata.trackType != CdjStatus.TrackType.REKORDBOX) {
             clearDeckTags(update);
         } else {
-            // We can offer song structure information for this device; check if we've already got it in our cache.
+            // We can track analysis information for this device; check if we've already got it in our cache.
             for (String trackedTag : analysisTagListeners.keySet()) {
                 final String fileExtension = trackedTag.substring(trackedTag.indexOf("."));
                 final String typeTag = trackedTag.substring(0, trackedTag.indexOf("."));
@@ -628,6 +639,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * we are actually running, though.
      */
     private void primeCache() {
+        logger.debug("primeCache() running");
         if (isRunning()) {
             SwingUtilities.invokeLater(new Runnable() {
                 @Override

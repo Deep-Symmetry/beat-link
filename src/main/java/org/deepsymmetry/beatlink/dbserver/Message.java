@@ -27,7 +27,7 @@ public class Message {
      * The special field that marks the start of a new message.
      */
     @SuppressWarnings("WeakerAccess")
-    public static final NumberField MESSAGE_START = new NumberField(0x872349ae, 4);
+    public static final NumberField MESSAGE_START = new NumberField(0x872349aeL, 4);
 
     /**
      * Defines all the message types we know about, with any information we know about their arguments.
@@ -165,12 +165,12 @@ public class Message {
         ALBUM_MENU_FOR_GENRE_AND_ARTIST (0x1201, "album menu for genre and artist request", "r:m:s:t:", "sort",
                 "genre ID", "artist ID, or -1 for ALL"),
         /**
-         * Asks for an track menu by artist and album, can specify all albums by passing -1 for album ID.
+         * Asks for a track menu by artist and album, can specify all albums by passing -1 for album ID.
          */
         TRACK_MENU_FOR_ARTIST_AND_ALBUM (0x1202, "track menu for artist and album request", "r:m:s:t:", "sort",
                 "artist ID", "album ID, or -1 for ALL"),
         /**
-         * Asks for an track menu by BPM and distance, which represents a percentage tolerance by which the BPM
+         * Asks for a track menu by BPM and distance, which represents a percentage tolerance by which the BPM
          * can differ, ranging from 0 to 6.
          */
         TRACK_MENU_FOR_BPM_AND_DISTANCE (0x1206, "track menu for BPM and distance request", "r:m:s:t:", "sort",
@@ -186,7 +186,7 @@ public class Message {
         ALBUM_MENU_FOR_LABEL_AND_ARTIST (0x120a, "album menu for label and artist request", "r:m:s:t:", "sort",
                 "label ID", "artist ID, or -1 for ALL"),
         /**
-         * Asks for an track menu by key and distance (which represents harmonic compatibility as allowed movement
+         * Asks for a track menu by key and distance (which represents harmonic compatibility as allowed movement
          * around the circle of fifths), ranging from 0 to 2.
          */
         TRACK_MENU_FOR_KEY_AND_DISTANCE (0x1214, "track menu for key and distance request", "r:m:s:t:", "sort",
@@ -218,7 +218,7 @@ public class Message {
          */
         ALBUM_MENU_FOR_ORIGINAL_ARTIST_REQ (0x1402, "album menu for original artist request", "r:m:s:t", "sort", "artist ID"),
         /**
-         * Asks for an track menu by original artist and album, can specify all albums by passing -1 for the album ID.
+         * Asks for a track menu by original artist and album, can specify all albums by passing -1 for the album ID.
          */
         TRACK_MENU_FOR_ORIGINAL_ARTIST_AND_ALBUM (0x1502, "track menu for original artist and album request", "r:m:s:t:", "sort",
                 "artist ID", "album ID, or -1 for ALL"),
@@ -231,7 +231,7 @@ public class Message {
          */
         ALBUM_MENU_FOR_REMIXER_REQ (0x1702, "album menu for remixer request", "r:m:s:t", "sort", "artist ID"),
         /**
-         * Asks for an track menu by remixer and album, can specify all albums by passing -1 for the album ID.
+         * Asks for a track menu by remixer and album, can specify all albums by passing -1 for the album ID.
          */
         TRACK_MENU_FOR_REMIXER_AND_ALBUM (0x1802, "track menu for remixer and album request", "r:m:s:t:", "sort",
                 "artist ID", "album ID, or -1 for ALL"),
@@ -277,7 +277,7 @@ public class Message {
          * This is a multipurpose request added for the nxs2 players which allows a specific tagged element of an
          * ANLZnnnn.DAT or ANLZnnnn.EXT file to be retrieved. The tag type is the four-character-code identifying the
          * desired file section (with bytes in reverse order), and the file extension is the same for the extension
-         * identifying the desired file. (For an EXT file they are 00 54 58 45, or "EXT" padded with a NUL and reversed.
+         * identifying the desired file. (For an EXT file they are 00 54 58 45, or "EXT" padded with a NUL and reversed.)
          */
         ANLZ_TAG_REQ     (0x2c04, "anlz file tag content request", "r:m:s:t", "rekordbox id", "tag type", "file extension"),
         /**
@@ -447,7 +447,7 @@ public class Message {
     public static final int ANLZ_FILE_TAG_CUE_COMMENT = 0x324f4350;
 
     /**
-     * Defines all the known types of entries that an be returned for a menu request.
+     * Defines all the known types of entries that can be returned for a menu request.
      */
     public enum MenuItemType {
         /**
@@ -1044,7 +1044,7 @@ public class Message {
      * The value returned by {@link #getMenuResultsCount()} when there is no data available for the request
      * that was made.
      */
-    public static final long NO_MENU_RESULTS_AVAILABLE = 0xffffffff;
+    public static final long NO_MENU_RESULTS_AVAILABLE = 0xffffffffL;
 
     /**
      * Extracts the result count from a {@link KnownType#MENU_AVAILABLE} response.

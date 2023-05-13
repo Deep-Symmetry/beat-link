@@ -14,9 +14,12 @@ This change log follows the conventions of
 
 ### Fixed
 
-- The `WaveformPreviewComponent` and `WaveformDetailComponent` were not correctly 
+- The `WaveformPreviewComponent` and `WaveformDetailComponent` were not correctly
   updating the color of their playback indicators if `setPlaybackState` was called
   with a change in nothing but the `playing` boolean.
+- Trying to request track analysis file tags using DB Server queries (when using a
+  real player number) was not working because the file extension was being passed
+  without stripping off the leading "." as required by the protocol.
 
 ### Changed
 
@@ -24,7 +27,9 @@ This change log follows the conventions of
   than warning, since they were quite noisy and meaningless in the log file.
 - The `getBarNumber()` method in `BeatGrid` now follows the Rekordbox convention
   of reporting a value of `-1` in any partial bar at the start of a track, and bar
-  `1` always begins with the first down beat.
+  `1` always begins with the first downbeat.
+- The method `requestSongStructureFrom()` in the `AnalysisTagFinder` was an
+  anachronism, and has been corrected to `requestAnalysisTagFrom()`.
 
 ## [7.1.0] - 2023-04-16
 
@@ -41,7 +46,7 @@ This change log follows the conventions of
 ### Changed
 
 - The `BeatGrid` class no longer throws an exception when it is asked
-  for the offset of a nonexistent beat. Instead it logs a warning, and
+  for the offset of a nonexistent beat. Instead, it logs a warning, and
   returns the offset of the nearest beat.
 
 
@@ -393,7 +398,7 @@ This change log follows the conventions of
 
 ### Fixed
 
-- When a Nexus player is reporting that it is pre-loading hot cues, we
+- When a Nexus player is reporting that it is preloading hot cues, we
   no longer incorrectly consider it to be playing.
 - When scanning metadata caches to consider them for auto-attachment,
   we were not closing the ones which failed to match. This was
