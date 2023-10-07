@@ -39,7 +39,11 @@ import java.net.DatagramPacket;
         super(packet, "Precise position", 0x3c);
         trackLength = (int)Util.bytesToNumber(packetBytes, 0x24, 4);
         playbackPosition = (int)Util.bytesToNumber(packetBytes, 0x28, 4);
-        pitch = (int)Util.percentageToPitch(Util.bytesToNumber(packetBytes, 0x2c, 4) / 100.0);
+        long rawPitch = Util.bytesToNumber(packetBytes, 0x2c, 4);
+        if (rawPitch > 0x80000000L) {  // This is a negative effective tempo
+            rawPitch -= 0x100000000L;
+        }
+        pitch = (int)Util.percentageToPitch(rawPitch / 100.0);
         bpm = (int)Util.bytesToNumber(packetBytes, 0x38, 4) * 10;
     }
 
