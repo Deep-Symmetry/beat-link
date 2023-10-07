@@ -6,7 +6,25 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Added
+
+- Precise position packets sent by CDJ-3000s are processed and used to keep
+  track of the exact playback position of these players with much higher fidelity
+  than is possible for other players, even when they are not currently playing.
+- A new utility function to calculate a raw pitch integer value given a
+  human-oriented pitch percentage value, because the new precise position
+  packets sent by the CDJ-3000 use the humane approach.
+
+### Fixed
+
+- The calculation of pitch percentages from pitch values found in CDJ status packets
+  was slightly inaccurate because of two transposed digits in a calculation.
+
+### Changed
+
+- The `TrackPositionUpdate` class has a new field, `precise`, which reports whether
+  we are receiving precise position updates from the player.
+
 
 ## [7.2.0] - 2023-08-13
 

@@ -291,17 +291,17 @@ public class TimeFinder extends LifecycleParticipant {
      * we can't actually store a {@code null} value in a {@link ConcurrentHashMap}.
      */
     private final TrackPositionUpdate NO_INFORMATION = new TrackPositionUpdate(0, 0, 0,
-            false, false, 0, false, null);
+            false, false, 0, false, null, false, false);
 
     /**
      * Add a listener that wants to closely follow track playback for a particular player. The listener will be called
      * as soon as there is an initial {@link TrackPositionUpdate} for the specified player, and whenever there is an
      * unexpected change in playback position, speed, or state on that player.
-     *
+     * <p>
      * To help the listener orient itself, it is sent a {@link TrackPositionListener#movementChanged(TrackPositionUpdate)}
      * message immediately upon registration to report the current playback position, even if none is known (in which
      * case it will be called with the value {@code null}).
-     *
+     * <p>
      * If the same listener was previously registered (for example, to listen to a different player), this call
      * replaces the former registration with the new one.
      *
@@ -368,7 +368,7 @@ public class TimeFinder extends LifecycleParticipant {
     private boolean interpolationsDisagree(TrackPositionUpdate lastUpdate, TrackPositionUpdate currentUpdate) {
         long now = System.nanoTime();
         return Math.abs(interpolateTimeSinceUpdate(lastUpdate, now) - interpolateTimeSinceUpdate(currentUpdate, now)) >
-                slack.get();
+                (lastUpdate.playing? slack.get() : 0);  // If we are not playing, any difference is real, from a precise update.
     }
 
     /**
@@ -413,7 +413,7 @@ public class TimeFinder extends LifecycleParticipant {
 
                     // And regardless of whether this was a significant change, if this was a new beat and the listener
                     // implements the interface that requests all beats, send that information.
-                    if (update.definitive && entry.getKey() instanceof TrackPositionBeatListener) {
+                    if (update.fromBeat && entry.getKey() instanceof TrackPositionBeatListener) {
                         try {
                             ((TrackPositionBeatListener) entry.getKey()).newBeat(beat, update);
                         } catch (Throwable t) {
@@ -427,19 +427,21 @@ public class TimeFinder extends LifecycleParticipant {
 
     /**
      * Reacts to player status updates to update the predicted playback position and state and potentially inform
-     * registered track position listeners of significant changes.
+     * registered track position listeners of significant changes. If we are receiving precise position packets
+     * from the same player, we ignore these less-useful updates.
      */
     private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
         @Override
         public void received(DeviceUpdate update) {
-            if (update instanceof CdjStatus) {
-                updates.put(update.getDeviceNumber(), update);
+            final int device = update.getDeviceNumber();
+            TrackPositionUpdate lastPosition = positions.get(device);
+            if (update instanceof CdjStatus && lastPosition != null && !lastPosition.precise) {
+                updates.put(device, update);
                 final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(update);
                 final int beatNumber = ((CdjStatus) update).getBeatNumber();
                 // logger.debug("Update: beat " + update.getBeatWithinBar() + " -- " + beatNumber);
                 if (beatGrid != null && (beatNumber >= 0)) {
                     boolean done = false;
-                    TrackPositionUpdate lastPosition = positions.get(update.getDeviceNumber());
                     while (!done && ((lastPosition == null) || lastPosition.timestamp < update.getTimestamp())) {
                         TrackPositionUpdate newPosition;
                         if (lastPosition == null || lastPosition.beatGrid != beatGrid) {
@@ -453,7 +455,7 @@ public class TimeFinder extends LifecycleParticipant {
                                     timeGuess, beatNumber, false,
                                     ((CdjStatus) update).isPlaying(),
                                     Util.pitchToMultiplier(update.getPitch()),
-                                    ((CdjStatus) update).isPlayingBackwards(), beatGrid);
+                                    ((CdjStatus) update).isPlayingBackwards(), beatGrid, false, false);
                         } else {
                             final long newTime = interpolateTimeFromUpdate(lastPosition, (CdjStatus) update, beatGrid);
                             final boolean newReverse = ((CdjStatus) update).isPlayingBackwards();
@@ -463,22 +465,22 @@ public class TimeFinder extends LifecycleParticipant {
                             final boolean newPlaying = ((CdjStatus) update).isPlaying() && (!newReverse || newTime > 0);
                             newPosition = new TrackPositionUpdate(update.getTimestamp(), newTime, beatNumber,
                                     false, newPlaying, Util.pitchToMultiplier(update.getPitch()),
-                                    newReverse, beatGrid);
+                                    newReverse, beatGrid, false, false);
                         }
                         if (lastPosition == null) {
-                            done = (positions.putIfAbsent(update.getDeviceNumber(), newPosition) == null);
+                            done = (positions.putIfAbsent(device, newPosition) == null);
                         } else {
-                            done = positions.replace(update.getDeviceNumber(), lastPosition, newPosition);
+                            done = positions.replace(device, lastPosition, newPosition);
                         }
                         if (done) {
-                            updateListenersIfNeeded(update.getDeviceNumber(), newPosition, null);
+                            updateListenersIfNeeded(device, newPosition, null);
                         } else {  // Some other thread updated the position while we were working, re-evaluate.
-                            lastPosition = positions.get(update.getDeviceNumber());
+                            lastPosition = positions.get(device);
                         }
                     }
                 } else {
-                    positions.remove(update.getDeviceNumber());  // We can't say where that player is.
-                    updateListenersIfNeeded(update.getDeviceNumber(), null, null);
+                    positions.remove(device);  // We can't say where that player is.
+                    updateListenersIfNeeded(device, null, null);
                 }
             }
         }
@@ -490,7 +492,7 @@ public class TimeFinder extends LifecycleParticipant {
      * looping tracks that extend for more than a beat's worth of time past the last beat in the beat grid), to avoid
      * weird exceptions and infinitely-growing track time reports in such situations, we extrapolate an extension to
      * the beat grid by repeating the interval between the last two beats in the track.
-     *
+     * <p>
      * In the completely degenerate case of a track with a single beat (which probably will never occur), we simply
      * return that beat's time even if you ask for a later one.
      *
@@ -528,12 +530,13 @@ public class TimeFinder extends LifecycleParticipant {
     private final BeatListener beatListener = new BeatListener() {
         @Override
         public void newBeat(Beat beat) {
-            if (beat.getDeviceNumber() < 16) {  // We only care about CDJs.
-                updates.put(beat.getDeviceNumber(), beat);
+            final int device = beat.getDeviceNumber();
+            if (device < 16) {  // We only care about CDJs.
+                updates.put(device, beat);
                 // logger.info("Beat: " + beat.getBeatWithinBar());
                 final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(beat);
                 if (beatGrid != null) {
-                    TrackPositionUpdate lastPosition = positions.get(beat.getDeviceNumber());
+                    TrackPositionUpdate lastPosition = positions.get(device);
                     int beatNumber;
                     if (lastPosition == null || lastPosition.beatGrid != beatGrid) {
                         // We don’t handle beat packets received before any status packets for the player. This will
@@ -548,12 +551,13 @@ public class TimeFinder extends LifecycleParticipant {
                     // We know the player is playing forward because otherwise we don't get beats.
                     final TrackPositionUpdate newPosition = new TrackPositionUpdate(beat.getTimestamp(),
                             timeOfBeat(beatGrid, beatNumber, beat), beatNumber, true, true,
-                            Util.pitchToMultiplier(beat.getPitch()), false, beatGrid);
-                    positions.put(beat.getDeviceNumber(), newPosition);
-                    updateListenersIfNeeded(beat.getDeviceNumber(), newPosition, beat);
+                            Util.pitchToMultiplier(beat.getPitch()), false, beatGrid,
+                            lastPosition.precise, true);
+                    positions.put(device, newPosition);
+                    updateListenersIfNeeded(device, newPosition, beat);
                 } else {
-                    positions.remove(beat.getDeviceNumber());  // We can't determine where the player is.
-                    updateListenersIfNeeded(beat.getDeviceNumber(), null, beat);
+                    positions.remove(device);  // We can't determine where the player is.
+                    updateListenersIfNeeded(device, null, beat);
                 }
             }
         }
@@ -572,6 +576,29 @@ public class TimeFinder extends LifecycleParticipant {
     public boolean isOwnBeatListener(BeatListener listener) {
         return listener == beatListener;
     }
+
+    /**
+     * Reacts to precise position updates to update the definitive, precise position of the reporting player.
+     */
+    private final PrecisePositionListener positionListener = new PrecisePositionListener() {
+        @Override
+        public void positionReported(PrecisePosition position) {
+            final int device = position.getDeviceNumber();
+            if (device < 16) {  // We only care about CDJs, if other devices ever send these.
+                updates.put(device, position);
+                final DeviceUpdate lastStatus = VirtualCdj.getInstance().getLatestStatusFor(device);
+                final boolean playing = lastStatus instanceof CdjStatus && ((CdjStatus) lastStatus).isPlaying();
+                final boolean reverse = lastStatus instanceof CdjStatus && ((CdjStatus) lastStatus).isPlayingBackwards();
+                final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(position);
+                final int beatNumber = (beatGrid == null) ? 0 : beatGrid.findBeatAtTime(position.getPlaybackPosition());
+                final TrackPositionUpdate newPosition = new TrackPositionUpdate(position.getTimestamp(),
+                        position.getPlaybackPosition(), beatNumber, true, playing,
+                        Util.pitchToMultiplier(position.getPitch()), reverse, beatGrid, true, false);
+                positions.put(device, newPosition);
+                updateListenersIfNeeded(device, newPosition, null);
+            }
+        }
+    };
 
     /**
      * Set up to automatically stop if anything we depend on stops.
@@ -608,6 +635,7 @@ public class TimeFinder extends LifecycleParticipant {
             VirtualCdj.getInstance().start();
             BeatFinder.getInstance().addLifecycleListener(lifecycleListener);
             BeatFinder.getInstance().addBeatListener(beatListener);
+            BeatFinder.getInstance().addPrecisePositionListener(positionListener);
             BeatFinder.getInstance().start();
             running.set(true);
             deliverLifecycleAnnouncement(logger, true);
@@ -620,6 +648,7 @@ public class TimeFinder extends LifecycleParticipant {
     @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
+            BeatFinder.getInstance().removePrecisePositionListener(positionListener);
             BeatFinder.getInstance().removeBeatListener(beatListener);
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
             running.set(false);

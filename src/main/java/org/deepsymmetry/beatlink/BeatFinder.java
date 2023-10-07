@@ -154,6 +154,12 @@ public class BeatFinder extends LifecycleParticipant {
                                             }
                                             break;
 
+                                        case PRECISE_POSITION:
+                                            if (isPacketLongEnough(packet, 60, "precise position")) {
+                                                deliverPrecisePosition(new PrecisePosition(packet));
+                                            }
+                                            break;
+
                                         case CHANNELS_ON_AIR:
                                             if (packet.getLength() == 0x35 ||  // New DJM-V10 packet with six channels
                                                     isPacketLongEnough(packet, 0x2d, "channels on-air")) {
@@ -275,7 +281,7 @@ public class BeatFinder extends LifecycleParticipant {
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
-     *
+     * <p>
      * Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
@@ -346,6 +352,73 @@ public class BeatFinder extends LifecycleParticipant {
     }
 
     /**
+     * Keeps track of the registered precise position listeners.
+     */
+    private final Set<PrecisePositionListener> precisePositionListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<PrecisePositionListener, Boolean>());
+
+    /**
+     * <p>Adds the specified precise position listener to receive precise position updates when DJ Link devices send
+     * them to Beat Link. If {@code listener} is {@code null} or already present in the list
+     * of registered listeners, no exception is thrown and no action is performed.</p>
+     *
+     * <p>To reduce latency, precise position updates are delivered to listeners directly on the thread that is receiving them
+     * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.
+     * <p>
+     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and precise position updates
+     * (which are sent frequently, at intervals of roughly 30 milliseconds) will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the precise position listener to add
+     */
+    public void addPrecisePositionListener(PrecisePositionListener listener) {
+        if (listener != null) {
+            precisePositionListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified precise position listener so that it no longer receives precise position updates when
+     * DJ Link devices send them to Beat Link. If {@code listener} is {@code null} or not present
+     * in the list of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the precise position listener to remove
+     */
+    public void removePrecisePositionListener(PrecisePositionListener listener) {
+        if (listener != null) {
+            precisePositionListeners.remove(listener);
+        }
+    }
+
+    /**
+     * Get the set precise position listeners that are currently registered.
+     *
+     * @return the currently registered precise position listeners
+     */
+    public Set<PrecisePositionListener> getPrecisePositionListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Collections.unmodifiableSet(new HashSet<PrecisePositionListener>(precisePositionListeners));
+    }
+
+    /**
+     * Send a precise position update to all registered listeners.
+     *
+     * @param position the precise position update we received from a player
+     */
+    private void deliverPrecisePosition(PrecisePosition position) {
+        for (final PrecisePositionListener listener : getPrecisePositionListeners()) {
+            try {
+                listener.positionReported(position);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering precise position update to listener", t);
+            }
+        }
+    }
+
+    /**
      * Keeps track of the registered sync command listeners.
      */
     private final Set<SyncListener> syncListeners =
@@ -360,7 +433,7 @@ public class BeatFinder extends LifecycleParticipant {
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
-     *
+     * <p>
      * Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
@@ -439,7 +512,7 @@ public class BeatFinder extends LifecycleParticipant {
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
-     *
+     * <p>
      * Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
@@ -521,7 +594,7 @@ public class BeatFinder extends LifecycleParticipant {
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
-     *
+     * <p>
      * Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
@@ -587,7 +660,7 @@ public class BeatFinder extends LifecycleParticipant {
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
-     *
+     * <p>
      * Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>

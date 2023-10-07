@@ -159,6 +159,12 @@ public class Util {
         BEAT(0x28, "Beat", BeatFinder.BEAT_PORT),
 
         /**
+         * Reports the exact playback position of a CDJ-3000 or newer player, on a very frequent basis,
+         * even if it is not currently playing.
+         */
+        PRECISE_POSITION(0x0b, "Precise Position", BeatFinder.BEAT_PORT),
+
+        /**
          * A status update from the mixer, with status flags, pitch, and tempo, and beat-within-bar information.
          */
         MIXER_STATUS(0x29, "Mixer Status", VirtualCdj.UPDATE_PORT),
@@ -408,6 +414,11 @@ public class Util {
     }
 
     /**
+     * The value sent in beat and status packets to represent playback at normal speed.
+     */
+    public static final long NEUTRAL_PITCH = 1048576;
+
+    /**
      * Convert a pitch value reported by a device to the corresponding percentage (-100% to +100%, where normal,
      * unadjusted pitch has the value 0%).
      *
@@ -415,7 +426,18 @@ public class Util {
      * @return the pitch as a percentage
      */
     public static double pitchToPercentage(long pitch) {
-        return (pitch - 1048567) / 10485.76;
+        return (pitch - NEUTRAL_PITCH) / (NEUTRAL_PITCH / 100.0);
+    }
+
+    /**
+     * Convert a human-oriented pitch percentage (-100% to +100%, where normal, unadjusted playback speed has the
+     * value 0%) to the raw numeric value used to represent it in beat and CDJ status packets.
+     *
+     * @param percentage the pitch as a percentage
+     * @return the value that would represent that pitch in a beat or CDJ status packet
+     */
+    public static long percentageToPitch(double percentage) {
+        return (Math.round(percentage * NEUTRAL_PITCH / 100.0) + NEUTRAL_PITCH);
     }
 
     /**
@@ -426,7 +448,7 @@ public class Util {
      * @return the implied pitch multiplier
      */
     public static double pitchToMultiplier(long pitch) {
-        return pitch / 1048576.0;
+        return pitch / (double) NEUTRAL_PITCH;
     }
 
     /**
@@ -496,7 +518,7 @@ public class Util {
      * given its unique name. Used with file canonical path names by {@link org.deepsymmetry.beatlink.data.CrateDigger}
      * to protect against race conditions where one thread creates the file and another thinks it has already been
      * downloaded and tries to parse the partial file.
-     *
+     * <p>
      * Once the exclusive lock is no longer needed, {@link #freeNamedLock(String)} should be called with the same
      * name so the lock can be garbage collected if no other threads are now using it.
      *
