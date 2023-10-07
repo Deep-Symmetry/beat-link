@@ -26,7 +26,7 @@ import java.net.DatagramPacket;
     private final int pitch;
 
     /**
-     * The track BPM found in the packet.
+     * The effective tempo found in the packet.
      */
     private final int bpm;
 
@@ -40,7 +40,7 @@ import java.net.DatagramPacket;
         trackLength = (int)Util.bytesToNumber(packetBytes, 0x24, 4);
         playbackPosition = (int)Util.bytesToNumber(packetBytes, 0x28, 4);
         pitch = (int)Util.percentageToPitch(Util.bytesToNumber(packetBytes, 0x2c, 4) / 100.0);
-        bpm = (int)Util.bytesToNumber(packetBytes, 0x38, 4);
+        bpm = (int)Util.bytesToNumber(packetBytes, 0x38, 4) * 10;
     }
 
     /**
@@ -74,14 +74,9 @@ import java.net.DatagramPacket;
         return pitch;
     }
 
-    /**
-     * Get the track BPM at the time of the beat. This is an integer representing the BPM times 100, so a track running
-     * at 120.5 BPM would be represented by the value 12050.
-     *
-     * @return the track BPM to two decimal places multiplied by 100
-     */
+    @Override
     public int getBpm() {
-        return bpm;
+        return (int)Math.round(bpm / Util.pitchToMultiplier(pitch));
     }
 
     @Override
@@ -123,7 +118,7 @@ import java.net.DatagramPacket;
 
     @Override
     public double getEffectiveTempo() {
-        return bpm * Util.pitchToMultiplier(pitch) / 100.0;
+        return bpm / 100.0;
     }
 
     /**
