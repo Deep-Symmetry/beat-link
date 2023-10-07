@@ -19,6 +19,7 @@ This change log follows the conventions of
 
 - The calculation of pitch percentages from pitch values found in CDJ status packets
   was slightly inaccurate because of two transposed digits in a calculation.
+- The code that detects pre-nexus CDJs was confused by the CDJ-3000.
 
 ### Changed
 

@@ -58,7 +58,7 @@ public abstract class DeviceUpdate {
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         deviceName = new String(packetBytes, 11, 20).trim();
-        preNexusCdj = deviceName.startsWith("CDJ") && deviceName.endsWith("0");
+        preNexusCdj = deviceName.startsWith("CDJ") && (deviceName.endsWith("900") || deviceName.endsWith("2000"));
         deviceNumber = Util.unsign(packetBytes[33]);
     }
 
