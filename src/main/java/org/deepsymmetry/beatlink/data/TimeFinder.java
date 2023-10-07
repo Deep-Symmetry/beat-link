@@ -435,7 +435,7 @@ public class TimeFinder extends LifecycleParticipant {
         public void received(DeviceUpdate update) {
             final int device = update.getDeviceNumber();
             TrackPositionUpdate lastPosition = positions.get(device);
-            if (update instanceof CdjStatus && lastPosition != null && !lastPosition.precise) {
+            if (update instanceof CdjStatus && (lastPosition == null || !lastPosition.precise)) {
                 updates.put(device, update);
                 final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(update);
                 final int beatNumber = ((CdjStatus) update).getBeatNumber();
