@@ -17,6 +17,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * track playback position based on the most recent information available, the time at which that was
  * received, and the playback pitch and direction that was in effect at that time.</p>
  *
+ * <p>Takes advantage of
+ * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/beats.html#absolute-position-packets">precise position
+ * packets</a> from the CDJ-3000 to support a much more precise and robust tracking of playback (and idle) position for
+ * those players.</p>
+ *
  * <p>Can only operate properly when track metadata and beat grids are available, as these are necessary to
  * convert beat numbers into track positions.</p>
  *
