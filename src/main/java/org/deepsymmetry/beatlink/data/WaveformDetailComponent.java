@@ -1123,12 +1123,13 @@ public class WaveformDetailComponent extends JComponent {
                     FontRenderContext renderContext = g2.getFontRenderContext();
                     LineMetrics metrics = g2.getFont().getLineMetrics(label, renderContext);
                     int textHeight = (int)Math.ceil(metrics.getAscent() + metrics.getDescent());
-                    Rectangle2D phraseRect = new Rectangle2D.Double(x1, axis + maxHeight + 2 - textHeight, x2 - x1, textHeight + 2);
-                    g2.fill(phraseRect);
 
                     Shape oldClip = g2.getClip();
-                    g2.setClip(phraseRect);
+                    g2.clipRect(x1, axis + maxHeight + 2 - textHeight, x2 - x1, textHeight + 2);
+                    Rectangle2D phraseRect = new Rectangle2D.Double(x1, axis + maxHeight + 2 - textHeight, x2 - x1, textHeight + 2);
+                    g2.fill(phraseRect);
                     g2.setColor(Util.buildColor(Util.phraseTextColor(entry), PHRASE_TRANSPARENCY));
+
                     // See if the label for this phrase needs to be adjusted to stay visible as we scroll.
                     int labelX = x1;
                     if (scrolledX > labelX) {  // We have scrolled past the start of the phrase.

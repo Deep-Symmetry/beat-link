@@ -24,6 +24,9 @@ This change log follows the conventions of
 - The code that detects pre-nexus CDJs was confused by the CDJ-3000.
 - Sometimes beat packets can come after a status packet at the very beginning of a
   new beat, and this used to cause the beat number to jump up and back down. 
+- The clipping region was not being set correctly when painting phrase information
+  at the bottom of the waveform detail component, which could cause the fill dots
+  to extend beyond the edge of the component in certain circumstances.
 
 ### Changed
 
