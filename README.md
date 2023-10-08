@@ -80,7 +80,8 @@ any project like it, on the same machine that you are running
 rekordbox, because they will compete over access to network ports.
 
 :white_check_mark: Beat Link seems to work great with CDJ-2000 Nexus
-gear, and works fairly well (with less information available) with
+and nxs2 gear, and release 7.3.0 supports CDJ-3000 features. 
+It works fairly well (with less information available) with
 older CDJ-2000s. It has also been reported to work with XDJ-1000 gear,
 and (starting with version 0.6.0) with the XDJ-XZ as well. If you can
 try it with anything else, *please* let us know what you learn in
@@ -91,12 +92,11 @@ could be improved, [open an
 Issue](https://github.com/Deep-Symmetry/beat-link/issues) or submit a
 pull request so we can all improve our understanding together.
 
-:construction: We are currently working on refining support for new
-features introduced with the CDJ-3000 and DJM-V10, including the fact
-that there can now be up to six devices online and on mixer channels.
-It seems to basically work with them, but taking advantage of things
-like the new higher-resolution position packets will take some time,
-since Deep Symmetry does not own any of this hardware, and so is
+:construction: We are regularly working on refining support for new
+features like those introduced with the CDJ-3000 and DJM-V10, including
+the fact that there can now be up to six devices online and on mixer
+and the new higher-resolution position packets. Progres takes time,
+since Deep Symmetry does not own all the hardware, and so is
 reliant on the help of others who can experiment and contribute
 traffic captures and information.
 
