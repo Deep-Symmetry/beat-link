@@ -20,6 +20,8 @@ This change log follows the conventions of
 - The calculation of pitch percentages from pitch values found in CDJ status packets
   was slightly inaccurate because of two transposed digits in a calculation.
 - The code that detects pre-nexus CDJs was confused by the CDJ-3000.
+- Sometimes beat packets can come after a status packet at the very beginning of a
+  new beat, and this used to cause the beat number to jump up and back down. 
 
 ### Changed
 

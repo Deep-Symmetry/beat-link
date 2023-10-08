@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -153,7 +154,7 @@ public class TimeFinder extends LifecycleParticipant {
         if (!update.playing) {
             return update.milliseconds;
         }
-        long elapsedMillis = (currentTimestamp - update.timestamp) / 1000000;
+        long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(currentTimestamp - update.timestamp);
         long moved = Math.round(update.pitch * elapsedMillis);
         if (update.reverse) {
             return update.milliseconds - moved;
@@ -366,9 +367,27 @@ public class TimeFinder extends LifecycleParticipant {
      * should be updated
      */
     private boolean interpolationsDisagree(TrackPositionUpdate lastUpdate, TrackPositionUpdate currentUpdate) {
-        long now = System.nanoTime();
-        return Math.abs(interpolateTimeSinceUpdate(lastUpdate, now) - interpolateTimeSinceUpdate(currentUpdate, now)) >
-                (lastUpdate.playing? slack.get() : 0);  // If we are not playing, any difference is real, from a precise update.
+        final long now = System.nanoTime();
+        final long skew = Math.abs(interpolateTimeSinceUpdate(lastUpdate, now) - interpolateTimeSinceUpdate(currentUpdate, now));
+        final long tolerance = lastUpdate.playing? slack.get() : 0;  // If we are not playing, any difference is real, from a precise update.
+        if (tolerance > 0 && skew > tolerance && logger.isDebugEnabled()) {
+            logger.debug("interpolationsDisagree: updates arrived {} ms apart, last {}interpolates to {}, current {}interpolates to {}, skew {}",
+                    TimeUnit.NANOSECONDS.toMillis(currentUpdate.timestamp - lastUpdate.timestamp),
+                    (lastUpdate.fromBeat? "(beat) " : ""), interpolateTimeSinceUpdate(lastUpdate, now),
+                    (currentUpdate.fromBeat? "(beat) " : ""), interpolateTimeSinceUpdate(currentUpdate, now), skew);
+        }
+        return skew > tolerance;
+    }
+
+    private boolean pitchesDiffer(TrackPositionUpdate lastUpdate, TrackPositionUpdate currentUpdate) {
+        final double delta = Math.abs(lastUpdate.pitch - currentUpdate.pitch);
+        if (lastUpdate.precise && (lastUpdate.fromBeat != currentUpdate.fromBeat)) {
+            // We're in a precise position packet situation, so beats send pitch differently
+            return delta > 0.001;
+        } else {
+            // Pitches are comparable, we can use a tight tolerance to detect changes
+            return delta > 0.000001;
+        }
     }
 
     /**
@@ -400,7 +419,7 @@ public class TimeFinder extends LifecycleParticipant {
                     final TrackPositionUpdate lastUpdate = entry.getValue();
                     if (lastUpdate == NO_INFORMATION ||
                             lastUpdate.playing != update.playing ||
-                            Math.abs(lastUpdate.pitch - update.pitch) > 0.000001 ||
+                            pitchesDiffer(lastUpdate, update) ||
                             interpolationsDisagree(lastUpdate, update)) {
                         if (trackPositionListeners.replace(entry.getKey(), entry.getValue(), update)) {
                             try {
@@ -545,7 +564,14 @@ public class TimeFinder extends LifecycleParticipant {
                         // into guessing a position for that player based on no valid information.
                         return;
                     } else {
-                        beatNumber = Math.min(lastPosition.beatNumber + 1, beatGrid.beatCount);  // Handle loop at end
+                        // See if we have moved past 1/5 of the way into the current beat.
+                        final long distanceIntoBeat = lastPosition.milliseconds - beatGrid.getTimeWithinTrack(lastPosition.beatNumber);
+                        final long farEnough = 6000000 / beat.getBpm() / 5;
+                        if (distanceIntoBeat >= farEnough) {  // We can consider this the start of a new beat
+                            beatNumber = Math.min(lastPosition.beatNumber + 1, beatGrid.beatCount);  // Handle loop at end
+                        } else {  // We must have received the beat packet out of order with respect to the first status in the beat.
+                            beatNumber = lastPosition.beatNumber;
+                        }
                     }
 
                     // We know the player is playing forward because otherwise we don't get beats.

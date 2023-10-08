@@ -114,6 +114,6 @@ public class TrackPositionUpdate {
         return "TrackPositionUpdate[timestamp:" + timestamp + ", milliseconds:" + milliseconds +
                 ", beatNumber:" + beatNumber + ", definitive:" + definitive + ", playing:" + playing +
                 ", pitch:" + String.format("%.2f", pitch) + ", reverse:" + reverse +
-                ", beatGrid:" + beatGrid + ", precise:" + precise + "]";
+                ", beatGrid:" + beatGrid + ", precise:" + precise + ", fromBeat:" + fromBeat + "]";
     }
 }
