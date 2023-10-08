@@ -62,6 +62,19 @@ public class TrackPositionUpdate {
     public final BeatGrid beatGrid;
 
     /**
+     * Returns the beat phase (where within a measure the current beat falls), a number from 1 to 4, corresponding
+     * to the beat being played at this playback position.
+     *
+     * @return where the current beat falls in a measure, or 0 if no beat grid was available
+     */
+    public int getBeatWithinBar() {
+        if (beatGrid != null) {
+            return beatGrid.getBeatWithinBar(beatNumber);
+        }
+        return 0;
+    }
+
+    /**
      * Constructor simply sets the fields of this immutable value class. Backwards-compatible version which
      * infers a {@code false} value for {@code precise}.
      *

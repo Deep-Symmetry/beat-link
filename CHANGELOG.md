@@ -14,6 +14,8 @@ This change log follows the conventions of
 - A new utility function to calculate a raw pitch integer value given a
   human-oriented pitch percentage value, because the new precise position
   packets sent by the CDJ-3000 use the humane approach.
+- A convenience method on `TrackPositionUpdate` which returns the beat within
+  bar represented by that track position.
 
 ### Fixed
 
