@@ -2,7 +2,7 @@
 
 set -e  # Exit if any command fails.
 
-# There is no point in doing this if we lack the SSH key to publish the guide.
+# There is no point in doing this if we lack the SSH key to publish the API documentation.
 if [ "$GUIDE_SSH_KEY" != "" ]; then
 
     # Publish the JavaDoc to the right place on the Deep Symmetry web server.
@@ -12,5 +12,5 @@ if [ "$GUIDE_SSH_KEY" != "" ]; then
         rsync -avz target/apidocs guides@deepsymmetry.org:/var/www/html/beatlink/snapshot
     fi
 else
-    echo "No SSH key present, not building user guide."
+    echo "No SSH key present, not building API documentation."
 fi
