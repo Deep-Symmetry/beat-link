@@ -9,7 +9,7 @@ equipment, and finding out details about the tracks that are playing.
 
 See
 [beat-link-trigger](https://github.com/Deep-Symmetry/beat-link-trigger#beat-link-trigger) and
-[beat-carabiner](https://github.com/Deep-Symmetry/beat-carabiner)
+[beat-carabiner-java](https://github.com/Deep-Symmetry/beat-carabiner-java)
 for examples of what you can do with this.
 
 [![License](https://img.shields.io/github/license/Deep-Symmetry/beat-link?color=blue)](#licenses)
@@ -28,7 +28,7 @@ dependency in a variety of tools, including Leiningen if you are using
 beat-link from Clojure, can be found in the **Dependency Information**
 section.
 
-Beat link uses [slf4j](http://www.slf4j.org/manual.html) to allow you
+Beat link uses [slf4j](https://www.slf4j.org/manual.html) to allow you
 to integrate it with whatever Java logging framework your project is
 using, so you will need to include the appropriate slf4j binding on
 your class path.
@@ -45,7 +45,7 @@ library from the
 put it on your project&rsquo;s class path, along with
 [electro](https://github.com/Deep-Symmetry/electro/releases),
 [crate-digger](https://github.com/Deep-Symmetry/crate-digger/releases),
-[`slf4j-api.jar`](http://www.slf4j.org/download.html) and the slf4j
+[`slf4j-api.jar`](https://www.slf4j.org/download.html) and the slf4j
 binding to the logging framework you would like to use.
 
 ![Create library jar](https://github.com/Deep-Symmetry/beat-link/workflows/Create%20library%20jar/badge.svg)
@@ -109,7 +109,7 @@ made programs like Beat Link possible.
 
 ## Getting Help
 
-<a href="http://zulip.com"><img align="right" alt="Zulip logo"
+<a href="https://zulip.com"><img align="right" alt="Zulip logo"
  src="assets/zulip-icon-circle.svg" width="128" height="128"></a>
 
 Deep Symmetry&rsquo;s projects are generously sponsored with hosting
@@ -122,12 +122,12 @@ own ideas.
 
 ## Usage
 
-See the [API Documentation](http://deepsymmetry.org/beatlink/apidocs/)
+See the [API Documentation](https://deepsymmetry.org/beatlink/apidocs/)
 for full details, but here is a nutshell guide:
 
 ### Finding Devices
 
-The [`DeviceFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html)
+The [`DeviceFinder`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html)
 class allows you to find DJ Link devices on your network. To activate it:
 
 ```java
@@ -145,15 +145,15 @@ obtain the list of them by calling:
   DeviceFinder.getInstance.getCurrentDevices();
 ```
 
-This returns a list of [`DeviceAnnouncement`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceAnnouncement.html)
+This returns a list of [`DeviceAnnouncement`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceAnnouncement.html)
 objects describing the devices that were heard from. To find out
 immediately when a new device is noticed, or when an existing device
 disappears, you can use
-[`DeviceFinder.getInstance().addDeviceAnnouncementListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#addDeviceAnnouncementListener-org.deepsymmetry.beatlink.DeviceAnnouncementListener-).
+[`DeviceFinder.getInstance().addDeviceAnnouncementListener()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#addDeviceAnnouncementListener-org.deepsymmetry.beatlink.DeviceAnnouncementListener-).
 
 ### Responding to Beats
 
-The [`BeatFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/BeatFinder.html)
+The [`BeatFinder`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/BeatFinder.html)
 class can notify you whenever any DJ Link devices on your network report
 the start of a new beat:
 
@@ -172,32 +172,32 @@ import org.deepsymmetry.beatlink.BeatFinder;
   BeatFinder.getInstance().start();
 ```
 
-The [`Beat`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html)
+The [`Beat`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html)
 object you receive will contain useful information about the state of the
 device (such as tempo) at the time of the beat.
 
 > To fully understand how to respond to the beats, you will want to start
-> [`VirtualCdj`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html)
+> [`VirtualCdj`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html)
 > as described in the next section, so it can tell you important
 > details about the states of all the players, such as which one is
 > the current tempo master. Once that is running, you can pass the `Beat`
-> object to [`VirtualCdj.getLatestStatusFor(beat)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getLatestStatusFor-org.deepsymmetry.beatlink.DeviceUpdate-)
+> object to [`VirtualCdj.getLatestStatusFor(beat)`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getLatestStatusFor-org.deepsymmetry.beatlink.DeviceUpdate-)
 > and get back the most recent status update received from the device
 > reporting the beat.
 
 With just the `Beat` object you can call
-[`getBpm()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getBpm--)
+[`getBpm()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getBpm--)
 to learn the track BPM when the beat occurred,
-[`getPitch()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getPitch--)
+[`getPitch()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getPitch--)
 to learn the current pitch (speed) of the player at that moment, and
-[`getEffectiveTempo()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getEffectiveTempo--)
+[`getEffectiveTempo()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getEffectiveTempo--)
 to find the combined effect of pitch and track BPM&mdash;the beats per minute
 currently being played. You can also call
-[`getBeatWithinBar()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getBeatWithinBar--)
+[`getBeatWithinBar()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#getBeatWithinBar--)
 to see where this beat falls within a measure of music.
 
 If the `VirtualCdj` is active, you can also call the `Beat` object&rsquo;s
-[`isTempoMaster()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#isTempoMaster--)
+[`isTempoMaster()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html#isTempoMaster--)
 method to find out if it was sent by the device that is currently in
 control of the master tempo. (If `VirtualCdj` was not started, this
 method will throw an `IllegalStateException`.)
@@ -223,38 +223,38 @@ import org.deepsymmetry.beatlink.VirtualCdj;
 > The Virtual player is normally created using an unused device number
 > in the range 5&ndash;15 and the name `beat-link`, and announces its
 > presence every second and a half. These values can be changed with
-> [`setDeviceNumber()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setDeviceNumber-byte-),
-> [`setUseStandardPlayerNumber()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setUseStandardPlayerNumber-boolean-),
-> [`setDeviceName()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setDeviceName-java.lang.String-),
+> [`setDeviceNumber()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setDeviceNumber-byte-),
+> [`setUseStandardPlayerNumber()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setUseStandardPlayerNumber-boolean-),
+> [`setDeviceName()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setDeviceName-java.lang.String-),
 > and
-> [`setAnnounceInterval()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setAnnounceInterval-int-).
+> [`setAnnounceInterval()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setAnnounceInterval-int-).
 
 As soon as it is running, you can pass any of the device announcements returned by
-[`DeviceFinder.getCurrentDevices()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#getCurrentDevices--)
-to [`getLatestStatusFor(device)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getLatestStatusFor-org.deepsymmetry.beatlink.DeviceAnnouncement-)
+[`DeviceFinder.getCurrentDevices()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceFinder.html#getCurrentDevices--)
+to [`getLatestStatusFor(device)`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getLatestStatusFor-org.deepsymmetry.beatlink.DeviceAnnouncement-)
 and get back the most recent status update received from that device.
 The return value will either be a
-[`MixerStatus`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MixerStatus.html)
-or a [`CdjStatus`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/CdjStatus.html),
+[`MixerStatus`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MixerStatus.html)
+or a [`CdjStatus`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/CdjStatus.html),
 containing a great deal of useful information.
 
 > As described [above](#responding-to-beats), you can do the same thing
-> with the `Beat` objects returned by [`BeatFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/BeatFinder.html).
+> with the `Beat` objects returned by [`BeatFinder`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/BeatFinder.html).
 
 In addition to asking about individual devices, you can find out which
 device is the current tempo master by calling
-[`getTempoMaster()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getTempoMaster--),
+[`getTempoMaster()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getTempoMaster--),
 and learn the current master tempo by calling
-[`VirtualCdj.getMasterTempo()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getMasterTempo--).
+[`VirtualCdj.getMasterTempo()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getMasterTempo--).
 
 If you want to be notified when either of these values change, or whenever
 the player that is the current tempo master starts a new beat, you can use
-[`addMasterListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#addMasterListener-org.deepsymmetry.beatlink.MasterListener-).
+[`addMasterListener()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#addMasterListener-org.deepsymmetry.beatlink.MasterListener-).
 
 If you are building an interface that wants to display as much detail
 as possible, you can request every device status update
 as soon as it is received, using
-[`addUpdateListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#addUpdateListener-org.deepsymmetry.beatlink.DeviceUpdateListener-).
+[`addUpdateListener()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#addUpdateListener-org.deepsymmetry.beatlink.DeviceUpdateListener-).
 
 ### Player Remote Control
 
@@ -262,16 +262,16 @@ In addition to learning about what is happening on other players, the
 `VirtualCdj` can ask them to do a limited number of things. You can
 tell them to load a track from any media currently mounted in a player
 by calling
-[`sendLoadTrackCommand()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendLoadTrackCommand-int-int-int-org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot-org.deepsymmetry.beatlink.CdjStatus.TrackType-).
+[`sendLoadTrackCommand()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendLoadTrackCommand-int-int-int-org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot-org.deepsymmetry.beatlink.CdjStatus.TrackType-).
 You can cause them to start playing (if they are currently at the cue
 position), or stop playing and return to the cue position, by calling
-[`sendFaderStartCommand()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendFaderStartCommand-java.util.Set-java.util.Set-).
+[`sendFaderStartCommand()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendFaderStartCommand-java.util.Set-java.util.Set-).
 
 You can tell players to turn Sync mode on or off by calling
-[`sendSyncModeCommand()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendSyncModeCommand-int-boolean-),
+[`sendSyncModeCommand()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendSyncModeCommand-int-boolean-),
 and if there is no DJM on the network you can tell them that their
 channels are on or off the air by sending
-[`sendOnAirCommand()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendOnAirCommand-java.util.Set-).
+[`sendOnAirCommand()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendOnAirCommand-java.util.Set-).
 (You can do that even with a DJM present, but your command will
 quickly be overridden by the next one sent by the DJM.)
 
@@ -279,12 +279,12 @@ quickly be overridden by the next one sent by the DJM.)
 
 You can ask the `VirtualCdj` to find out details about the media
 mounted in a player's media slot by calling
-[`sendMediaQuery()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendMediaQuery-org.deepsymmetry.beatlink.data.SlotReference-).
+[`sendMediaQuery()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#sendMediaQuery-org.deepsymmetry.beatlink.data.SlotReference-).
 In order to receive the response, you have to previously have
 registered a
-[`MediaDetailsListener`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MediaDetailsListener.html)
+[`MediaDetailsListener`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MediaDetailsListener.html)
 instance using
-[`addMediaDetailsListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#addMediaDetailsListener-org.deepsymmetry.beatlink.MediaDetailsListener-);
+[`addMediaDetailsListener()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#addMediaDetailsListener-org.deepsymmetry.beatlink.MediaDetailsListener-);
 in general it's easier to just let the `MetadataFinder` take care of
 this for you as described [below](#media-details).
 
@@ -306,34 +306,34 @@ described [above](#getting-device-details).
 > not being used by any actual CDJ.
 
 As long as that is true, you can turn on this feature by calling
-[`setSendingStatus()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setSendingStatus-boolean-).
+[`setSendingStatus()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setSendingStatus-boolean-).
 
 Once it is sending status, you can adjust details about what it sends
 by calling
-[`setTempo()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setTempo-double-),
-[`setSynced()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setSynced-boolean-),
-[`setOnAir()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setOnAir-boolean-),
+[`setTempo()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setTempo-double-),
+[`setSynced()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setSynced-boolean-),
+[`setOnAir()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setOnAir-boolean-),
 and
-[`jumpToBeat()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#jumpToBeat-int-).
+[`jumpToBeat()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#jumpToBeat-int-).
 To simulate playing a track, call
-[`setPlaying()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setPlaying-boolean-).
+[`setPlaying()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setPlaying-boolean-).
 During simulated playback, beat packets will sent at appropriate times
 for the current tempo, and the beat number will advance appropriately.
 You can find the current simulated playback time by calling
-[`getPlaybackPosition()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getPlaybackPosition--).
+[`getPlaybackPosition()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getPlaybackPosition--).
 
 ### Appointing the Tempo Master
 
 As long as the `VirtualCdj` is sending status packets, you can tell
 players to become Tempo Master by calling
-[`appointTempoMaster()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#appointTempoMaster-int-),
+[`appointTempoMaster()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#appointTempoMaster-int-),
 or have it become the Master itself by calling
-[`becomeTempoMaster()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#becomeTempoMaster--).
+[`becomeTempoMaster()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#becomeTempoMaster--).
 While acting as tempo master, any tempo changes you make by calling
-[`setTempo()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setTempo-double-)
+[`setTempo()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setTempo-double-)
 will be followed by any players that are in Sync mode, and if the
 `VirtualCdj` is playing (and thus sending beats) you can call
-[`adjustPlaybackPosition()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#adjustPlaybackPosition-int-)
+[`adjustPlaybackPosition()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#adjustPlaybackPosition-int-)
 to keep the players' beat grids aligned with an external sync source
 (this is how Beat Link Trigger aligns CDJs with Ableton Link).
 
@@ -388,29 +388,29 @@ import org.deepsymmetry.beatlink.data.CrateDigger;
 
 Once the `MetadataFinder`and `CrateDigger` are running, you can access
 all the metadata for currently-loaded tracks by calling
-[`MetadataFinder.getInstance().getLoadedTracks()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLoadedTracks--),
+[`MetadataFinder.getInstance().getLoadedTracks()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLoadedTracks--),
 which returns a `Map` from deck references (player numbers and hot cue
 numbers) to
-[`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
+[`TrackMetadata`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
 objects describing the track currently loaded in that player slot. You
 can also call [`MetadataFinder.getLatestMetadataFor(int
-player)`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLatestMetadataFor-int-)
+player)`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getLatestMetadataFor-int-)
 to find the metadata for the track loaded in the playback deck of the
 specified player. See the
-[`TrackMetadata`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
+[`TrackMetadata`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackMetadata.html)
 API documentation for all the details it provides.
 
 With the `MetadataFinder` running, you can also start the `ArtFinder`,
 and use its
-can call its [`getLoadedArt()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/ArtFinder.html#getLoadedArt--)
-or [`getLatestArtFor()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/ArtFinder.html#getLatestArtFor-int-)
+can call its [`getLoadedArt()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/ArtFinder.html#getLoadedArt--)
+or [`getLatestArtFor()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/ArtFinder.html#getLatestArtFor-int-)
 methods to get the artwork images associated with the tracks, if there
 are any.
 
 ### Getting Other Track Information
 
 You can use objects in the
-[`org.deepsymmetry.beatlink.data`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/package-summary.html)
+[`org.deepsymmetry.beatlink.data`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/package-summary.html)
 package to get beat grids and track waveform data, and even to create
 Swing UI components to display the preview and detailed waveform,
 reflecting the current playback position.
@@ -426,26 +426,26 @@ Status window from Beat Link Trigger:
 While the `MetadataFinder` is running, it also keeps track of which
 players have media mounted in their slots. You can access that
 information by calling
-[`getMountedMediaSlots()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getMountedMediaSlots--).
+[`getMountedMediaSlots()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getMountedMediaSlots--).
 If you want to know immediately when slots mount and unmount, you can
 register a
-[`MountListener`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MountListener.html)
+[`MountListener`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MountListener.html)
 using
-[`addMountListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#addMountListener-org.deepsymmetry.beatlink.data.MountListener-).
+[`addMountListener()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#addMountListener-org.deepsymmetry.beatlink.data.MountListener-).
 You can also find
-[useful information](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MediaDetails.html)
+[useful information](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/MediaDetails.html)
 about any mounted media database by calling
-[`getMountedMediaDetails()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getMountedMediaDetails--)
+[`getMountedMediaDetails()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getMountedMediaDetails--)
 or
-[`getMediaDetailsFor()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getMediaDetailsFor-org.deepsymmetry.beatlink.data.SlotReference-).
+[`getMediaDetailsFor()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MetadataFinder.html#getMediaDetailsFor-org.deepsymmetry.beatlink.data.SlotReference-).
 
 ### Loading Menus
 
 You can explore the hierarchy of menus served by a player for one of
 its mounted media slots using the
-[`MenuLoader`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MenuLoader.html),
+[`MenuLoader`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MenuLoader.html),
 starting with
-[`requestRootMenuFrom()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MenuLoader.html#requestRootMenuFrom-org.deepsymmetry.beatlink.data.SlotReference-int-)
+[`requestRootMenuFrom()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/MenuLoader.html#requestRootMenuFrom-org.deepsymmetry.beatlink.data.SlotReference-int-)
 to determine what menus are actually available.
 
 > :warning: The only way to get menus is by talking to the `dbserver`
@@ -465,7 +465,7 @@ to determine what menus are actually available.
 If you want to know when a particular track has been loaded on a player,
 independent of the specific rekordbox export media it was loaded from,
 you can start the
-[`SignatureFinder`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html),
+[`SignatureFinder`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html),
 and it will do most of the work for you, with the help of the
 `MetadataFinder`, `WaveformFinder`, and `BeatGridFinder`. Whenever a
 rekordbox track is loaded and metadata for it has been obtained, it will
@@ -476,19 +476,19 @@ recognize that track (for example, using it as a key in a hash map to
 find cues that should run when that track is playing).
 
 You can access the signatures of all loaded rekordbox tracks by calling
-[`getSignatures()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html#getSignatures--),
+[`getSignatures()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html#getSignatures--),
 or look up the signature for a track on a specific player with
-[`getLatestSignatureFor()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html#getLatestSignatureFor-int-).
+[`getLatestSignatureFor()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html#getLatestSignatureFor-int-).
 If you want to know immediately when signatures are available for loaded
-tracks, you can register a [`SignatureListener`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureListener.html)
-using [`addSignatureListener()`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html#addSignatureListener-org.deepsymmetry.beatlink.data.SignatureListener-).
+tracks, you can register a [`SignatureListener`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureListener.html)
+using [`addSignatureListener()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/SignatureFinder.html#addSignatureListener-org.deepsymmetry.beatlink.data.SignatureListener-).
 
 ## An Example
 
 Here is the source for `Example.java`, a small class that demonstrates
 how to watch for changes related to the tempo master (and also shows
 that printing
-[`DeviceUpdate`](http://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceUpdate.html)
+[`DeviceUpdate`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/DeviceUpdate.html)
 objects can be a useful diagnostic aid):
 
 ```java
@@ -557,7 +557,7 @@ This project is being developed with the help of
 [dysentery](https://github.com/Deep-Symmetry/dysentery). Check that
 out for details of the packets and protocol, and for ways you can help
 figure out more. You can also view [Snapshot API
-Documentation](http://deepsymmetry.org/beatlink/snapshot/apidocs/) to
+Documentation](https://deepsymmetry.org/beatlink/snapshot/apidocs/) to
 see what is available in the latest preview release.
 
 ### Funding
@@ -588,10 +588,10 @@ that’s fantastic! Please take a look at the
 
 ## Licenses
 
-<a href="http://deepsymmetry.org"><img align="right" alt="Deep Symmetry"
+<a href="https://deepsymmetry.org"><img align="right" alt="Deep Symmetry"
  src="assets/DS-logo-github.png" width="250" height="150"></a>
 
-Copyright © 2016–2023 [Deep Symmetry, LLC](http://deepsymmetry.org)
+Copyright © 2016–2023 [Deep Symmetry, LLC](https://deepsymmetry.org)
 
 Distributed under the [Eclipse Public License
 2.0](https://opensource.org/licenses/EPL-2.0). By using this software
@@ -607,6 +607,6 @@ used for communicating with the NFSv2 servers on players,
 is licensed under the [GNU Library General
 Public License, version 2](https://opensource.org/licenses/LGPL-2.0).
 
-The [Kaitai Struct](http://kaitai.io) Java runtime, used for parsing
+The [Kaitai Struct](https://kaitai.io) Java runtime, used for parsing
 rekordbox exports and media analysis files, is licensed under the
 [MIT License](https://opensource.org/licenses/MIT).

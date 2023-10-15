@@ -53,10 +53,10 @@ Beat Link is primarily maintained by [@brunchboy][brunchboy].
 
 ## License
 
-<a href="http://deepsymmetry.org"><img align="right" alt="Deep Symmetry"
+<a href="https://deepsymmetry.org"><img align="right" alt="Deep Symmetry"
  src="assets/DS-logo-github.png" width="250" height="150"></a>
 
-Copyright © 2016–2022 [Deep Symmetry, LLC](http://deepsymmetry.org)
+Copyright © 2016–2023 [Deep Symmetry, LLC](http://deepsymmetry.org)
 
 Distributed under the [Eclipse Public License
 2.0](https://opensource.org/licenses/EPL-2.0). By using this software
