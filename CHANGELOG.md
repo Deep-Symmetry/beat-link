@@ -11,6 +11,9 @@ This change log follows the conventions of
 - Precise position packets sent by CDJ-3000s are processed and used to keep
   track of the exact playback position of these players with much higher fidelity
   than is possible for other players, even when they are not currently playing.
+- Recognition of dynamic loop information sent by CDJ-3000s, including display
+  of such loops in the WaveformDetailComoponent. This means that even loops which
+  do not exist within the track metadata can be displayed on CDJ-3000s.
 - A new utility function to calculate a raw pitch integer value given a
   human-oriented pitch percentage value, because the new precise position
   packets sent by the CDJ-3000 use the humane approach.

@@ -949,6 +949,17 @@ public class WaveformDetailComponent extends JComponent {
             }
         }
 
+        // Also draw loop regions for any players that are actively playing loops.
+        g.setColor(LOOP_BACKGROUND);
+        for (final PlaybackState state : playbackStateMap.values()) {
+            final CdjStatus status = (CdjStatus) VirtualCdj.getInstance().getLatestStatusFor(state.player);
+            if (status.getLoopEnd() > 0) {
+                final int start = millisecondsToX(status.getLoopStart());
+                final int end = millisecondsToX(status.getLoopEnd());
+                g.fillRect(start, axis - maxHeight, end - start, maxHeight * 2);
+            }
+        }
+
         int lastBeat = 0;
         if (beatGrid.get() != null) {  // Find what beat was represented by the column just before the first we draw.
             lastBeat = beatGrid.get().findBeatAtTime(Util.halfFrameToTime(getSegmentForX(clipRect.x - 1)));

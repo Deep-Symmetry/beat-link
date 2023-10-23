@@ -29,9 +29,9 @@ public class CdjStatus extends DeviceUpdate {
      * master role to anther device, labeled <i>M<sub>h</sub></i> in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      *
-     * Normally it holds the value 0xff, but during a tempo master hand-off, it holds
+     * <p>Normally it holds the value 0xff, but during a tempo master hand-off, it holds
      * the device number of the incoming tempo master, until that device asserts the master state, after which this
-     * device will stop doing so.
+     * device will stop doing so.</p>
      */
     public static final int MASTER_HAND_OFF = 0x9f;
 
@@ -1083,6 +1083,56 @@ public class CdjStatus extends DeviceUpdate {
      */
     public long getPacketNumber() {
         return Util.bytesToNumber(packetBytes, 200, 4);
+    }
+
+    /**
+     * Checks whether the packet is large enough (from a new enough player, such as the CDJ-3000) that it
+     * can report the player's currently active loop boundaries.
+     *
+     * @return {@code true} if the loop-related methods can ever return nonzero values
+     */
+    public boolean canReportLooping() {
+        return packetBytes.length >= 0x1ca;
+    }
+
+    /**
+     * If there is an active loop (and {@link #canReportLooping()} is {@code true}), returns the number of beats
+     * in the loop.
+     *
+     * @return 0 if no loop is active (or can be reported), or the number of beats being looped over
+     */
+    public int getActiveLoopBeats() {
+        if (canReportLooping()) {
+            return (int)Util.bytesToNumber(packetBytes, 0x1c8, 2);
+        }
+        return 0;
+    }
+
+    /**
+     * If there is an active loop (and {@link #canReportLooping()} is {@code true}), returns position within
+     * the track (in milliseconds) at which the loop begins. Because this can conceivably be zero even when a loop
+     * is active, code should check {@link  #getLoopEnd()} to determine that loop information is being reported.
+     *
+     * @return 0 if no loop is active (or can be reported), or the millisecond time at which the loop starts
+     */
+    public long getLoopStart() {
+        if (canReportLooping()) {
+            return Util.bytesToNumber(packetBytes, 0x1b6, 4) * 65536 / 1000;
+        }
+        return 0;
+    }
+
+    /**
+     * If there is an active loop (and {@link #canReportLooping()} is {@code true}), returns position within
+     * the track (in milliseconds) at which the loop ends.
+     *
+     * @return 0 if no loop is active (or can be reported), or the millisecond time at which the loop ends
+     */
+    public long getLoopEnd() {
+        if (canReportLooping()) {
+            return Util.bytesToNumber(packetBytes, 0x1be, 4) * 65536 / 1000;
+        }
+        return 0;
     }
 
     @Override
