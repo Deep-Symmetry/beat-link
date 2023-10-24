@@ -23,10 +23,12 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Provides a convenient way to draw waveform detail in a user interface, including annotations like the
- * location at the current time, and cue point markers (if you supply {@link TrackMetadata} so their location
- * can be determined), and beat markers (if you also supply a {@link BeatGrid}). Can also
+ * location at the current time, and cue point markers and loops (if you supply {@link TrackMetadata} so their
+ * location can be determined), and beat markers (if you also supply a {@link BeatGrid}). Can also
  * be configured to automatically update itself to reflect the state of a specified player, showing the current
- * track, playback state, and position, as long as it is able to load appropriate metadata.
+ * track, playback state, and position, as long as it is able to load appropriate metadata. When tracking a live
+ * player, if that player is a CDJ-3000, dynamic loops (set up on the fly by the DJ) are also displayed, and
+ * inactive loops from the track metadata are drawn in gray rather than orange.
  */
 @SuppressWarnings("WeakerAccess")
 public class WaveformDetailComponent extends JComponent {
@@ -73,6 +75,8 @@ public class WaveformDetailComponent extends JComponent {
      * The color drawn behind sections of the waveform which represent loops.
      */
     private static final Color LOOP_BACKGROUND = new Color(204, 121, 29);
+
+    private static final Color INACTIVE_LOOP_BACKGROUND = new Color(80, 80, 80);
 
     /**
      * The transparency with which phrase bars are drawn.
@@ -926,6 +930,21 @@ public class WaveformDetailComponent extends JComponent {
        return entry.getColor();
     }
 
+    /**
+     * Checks whether any players we are tracking are capable of sending information about current loop status.
+     * This is safe to call even when not online, and will simply return {@code false} in that circumstance.
+     *
+     * @return whether we have seen a status packet from a tracked player that is a CDJ-3000 or equivalent
+     */
+    public boolean isDynamicLoopDataAvailable() {
+        if (!VirtualCdj.getInstance().isRunning()) return false;
+        for (final PlaybackState state : playbackStateMap.values()) {
+            final CdjStatus status = (CdjStatus) VirtualCdj.getInstance().getLatestStatusFor(state.player);
+            if (status.canReportLooping()) return true;
+        }
+        return false;
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         Rectangle clipRect = g.getClipBounds();  // We only need to draw the part that is visible or dirty
@@ -935,11 +954,13 @@ public class WaveformDetailComponent extends JComponent {
         CueList currentCueList = cueList.get();  // Avoid crashes if the value changes mid-render.
         RekordboxAnlz.SongStructureTag currentSongStructure = songStructure.get();  // Same.
 
-        // Draw the loop regions of any visible loops
+        // Draw the loop regions of any visible loops in the tracks. If there is a player sending us dynamic
+        // loop information, draw them in gray to distinguish them from known-active loops.
+        final boolean drawingDynamicLoops = isDynamicLoopDataAvailable();
         final int axis = getHeight() / 2;
         final int maxHeight = axis - VERTICAL_MARGIN;
         if (currentCueList != null) {
-            g.setColor(LOOP_BACKGROUND);
+            g.setColor(drawingDynamicLoops? INACTIVE_LOOP_BACKGROUND : LOOP_BACKGROUND);
             for (CueList.Entry entry : currentCueList.entries) {
                 if (entry.isLoop) {
                     final int start = millisecondsToX(entry.cueTime);
@@ -948,15 +969,16 @@ public class WaveformDetailComponent extends JComponent {
                 }
             }
         }
-
-        // Also draw loop regions for any players that are actively playing loops.
-        g.setColor(LOOP_BACKGROUND);
-        for (final PlaybackState state : playbackStateMap.values()) {
-            final CdjStatus status = (CdjStatus) VirtualCdj.getInstance().getLatestStatusFor(state.player);
-            if (status.getLoopEnd() > 0) {
-                final int start = millisecondsToX(status.getLoopStart());
-                final int end = millisecondsToX(status.getLoopEnd());
-                g.fillRect(start, axis - maxHeight, end - start, maxHeight * 2);
+        if (drawingDynamicLoops) {
+            // Draw dynamic loop information reported by players actually looping
+            g.setColor(LOOP_BACKGROUND);
+            for (final PlaybackState state : playbackStateMap.values()) {
+                final CdjStatus status = (CdjStatus) VirtualCdj.getInstance().getLatestStatusFor(state.player);
+                if (status.getLoopEnd() > 0) {
+                    final int start = millisecondsToX(status.getLoopStart());
+                    final int end = millisecondsToX(status.getLoopEnd());
+                    g.fillRect(start, axis - maxHeight, end - start, maxHeight * 2);
+                }
             }
         }
 

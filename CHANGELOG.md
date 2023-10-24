@@ -13,7 +13,8 @@ This change log follows the conventions of
   than is possible for other players, even when they are not currently playing.
 - Recognition of dynamic loop information sent by CDJ-3000s, including display
   of such loops in the WaveformDetailComoponent. This means that even loops which
-  do not exist within the track metadata can be displayed on CDJ-3000s.
+  do not exist within the track metadata can be displayed on CDJ-3000s, and for
+  such players inactive loops can be drawn in gray rather than the usual orange.
 - A new utility function to calculate a raw pitch integer value given a
   human-oriented pitch percentage value, because the new precise position
   packets sent by the CDJ-3000 use the humane approach.
