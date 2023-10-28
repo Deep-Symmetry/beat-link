@@ -282,6 +282,10 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
                     <release>8</release>
+                    <links>
+                      <link>http://deepsymmetry.org/electro/apidocs/</link>
+                      <link>http://deepsymmetry.org/cratedigger/apidocs/</link>
+                    </links>
                     <additionalOptions>-html5</additionalOptions>
                     <additionalJOption>--no-module-directories</additionalJOption>
                     <additionalJOption>--allow-script-in-comments</additionalJOption>
