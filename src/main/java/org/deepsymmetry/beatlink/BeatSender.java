@@ -85,7 +85,7 @@ class BeatSender {
                         //noinspection BusyWait
                         Thread.sleep(sleepMilliseconds - SLEEP_THRESHOLD);
                     } catch (InterruptedException e) {
-                        logger.info("BeatSender thread interrupted, re-evaluating time until next beat.");
+                        logger.debug("BeatSender thread interrupted, re-evaluating time until next beat.");
                     }
                 } else {  // Close enough to busy-wait until it is time to send the beat.
                     final long targetTime = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(sleepMilliseconds);
