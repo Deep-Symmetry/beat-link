@@ -23,6 +23,9 @@ This change log follows the conventions of
 
 ### Fixed
 
+- We now send startup and keep-alive packets in a way that is compatible even with
+  CDJ-3000s that are using player numbers 5 and 6 (they no longer display a warning
+  dialog nor drop off the network).
 - The calculation of pitch percentages from pitch values found in CDJ status packets
   was slightly inaccurate because of two transposed digits in a calculation.
 - The code that detects pre-nexus CDJs was confused by the CDJ-3000.
