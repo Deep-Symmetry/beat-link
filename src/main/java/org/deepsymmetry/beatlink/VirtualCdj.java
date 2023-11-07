@@ -237,7 +237,7 @@ public class VirtualCdj extends LifecycleParticipant {
         if (name.getBytes().length > DEVICE_NAME_LENGTH) {
             throw new IllegalArgumentException("name cannot be more than " + DEVICE_NAME_LENGTH + " bytes long");
         }
-        Arrays.fill(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        Arrays.fill(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_OFFSET + DEVICE_NAME_LENGTH, (byte)0);
         System.arraycopy(name.getBytes(), 0, keepAliveBytes, DEVICE_NAME_OFFSET, name.getBytes().length);
     }
 

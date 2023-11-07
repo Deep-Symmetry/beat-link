@@ -31,6 +31,9 @@ This change log follows the conventions of
 - The clipping region was not being set correctly when painting phrase information
   at the bottom of the waveform detail component, which could cause the fill dots
   to extend beyond the edge of the component in certain circumstances.
+- The code to clear out the device name buffer when setting a new device name for
+  the `VirtualCdj` was using the wrong value for `toIndex` (I had thought the argument
+  was a length instead), so long names were not being properly cleared out.
 
 ### Changed
 
