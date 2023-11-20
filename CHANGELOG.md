@@ -20,6 +20,8 @@ This change log follows the conventions of
   packets sent by the CDJ-3000 use the humane approach.
 - A convenience method on `TrackPositionUpdate` which returns the beat within
   bar represented by that track position.
+- We can now recognize loaded menu items that represent a track title plus
+  musical key.
 
 ### Fixed
 
@@ -42,6 +44,9 @@ This change log follows the conventions of
 
 - The `TrackPositionUpdate` class has a new field, `precise`, which reports whether
   we are receiving precise position updates from the player.
+- When determining the item type of a menu item response message, we now mask the
+  menu item type (field 7) with `0xffff`, because CDJ-3000s seem to send additional
+  (as yet unknown) information in the higher-order bytes.
 
 
 ## [7.2.0] - 2023-08-13

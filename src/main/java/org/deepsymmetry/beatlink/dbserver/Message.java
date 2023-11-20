@@ -691,7 +691,12 @@ public class Message {
          */
         TRACK_TITLE_AND_LABEL (0x0e04),
         /**
-         * Reports the title and bit rate of a track, return when listing playlists or all tracks sorted by bit rate,
+         * Reports the title and key of a track, returned when listing playlists or all tracks sorted by key,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
+         */
+        TRACK_TITLE_AND_KEY (0xf04),
+        /**
+         * Reports the title and bit rate of a track, returned when listing playlists or all tracks sorted by bit rate,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
         TRACK_TITLE_AND_RATE (0x1004),
@@ -1073,7 +1078,7 @@ public class Message {
             throw new IllegalArgumentException("getMenuItemType() can only be used with MENU_ITEM responses.");
         }
         final NumberField type = (NumberField)arguments.get(6);
-        final MenuItemType result = MENU_ITEM_TYPE_MAP.get(type.getValue());
+        final MenuItemType result = MENU_ITEM_TYPE_MAP.get(type.getValue() & 0xffff);
         if (result == null) {
             return MenuItemType.UNKNOWN;
         }
