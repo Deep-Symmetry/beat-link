@@ -6,20 +6,27 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [7.3.0] - 2023-11-24
+
 ### Added
 
 - Precise position packets sent by CDJ-3000s are processed and used to keep
   track of the exact playback position of these players with much higher fidelity
   than is possible for other players, even when they are not currently playing.
 - Recognition of dynamic loop information sent by CDJ-3000s, including display
-  of such loops in the WaveformDetailComoponent. This means that even loops which
-  do not exist within the track metadata can be displayed on CDJ-3000s, and for
-  such players inactive loops can be drawn in gray rather than the usual orange.
+  of such loops in the
+  [`WaveformDetailComoponent`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/WaveformDetailComponent.html).
+  This means that even loops which do not exist within the track metadata can be
+  displayed on CDJ-3000s, and for such players inactive loops can be drawn in gray
+  rather than the usual orange.
 - A new utility function to calculate a raw pitch integer value given a
   human-oriented pitch percentage value, because the new precise position
   packets sent by the CDJ-3000 use the humane approach.
-- A convenience method on `TrackPositionUpdate` which returns the beat within
-  bar represented by that track position.
+- A convenience method on
+  [`TrackPositionUpdate`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackPositionUpdate.html)
+  which returns the beat within bar represented by that track position.
 - We can now recognize loaded menu items that represent a track title plus
   musical key.
 
@@ -37,12 +44,15 @@ This change log follows the conventions of
   at the bottom of the waveform detail component, which could cause the fill dots
   to extend beyond the edge of the component in certain circumstances.
 - The code to clear out the device name buffer when setting a new device name for
-  the `VirtualCdj` was using the wrong value for `toIndex` (I had thought the argument
+  the [`VirtualCdj`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html)
+  was using the wrong value for `toIndex` (I had thought the argument
   was a length instead), so long names were not being properly cleared out.
 
 ### Changed
 
-- The `TrackPositionUpdate` class has a new field, `precise`, which reports whether
+- The
+  [`TrackPositionUpdate`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/TrackPositionUpdate.html)
+  class has a new field, `precise`, which reports whether
   we are receiving precise position updates from the player.
 - When determining the item type of a menu item response message, we now mask the
   menu item type (field 7) with `0xffff`, because CDJ-3000s seem to send additional
@@ -808,7 +818,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.2.0...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.3.0...HEAD
+[7.3.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.2.0...7.3.0
 [7.2.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.1.0...v7.2.0
 [7.1.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.1...v7.1.0
 [7.0.1]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.0...v7.0.1
