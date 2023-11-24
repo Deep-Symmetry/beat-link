@@ -61,8 +61,9 @@ libraries for you.
 
 This is in no way a sanctioned implementation of the protocols. It should be clear, but:
 
-> :warning: Use at your own risk! For example, there are reports that
-> the XDJ-RX (and XDJ-RX2) crash when Beat Link starts, so don&rsquo;t use
+> [!WARNING]
+> Use at your own risk! For example, there are reports that
+> the XDJ-RX (and XDJ-RX2) crash when BLT starts, so don&rsquo;t use
 > it with one on your network. As Pioneer themselves
 > [explain](https://forums.pioneerdj.com/hc/en-us/community/posts/203113059-xdj-rx-as-single-deck-on-pro-dj-link-),
 > the XDJ-RX does not actually implement the protocol:
@@ -75,22 +76,28 @@ While these techniques appear to work for us so far, there are many
 gaps in our knowledge, and things could change at any time with new
 releases of hardware or even firmware updates from Pioneer.
 
-:x: You should also not expect to be able to run Beat Link, or
-any project like it, on the same machine that you are running
-rekordbox, because they will compete over access to network ports.
+> [!CAUTION]
+> You should also not expect to be able to run Beat Link, or any
+> project like it, on the same machine that you are running rekordbox,
+> because they will compete over access to network ports. Also, as
+> noted above, the XDJ-RX and XDJ-RX2 do not support the full DJ Link
+> protocol, and so will not work with software like this. And, of
+> course, controllers which don't even have Link (Ethernet) jacks
+> can't work either.
 
-:white_check_mark: Beat Link seems to work great with CDJ-2000 Nexus
-and nxs2 gear, and release 7.3.0 supports CDJ-3000 features.
-It works fairly well (with less information available) with
-older CDJ-2000s. It has also been reported to work with XDJ-1000 gear,
-and (starting with version 0.6.0) with the XDJ-XZ as well. If you can
-try it with anything else, *please* let us know what you learn in
-[Beat Link Trigger's Zulip chat
-stream](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger),
-or if you have worked out actionable details about something that
-could be improved, [open an
-Issue](https://github.com/Deep-Symmetry/beat-link/issues) or submit a
-pull request so we can all improve our understanding together.
+> [!TIP]
+> :white_check_mark: Beat Link seems to work great with CDJ-2000 Nexus
+> and nxs2 gear, and release 7.3.0 supports CDJ-3000 features. It
+> works fairly well (with less information available) with older
+> CDJ-2000s. It has also been reported to work with XDJ-1000 gear, and
+> (starting with version 0.6.0) with the XDJ-XZ as well. If you can
+> try it with anything else, *please* let us know what you learn in
+> [Beat Link Trigger's Zulip chat
+> stream](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger),
+> or if you have worked out actionable details about something that
+> could be improved, [open an
+> Issue](https://github.com/Deep-Symmetry/beat-link/issues) or submit
+> a pull request so we can all improve our understanding together.
 
 :construction: We finally obtained the hardware, so can now truly
 support new features like those introduced with the CDJ-3000 and
