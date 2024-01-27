@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
-import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
@@ -72,11 +73,11 @@ public class ArtFinder extends LifecycleParticipant {
         @Override
         public void mediaUnmounted(SlotReference slot) {
             // Iterate over a copy to avoid concurrent modification issues.
-            final Set<DataReference> keys = new HashSet<DataReference>(artCache.keySet());
+            final Set<DataReference> keys = new HashSet<DataReference>(artCache.asMap().keySet());
             for (DataReference artReference : keys) {
                 if (SlotReference.getSlotReference(artReference) == slot) {
                     logger.debug("Evicting cached artwork in response to unmount report {}", artReference);
-                    artCache.remove(artReference);
+                    artCache.invalidate(artReference);
                 }
             }
             // Again iterate over a copy to avoid concurrent modification issues.
@@ -161,9 +162,9 @@ public class ArtFinder extends LifecycleParticipant {
             }
         }
         // Again iterate over a copy to avoid concurrent modification issues
-        for (DataReference art : new HashSet<DataReference>(artCache.keySet())) {
+        for (DataReference art : new HashSet<DataReference>(artCache.asMap().keySet())) {
             if (art.player == player) {
-                artCache.remove(art);
+                artCache.invalidate(art);
             }
         }
     }
@@ -236,8 +237,7 @@ public class ArtFinder extends LifecycleParticipant {
      * art around even for tracks that are not currently loaded, to save on having to request it again when another
      * track from the same album is loaded.
      */
-    private final ConcurrentLinkedHashMap<DataReference, AlbumArt> artCache =
-            new ConcurrentLinkedHashMap.Builder<DataReference, AlbumArt>().maximumWeightedCapacity(DEFAULT_ART_CACHE_SIZE).build();
+    private final Cache<DataReference, AlbumArt> artCache = Caffeine.newBuilder().maximumSize(DEFAULT_ART_CACHE_SIZE).build();
 
     /**
      * Check how many album art images can be kept in the in-memory second-level cache.
@@ -246,7 +246,7 @@ public class ArtFinder extends LifecycleParticipant {
      *         in-memory art cache.
      */
     public long getArtCacheSize() {
-        return artCache.capacity();
+        return artCache.policy().eviction().get().getMaximum();
     }
 
     /**
@@ -263,7 +263,7 @@ public class ArtFinder extends LifecycleParticipant {
             throw new IllegalArgumentException("size must be at least 1");
 
         }
-        artCache.setCapacity(size);
+        artCache.policy().eviction().get().setMaximum(size);
     }
 
     /**
@@ -412,7 +412,7 @@ public class ArtFinder extends LifecycleParticipant {
         }
 
         // Not in the hot cache, see if it is in our LRU cache
-        return artCache.get(artReference);
+        return artCache.getIfPresent(artReference);
     }
 
     /**
@@ -616,7 +616,7 @@ public class ArtFinder extends LifecycleParticipant {
                 }
             });
             hotCache.clear();
-            artCache.clear();
+            artCache.invalidateAll();
             deliverLifecycleAnnouncement(logger, false);
         }
     }
@@ -647,7 +647,7 @@ public class ArtFinder extends LifecycleParticipant {
         StringBuilder sb = new StringBuilder("ArtFinder[running:").append(isRunning()).append(", passive:");
         sb.append(MetadataFinder.getInstance().isPassive()).append(", artCacheSize:").append(getArtCacheSize());
         if (isRunning()) {
-            sb.append(", loadedArt:").append(getLoadedArt()).append(", cached art:").append(artCache.size());
+            sb.append(", loadedArt:").append(getLoadedArt()).append(", cached art:").append(artCache.asMap().size());
         }
         return sb.append("]").toString();
     }
