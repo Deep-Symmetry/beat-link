@@ -13,8 +13,8 @@ shared by [Ben Manes](https://github.com/ben-manes), the author of that library,
 so that Beat Link Trigger can work as a pre-compiled GraalVM 
 [native-image](https://www.graalvm.org/latest/reference-manual/native-image/), while
 retaining its backwards compatibility with Java 6 environments (like afterglow-max).
-Thanks to [Noah Zoschke](https://github.com/nzoschke) for the pull request that led
-to this change in direction.
+Thanks to [Noah Zoschke](https://github.com/nzoschke) for the [pull request](https://github.com/Deep-Symmetry/beat-link/pull/66)
+that led to this change in direction.
 
 ## [7.3.0] - 2023-11-24
 
