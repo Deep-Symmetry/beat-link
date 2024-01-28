@@ -6,7 +6,15 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+- Replaced the dependency on
+[ConcurrentLinkedHashMap](https://github.com/ben-manes/concurrentlinkedhashmap)
+with a much-simplified in-project implementation based on some suggestions kindly
+shared by [Ben Manes](https://github.com/ben-manes), the author of that library,
+so that Beat Link Trigger can work as a pre-compiled GraalVM 
+[native-image](https://www.graalvm.org/latest/reference-manual/native-image/), while
+retaining its backwards compatibility with Java 6 environments (like afterglow-max).
+Thanks to [Noah Zoschke](https://github.com/nzoschke) for the pull request that led
+to this change in direction.
 
 ## [7.3.0] - 2023-11-24
 

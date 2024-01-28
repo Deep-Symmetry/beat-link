@@ -1,6 +1,5 @@
 package org.deepsymmetry.beatlink.data;
 
-import com.googlecode.concurrentlinkedhashmap.ConcurrentLinkedHashMap;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
@@ -12,6 +11,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * <p>Watches for new metadata to become available for tracks loaded on players, and queries the
@@ -60,6 +60,17 @@ public class ArtFinder extends LifecycleParticipant {
     };
 
     /**
+     * Removes the specified art from our second-level cache if it was present there.
+     *
+     * @param artReference identifies the album art which should no longer be cached.
+     */
+    private synchronized void removeArtFromCache(DataReference artReference) {
+        artCache.remove(artReference);
+        artCacheRecentlyUsed.remove(artReference);
+        artCacheEvictionQueue.remove(artReference);
+    }
+
+    /**
      * Our mount listener evicts any cached artwork that belong to media databases which have been unmounted, since
      * they are no longer valid.
      */
@@ -76,7 +87,7 @@ public class ArtFinder extends LifecycleParticipant {
             for (DataReference artReference : keys) {
                 if (SlotReference.getSlotReference(artReference) == slot) {
                     logger.debug("Evicting cached artwork in response to unmount report {}", artReference);
-                    artCache.remove(artReference);
+                    removeArtFromCache(artReference);
                 }
             }
             // Again iterate over a copy to avoid concurrent modification issues.
@@ -163,7 +174,7 @@ public class ArtFinder extends LifecycleParticipant {
         // Again iterate over a copy to avoid concurrent modification issues
         for (DataReference art : new HashSet<DataReference>(artCache.keySet())) {
             if (art.player == player) {
-                artCache.remove(art);
+                removeArtFromCache(art);
             }
         }
     }
@@ -234,10 +245,32 @@ public class ArtFinder extends LifecycleParticipant {
     /**
      * Establish the second-level artwork cache. Since multiple tracks share the same art, it can be worthwhile to keep
      * art around even for tracks that are not currently loaded, to save on having to request it again when another
-     * track from the same album is loaded.
+     * track from the same album is loaded. This along with {@link #artCacheEvictionQueue} and
+     * {@link #artCacheRecentlyUsed} provide a simple implementation of the “clock” or “second-chance” variant on a
+     * least-recently-used cache. Thanks to Ben Manes for suggesting this approach as a replacement for the deprecated
+     * <a href="https://github.com/ben-manes/concurrentlinkedhashmap">ConcurrentLinkedHashMap</a> which was preventing
+     * Beat Link from working in GraalVM
+     * <a href="https://www.graalvm.org/latest/reference-manual/native-image/">native-image</a> environments, without
+     * forcing us to abandon Java 6 compatibility which is still useful for afterglow-max.
      */
-    private final ConcurrentLinkedHashMap<DataReference, AlbumArt> artCache =
-            new ConcurrentLinkedHashMap.Builder<DataReference, AlbumArt>().maximumWeightedCapacity(DEFAULT_ART_CACHE_SIZE).build();
+    private final ConcurrentHashMap<DataReference, AlbumArt> artCache = new ConcurrentHashMap<DataReference, AlbumArt>();
+
+    /**
+     * Keeps track of the order in which art has been added to the cache, so older and unused art is prioritized for
+     * eviction.
+     */
+    private final LinkedList<DataReference> artCacheEvictionQueue = new LinkedList<DataReference>();
+
+    /**
+     * Keeps track of whether artwork has been used since it was added to the cache or previously considered for
+     * eviction, so older and unused art is prioritized for eviction.
+     */
+    private final HashSet<DataReference> artCacheRecentlyUsed = new HashSet<DataReference>();
+
+    /**
+     * Establishes how many album art images we retain in our second-level cache.
+     */
+    private final AtomicInteger artCacheSize = new AtomicInteger(DEFAULT_ART_CACHE_SIZE);
 
     /**
      * Check how many album art images can be kept in the in-memory second-level cache.
@@ -246,7 +279,28 @@ public class ArtFinder extends LifecycleParticipant {
      *         in-memory art cache.
      */
     public long getArtCacheSize() {
-        return artCache.capacity();
+        return artCacheSize.get();
+    }
+
+    /**
+     * Removes an element from the second-level artwork cache. Looks for the first item in the eviction queue that
+     * has not been used since it was created or considered for eviction and removes that. Any items which are found
+     * to have been used are instead moved to the end of the queue and marked unused. Must be called by one of the
+     * synchronized methods that deal with manipulating the cache.
+     */
+    private void evictFromArtCache() {
+        boolean evicted = false;
+        while (!evicted && !artCacheEvictionQueue.isEmpty()) {
+            DataReference candidate = artCacheEvictionQueue.removeFirst();
+            if (artCacheRecentlyUsed.remove(candidate)) {
+                // This artwork has been used, give it a second chance.
+                artCacheEvictionQueue.addLast(candidate);
+            } else {
+                // This candidate is ready to be evicted.
+                artCache.remove(candidate);
+                evicted = true;
+            }
+        }
     }
 
     /**
@@ -258,18 +312,21 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws IllegalArgumentException if {@code} size is less than 1
      */
-    public void setArtCacheSize(int size) {
+    public synchronized void setArtCacheSize(int size) {
         if (size < 1) {
             throw new IllegalArgumentException("size must be at least 1");
 
         }
-        artCache.setCapacity(size);
+        artCacheSize.set(size);
+        while (artCache.size() > size) {
+            evictFromArtCache();
+        }
     }
 
     /**
      * Controls whether we attempt to obtain high-resolution art when it is available.
      */
-    private AtomicBoolean requestHighResolutionArt = new AtomicBoolean(true);
+    private final AtomicBoolean requestHighResolutionArt = new AtomicBoolean(true);
 
     /**
      * Check whether we are requesting high-resolution artwork when it is available.
@@ -287,6 +344,17 @@ public class ArtFinder extends LifecycleParticipant {
      */
     public void setRequestHighResolutionArt(boolean shouldRequest) {
         requestHighResolutionArt.set(shouldRequest);
+    }
+
+    /**
+     * Adds artwork to our second-level cache, evicting older unused art if necessary to enforce the size limit.
+     */
+    private synchronized void addArtToCache(DataReference artReference, AlbumArt art) {
+        while (artCache.size() >= artCacheSize.get()) {
+            evictFromArtCache();
+        }
+        artCache.put(artReference, art);
+        artCacheEvictionQueue.addLast(artReference);
     }
 
     /**
@@ -308,6 +376,7 @@ public class ArtFinder extends LifecycleParticipant {
         if (sourceDetails != null) {
             final AlbumArt provided = MetadataFinder.getInstance().allMetadataProviders.getAlbumArt(sourceDetails, artReference);
             if (provided != null) {
+                addArtToCache(artReference, provided);
                 return provided;
             }
         }
@@ -329,7 +398,7 @@ public class ArtFinder extends LifecycleParticipant {
         try {
             AlbumArt artwork = ConnectionManager.getInstance().invokeWithClientSession(artReference.player, task, "requesting artwork");
             if (artwork != null) {  // Our file load or network request succeeded, so add to the level 2 cache.
-                artCache.put(artReference, artwork);
+                addArtToCache(artReference, artwork);
             }
             return artwork;
         } catch (Exception e) {
@@ -412,7 +481,13 @@ public class ArtFinder extends LifecycleParticipant {
         }
 
         // Not in the hot cache, see if it is in our LRU cache
-        return artCache.get(artReference);
+        synchronized (this) {
+            AlbumArt found = artCache.get(artReference);
+            if (found != null) {
+                artCacheRecentlyUsed.add(artReference);
+            }
+            return found;
+        }
     }
 
     /**
@@ -429,9 +504,9 @@ public class ArtFinder extends LifecycleParticipant {
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
@@ -617,6 +692,8 @@ public class ArtFinder extends LifecycleParticipant {
             });
             hotCache.clear();
             artCache.clear();
+            artCacheRecentlyUsed.clear();
+            artCacheEvictionQueue.clear();
             deliverLifecycleAnnouncement(logger, false);
         }
     }

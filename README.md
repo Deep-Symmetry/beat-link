@@ -51,9 +51,7 @@ binding to the logging framework you would like to use.
 ![Create library jar](https://github.com/Deep-Symmetry/beat-link/workflows/Create%20library%20jar/badge.svg)
 
 You will also need
-[ConcurrentLinkedHashMap](https://github.com/ben-manes/concurrentlinkedhashmap)
-for maintaining album art caches, and
-[Remote Tea](https://sourceforge.net/projects/remotetea/), so Maven
+[Remote Tea](https://sourceforge.net/projects/remotetea/) for creating and parsing old-version NFS packets, so Maven
 is by far your easiest bet, because it will take care of _all_ these
 libraries for you.
 
