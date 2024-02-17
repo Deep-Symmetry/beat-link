@@ -6,6 +6,15 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+### Fixed
+
+- It turns out there is a [bug](https://bugs.java.com/bugdatabase/view_bug?bug_id=8023649)
+  in Java under Windows that can sometimes return `null` values in the list of network
+  addresses associated with an interface. Beat Link now has defensive code to protect
+  itself against this and avoid crashing.
+
+### Changed
+
 - Replaced the dependency on
 [ConcurrentLinkedHashMap](https://github.com/ben-manes/concurrentlinkedhashmap)
 with a much-simplified in-project implementation based on some suggestions kindly
@@ -55,10 +64,6 @@ that led to this change in direction.
   the [`VirtualCdj`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html)
   was using the wrong value for `toIndex` (I had thought the argument
   was a length instead), so long names were not being properly cleared out.
-- It turns out there is a bug in Java under Windows that can sometimes return
-  `null` values in the list of network addresses associated with an interface.
-  Beat Link now has defensive code to protect itself against this and avoid
-  crashing.
 
 ### Changed
 
