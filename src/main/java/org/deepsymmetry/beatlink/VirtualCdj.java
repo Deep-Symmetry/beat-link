@@ -539,7 +539,12 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private InterfaceAddress findMatchingAddress(DeviceAnnouncement aDevice, NetworkInterface networkInterface) {
         for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
-            if ((address.getBroadcast() != null) &&
+            if (address == null) {
+                // This should never happen, but we are protecting against a Windows Java bug, see
+                // https://bugs.java.com/bugdatabase/view_bug?bug_id=8023649
+                logger.warn("Received a null InterfaceAddress from networkInterface.getInterfaceAddresses(), is this Windows? " +
+                        "Do you have a VPN installed? Trying to recover by ignoring it.");
+            } else if ((address.getBroadcast() != null) &&
                     Util.sameNetwork(address.getNetworkPrefixLength(), aDevice.getAddress(), address.getAddress())) {
                 return address;
             }
