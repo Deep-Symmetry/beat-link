@@ -55,6 +55,10 @@ that led to this change in direction.
   the [`VirtualCdj`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html)
   was using the wrong value for `toIndex` (I had thought the argument
   was a length instead), so long names were not being properly cleared out.
+- It turns out there is a bug in Java under Windows that can sometimes return
+  `null` values in the list of network addresses associated with an interface.
+  Beat Link now has defensive code to protect itself against this and avoid
+  crashing.
 
 ### Changed
 
