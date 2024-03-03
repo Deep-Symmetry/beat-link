@@ -2,4 +2,4 @@
 
 > Don’t download this if you aren’t comfortable testing code while it is under active development! Instead, look at the [latest release](https:///github.com/Deep-Symmetry/beat-link/releases/latest).
 
-The API docs for the latest preview release can be viewed [here](https://deepsymmetry.org/cratedigger/snapshot/apidocs/).
+The API docs for the latest preview release can be viewed [here](https://deepsymmetry.org/beatlink/snapshot/apidocs/).
