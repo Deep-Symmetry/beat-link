@@ -72,7 +72,7 @@ public class WaveformPreview {
     public final int segmentCount;
 
     /**
-     * Holds the maximum height of any point along the waveform, so that it can drawn in a normalized manner to fit
+     * Holds the maximum height of any point along the waveform, so that it can be drawn in a normalized manner to fit
      * its display area.
      */
     @SuppressWarnings("WeakerAccess")
@@ -122,7 +122,7 @@ public class WaveformPreview {
      * @param message the response that contains the preview
      */
     WaveformPreview(DataReference reference, Message message) {
-        isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, its an NXS2 color wave.
+        isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, it's an NXS2 color wave.
         dataReference = reference;
         rawMessage = message;
         ByteBuffer data = ((BinaryField) rawMessage.arguments.get(3)).getValue();
@@ -153,7 +153,7 @@ public class WaveformPreview {
             }
             if (section.body() instanceof RekordboxAnlz.WavePreviewTag) {
                 RekordboxAnlz.WavePreviewTag tag = (RekordboxAnlz.WavePreviewTag) section.body();
-                if (tag.lenPreview() < 400 || tag.data() == null) {
+                if (tag.lenData() < 400 || tag.data() == null) {
                     continue;  // We want to ignore the tiny previews, and not crash for vestigial tags without data.
                 }
                 byte[] tagBytes = tag.data();

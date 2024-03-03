@@ -15,15 +15,17 @@ This change log follows the conventions of
 
 ### Changed
 
-- Replaced the dependency on
-[ConcurrentLinkedHashMap](https://github.com/ben-manes/concurrentlinkedhashmap)
-with a much-simplified in-project implementation based on some suggestions kindly
-shared by [Ben Manes](https://github.com/ben-manes), the author of that library,
-so that Beat Link Trigger can work as a pre-compiled GraalVM 
-[native-image](https://www.graalvm.org/latest/reference-manual/native-image/), while
-retaining its backwards compatibility with Java 6 environments (like afterglow-max).
-Thanks to [Noah Zoschke](https://github.com/nzoschke) for the [pull request](https://github.com/Deep-Symmetry/beat-link/pull/66)
-that led to this change in direction.
+- Replaced the dependency on [ConcurrentLinkedHashMap](https://github.com/ben-manes/concurrentlinkedhashmap)
+  with a much-simplified in-project implementation based on some suggestions kindly
+  shared by [Ben Manes](https://github.com/ben-manes), the author of that library,
+  so that Beat Link Trigger can work as a pre-compiled GraalVM 
+  [native-image](https://www.graalvm.org/latest/reference-manual/native-image/), while
+  retaining its backwards compatibility with Java 6 environments (like afterglow-max).
+  Thanks to [Noah Zoschke](https://github.com/nzoschke) for the [pull request](https://github.com/Deep-Symmetry/beat-link/pull/66)
+  that led to this change in direction.
+- Upgraded to version 0.2.0 of Crate Digger, which had a couple of backwards-incompatible
+  changes to accommodate a new linter in the latest release of the Kaitai Struct Compiler
+  which identified places where field names were not following the style guide.
 
 ## [7.3.0] - 2023-11-24
 

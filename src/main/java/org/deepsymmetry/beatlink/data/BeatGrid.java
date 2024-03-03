@@ -127,7 +127,7 @@ public class BeatGrid {
         dataReference = reference;
         rawData = null;
         RekordboxAnlz.BeatGridTag tag = findTag(anlzFile);
-        beatCount = (int)tag.lenBeats();
+        beatCount = (int)tag.numBeats();
         beatWithinBarValues = new int[beatCount];
         bpmValues = new int[beatCount];
         timeWithinTrackValues = new long[beatCount];
