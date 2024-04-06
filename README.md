@@ -97,10 +97,12 @@ releases of hardware or even firmware updates from Pioneer.
 > Issue](https://github.com/Deep-Symmetry/beat-link/issues) or submit
 > a pull request so we can all improve our understanding together.
 
-:construction: We finally obtained the hardware, so can now truly
-support new features like those introduced with the CDJ-3000 and
-DJM-V10, including the fact that there can now be up to six devices
-online and on mixer and the new higher-resolution position packets.
+:construction: This branch is working on experimental support for the Opus Quad,
+which, despite not supporting a DJ-Link network, seems to communicate with rekordbox
+to support lighting in a way that will allow us to offer good support in Beat Link
+once we reorganize the code to support working that way. There is
+[API documentation](https://deepsymmetry.org/beatlink/opus-snapshot/apidocs/)
+for that effort as well.
 
 If something isn&rsquo;t working with your hardware, and you don&rsquo;t yet know
 the details why, but are willing to learn a little and help figure it
