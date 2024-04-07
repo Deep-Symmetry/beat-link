@@ -53,6 +53,21 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     }
 
     /**
+     * Send a master changed announcement to all registered master listeners.
+     *
+     * @param update the message announcing the new tempo master
+     */
+    private void deliverDeviceAnnouncement(final DeviceAnnouncement announcement) {
+        for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
+            try {
+                listener.handleDeviceAnnouncement(announcement);
+            } catch (Throwable t) {
+                logger.warn("Problem delivering announcement to listener", t);
+            }
+        }
+    }
+
+    /**
      * Start listening for device announcements and keeping track of the DJ Link devices visible on the network.
      * If already listening, has no effect.
      *
@@ -109,13 +124,12 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
                                         }
                                         DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
 
-
-                                        // TODO, SPREAD THIS.
-                                        DeviceFinder.getInstance().handleDeviceStatusAnnouncement(announcement);
+                                        deliverDeviceAnnouncement(announcement);
                                     }
                                 } else if (kind == Util.PacketType.DEVICE_HELLO) {
                                     logger.debug("Received device hello packet.");
                                 } else if (kind != null) {
+                                    // TODO, probably should be a set of listeners to not couple VirtualCdj to this class
                                     VirtualCdj.getInstance().handleSpecialAnnouncementPacket(kind, packet);
                                 }
                             }
