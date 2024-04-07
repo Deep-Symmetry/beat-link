@@ -1082,7 +1082,7 @@ public class MetadataFinder extends LifecycleParticipant {
             DeviceFinder.getInstance().addDeviceAnnouncementListener(announcementListener);
             VirtualCdj.getInstance().addLifecycleListener(lifecycleListener);
             VirtualCdj.getInstance().start();
-            VirtualCdj.getInstance().addUpdateListener(updateListener);
+            UpdateSocketConnection.getInstance().addUpdateListener(updateListener);
             queueHandler = new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -1113,7 +1113,7 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     public synchronized void stop() {
         if (isRunning()) {
-            VirtualCdj.getInstance().removeUpdateListener(updateListener);
+            UpdateSocketConnection.getInstance().removeUpdateListener(updateListener);
             running.set(false);
             pendingUpdates.clear();
             queueHandler.interrupt();
@@ -1157,7 +1157,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * {@link MediaDetailsListener}.
      */
     private MetadataFinder() {
-        VirtualCdj.getInstance().addMediaDetailsListener(new MediaDetailsListener() {
+        UpdateSocketConnection.getInstance().addMediaDetailsListener(new MediaDetailsListener() {
             @Override
             public void detailsAvailable(MediaDetails details) {
                 mediaDetails.put(details.slotReference, details);

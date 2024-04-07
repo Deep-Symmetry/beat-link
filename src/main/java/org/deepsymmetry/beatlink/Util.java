@@ -1,21 +1,18 @@
 package org.deepsymmetry.beatlink;
 
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz.SongStructureEntry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.awt.*;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
-import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz.SongStructureEntry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Provides utility functions.
@@ -78,53 +75,53 @@ public class Util {
          * An initial series of three of these packets is sent when a device first joins the network, at 300ms
          * intervals.
          */
-        DEVICE_HELLO(0x0a, "Device Hello", DeviceFinder.ANNOUNCEMENT_PORT),
+        DEVICE_HELLO(0x0a, "Device Hello", AnnouncementSocketConnection.ANNOUNCEMENT_PORT),
 
         /**
          * A series of three of these is sent at 300ms intervals when a device is starting to establish its
          * device number.
          */
-        DEVICE_NUMBER_STAGE_1(0x00, "Device Number Claim Stage 1", DeviceFinder.ANNOUNCEMENT_PORT),
+        DEVICE_NUMBER_STAGE_1(0x00, "Device Number Claim Stage 1", AnnouncementSocketConnection.ANNOUNCEMENT_PORT),
 
         /**
          * This packet is sent by a mixer directly to a device which has just sent a device number self-assignment
          * packet when that device is plugged into a channel-specific Ethernet jack on the mixer (or XDJ-XZ) to let
          * the device know the sender of this packet is responsible for assigning its number.
          */
-        DEVICE_NUMBER_WILL_ASSIGN(0x01, "Device Number Will Be Assigned", DeviceFinder.ANNOUNCEMENT_PORT),
+        DEVICE_NUMBER_WILL_ASSIGN(0x01, "Device Number Will Be Assigned", AnnouncementSocketConnection.ANNOUNCEMENT_PORT),
 
         /**
          * A second series of three packets sent at 300ms intervals when the device is claiming its device number.
          */
-        DEVICE_NUMBER_STAGE_2(0x02, "Device Number Claim Stage 2", DeviceFinder.ANNOUNCEMENT_PORT),
+        DEVICE_NUMBER_STAGE_2(0x02, "Device Number Claim Stage 2", AnnouncementSocketConnection.ANNOUNCEMENT_PORT),
 
         /**
          * This packet is sent by a mixer (or XDJ-XZ) when a player has acknowledged that it is ready to be assigned
          * the device number that belongs to the jack to which it is connected.
          */
-        DEVICE_NUMBER_ASSIGN(0x03, "Device Number Assignment", DeviceFinder.ANNOUNCEMENT_PORT),
+        DEVICE_NUMBER_ASSIGN(0x03, "Device Number Assignment", AnnouncementSocketConnection.ANNOUNCEMENT_PORT),
 
         /**
          * Third and final series of three packets sent at 300ms intervals when a device is claiming its device number.
          * If the device is configured to use a specific number, only one is sent.
          */
-        DEVICE_NUMBER_STAGE_3(0x04, "Device Number Claim Stage 3", DeviceFinder.ANNOUNCEMENT_PORT),
+        DEVICE_NUMBER_STAGE_3(0x04, "Device Number Claim Stage 3", AnnouncementSocketConnection.ANNOUNCEMENT_PORT),
 
         /**
          * This packet is sent by a mixer (or XDJ-XZ) once it sees that device number assignment has concluded
          * successfully, to the player plugged into a channel-specific jack.
          */
-        DEVICE_NUMBER_ASSIGNMENT_FINISHED(0x05, "Device Number Assignment Finished", DeviceFinder.ANNOUNCEMENT_PORT),
+        DEVICE_NUMBER_ASSIGNMENT_FINISHED(0x05, "Device Number Assignment Finished", AnnouncementSocketConnection.ANNOUNCEMENT_PORT),
 
         /**
          * Used to report that a device is still present on the DJ Link network.
          */
-        DEVICE_KEEP_ALIVE(0x06, "Device Keep-Alive", DeviceFinder.ANNOUNCEMENT_PORT),
+        DEVICE_KEEP_ALIVE(0x06, "Device Keep-Alive", AnnouncementSocketConnection.ANNOUNCEMENT_PORT),
 
         /**
          * Used to defend a device number that is already in use.
          */
-        DEVICE_NUMBER_IN_USE(0x08, "Device Number In Use", DeviceFinder.ANNOUNCEMENT_PORT),
+        DEVICE_NUMBER_IN_USE(0x08, "Device Number In Use", AnnouncementSocketConnection.ANNOUNCEMENT_PORT),
 
         /**
          * A status update from a player, with a great many status flags, pitch, tempo, and beat-within-bar details.

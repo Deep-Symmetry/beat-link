@@ -1,0 +1,230 @@
+package org.deepsymmetry.beatlink;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.net.*;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+
+public class AnnouncementSocketConnection extends LifecycleParticipant implements SocketSender {
+    private static final Logger logger = LoggerFactory.getLogger(AnnouncementSocketConnection.class);
+
+    public static final AnnouncementSocketConnection connectionsManager = new AnnouncementSocketConnection();
+
+    /**
+     * The socket used to receive device status packets while we are active.
+     */
+    private final AtomicReference<DatagramSocket> announcementSocket = new AtomicReference<DatagramSocket>();
+
+    /**
+     * Track when we started listening for announcement packets.
+     */
+    private static final AtomicLong startTime = new AtomicLong();
+
+    /**
+     * Maintain a set of addresses from which device announcements should be ignored. The {@link VirtualCdj} will add
+     * its socket to this set when it is active so that it does not show up in the set of devices found on the network.
+     */
+    private final Set<InetAddress> ignoredAddresses =
+            Collections.newSetFromMap(new ConcurrentHashMap<InetAddress, Boolean>());
+
+    /**
+     * The port to which devices broadcast announcement messages to report their presence on the network.
+     */
+    public static final int ANNOUNCEMENT_PORT = 50000;
+
+    /**
+     * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
+     *
+     * @return true if our socket is open, sending presence announcements, and receiving status packets
+     */
+    public boolean isRunning() {
+        return announcementSocket.get() != null;
+    }
+    public static AnnouncementSocketConnection getInstance() {
+        return connectionsManager;
+    }
+
+    /**
+     * Start listening for device announcements and keeping track of the DJ Link devices visible on the network.
+     * If already listening, has no effect.
+     *
+     * This should only be called by classes that use the announcement socket (eg: DeviceFinder/VirtualRekordbox).
+     *
+     * @throws SocketException if the socket to listen on port 50000 cannot be created
+     */
+    public synchronized void start() throws SocketException {
+        if (!isRunning()) {
+            // This needs to happen first as this will be how users of this
+            announcementSocket.set(new DatagramSocket(ANNOUNCEMENT_PORT));
+            startTime.set(System.currentTimeMillis());
+            deliverLifecycleAnnouncement(logger, true);
+
+            final byte[] buffer = new byte[512];
+            final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
+            Thread receiver = new Thread(null, new Runnable() {
+                @Override
+                public void run() {
+                    boolean received;
+                    while (isRunning()) {
+                        try {
+                            if (DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
+                                announcementSocket.get().setSoTimeout(60000);  // We have no devices to check for timeout; block for a whole minute to check for shutdown
+                            } else {
+                                announcementSocket.get().setSoTimeout(1000);  // Check every second to see if a device has vanished
+                            }
+                            announcementSocket.get().receive(packet);
+                            received = !ignoredAddresses.contains(packet.getAddress());
+                        } catch (SocketTimeoutException ste) {
+                            received = false;
+                        } catch (IOException e) {
+                            // Don't log a warning if the exception was due to the socket closing at shutdown.
+                            if (isRunning()) {
+                                // We did not expect to have a problem; log a warning and shut down.
+                                logger.warn("Problem reading from DeviceAnnouncement socket, stopping", e);
+                                stop();
+                            }
+                            received = false;
+                        }
+                        try {
+                            if (received) {
+                                final Util.PacketType kind = Util.validateHeader(packet, ANNOUNCEMENT_PORT);
+                                if (kind == Util.PacketType.DEVICE_KEEP_ALIVE) {
+                                    // Looks like the kind of packet we need
+                                    if (packet.getLength() < 54) {
+                                        logger.warn("Ignoring too-short " + kind.name + " packet; expected 54 bytes, but only got " +
+                                                packet.getLength() + ".");
+                                    } else {
+                                        if (packet.getLength() > 54) {
+                                            logger.warn("Processing too-long " + kind.name + " packet; expected 54 bytes, but got " +
+                                                    packet.getLength() + ".");
+                                        }
+                                        DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
+
+                                        // TODO, SPREAD THIS.
+                                        DeviceFinder.getInstance().handleDeviceAnnouncement(announcement);
+                                    }
+                                } else if (kind == Util.PacketType.DEVICE_HELLO) {
+                                    logger.debug("Received device hello packet.");
+                                } else if (kind != null) {
+                                    VirtualCdj.getInstance().handleSpecialAnnouncementPacket(kind, packet);
+                                }
+                            }
+                        } catch (Throwable t) {
+                            logger.warn("Problem processing DeviceAnnouncement packet", t);
+                        }
+                    }
+                }
+            }, "beat-link DeviceFinder receiver");
+            receiver.setDaemon(true);
+            receiver.start();
+        }
+    }
+
+    public void send(DatagramPacket packet) throws IOException {
+        announcementSocket.get().send(packet);
+    }
+
+    @Override
+    public SocketSender getSocketSender() {
+        return this;
+    }
+
+    /**
+     * Stop listening for device announcements. Also discard any announcements which had been received, and
+     * notify any registered listeners that those devices have been lost.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public synchronized void stopAnnouncementSocket() {
+        if (isRunning()) {
+            announcementSocket.get().close();
+            announcementSocket.set(null);
+            flushAnnouncementSocket();
+            deliverLifecycleAnnouncement(logger, false);
+        }
+    }
+
+    public synchronized void flushAnnouncementSocket() {
+        DeviceFinder.getInstance().flush();
+        // VirtualRekordbox should also flush its announcement stuff here.
+    }
+
+    /**
+     * Stop listening for device announcements. Also discard any announcements which had been received, and
+     * notify any registered listeners that those devices have been lost.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public synchronized void stop() {
+        if (isRunning()) {
+            announcementSocket.get().close();
+            announcementSocket.set(null);
+            flushAnnouncementSocket();
+            deliverLifecycleAnnouncement(logger, false);
+        }
+    }
+
+    /**
+     * Start ignoring any device updates which are received from the specified address. Intended for use by the
+     * {@link VirtualCdj}, so that its updates do not cause it to appear as a device.
+     *
+     * @param address the address from which any device updates should be ignored.
+     */
+    public void addIgnoredAddress(InetAddress address) {
+        ignoredAddresses.add(address);
+    }
+
+    /**
+     * Stop ignoring device updates which are received from the specified address. Intended for use by the
+     * {@link VirtualCdj}, so that when it shuts down, its socket stops being treated specially.
+     *
+     * @param address the address from which any device updates should be ignored.
+     */
+    public void removeIgnoredAddress(InetAddress address) {
+        ignoredAddresses.remove(address);
+    }
+
+    /**
+     * Check whether an address is being ignored. (The {@link BeatFinder} will call this so it can filter out the
+     * {@link VirtualCdj}'s beat messages when it is broadcasting them, for example.
+     *
+     * @param address the address to be checked as a candidate to be ignored
+     * @return {@code true} if packets from the address should be ignored
+     */
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public boolean isAddressIgnored(InetAddress address) {
+        return ignoredAddresses.contains(address);
+    }
+
+    /**
+     * Get the timestamp of when we started listening for device announcements.
+     *
+     * @return the system millisecond timestamp when {@link #start()} was called.
+     * @throws IllegalStateException if we are not listening for announcements.
+     */
+    public long getStartTime() {
+        ensureRunning();
+        return startTime.get();
+    }
+
+    /**
+     * Return the address being used on the Update Socket port to send presence announcement broadcasts.
+     *
+     * @return the local address we present to the DJ Link network
+     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     */
+    public InetAddress getLocalAddress() {
+        ensureRunning();
+        return announcementSocket.get().getLocalAddress();
+    }
+    @Override
+    public void close() {
+        announcementSocket.get().close();
+        announcementSocket.set(null);
+    }
+}

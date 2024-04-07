@@ -661,7 +661,7 @@ public class TimeFinder extends LifecycleParticipant {
             DeviceFinder.getInstance().addDeviceAnnouncementListener(announcementListener);
             BeatGridFinder.getInstance().addLifecycleListener(lifecycleListener);
             BeatGridFinder.getInstance().start();
-            VirtualCdj.getInstance().addUpdateListener(updateListener);
+            UpdateSocketConnection.getInstance().addUpdateListener(updateListener);
             VirtualCdj.getInstance().addLifecycleListener(lifecycleListener);
             VirtualCdj.getInstance().start();
             BeatFinder.getInstance().addLifecycleListener(lifecycleListener);
@@ -681,7 +681,7 @@ public class TimeFinder extends LifecycleParticipant {
         if (isRunning()) {
             BeatFinder.getInstance().removePrecisePositionListener(positionListener);
             BeatFinder.getInstance().removeBeatListener(beatListener);
-            VirtualCdj.getInstance().removeUpdateListener(updateListener);
+            UpdateSocketConnection.getInstance().removeUpdateListener(updateListener);
             running.set(false);
             positions.clear();
             updates.clear();

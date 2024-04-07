@@ -602,7 +602,7 @@ public class WaveformDetailComponent extends JComponent {
         monitoredPlayer.set(player);
         if (player > 0) {  // Start monitoring the specified player
             setPlaybackState(player, 0, false);  // Start with default values for required simple state.
-            VirtualCdj.getInstance().addUpdateListener(updateListener);
+            UpdateSocketConnection.getInstance().addUpdateListener(updateListener);
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             cueList.set(null);  // Assume the worst, but see if we have one available next.
             if (MetadataFinder.getInstance().isRunning()) {
@@ -655,7 +655,7 @@ public class WaveformDetailComponent extends JComponent {
             }
         } else {  // Stop monitoring any player
             animating.set(false);
-            VirtualCdj.getInstance().removeUpdateListener(updateListener);
+            UpdateSocketConnection.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
             AnalysisTagFinder.getInstance().removeAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");

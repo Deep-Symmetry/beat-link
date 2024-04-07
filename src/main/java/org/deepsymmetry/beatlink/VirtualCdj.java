@@ -42,7 +42,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The socket used to receive device status packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>();
+    private SocketSender socketSender;
 
     /**
      * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
@@ -50,7 +50,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
     public boolean isRunning() {
-        return socket.get() != null && claimingNumber.get() == 0;
+        return UpdateSocketConnection.getInstance().isRunning() && claimingNumber.get() == 0;
     }
 
     /**
@@ -61,7 +61,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public InetAddress getLocalAddress() {
         ensureRunning();
-        return socket.get().getLocalAddress();
+        return socketSender.getLocalAddress();
     }
 
     /**
@@ -388,60 +388,60 @@ public class VirtualCdj extends LifecycleParticipant {
         }
     }
 
-    /**
-     * Given an update packet sent to us, create the appropriate object to describe it.
-     *
-     * @param packet the packet received on our update port
-     * @return the corresponding {@link DeviceUpdate} subclass, or {@code nil} if the packet was not recognizable
-     */
-    private DeviceUpdate buildUpdate(DatagramPacket packet) {
-        final int length = packet.getLength();
-        final Util.PacketType kind = Util.validateHeader(packet, UPDATE_PORT);
-
-        if (kind == null) {
-            logger.warn("Ignoring unrecognized packet sent to update port.");
-            return null;
-        }
-
-        switch (kind) {
-            case MIXER_STATUS:
-                if (length != 56) {
-                    logger.warn("Processing a Mixer Status packet with unexpected length " + length + ", expected 56 bytes.");
-                }
-                if (length >= 56) {
-                    return new MixerStatus(packet);
-                } else {
-                    logger.warn("Ignoring too-short Mixer Status packet.");
-                    return null;
-                }
-
-            case CDJ_STATUS:
-                if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
-                    return new CdjStatus(packet);
-
-                } else {
-                    logger.warn("Ignoring too-short CDJ Status packet with length " + length + " (we need " + CdjStatus.MINIMUM_PACKET_SIZE +
-                            " bytes).");
-                    return null;
-                }
-
-            case LOAD_TRACK_ACK:
-                logger.info("Received track load acknowledgment from player " + packet.getData()[0x21]);
-                return null;
-
-            case MEDIA_QUERY:
-                logger.warn("Received a media query packet, we don’t yet support responding to this.");
-                return null;
-
-            case MEDIA_RESPONSE:
-                deliverMediaDetailsUpdate(new MediaDetails(packet));
-                return null;
-
-            default:
-                logger.warn("Ignoring " + kind.name + " packet sent to update port.");
-                return null;
-        }
-    }
+//    /**
+//     * Given an update packet sent to us, create the appropriate object to describe it.
+//     *
+//     * @param packet the packet received on our update port
+//     * @return the corresponding {@link DeviceUpdate} subclass, or {@code nil} if the packet was not recognizable
+//     */
+//    private DeviceUpdate buildUpdate(DatagramPacket packet) {
+//        final int length = packet.getLength();
+//        final Util.PacketType kind = Util.validateHeader(packet, UPDATE_PORT);
+//
+//        if (kind == null) {
+//            logger.warn("Ignoring unrecognized packet sent to update port.");
+//            return null;
+//        }
+//
+//        switch (kind) {
+//            case MIXER_STATUS:
+//                if (length != 56) {
+//                    logger.warn("Processing a Mixer Status packet with unexpected length " + length + ", expected 56 bytes.");
+//                }
+//                if (length >= 56) {
+//                    return new MixerStatus(packet);
+//                } else {
+//                    logger.warn("Ignoring too-short Mixer Status packet.");
+//                    return null;
+//                }
+//
+//            case CDJ_STATUS:
+//                if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
+//                    return new CdjStatus(packet);
+//
+//                } else {
+//                    logger.warn("Ignoring too-short CDJ Status packet with length " + length + " (we need " + CdjStatus.MINIMUM_PACKET_SIZE +
+//                            " bytes).");
+//                    return null;
+//                }
+//
+//            case LOAD_TRACK_ACK:
+//                logger.info("Received track load acknowledgment from player " + packet.getData()[0x21]);
+//                return null;
+//
+//            case MEDIA_QUERY:
+//                logger.warn("Received a media query packet, we don’t yet support responding to this.");
+//                return null;
+//
+//            case MEDIA_RESPONSE:
+//                deliverMediaDetailsUpdate(new MediaDetails(packet));
+//                return null;
+//
+//            default:
+//                logger.warn("Ignoring " + kind.name + " packet sent to update port.");
+//                return null;
+//        }
+//    }
 
 
 
@@ -515,7 +515,6 @@ public class VirtualCdj extends LifecycleParticipant {
                 setTempoMaster(null);
             }
         }
-        deliverDeviceUpdate(update);
     }
 
     /**
@@ -621,6 +620,16 @@ public class VirtualCdj extends LifecycleParticipant {
     private List<NetworkInterface> matchingInterfaces = null;
 
     /**
+     * Reacts to player status updates to reflect the current playback state.
+     */
+    private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
+        @Override
+        public void received(DeviceUpdate update) {
+            processUpdate(update);
+        }
+    };
+
+    /**
      * Check the interfaces that match the address from which we are receiving DJ Link traffic. If there is more
      * than one value in this list, that is a problem because we will likely receive duplicate packets that will
      * play havoc with our understanding of player states.
@@ -664,8 +673,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @param mixerAddress the address from which we received a mixer device number assignment offer
      */
     private void requestNumberFromMixer(InetAddress mixerAddress) {
-        final DatagramSocket currentSocket = socket.get();
-        if (currentSocket == null) {
+        if (UpdateSocketConnection.getInstance().isRunning()) {
             logger.warn("Gave up before sending device number request to mixer.");
             return;  // We've already given up.
         }
@@ -680,10 +688,10 @@ public class VirtualCdj extends LifecycleParticipant {
         assignmentRequestBytes[0x2f] = 1;  // The packet counter.
         try {
             DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
-                    mixerAddress, DeviceFinder.ANNOUNCEMENT_PORT);
+                    mixerAddress, AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
             logger.debug("Sending device number request to mixer at address " + announcement.getAddress().getHostAddress() +
                     ", port " + announcement.getPort());
-            currentSocket.send(announcement);
+            socketSender.send(announcement);
         } catch (Exception e) {
             logger.warn("Unable to send device number request to mixer.", e);
         }
@@ -696,8 +704,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *                       device number we are using
      */
     void defendDeviceNumber(InetAddress invaderAddress) {
-        final DatagramSocket currentSocket = socket.get();
-        if (currentSocket == null) {
+        if (UpdateSocketConnection.getInstance().isRunning()) {
             logger.warn("Went offline before we could defend our device number.");
             return;
         }
@@ -709,10 +716,10 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, deviceNumberDefenseBytes, 0x25, 4);
         try {
             DatagramPacket defense = new DatagramPacket(deviceNumberDefenseBytes, deviceNumberDefenseBytes.length,
-                    invaderAddress, DeviceFinder.ANNOUNCEMENT_PORT);
+                    invaderAddress, AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
             logger.info("Sending device number defense packet to invader at address " + defense.getAddress().getHostAddress() +
                     ", port " + defense.getPort());
-            currentSocket.send(defense);
+            socketSender.send(defense);
         } catch (Exception e) {
             logger.error("Unable to send device defense packet.", e);
         }
@@ -736,8 +743,8 @@ public class VirtualCdj extends LifecycleParticipant {
             try {
                 logger.debug("Sending hello packet " + i);
                 DatagramPacket announcement = new DatagramPacket(helloBytes, helloBytes.length,
-                        broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                socket.get().send(announcement);
+                        broadcastAddress.get(), AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
+                socketSender.send(announcement);
                 Thread.sleep(300);
             } catch (Exception e) {
                 logger.warn("Unable to send hello packet to network, failing to go online.", e);
@@ -768,8 +775,8 @@ public class VirtualCdj extends LifecycleParticipant {
                 try {
                     logger.debug("Sending claim stage 1 packet " + i);
                     DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
-                            broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                    socket.get().send(announcement);
+                            broadcastAddress.get(), AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
+                    socketSender.send(announcement);
                     //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
@@ -800,8 +807,8 @@ public class VirtualCdj extends LifecycleParticipant {
                 try {
                     logger.debug("Sending claim stage 2 packet " + i + " for device " + claimStage2bytes[0x2e]);
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
-                            broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                    socket.get().send(announcement);
+                            broadcastAddress.get(), AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
+                    socketSender.send(announcement);
                     //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
@@ -835,8 +842,8 @@ public class VirtualCdj extends LifecycleParticipant {
                 try {
                     logger.debug("Sending claim stage 3 packet " + i + " for device " + claimStage3bytes[0x24]);
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
-                            broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                    socket.get().send(announcement);
+                            broadcastAddress.get(), AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
+                    socketSender.send(announcement);
                     //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
@@ -862,6 +869,7 @@ public class VirtualCdj extends LifecycleParticipant {
         return true;  // Huzzah, we found the right device number to use!
     }
 
+
     /**
      * Once we have seen some DJ Link devices on the network, we can proceed to create a virtual player on that
      * same network.
@@ -870,96 +878,29 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws SocketException if there is a problem opening a socket on the right network
      */
     private boolean createVirtualCdj() throws SocketException {
-        // Find the network interface and address to use to communicate with the first device we found.
-        matchingInterfaces = new ArrayList<NetworkInterface>();
-        matchedAddress = null;
-        DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
-        for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            InterfaceAddress candidate = findMatchingAddress(aDevice, networkInterface);
-            if (candidate != null) {
-                if (matchedAddress == null) {
-                    matchedAddress = candidate;
-                }
-                matchingInterfaces.add(networkInterface);
-            }
-        }
+        UpdateSocketConnection.getInstance().addUpdateListener(updateListener);
+        UpdateSocketConnection.getInstance().start();
 
-        if (matchedAddress == null) {
-            logger.warn("Unable to find network interface to communicate with " + aDevice +
-                    ", giving up.");
-            return false;
-        }
+        socketSender = UpdateSocketConnection.getInstance().getSocketSender();
+        matchingInterfaces = UpdateSocketConnection.getInstance().getMatchingInterfaces();
+        matchedAddress = UpdateSocketConnection.getInstance().getMatchedAddress();
 
-        logger.info("Found matching network interface " + matchingInterfaces.get(0).getDisplayName() + " (" +
-                matchingInterfaces.get(0).getName() + "), will use address " + matchedAddress);
-        if (matchingInterfaces.size() > 1) {
-            for (ListIterator<NetworkInterface> it = matchingInterfaces.listIterator(1); it.hasNext(); ) {
-                NetworkInterface extra = it.next();
-                logger.warn("Network interface " + extra.getDisplayName() + " (" + extra.getName() +
-                        ") sees same network: we will likely get duplicate DJ Link packets, causing severe problems.");
-            }
-        }
+        System.arraycopy(UpdateSocketConnection.getInstance().getMatchingInterfaces().get(0).getHardwareAddress(),
+                0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
+        System.arraycopy(matchedAddress.getAddress().getAddress(),
+                0, keepAliveBytes, 44, 4);
 
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template
-        System.arraycopy(matchingInterfaces.get(0).getHardwareAddress(), 0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
-        System.arraycopy(matchedAddress.getAddress().getAddress(), 0, keepAliveBytes, 44, 4);
         broadcastAddress.set(matchedAddress.getBroadcast());
-
-        // Open our communication socket.
-        socket.set(new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress()));
-
-        // Inform the DeviceFinder to ignore our own device announcement packets.
-        DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
 
         // Determine the device number we are supposed to use, and make sure it can be claimed by us.
         if (!claimDeviceNumber()) {
             // We couldn't get a device number, so clean up and report failure.
             logger.warn("Unable to allocate a device number for the Virtual CDJ, giving up.");
-            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
-            socket.get().close();
-            socket.set(null);
+            DeviceFinder.getInstance().removeIgnoredAddress(getLocalAddress());
+            socketSender.close();
             return false;
         }
-
-        // Set up our buffer and packet to receive incoming messages.
-        final byte[] buffer = new byte[512];
-        final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-
-        // Create the update reception thread
-        Thread receiver = new Thread(null, new Runnable() {
-            @Override
-            public void run() {
-                boolean received;
-                while (isRunning()) {
-                    try {
-                        socket.get().receive(packet);
-                        received = true;
-                    } catch (IOException e) {
-                        // Don't log a warning if the exception was due to the socket closing at shutdown.
-                        if (isRunning()) {
-                            // We did not expect to have a problem; log a warning and shut down.
-                            logger.warn("Problem reading from DeviceStatus socket, flushing DeviceFinder due to likely network change and shutting down.", e);
-                            DeviceFinder.getInstance().flush();
-                            stop();
-                        }
-                        received = false;
-                    }
-                    try {
-                        if (received && (packet.getAddress() != socket.get().getLocalAddress())) {
-                            DeviceUpdate update = buildUpdate(packet);
-                            if (update != null) {
-                                processUpdate(update);
-                            }
-                        }
-                    } catch (Throwable t) {
-                        logger.warn("Problem processing device update packet", t);
-                    }
-                }
-            }
-        }, "beat-link VirtualCdj status receiver");
-        receiver.setDaemon(true);
-        receiver.setPriority(Thread.MAX_PRIORITY);
-        receiver.start();
 
         // Create the thread which announces our participation in the DJ Link network, to request update packets
         Thread announcer = new Thread(null, new Runnable() {
@@ -1082,9 +1023,8 @@ public class VirtualCdj extends LifecycleParticipant {
             } catch (Throwable t) {
                 logger.error("Problem stopping sending status during shutdown", t);
             }
-            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
-            socket.get().close();
-            socket.set(null);
+            DeviceFinder.getInstance().removeIgnoredAddress(socketSender.getLocalAddress());
+            socketSender.close();
             broadcastAddress.set(null);
             updates.clear();
             setTempoMaster(null);
@@ -1100,8 +1040,8 @@ public class VirtualCdj extends LifecycleParticipant {
     private void sendAnnouncement(InetAddress broadcastAddress) {
         try {
             DatagramPacket announcement = new DatagramPacket(keepAliveBytes, keepAliveBytes.length,
-                    broadcastAddress, DeviceFinder.ANNOUNCEMENT_PORT);
-            socket.get().send(announcement);
+                    broadcastAddress, AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
+            socketSender.send(announcement);
             Thread.sleep(getAnnounceInterval());
         } catch (Throwable t) {
             logger.warn("Unable to send announcement packet, flushing DeviceFinder due to likely network change and shutting down.", t);
@@ -1287,139 +1227,6 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Keeps track of the registered device update listeners.
-     */
-    private final Set<DeviceUpdateListener> updateListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<DeviceUpdateListener, Boolean>());
-
-    /**
-     * <p>Adds the specified device update listener to receive device updates whenever they come in.
-     * If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed.</p>
-     *
-     * <p>To reduce latency, device updates are delivered to listeners directly on the thread that is receiving them
-     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
-     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.</p>
-     *
-     * <p>Even if you are not interacting with user interface objects, any code in the listener method
-     * <em>must</em> finish quickly, or it will add latency for other listeners, and device updates will back up.
-     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
-     *
-     * @param listener the device update listener to add
-     */
-    @SuppressWarnings("SameParameterValue")
-    public void addUpdateListener(DeviceUpdateListener listener) {
-        if (listener != null) {
-            updateListeners.add(listener);
-        }
-    }
-
-    /**
-     * Removes the specified device update listener so it no longer receives device updates when they come in.
-     * If {@code listener} is {@code null} or not present
-     * in the list of registered listeners, no exception is thrown and no action is performed.
-     *
-     * @param listener the device update listener to remove
-     */
-    public void removeUpdateListener(DeviceUpdateListener listener) {
-        if (listener != null) {
-            updateListeners.remove(listener);
-        }
-    }
-
-    /**
-     * Get the set of device update listeners that are currently registered.
-     *
-     * @return the currently registered update listeners
-     */
-    public Set<DeviceUpdateListener> getUpdateListeners() {
-        // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<DeviceUpdateListener>(updateListeners));
-    }
-
-    /**
-     * Send a device update to all registered update listeners.
-     *
-     * @param update the device update that has just arrived
-     */
-    private void deliverDeviceUpdate(final DeviceUpdate update) {
-        for (DeviceUpdateListener listener : getUpdateListeners()) {
-            try {
-                listener.received(update);
-            } catch (Throwable t) {
-                logger.warn("Problem delivering device update to listener", t);
-            }
-        }
-    }
-
-    /**
-     * Keeps track of the registered media details listeners.
-     */
-    private final Set<MediaDetailsListener> detailsListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<MediaDetailsListener, Boolean>());
-
-    /**
-     * <p>Adds the specified media details listener to receive detail responses whenever they come in.
-     * If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed.</p>
-     *
-     * <p>To reduce latency, device updates are delivered to listeners directly on the thread that is receiving them
-     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
-     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.</p>
-     *
-     * <p>Even if you are not interacting with user interface objects, any code in the listener method
-     * <em>must</em> finish quickly, or it will add latency for other listeners, and detail updates will back up.
-     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
-     *
-     * @param listener the media details listener to add
-     */
-    public void addMediaDetailsListener(MediaDetailsListener listener) {
-        if (listener != null) {
-            detailsListeners.add(listener);
-        }
-    }
-
-    /**
-     * Removes the specified media details listener so it no longer receives detail responses when they come in.
-     * If {@code listener} is {@code null} or not present
-     * in the list of registered listeners, no exception is thrown and no action is performed.
-     *
-     * @param listener the media details listener to remove
-     */
-    public void removeMediaDetailsListener(MediaDetailsListener listener) {
-        if (listener != null) {
-            detailsListeners.remove(listener);
-        }
-    }
-
-    /**
-     * Get the set of media details listeners that are currently registered.
-     *
-     * @return the currently registered details listeners
-     */
-    public Set<MediaDetailsListener> getMediaDetailsListeners() {
-        // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<MediaDetailsListener>(detailsListeners));
-    }
-
-    /**
-     * Send a media details response to all registered listeners.
-     *
-     * @param details the response that has just arrived
-     */
-    private void deliverMediaDetailsUpdate(final MediaDetails details) {
-        for (MediaDetailsListener listener : getMediaDetailsListeners()) {
-            try {
-                listener.detailsAvailable(details);
-            } catch (Throwable t) {
-                logger.warn("Problem delivering media details response to listener", t);
-            }
-        }
-    }
-
-    /**
      * Finish the work of building and sending a protocol packet.
      *
      * @param kind the type of packet to create and send
@@ -1436,14 +1243,14 @@ public class VirtualCdj extends LifecycleParticipant {
                 ByteBuffer.wrap(payload));
         packet.setAddress(destination);
         packet.setPort(port);
-        socket.get().send(packet);
+        socketSender.send(packet);
     }
 
     /**
      * The bytes after the device name in a media query packet.
      */
     private final static byte[] MEDIA_QUERY_PAYLOAD = { 0x01,
-    0x00, 0x0d, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            0x00, 0x0d, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     /**
      * Ask a device for information about the media mounted in a particular slot. Will update the
@@ -2456,7 +2263,7 @@ public class VirtualCdj extends LifecycleParticipant {
         for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
             packet.setAddress(device.getAddress());
             try {
-                socket.get().send(packet);
+                socketSender.send(packet);
             } catch (IOException e) {
                 logger.warn("Unable to send status packet to " + device, e);
             }

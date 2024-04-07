@@ -5,7 +5,7 @@ package org.deepsymmetry.beatlink;
  * Not all players support all features. A simple mutable class (and therefore not thread-safe).
  * 
  * @author James Elliott
- * @see VirtualCdj#sendLoadSettingsCommand(DeviceUpdate, PlayerSettings) 
+ * @see VirtualCdj#sendLoadSettingsCommand(DeviceUpdate, PlayerSettings)
  */
 public class PlayerSettings {
 

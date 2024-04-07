@@ -718,7 +718,7 @@ public class WaveformPreviewComponent extends JComponent {
                     setSongStructureWrapper(AnalysisTagFinder.getInstance().getLatestTrackAnalysisFor(player, ".EXT", "PSSI"));
                 }
             }
-            VirtualCdj.getInstance().addUpdateListener(updateListener);
+            UpdateSocketConnection.getInstance().addUpdateListener(updateListener);
             try {
                 TimeFinder.getInstance().start();
                 if (!animating.getAndSet(true)) {
@@ -745,7 +745,7 @@ public class WaveformPreviewComponent extends JComponent {
             }
         } else {  // Stop monitoring any player
             animating.set(false);
-            VirtualCdj.getInstance().removeUpdateListener(updateListener);
+            UpdateSocketConnection.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
             WaveformFinder.getInstance().removeWaveformListener(waveformListener);
             AnalysisTagFinder.getInstance().removeAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");

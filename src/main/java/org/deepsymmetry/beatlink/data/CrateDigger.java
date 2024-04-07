@@ -839,7 +839,7 @@ public class CrateDigger {
         MetadataFinder.getInstance().addLifecycleListener(lifecycleListener);
         MetadataFinder.getInstance().addMountListener(mountListener);
         DeviceFinder.getInstance().addDeviceAnnouncementListener(deviceListener);
-        VirtualCdj.getInstance().addMediaDetailsListener(mediaDetailsListener);
+        UpdateSocketConnection.getInstance().addMediaDetailsListener(mediaDetailsListener);
         downloadDirectory = createDownloadDirectory();
     }
 
