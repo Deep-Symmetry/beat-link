@@ -189,26 +189,6 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     }
 
     /**
-     * Send a device found announcement to all registered listeners.
-     *
-     * @param announcement the message announcing the new device
-     */
-    private void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
-        for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        listener.handleDeviceAnnouncement(announcement);
-                    } catch (Throwable t) {
-                        logger.warn("Problem delivering device announcement to listener", t);
-                    }
-                }
-            });
-        }
-    }
-
-    /**
      * Stop listening for device announcements. Also discard any announcements which had been received, and
      * notify any registered listeners that those devices have been lost.
      */
