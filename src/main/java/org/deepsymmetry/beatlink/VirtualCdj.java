@@ -897,7 +897,7 @@ public class VirtualCdj extends LifecycleParticipant {
         if (!claimDeviceNumber()) {
             // We couldn't get a device number, so clean up and report failure.
             logger.warn("Unable to allocate a device number for the Virtual CDJ, giving up.");
-            DeviceFinder.getInstance().removeIgnoredAddress(getLocalAddress());
+            AnnouncementSocketConnection.getInstance().removeIgnoredAddress(getLocalAddress());
             socketSender.close();
             return false;
         }
@@ -1023,7 +1023,7 @@ public class VirtualCdj extends LifecycleParticipant {
             } catch (Throwable t) {
                 logger.error("Problem stopping sending status during shutdown", t);
             }
-            DeviceFinder.getInstance().removeIgnoredAddress(socketSender.getLocalAddress());
+            AnnouncementSocketConnection.getInstance().removeIgnoredAddress(socketSender.getLocalAddress());
             socketSender.close();
             broadcastAddress.set(null);
             updates.clear();

@@ -126,44 +126,6 @@ public class DeviceFinder extends LifecycleParticipant {
     }
 
     /**
-     * Start ignoring any device updates which are received from the specified address. Intended for use by the
-     * {@link VirtualCdj}, so that its updates do not cause it to appear as a device.
-     *
-     * This is a wrapper for AnnouncementSocketConnection.addIgnoredAddress()
-     *
-     * @param address the address from which any device updates should be ignored.
-     */
-    public void addIgnoredAddress(InetAddress address) {
-        AnnouncementSocketConnection.getInstance().addIgnoredAddress(address);
-    }
-
-    /**
-     * Stop ignoring device updates which are received from the specified address. Intended for use by the
-     * {@link VirtualCdj}, so that when it shuts down, its socket stops being treated specially.
-     *
-     * This is a wrapper for AnnouncementSocketConnection.removeIgnoredAddress()
-     *
-     * @param address the address from which any device updates should be ignored.
-     */
-    public void removeIgnoredAddress(InetAddress address) {
-        AnnouncementSocketConnection.getInstance().removeIgnoredAddress(address);
-    }
-
-    /**
-     * Check whether an address is being ignored.
-     *
-     * This is a wrapper for AnnouncementSocketConnection.isAddressIgnored()
-     *
-     * @param address the address to be checked as a candidate to be ignored
-     *
-     * @return {@code true} if packets from the address should be ignored
-     */
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    public boolean isAddressIgnored(InetAddress address) {
-        return AnnouncementSocketConnection.getInstance().isAddressIgnored(address);
-    }
-
-    /**
      * Start listening for device announcements and keeping track of the DJ Link devices visible on the network.
      * If already listening, has no effect.
      *

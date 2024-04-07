@@ -132,7 +132,7 @@ public class BeatFinder extends LifecycleParticipant {
                     while (isRunning()) {
                         try {
                             socket.get().receive(packet);
-                            received = !DeviceFinder.getInstance().isAddressIgnored(packet.getAddress());
+                            received = !AnnouncementSocketConnection.getInstance().isAddressIgnored(packet.getAddress());
                         } catch (IOException e) {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
                             if (isRunning()) {
