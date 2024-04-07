@@ -5,7 +5,7 @@ package org.deepsymmetry.beatlink;
  * are being instructed to yield the tempo master role to another device, or when a device they have asked to yield it
  * to them has responded, can implement this interface.
  *
- * The listener object created is then registered using {@link BeatFinderSocketConnection#addMasterHandoffListener(MasterHandoffListener)}.
+ * The listener object created is then registered using {@link BeatFinder#addMasterHandoffListener(MasterHandoffListener)}.
  * Whenever a relevant message is received, the {@link #yieldMasterTo(int)} or {@link #yieldResponse(int, boolean)}
  * method in the listener object is invoked.
  *

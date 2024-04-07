@@ -17,7 +17,7 @@ public class TestRunner {
         VirtualCdj.getInstance().start();
         // CrateDigger.getInstance().start();
 
-        DeviceFinder.getInstance().addDeviceAnnouncementListener(new DeviceAnnouncementStatusListener() {
+        DeviceFinder.getInstance().addDeviceAnnouncementListener(new DeviceAnnouncementListener() {
             @Override
             public void deviceFound(DeviceAnnouncement announcement) {
                 System.out.println(DeviceFinder.getInstance().getCurrentDevices());

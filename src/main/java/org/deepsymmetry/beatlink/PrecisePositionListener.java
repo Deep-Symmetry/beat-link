@@ -4,7 +4,7 @@ package org.deepsymmetry.beatlink;
  * The listener interface for receiving precise position announcements. Classes that are interested in knowing
  * when DJ Link devices (at the time of writing, only CDJ-3000s) report their precise position can implement this
  * interface. The listener object created from that class is then registered using
- * {@link BeatFinderSocketConnection#addPrecisePositionListener(PrecisePositionListener)}. Whenever a position report beat arrives,
+ * {@link BeatFinder#addPrecisePositionListener(PrecisePositionListener)}. Whenever a position report beat arrives,
  * the {@link #positionReported(PrecisePosition)} method in the listener object is invoked with it.
  *
  * @author James Elliott

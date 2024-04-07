@@ -5,7 +5,7 @@ import java.util.Set;
 /**
  * The listener interface for receiving fader start commands. Classes that are interested in knowing when the
  * mixer broadcasts commands telling players to start or stop can implement this interface.
- * The listener object created is then registered using {@link BeatFinderSocketConnection#addFaderStartListener(FaderStartListener)}.
+ * The listener object created is then registered using {@link BeatFinder#addFaderStartListener(FaderStartListener)}.
  * Whenever a relevant message is received, the {@link #fadersChanged(Set, Set)} method in the listener object
  * is invoked.
  *

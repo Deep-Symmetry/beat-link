@@ -140,7 +140,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * Our announcement listener watches for devices to disappear from the network, so we can discard all information
      * about them.
      */
-    private final DeviceAnnouncementStatusListener announcementListener = new DeviceAnnouncementStatusListener() {
+    private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
             logger.debug("Currently nothing for WaveformFinder to do when devices appear.");

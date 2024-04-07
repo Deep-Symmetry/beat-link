@@ -332,7 +332,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * Our announcement listener watches for devices to disappear from the network so we can discard all information
      * about them. It also records the arrival and departure of rekordbox collections as rekordbox comes and goes.
      */
-    private final DeviceAnnouncementStatusListener announcementListener = new DeviceAnnouncementStatusListener() {
+    private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
             logger.info("Processing device found, number:" + announcement.getDeviceNumber() + ", name:\"" + announcement.getDeviceName() + "\".");

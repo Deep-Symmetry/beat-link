@@ -54,10 +54,10 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     /**
      * Send a master changed announcement to all registered master listeners.
      *
-     * @param update the message announcing the new tempo master
+     * @param announcement the message announcing the new announcements
      */
     private void deliverDeviceAnnouncement(final DeviceAnnouncement announcement) {
-        for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
+        for (final AnnouncementListener listener : getDeviceAnnouncementListeners()) {
             try {
                 listener.handleDeviceAnnouncement(announcement);
             } catch (Throwable t) {
@@ -156,8 +156,8 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     /**
      * Keeps track of the registered device announcement listeners.
      */
-    private final Set<DeviceAnnouncementListener> deviceListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<DeviceAnnouncementListener, Boolean>());
+    private final Set<AnnouncementListener> deviceListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<AnnouncementListener, Boolean>());
 
     /**
      * Adds the specified device announcement listener to receive device announcements when DJ Link devices
@@ -171,7 +171,7 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
      *
      * @param listener the device announcement listener to add
      */
-    public void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+    public void addDeviceAnnouncementListener(AnnouncementListener listener) {
         if (listener != null) {
             deviceListeners.add(listener);
         }
@@ -184,7 +184,7 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
      *
      * @param listener the device announcement listener to remove
      */
-    public void removeDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+    public void removeDeviceAnnouncementListener(AnnouncementListener listener) {
         if (listener != null) {
             deviceListeners.remove(listener);
         }
@@ -196,9 +196,9 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
      * @return the currently registered device announcement listeners
      */
     @SuppressWarnings("WeakerAccess")
-    public Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
+    public Set<AnnouncementListener> getDeviceAnnouncementListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<DeviceAnnouncementListener>(deviceListeners));
+        return Collections.unmodifiableSet(new HashSet<AnnouncementListener>(deviceListeners));
     }
 
     /**
@@ -255,7 +255,7 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     }
 
     /**
-     * Check whether an address is being ignored. (The {@link BeatFinderSocketConnection} will call this so it can filter out the
+     * Check whether an address is being ignored. (The {@link BeatFinder} will call this so it can filter out the
      * {@link VirtualCdj}'s beat messages when it is broadcasting them, for example.
      *
      * @param address the address to be checked as a candidate to be ignored

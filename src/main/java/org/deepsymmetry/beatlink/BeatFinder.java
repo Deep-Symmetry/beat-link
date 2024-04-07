@@ -33,9 +33,9 @@ import org.slf4j.LoggerFactory;
  * @author James Elliott
  */
 @SuppressWarnings("WeakerAccess")
-public class BeatFinderSocketConnection extends LifecycleParticipant implements SocketSender {
+public class BeatFinder extends LifecycleParticipant {
 
-    private static final Logger logger = LoggerFactory.getLogger(BeatFinderSocketConnection.class);
+    private static final Logger logger = LoggerFactory.getLogger(BeatFinder.class);
 
     /**
      * The port to which devices broadcast beat messages.
@@ -711,45 +711,47 @@ public class BeatFinderSocketConnection extends LifecycleParticipant implements 
         }
     }
 
-    @Override
-    public void send(DatagramPacket packet) throws IOException {
-        beatFinderSocket.get().send(packet);
-    }
-
-    @Override
-    public SocketSender getSocketSender() {
-        return this;
-    }
-
-    /**
-     * Return the address being used on the Update Socket port to send presence announcement broadcasts.
-     *
-     * @return the local address we present to the DJ Link network
-     * @throws IllegalStateException if the {@code VirtualCdj} is not active
-     */
-    public InetAddress getLocalAddress() {
-        ensureRunning();
-        return beatFinderSocket.get().getLocalAddress();
-    }
+    // TODO: Break out the socket to its own class
+//
+//    @Override
+//    public void send(DatagramPacket packet) throws IOException {
+//        beatFinderSocket.get().send(packet);
+//    }
+//
+//    @Override
+//    public SocketSender getSocketSender() {
+//        return this;
+//    }
+//
+//    /**
+//     * Return the address being used on the Update Socket port to send presence announcement broadcasts.
+//     *
+//     * @return the local address we present to the DJ Link network
+//     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+//     */
+//    public InetAddress getLocalAddress() {
+//        ensureRunning();
+//        return beatFinderSocket.get().getLocalAddress();
+//    }
 
     /**
      * Holds the singleton instance of this class.
      */
-    private static final BeatFinderSocketConnection ourInstance = new BeatFinderSocketConnection();
+    private static final BeatFinder ourInstance = new BeatFinder();
 
     /**
      * Get the singleton instance of this class.
      *
      * @return the only instance of this class which exists.
      */
-    public static BeatFinderSocketConnection getInstance() {
+    public static BeatFinder getInstance() {
         return ourInstance;
     }
 
     /**
      * Prevent direct instantiation.
      */
-    private BeatFinderSocketConnection() {
+    private BeatFinder() {
         // Nothing to do.
     }
 
