@@ -3,7 +3,6 @@ package org.deepsymmetry.beatlink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.swing.*;
 import java.io.IOException;
 import java.net.*;
 import java.util.Collections;
@@ -256,7 +255,7 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     }
 
     /**
-     * Check whether an address is being ignored. (The {@link BeatFinder} will call this so it can filter out the
+     * Check whether an address is being ignored. (The {@link BeatFinderSocketConnection} will call this so it can filter out the
      * {@link VirtualCdj}'s beat messages when it is broadcasting them, for example.
      *
      * @param address the address to be checked as a candidate to be ignored

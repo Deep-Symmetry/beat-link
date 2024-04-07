@@ -5,7 +5,7 @@ import java.util.Set;
 /**
  * The listener interface for receiving on-air status messages. Classes that are interested in knowing when the
  * mixer reports which channels are on and off the air (audible in its audio output) can implement this interface.
- * The listener object created is then registered using {@link BeatFinder#addOnAirListener(OnAirListener)}.
+ * The listener object created is then registered using {@link BeatFinderSocketConnection#addOnAirListener(OnAirListener)}.
  * Whenever a relevant message is received, the {@link #channelsOnAir(Set)} method in the listener object is invoked.
  *
  * @author James Elliott

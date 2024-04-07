@@ -595,7 +595,7 @@ public class TimeFinder extends LifecycleParticipant {
     };
 
     /**
-     * Checks whether the specified beat listener belongs to the TimeFinder. The {@link BeatFinder} uses this
+     * Checks whether the specified beat listener belongs to the TimeFinder. The {@link BeatFinderSocketConnection} uses this
      * to notify the TimeFinder before any other listeners when a beat is received so that other listeners can
      * rely on the TimeFinder having an up-to-date beat number when they want it. There's no reason for any
      * other class to call this method (and the only reason it is public is that the BeatFinder is in a
@@ -650,7 +650,7 @@ public class TimeFinder extends LifecycleParticipant {
     };
     /**
      * <p>Start interpolating playback position for all active players. Starts the {@link BeatGridFinder},
-     * {@link BeatFinder}, and {@link VirtualCdj} if they are not already running, because we need them to
+     * {@link BeatFinderSocketConnection}, and {@link VirtualCdj} if they are not already running, because we need them to
      * perform our calculations. This in turn starts the {@link DeviceFinder}, so we can keep track of the
      * comings and goings of players themselves.</p>
      *
@@ -664,10 +664,10 @@ public class TimeFinder extends LifecycleParticipant {
             UpdateSocketConnection.getInstance().addUpdateListener(updateListener);
             VirtualCdj.getInstance().addLifecycleListener(lifecycleListener);
             VirtualCdj.getInstance().start();
-            BeatFinder.getInstance().addLifecycleListener(lifecycleListener);
-            BeatFinder.getInstance().addBeatListener(beatListener);
-            BeatFinder.getInstance().addPrecisePositionListener(positionListener);
-            BeatFinder.getInstance().start();
+            BeatFinderSocketConnection.getInstance().addLifecycleListener(lifecycleListener);
+            BeatFinderSocketConnection.getInstance().addBeatListener(beatListener);
+            BeatFinderSocketConnection.getInstance().addPrecisePositionListener(positionListener);
+            BeatFinderSocketConnection.getInstance().start();
             running.set(true);
             deliverLifecycleAnnouncement(logger, true);
         }
@@ -679,8 +679,8 @@ public class TimeFinder extends LifecycleParticipant {
     @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
-            BeatFinder.getInstance().removePrecisePositionListener(positionListener);
-            BeatFinder.getInstance().removeBeatListener(beatListener);
+            BeatFinderSocketConnection.getInstance().removePrecisePositionListener(positionListener);
+            BeatFinderSocketConnection.getInstance().removeBeatListener(beatListener);
             UpdateSocketConnection.getInstance().removeUpdateListener(updateListener);
             running.set(false);
             positions.clear();

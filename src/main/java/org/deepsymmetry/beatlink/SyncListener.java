@@ -3,7 +3,7 @@ package org.deepsymmetry.beatlink;
 /**
  * The listener interface for receiving sync control messages. Classes that are interested in knowing when they
  * are being instructed to turn sync mode on or off, or to become the tempo master, can implement this interface.
- * The listener object created is then registered using {@link BeatFinder#addSyncListener(SyncListener)}.
+ * The listener object created is then registered using {@link BeatFinderSocketConnection#addSyncListener(SyncListener)}.
  * Whenever a relevant message is received, the {@link #setSyncMode(boolean)} or {@link #becomeMaster()} method
  * in the listener object is invoked.
  *

@@ -162,18 +162,24 @@ class can notify you whenever any DJ Link devices on your network report
 the start of a new beat:
 
 ```java
-import org.deepsymmetry.beatlink.BeatFinder;
+
 
 // ...
 
-  BeatFinder.getInstance().addBeatListener(new BeatListener() {
-      @Override
-      public void newBeat(Beat beat) {
-         // Your code here...
-      }
-  });
+  BeatFinder.getInstance().
 
-  BeatFinder.getInstance().start();
+addBeatListener(new BeatListener() {
+    @Override
+    public void newBeat (Beat beat){
+        // Your code here...
+    }
+});
+
+        BeatFinder.
+
+getInstance().
+
+start();
 ```
 
 The [`Beat`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/Beat.html)

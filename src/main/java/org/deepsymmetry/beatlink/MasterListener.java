@@ -9,7 +9,7 @@ package org.deepsymmetry.beatlink;
  * {@link VirtualCdj#addMasterListener(MasterListener)}. Whenever a relevant change occurs, the appropriate method
  * in the listener object is invoked.</p>
  *
- * <p>Note that in order for beats to be reported, the {@link BeatFinder} must be active as well.</p>
+ * <p>Note that in order for beats to be reported, the {@link BeatFinderSocketConnection} must be active as well.</p>
  *
  * @author James Elliott
  */

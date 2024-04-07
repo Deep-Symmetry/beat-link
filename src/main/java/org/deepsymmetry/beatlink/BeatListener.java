@@ -3,7 +3,7 @@ package org.deepsymmetry.beatlink;
 /**
  * The listener interface for receiving beat announcements. Classes that are interested in knowing when DJ Link
  * devices report beats can implement this interface. The listener object created from that class is
- * then registered using {@link BeatFinder#addBeatListener(BeatListener)}.
+ * then registered using {@link BeatFinderSocketConnection#addBeatListener(BeatListener)}.
  * Whenever a new beat starts, the {@link #newBeat(Beat)} method in the listener object is invoked with it.
  *
  * @author James Elliott

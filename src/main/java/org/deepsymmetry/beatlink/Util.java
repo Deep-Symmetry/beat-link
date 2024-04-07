@@ -54,12 +54,12 @@ public class Util {
         /**
          * Used by the mixer to tell a set of players to start and/or stop playing.
          */
-        FADER_START_COMMAND(0x02, "Fader Start", BeatFinder.BEAT_PORT),
+        FADER_START_COMMAND(0x02, "Fader Start", BeatFinderSocketConnection.BEAT_PORT),
 
         /**
          * Used by the mixer to tell the players which channels are on and off the air.
          */
-        CHANNELS_ON_AIR(0x03, "Channels On Air", BeatFinder.BEAT_PORT),
+        CHANNELS_ON_AIR(0x03, "Channels On Air", BeatFinderSocketConnection.BEAT_PORT),
 
         /**
          * Used to ask a player for information about the media mounted in a slot.
@@ -142,24 +142,24 @@ public class Util {
         /**
          * Used by an incoming tempo master to ask the current tempo master to relinquish that role.
          */
-        MASTER_HANDOFF_REQUEST(0x26, "Master Handoff Request", BeatFinder.BEAT_PORT),
+        MASTER_HANDOFF_REQUEST(0x26, "Master Handoff Request", BeatFinderSocketConnection.BEAT_PORT),
 
         /**
          * Used by the active tempo master to respond to a request to relinquish that role.
          */
-        MASTER_HANDOFF_RESPONSE(0x27, "Master Handoff Response", BeatFinder.BEAT_PORT),
+        MASTER_HANDOFF_RESPONSE(0x27, "Master Handoff Response", BeatFinderSocketConnection.BEAT_PORT),
 
         /**
          * Announces a beat has been played in a rekordbox-analyzed track, with lots of useful synchronization
          * information.
          */
-        BEAT(0x28, "Beat", BeatFinder.BEAT_PORT),
+        BEAT(0x28, "Beat", BeatFinderSocketConnection.BEAT_PORT),
 
         /**
          * Reports the exact playback position of a CDJ-3000 or newer player, on a very frequent basis,
          * even if it is not currently playing.
          */
-        PRECISE_POSITION(0x0b, "Precise Position", BeatFinder.BEAT_PORT),
+        PRECISE_POSITION(0x0b, "Precise Position", BeatFinderSocketConnection.BEAT_PORT),
 
         /**
          * A status update from the mixer, with status flags, pitch, and tempo, and beat-within-bar information.
@@ -169,7 +169,7 @@ public class Util {
         /**
          * Used to tell a player to turn sync on or off, or that it should become the tempo master.
          */
-        SYNC_CONTROL(0x2a, "Sync Control", BeatFinder.BEAT_PORT),
+        SYNC_CONTROL(0x2a, "Sync Control", BeatFinderSocketConnection.BEAT_PORT),
 
         /**
          * A command to apply settings to a player; usually sent by rekordbox

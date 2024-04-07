@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Provides the ability to create a virtual CDJ device that can lurk on a DJ Link network and receive packets sent to
  * players, monitoring the detailed state of the other devices. This detailed information is helpful for augmenting
- * what {@link BeatFinder} reports, allowing you to keep track of which player is the tempo master, how many beats of
+ * what {@link BeatFinderSocketConnection} reports, allowing you to keep track of which player is the tempo master, how many beats of
  * a track have been played, how close a player is getting to its next cue point, and more. It is also the foundation
  * for finding out the rekordbox ID of the loaded track, which supports all the features associated with the
  * {@link MetadataFinder}.
@@ -1297,7 +1297,7 @@ public class VirtualCdj extends LifecycleParticipant {
         payload[2] = getDeviceNumber();
         payload[8] = getDeviceNumber();
         payload[12] = command;
-        assembleAndSendPacket(Util.PacketType.SYNC_CONTROL, payload, target.getAddress(), BeatFinder.BEAT_PORT);
+        assembleAndSendPacket(Util.PacketType.SYNC_CONTROL, payload, target.getAddress(), BeatFinderSocketConnection.BEAT_PORT);
     }
 
     /**
@@ -1393,7 +1393,7 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         }
 
-        assembleAndSendPacket(Util.PacketType.FADER_START_COMMAND, payload, getBroadcastAddress(), BeatFinder.BEAT_PORT);
+        assembleAndSendPacket(Util.PacketType.FADER_START_COMMAND, payload, getBroadcastAddress(), BeatFinderSocketConnection.BEAT_PORT);
     }
 
     /**
@@ -1426,7 +1426,7 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         }
 
-        assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, getBroadcastAddress(), BeatFinder.BEAT_PORT);
+        assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, getBroadcastAddress(), BeatFinderSocketConnection.BEAT_PORT);
     }
 
     /**
@@ -1466,7 +1466,7 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         }
 
-        assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, getBroadcastAddress(), BeatFinder.BEAT_PORT);
+        assembleAndSendPacket(Util.PacketType.CHANNELS_ON_AIR, payload, getBroadcastAddress(), BeatFinderSocketConnection.BEAT_PORT);
     }
 
     /**
@@ -1665,7 +1665,7 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Makes sure we stop sending status if the {@link BeatFinder} shuts down, because we rely on it.
+     * Makes sure we stop sending status if the {@link BeatFinderSocketConnection} shuts down, because we rely on it.
      */
     private final LifecycleListener beatFinderLifecycleListener = new LifecycleListener() {
         @Override
@@ -1750,7 +1750,7 @@ public class VirtualCdj extends LifecycleParticipant {
         payload[0x40] = getDeviceNumber();
 
         try {
-            assembleAndSendPacket(Util.PacketType.BEAT, payload, broadcastAddress.get(), BeatFinder.BEAT_PORT);
+            assembleAndSendPacket(Util.PacketType.BEAT, payload, broadcastAddress.get(), BeatFinderSocketConnection.BEAT_PORT);
         } catch (IOException e) {
             logger.error("VirtualCdj Failed to send beat packet.", e);
         }
@@ -1776,7 +1776,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the virtual CDJ is not running, or if it is not using a device number in the
      *                               range 1 through 4
-     * @throws IOException if there is a problem starting the {@link BeatFinder}
+     * @throws IOException if there is a problem starting the {@link BeatFinderSocketConnection}
      */
     public synchronized void setSendingStatus(boolean send) throws IOException {
         if (isSendingStatus() == send) {
@@ -1789,8 +1789,8 @@ public class VirtualCdj extends LifecycleParticipant {
                 throw new IllegalStateException("Can only send status when using a standard player number, 1 through 4.");
             }
 
-            BeatFinder.getInstance().start();
-            BeatFinder.getInstance().addLifecycleListener(beatFinderLifecycleListener);
+            BeatFinderSocketConnection.getInstance().start();
+            BeatFinderSocketConnection.getInstance().addLifecycleListener(beatFinderLifecycleListener);
 
             final AtomicBoolean stillRunning = new AtomicBoolean(true);
             sendingStatus =  stillRunning;  // Allow other threads to stop us when necessary.
@@ -1820,7 +1820,7 @@ public class VirtualCdj extends LifecycleParticipant {
                 beatSender.set(new BeatSender(metronome));
             }
         } else {  // Stop sending status packets, and responding to master beats and tempo changes if we were synced.
-            BeatFinder.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
+            BeatFinderSocketConnection.getInstance().removeLifecycleListener(beatFinderLifecycleListener);
             removeMasterListener(ourSyncMasterListener);
 
             sendingStatus.set(false);                          // Stop the status sending thread.
@@ -1973,7 +1973,7 @@ public class VirtualCdj extends LifecycleParticipant {
                 logger.debug("Sending master yield request to player " + currentMaster);
             }
             requestingMasterRoleFromPlayer.set(currentMaster.deviceNumber);
-            assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_REQUEST, payload, currentMaster.address, BeatFinder.BEAT_PORT);
+            assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_REQUEST, payload, currentMaster.address, BeatFinderSocketConnection.BEAT_PORT);
         } else if (!master.get()) {
             // There is no other master, we can just become it immediately.
             requestingMasterRoleFromPlayer.set(0);
@@ -2291,14 +2291,14 @@ public class VirtualCdj extends LifecycleParticipant {
         masterTempo.set(Double.doubleToLongBits(0.0));  // Note that we have no master tempo yet.
 
         // Arrange to have our status accurately reflect any relevant updates and commands from the mixer.
-        BeatFinder.getInstance().addOnAirListener(new OnAirListener() {
+        BeatFinderSocketConnection.getInstance().addOnAirListener(new OnAirListener() {
             @Override
             public void channelsOnAir(Set<Integer> audibleChannels) {
                 setOnAir(audibleChannels.contains((int)getDeviceNumber()));
             }
         });
 
-        BeatFinder.getInstance().addFaderStartListener(new FaderStartListener() {
+        BeatFinderSocketConnection.getInstance().addFaderStartListener(new FaderStartListener() {
             @Override
             public void fadersChanged(Set<Integer> playersToStart, Set<Integer> playersToStop) {
                 if (playersToStart.contains((int)getDeviceNumber())) {
@@ -2309,7 +2309,7 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         });
 
-        BeatFinder.getInstance().addSyncListener(new SyncListener() {
+        BeatFinderSocketConnection.getInstance().addSyncListener(new SyncListener() {
             @Override
             public void setSyncMode(boolean synced) {
                 setSynced(synced);
@@ -2335,7 +2335,7 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         });
 
-        BeatFinder.getInstance().addMasterHandoffListener(new MasterHandoffListener() {
+        BeatFinderSocketConnection.getInstance().addMasterHandoffListener(new MasterHandoffListener() {
             @Override
             public void yieldMasterTo(int deviceNumber) {
                 if (logger.isDebugEnabled()) {
