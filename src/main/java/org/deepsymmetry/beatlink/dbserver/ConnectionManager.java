@@ -226,7 +226,7 @@ public class ConnectionManager extends LifecycleParticipant {
      * Our announcement listener watches for devices to appear on the network so we can ask them for their database
      * server port, and when they disappear discards all information about them.
      */
-    private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
+    private final DeviceAnnouncementStatusListener announcementListener = new DeviceAnnouncementStatusListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
             // logger.info("Processing device found, number: " + announcement.getNumber() + ", name: " + announcement.getName());

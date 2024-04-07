@@ -3,9 +3,11 @@ package org.deepsymmetry.beatlink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.*;
 import java.io.IOException;
 import java.net.*;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -107,8 +109,9 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
                                         }
                                         DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
 
+
                                         // TODO, SPREAD THIS.
-                                        DeviceFinder.getInstance().handleDeviceAnnouncement(announcement);
+                                        DeviceFinder.getInstance().handleDeviceStatusAnnouncement(announcement);
                                     }
                                 } else if (kind == Util.PacketType.DEVICE_HELLO) {
                                     logger.debug("Received device hello packet.");
@@ -134,6 +137,75 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     @Override
     public SocketSender getSocketSender() {
         return this;
+    }
+
+
+    /**
+     * Keeps track of the registered device announcement listeners.
+     */
+    private final Set<DeviceAnnouncementListener> deviceListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<DeviceAnnouncementListener, Boolean>());
+
+    /**
+     * Adds the specified device announcement listener to receive device announcements when DJ Link devices
+     * are found on or leave the network. If {@code listener} is {@code null} or already present in the list
+     * of registered listeners, no exception is thrown and no action is performed.
+     *
+     * <p>Device announcements are delivered to listeners on the
+     * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
+     * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
+     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
+     *
+     * @param listener the device announcement listener to add
+     */
+    public void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+        if (listener != null) {
+            deviceListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified device announcement listener so that it no longer receives device announcements when
+     * DJ Link devices are found on or leave the network. If {@code listener} is {@code null} or not present
+     * in the list of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the device announcement listener to remove
+     */
+    public void removeDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+        if (listener != null) {
+            deviceListeners.remove(listener);
+        }
+    }
+
+    /**
+     * Get the set of device announcement listeners that are currently registered.
+     *
+     * @return the currently registered device announcement listeners
+     */
+    @SuppressWarnings("WeakerAccess")
+    public Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Collections.unmodifiableSet(new HashSet<DeviceAnnouncementListener>(deviceListeners));
+    }
+
+    /**
+     * Send a device found announcement to all registered listeners.
+     *
+     * @param announcement the message announcing the new device
+     */
+    private void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
+        for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        listener.handleDeviceAnnouncement(announcement);
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering device announcement to listener", t);
+                    }
+                }
+            });
+        }
     }
 
     /**
@@ -224,7 +296,6 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     }
     @Override
     public void close() {
-        announcementSocket.get().close();
-        announcementSocket.set(null);
+        stopAnnouncementSocket();
     }
 }

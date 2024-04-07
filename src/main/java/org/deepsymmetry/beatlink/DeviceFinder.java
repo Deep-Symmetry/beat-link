@@ -134,6 +134,13 @@ public class DeviceFinder extends LifecycleParticipant {
     public synchronized void start() throws SocketException {
 
         if (!isRunning()) {
+            AnnouncementSocketConnection.getInstance().addDeviceAnnouncementListener(new DeviceAnnouncementListener() {
+                        @Override
+                        public void handleDeviceAnnouncement(DeviceAnnouncement update) {
+                            handleDeviceStatusAnnouncement(update);
+                        }
+                    }
+            );
             AnnouncementSocketConnection.getInstance().start();
 
             deliverLifecycleAnnouncement(logger, true);
@@ -146,7 +153,7 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @throws SocketException if the socket to listen on port 50000 cannot be created
      */
-    public synchronized void handleDeviceAnnouncement(DeviceAnnouncement announcement) {
+    public synchronized void handleDeviceStatusAnnouncement(DeviceAnnouncement announcement) {
         if (isRunning()) {
 
             final boolean foundNewDevice = isDeviceNew(announcement);
@@ -240,8 +247,8 @@ public DeviceAnnouncement getLatestAnnouncementFrom(int deviceNumber) {
 /**
  * Keeps track of the registered device announcement listeners.
  */
-private final Set<DeviceAnnouncementListener> deviceListeners =
-        Collections.newSetFromMap(new ConcurrentHashMap<DeviceAnnouncementListener, Boolean>());
+private final Set<DeviceAnnouncementStatusListener> deviceListeners =
+        Collections.newSetFromMap(new ConcurrentHashMap<DeviceAnnouncementStatusListener, Boolean>());
 
 /**
  * Adds the specified device announcement listener to receive device announcements when DJ Link devices
@@ -255,7 +262,7 @@ private final Set<DeviceAnnouncementListener> deviceListeners =
  *
  * @param listener the device announcement listener to add
  */
-public void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+public void addDeviceAnnouncementListener(DeviceAnnouncementStatusListener listener) {
     if (listener != null) {
         deviceListeners.add(listener);
     }
@@ -268,7 +275,7 @@ public void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
  *
  * @param listener the device announcement listener to remove
  */
-public void removeDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+public void removeDeviceAnnouncementListener(DeviceAnnouncementStatusListener listener) {
     if (listener != null) {
         deviceListeners.remove(listener);
     }
@@ -280,9 +287,9 @@ public void removeDeviceAnnouncementListener(DeviceAnnouncementListener listener
  * @return the currently registered device announcement listeners
  */
 @SuppressWarnings("WeakerAccess")
-public Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
+public Set<DeviceAnnouncementStatusListener> getDeviceAnnouncementListeners() {
     // Make a copy so callers get an immutable snapshot of the current state.
-    return Collections.unmodifiableSet(new HashSet<DeviceAnnouncementListener>(deviceListeners));
+    return Collections.unmodifiableSet(new HashSet<DeviceAnnouncementStatusListener>(deviceListeners));
 }
 
 /**
@@ -291,7 +298,7 @@ public Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
  * @param announcement the message announcing the new device
  */
 private void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
-    for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
+    for (final DeviceAnnouncementStatusListener listener : getDeviceAnnouncementListeners()) {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
@@ -311,7 +318,7 @@ private void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
  * @param announcement the last message received from the vanished device
  */
 private void deliverLostAnnouncement(final DeviceAnnouncement announcement) {
-    for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
+    for (final DeviceAnnouncementStatusListener listener : getDeviceAnnouncementListeners()) {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {

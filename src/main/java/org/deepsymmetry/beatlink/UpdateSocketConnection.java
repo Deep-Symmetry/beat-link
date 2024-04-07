@@ -21,11 +21,6 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
     private final AtomicReference<DatagramSocket> updateSocket = new AtomicReference<DatagramSocket>();
 
     /**
-     * Track when we started listening for announcement packets.
-     */
-    private static final AtomicLong startTime = new AtomicLong();
-
-    /**
      * Maintain a set of addresses from which device announcements should be ignored. The {@link VirtualCdj} will add
      * its socket to this set when it is active so that it does not show up in the set of devices found on the network.
      */
