@@ -6,7 +6,6 @@ package org.deepsymmetry.beatlink;
  * device found or lost messages. To listen for device found and lost messages, register a DeviceAnnouncementStatusListener
  * in DeviceFinder.
  *
- * @author Chris Prepos
  */
 @SuppressWarnings("WeakerAccess")
 public interface DeviceAnnouncementListener {
