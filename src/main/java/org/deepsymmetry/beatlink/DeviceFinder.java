@@ -150,8 +150,7 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * Start listening for device announcements and keeping track of the DJ Link devices visible on the network.
      * If already listening, has no effect.
-     *
-     * @throws SocketException if the socket to listen on port 50000 cannot be created
+     * @param  announcement handles announcement statuses which have already expired and added new devices.
      */
     public synchronized void handleDeviceStatusAnnouncement(DeviceAnnouncement announcement) {
         if (isRunning()) {

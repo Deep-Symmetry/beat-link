@@ -179,7 +179,7 @@ public class CrateDigger {
      * to use stale filesystem handles. Our own caches will be cleaned up by {@link #mountListener}.
      */
     @SuppressWarnings("FieldCanBeLocal")
-    private final DeviceAnnouncementStatusListener deviceListener = new DeviceAnnouncementAdapter() {
+    private final DeviceAnnouncementStatusListener deviceListener = new DeviceAnnouncementStatusAdapter() {
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
             FileFetcher.getInstance().removePlayer(announcement.getAddress());

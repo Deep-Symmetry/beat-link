@@ -13,8 +13,8 @@ public interface SocketSender {
      * This does not need to be synchronized because the whole packet is sent to the OS
      * to be queued to send, safe to send from many threads.
      *
-     * @param packet
-     * @throws IOException
+     * @param packet sends packet to socket connection to be queued by the OS.
+     * @throws IOException Throws this if the socket can't connect or has failed in another way
      */
     void send(DatagramPacket packet) throws IOException;
 

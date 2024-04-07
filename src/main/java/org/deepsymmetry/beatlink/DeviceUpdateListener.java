@@ -4,7 +4,7 @@ package org.deepsymmetry.beatlink;
  * The listener interface for receiving detailed updates from all devices.
  * Classes that are interested in knowing when DJ Link devices report detailed status can implement this interface.
  * The listener object created from that class is then registered using
- * {@link VirtualCdj#addUpdateListener(DeviceUpdateListener)}.  Whenever a device update is received,
+ * {@link UpdateSocketConnection#addUpdateListener(DeviceUpdateListener)}.  Whenever a device update is received,
  * {@link #received(DeviceUpdate)} is invoked with it.
  *
  * @author James Elliott

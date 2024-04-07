@@ -10,7 +10,7 @@ import org.deepsymmetry.beatlink.data.SlotReference;
  * {@link org.deepsymmetry.beatlink.data.MetadataFinder#getMediaDetailsFor(SlotReference)} and
  * {@link MetadataFinder#getMountedMediaDetails()} methods. But if you want to obtain that information without
  * starting the MetadataFinder, you can implement this interface, register it using
- * {@link VirtualCdj#addMediaDetailsListener(MediaDetailsListener)}, and then call
+ * {@link UpdateSocketConnection#addMediaDetailsListener(MediaDetailsListener)}, and then call
  * {@link VirtualCdj#sendMediaQuery(SlotReference)} yourself.
  *
  * @author James Elliott
