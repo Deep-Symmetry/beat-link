@@ -4,7 +4,6 @@ import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +30,7 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * The socket used to listen for announcement packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>(null);
+    private SocketSender socket;
 
     /**
      * Track when we started listening for announcement packets.
@@ -134,14 +133,16 @@ public class DeviceFinder extends LifecycleParticipant {
     public synchronized void start() throws SocketException {
 
         if (!isRunning()) {
-            AnnouncementSocketConnection.getInstance().addDeviceAnnouncementListener(new AnnouncementListener() {
+            AnnouncementSocketConnection.getInstance().addAnnouncementPacketListener(new AnnouncementPacketListener() {
                         @Override
-                        public void handleDeviceAnnouncement(DeviceAnnouncement update) {
+                        public void handleAnnouncementPacket(DeviceAnnouncement update) {
                             handleDeviceStatusAnnouncement(update);
                         }
                     }
             );
             AnnouncementSocketConnection.getInstance().start();
+
+            socket = AnnouncementSocketConnection.getInstance();
 
             deliverLifecycleAnnouncement(logger, true);
         }
@@ -191,39 +192,35 @@ synchronized void flush() {
     });
 }
 
-/**
- * Get the set of DJ Link devices which currently can be seen on the network. These can be passed to
- * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
- * as long as the Virtual CDJ is active.
- *
- * @return the devices which have been heard from recently enough to be considered present on the network
- * @throws IllegalStateException if the {@code DeviceFinder} is not active
- */
-public Map<DeviceReference, DeviceAnnouncement> getSynchronizedDevices() {
-    if (!isRunning()) {
-        throw new IllegalStateException("DeviceFinder is not active");
+    /**
+     * Stop listening for device announcements. Also discard any announcements which had been received, and
+     * notify any registered listeners that those devices have been lost.
+     */
+    @SuppressWarnings("WeakerAccess")
+    public synchronized void stop() {
+        if (isRunning()) {
+            flush();
+            deliverLifecycleAnnouncement(logger, false);
+        }
     }
-    //expireDevices();  // Get rid of anything past its sell-by date.
-    // Make a copy so callers get an immutable snapshot of the current state.
-    return devices;
-}
 
-/**
- * Get the set of DJ Link devices which currently can be seen on the network. These can be passed to
- * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
- * as long as the Virtual CDJ is active.
- *
- * @return the devices which have been heard from recently enough to be considered present on the network
- * @throws IllegalStateException if the {@code DeviceFinder} is not active
- */
-public Set<DeviceAnnouncement> getCurrentDevices() {
-    if (!isRunning()) {
-        throw new IllegalStateException("DeviceFinder is not active");
+    /**
+     * Get the set of DJ Link devices which currently can be seen on the network. These can be passed to
+     * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
+     * as long as the Virtual CDJ is active.
+     *
+     * @return the devices which have been heard from recently enough to be considered present on the network
+     *
+     * @throws IllegalStateException if the {@code DeviceFinder} is not active
+     */
+    public Set<DeviceAnnouncement> getCurrentDevices() {
+        if (!isRunning()) {
+            throw new IllegalStateException("DeviceFinder is not active");
+        }
+        expireDevices();  // Get rid of anything past its sell-by date.
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Collections.unmodifiableSet(new HashSet<DeviceAnnouncement>(devices.values()));
     }
-    expireDevices();  // Get rid of anything past its sell-by date.
-    // Make a copy so callers get an immutable snapshot of the current state.
-    return Collections.unmodifiableSet(new HashSet<DeviceAnnouncement>(devices.values()));
-}
 
 /**
  * Find and return the device announcement that was most recently received from a device identifying itself

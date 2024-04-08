@@ -8,7 +8,7 @@ package org.deepsymmetry.beatlink;
  *
  */
 @SuppressWarnings("WeakerAccess")
-public interface AnnouncementListener {
+public interface AnnouncementPacketListener {
 
     /**
      * Invoked when a new DJ Link packet is received on the announcement port.
@@ -20,6 +20,6 @@ public interface AnnouncementListener {
      *
      * @param announcement the message which announced the device's presence
      */
-    void handleDeviceAnnouncement(DeviceAnnouncement announcement);
+    void handleAnnouncementPacket(DeviceAnnouncement announcement);
 
 }

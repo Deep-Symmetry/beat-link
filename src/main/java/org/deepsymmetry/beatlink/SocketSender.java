@@ -18,16 +18,5 @@ public interface SocketSender {
      */
     void send(DatagramPacket packet) throws IOException;
 
-    /**
-     * A method for socket senders to provide access to the underlying socket, but only
-     * for sending reasons. If a process wants to receive from a socket, they must register
-     * a listener.
-     *
-     * @return SocketSender
-     */
-    SocketSender getSocketSender();
-
     InetAddress getLocalAddress();
-
-    void close();
 }

@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class UpdateSocketConnection extends LifecycleParticipant implements SocketSender {
@@ -18,7 +17,7 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
     /**
      * The socket used to receive device status packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> updateSocket = new AtomicReference<DatagramSocket>();
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>();
 
     /**
      * Maintain a set of addresses from which device announcements should be ignored. The {@link VirtualCdj} will add
@@ -65,7 +64,7 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
      * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
     public boolean isRunning() {
-        return updateSocket.get() != null;
+        return socket.get() != null;
     }
     public static UpdateSocketConnection getInstance() {
         return connectionsManager;
@@ -124,10 +123,10 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
             }
 
             // Open our communication socket.
-            updateSocket.set(new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress()));
+            socket.set(new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress()));
 
             // Inform the DeviceFinder to ignore our own device announcement packets.
-            addIgnoredAddress(updateSocket.get().getLocalAddress());
+            AnnouncementSocketConnection.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
 
             // Set up our buffer and packet to receive incoming messages.
             final byte[] buffer = new byte[512];
@@ -140,7 +139,7 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
                     boolean received;
                     while (isRunning()) {
                         try {
-                            updateSocket.get().receive(packet);
+                            socket.get().receive(packet);
                             received = true;
                         } catch (IOException e) {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
@@ -153,7 +152,7 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
                             received = false;
                         }
                         try {
-                            if (received && (packet.getAddress() != updateSocket.get().getLocalAddress())) {
+                            if (received && (packet.getAddress() != socket.get().getLocalAddress())) {
                                 DeviceUpdate update = buildUpdate(packet);
                                 if (update != null) {
                                     deliverDeviceUpdate(update);
@@ -164,7 +163,7 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
                         }
                     }
                 }
-            }, "beat-link VirtualCdj status receiver");
+            }, "beat-link UpdateSocketConnection status receiver");
             receiver.setDaemon(true);
             receiver.setPriority(Thread.MAX_PRIORITY);
             receiver.start();
@@ -198,47 +197,16 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
         return null;
     }
 
-
-
     /**
-     * Stop listening for device announcements. Also discard any announcements which had been received, and
-     * notify any registered listeners that those devices have been lost.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public synchronized void stopAnnouncementSocket() {
-        if (isRunning()) {
-            updateSocket.get().close();
-            updateSocket.set(null);
-            flushAnnouncementSocket();
-            deliverLifecycleAnnouncement(logger, false);
-        }
-    }
-
-    public synchronized void flushAnnouncementSocket() {
-        DeviceFinder.getInstance().flush();
-    }
-
-    /**
-     * Stop announcing ourselves and listening for status updates.
-     */
-    public synchronized void stopUpdateSocket() {
-        if (isRunning()) {
-            removeIgnoredAddress(updateSocket.get().getLocalAddress());
-            updateSocket.get().close();
-            updateSocket.set(null);// Set up for self-assignment if restarted.
-            deliverLifecycleAnnouncement(logger, false);
-        }
-    }
-
-    /**
-     * Stop listening for device announcements. Also discard any announcements which had been received, and
-     * notify any registered listeners that those devices have been lost.
+     * Stop listening for status updates.
      */
     @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
-            stopAnnouncementSocket();
-            stopUpdateSocket();
+            removeIgnoredAddress(socket.get().getLocalAddress());
+            socket.get().close();
+            socket.set(null);// Set up for self-assignment if restarted.
+            deliverLifecycleAnnouncement(logger, false);
         }
     }
 
@@ -264,12 +232,11 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
 
     @Override
     public void send(DatagramPacket packet) throws IOException {
-        updateSocket.get().send(packet);
-    }
-
-    @Override
-    public SocketSender getSocketSender() {
-        return this;
+        if (isRunning()) {
+            socket.get().send(packet);
+        } else {
+            logger.warn("Socket is null, cannot send packet.");
+        }
     }
 
     /**
@@ -280,7 +247,7 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
      */
     public InetAddress getLocalAddress() {
         ensureRunning();
-        return updateSocket.get().getLocalAddress();
+        return socket.get().getLocalAddress();
     }
 
 
@@ -467,12 +434,14 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
 
             case MEDIA_RESPONSE:
                 if (packet.getLength() > MediaDetails.MINIMUM_PACKET_SIZE) {
+                    logger.error("MEDIA RESPONSE");
                     deliverMediaDetailsUpdate(new MediaDetails(packet));
                 }
                 return null;
 
             case DEVICE_HELLO:
                 if (packet.getLength() > MediaDetails.MINIMUM_PACKET_SIZE) {
+                    logger.error("DEVICE HELLO");
                     deliverMediaDetailsUpdate(new MediaDetails(packet));
                 }
                 return null;
@@ -481,11 +450,5 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
                 logger.warn("Ignoring " + kind.name + " packet sent to update port.");
                 return null;
         }
-    }
-
-    @Override
-    public void close() {
-        updateSocket.get().close();
-        updateSocket.set(null);
     }
 }

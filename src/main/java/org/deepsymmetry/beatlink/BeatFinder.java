@@ -45,7 +45,7 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * The socket used to listen for beat packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> beatFinderSocket = new AtomicReference<DatagramSocket>(null);
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>(null);
 
     /**
      * Check whether we are presently listening for beat packets.
@@ -53,7 +53,7 @@ public class BeatFinder extends LifecycleParticipant {
      * @return {@code true} if our socket is open and monitoring for DJ Link beat packets on the network
      */
     public boolean isRunning() {
-        return beatFinderSocket.get() != null;
+        return socket.get() != null;
     }
 
     /**
@@ -119,7 +119,7 @@ public class BeatFinder extends LifecycleParticipant {
      */
     public synchronized void start() throws SocketException {
         if (!isRunning()) {
-            beatFinderSocket.set(new DatagramSocket(BEAT_PORT));
+            socket.set(new DatagramSocket(BEAT_PORT));
             deliverLifecycleAnnouncement(logger, true);
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -129,14 +129,14 @@ public class BeatFinder extends LifecycleParticipant {
                     boolean received;
                     while (isRunning()) {
                         try {
-                            beatFinderSocket.get().receive(packet);
+                            socket.get().receive(packet);
                             received = !AnnouncementSocketConnection.getInstance().isAddressIgnored(packet.getAddress());
                         } catch (IOException e) {
                             // Don't log a warning if the exception was due to the socket closing at shutdown.
                             if (isRunning()) {
                                 // We did not expect to have a problem; log a warning and shut down.
                                 logger.warn("Problem reading from beat/sync socket, stopping", e);
-                                close();
+                                stop();
                             }
                             received = false;
                         }
@@ -250,10 +250,10 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Stop listening for beats.
      */
-    public synchronized void close() {
+    public synchronized void stop() {
         if (isRunning()) {
-            beatFinderSocket.get().close();
-            beatFinderSocket.set(null);
+            socket.get().close();
+            socket.set(null);
             deliverLifecycleAnnouncement(logger, false);
         }
     }
@@ -710,29 +710,6 @@ public class BeatFinder extends LifecycleParticipant {
             }
         }
     }
-
-    // TODO: Break out the socket to its own class
-//
-//    @Override
-//    public void send(DatagramPacket packet) throws IOException {
-//        beatFinderSocket.get().send(packet);
-//    }
-//
-//    @Override
-//    public SocketSender getSocketSender() {
-//        return this;
-//    }
-//
-//    /**
-//     * Return the address being used on the Update Socket port to send presence announcement broadcasts.
-//     *
-//     * @return the local address we present to the DJ Link network
-//     * @throws IllegalStateException if the {@code VirtualCdj} is not active
-//     */
-//    public InetAddress getLocalAddress() {
-//        ensureRunning();
-//        return beatFinderSocket.get().getLocalAddress();
-//    }
 
     /**
      * Holds the singleton instance of this class.

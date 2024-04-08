@@ -42,7 +42,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The socket used to receive device status packets while we are active.
      */
-    private SocketSender socketSender;
+    private SocketSender socket;
 
     /**
      * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
@@ -61,7 +61,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public InetAddress getLocalAddress() {
         ensureRunning();
-        return socketSender.getLocalAddress();
+        return socket.getLocalAddress();
     }
 
     /**
@@ -197,10 +197,10 @@ public class VirtualCdj extends LifecycleParticipant {
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-keep-alive">Packet Analysis document</a>.
      */
     private static final byte[] keepAliveBytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x06, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x02, 0x00, 0x36,  0x00, 0x01, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x02, 0x00, 0x00, 0x00,  0x01, 0x64
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x06, 0x00, 0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e, 0x6b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x36, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x02, 0x00, 0x00, 0x00, 0x01, 0x64
     };
 
     /**
@@ -237,7 +237,7 @@ public class VirtualCdj extends LifecycleParticipant {
         if (name.getBytes().length > DEVICE_NAME_LENGTH) {
             throw new IllegalArgumentException("name cannot be more than " + DEVICE_NAME_LENGTH + " bytes long");
         }
-        Arrays.fill(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_OFFSET + DEVICE_NAME_LENGTH, (byte)0);
+        Arrays.fill(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_OFFSET + DEVICE_NAME_LENGTH, (byte) 0);
         System.arraycopy(name.getBytes(), 0, keepAliveBytes, DEVICE_NAME_OFFSET, name.getBytes().length);
     }
 
@@ -245,27 +245,27 @@ public class VirtualCdj extends LifecycleParticipant {
      * The initial packet sent three times when coming online.
      */
     private static final byte[] helloBytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x0a, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x04, 0x00, 0x26,  0x01, 0x40
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x0a, 0x00, 0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e, 0x6b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x01, 0x04, 0x00, 0x26, 0x01, 0x40
     };
 
     /**
      * The first-stage device number claim packet series.
      */
     private static final byte[] claimStage1bytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x00, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x03, 0x00, 0x2c,  0x0d, 0x01, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x00, 0x00, 0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e, 0x6b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x01, 0x03, 0x00, 0x2c, 0x0d, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
 
     /**
      * The second-stage device number claim packet series.
      */
     private static final byte[] claimStage2bytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x02, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x03, 0x00, 0x32,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x0d, 0x00,
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x02, 0x00, 0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e, 0x6b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x01, 0x03, 0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d, 0x00,
             0x01, 0x00
     };
 
@@ -273,18 +273,18 @@ public class VirtualCdj extends LifecycleParticipant {
      * The third-stage (final) device number claim packet series.
      */
     private static final byte[] claimStage3bytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x04, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x03, 0x00, 0x26,  0x0d, 0x00
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x04, 0x00, 0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e, 0x6b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x01, 0x03, 0x00, 0x26, 0x0d, 0x00
     };
 
     /**
      * Packet used to acknowledge a mixer's intention to assign us a device number.
      */
     private static final byte[] assignmentRequestBytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x02, 0x01,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x02, 0x00, 0x32,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x02, 0x01, 0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e, 0x6b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x01, 0x00
     };
 
@@ -292,9 +292,9 @@ public class VirtualCdj extends LifecycleParticipant {
      * Packet used to tell another device we are already using a device number.
      */
     private static final byte[] deviceNumberDefenseBytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x08, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x02, 0x00, 0x29,  0x00, 0x00, 0x00, 0x00,   0x00
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x08, 0x00, 0x62, 0x65, 0x61, 0x74,
+            0x2d, 0x6c, 0x69, 0x6e, 0x6b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x01, 0x02, 0x00, 0x29, 0x00, 0x00, 0x00, 0x00, 0x00
     };
 
     /**
@@ -444,7 +444,6 @@ public class VirtualCdj extends LifecycleParticipant {
 //    }
 
 
-
     /**
      * Process a device update once it has been received. Track it as the most recent update from its address,
      * and notify any registered listeners, including master listeners if it results in changes to tracked state,
@@ -456,7 +455,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
         // Keep track of the largest sync number we see.
         if (update instanceof CdjStatus) {
-            int syncNumber = ((CdjStatus)update).getSyncNumber();
+            int syncNumber = ((CdjStatus) update).getSyncNumber();
             if (syncNumber > this.largestSyncCounter.get()) {
                 this.largestSyncCounter.set(syncNumber);
             }
@@ -532,7 +531,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * Scan a network interface to find if it has an address space which matches the device we are trying to reach.
      * If so, return the address specification.
      *
-     * @param aDevice the DJ Link device we are trying to communicate with
+     * @param aDevice          the DJ Link device we are trying to communicate with
      * @param networkInterface the network interface we are testing
      * @return the address which can be used to communicate with the device on the interface, or null
      */
@@ -679,19 +678,19 @@ public class VirtualCdj extends LifecycleParticipant {
         }
 
         // Send a packet directly to the mixer telling it we are ready for its device assignment.
-        Arrays.fill(assignmentRequestBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        Arrays.fill(assignmentRequestBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
         System.arraycopy(getDeviceName().getBytes(), 0, assignmentRequestBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, assignmentRequestBytes, 0x24, 4);
         System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, assignmentRequestBytes, 0x28, 6);
         // Can't call getDeviceNumber() on next line because that's synchronized!
-        assignmentRequestBytes[0x31] = (keepAliveBytes[DEVICE_NUMBER_OFFSET] == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
+        assignmentRequestBytes[0x31] = (keepAliveBytes[DEVICE_NUMBER_OFFSET] == 0) ? (byte) 1 : (byte) 2;  // The auto-assign flag.
         assignmentRequestBytes[0x2f] = 1;  // The packet counter.
         try {
             DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
                     mixerAddress, AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
             logger.debug("Sending device number request to mixer at address " + announcement.getAddress().getHostAddress() +
                     ", port " + announcement.getPort());
-            socketSender.send(announcement);
+            socket.send(announcement);
         } catch (Exception e) {
             logger.warn("Unable to send device number request to mixer.", e);
         }
@@ -710,7 +709,7 @@ public class VirtualCdj extends LifecycleParticipant {
         }
 
         // Send a packet to the interloper telling it that we are using that device number.
-        Arrays.fill(deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        Arrays.fill(deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
         System.arraycopy(getDeviceName().getBytes(), 0, deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         deviceNumberDefenseBytes[0x24] = keepAliveBytes[DEVICE_NUMBER_OFFSET];
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, deviceNumberDefenseBytes, 0x25, 4);
@@ -719,7 +718,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     invaderAddress, AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
             logger.info("Sending device number defense packet to invader at address " + defense.getAddress().getHostAddress() +
                     ", port " + defense.getPort());
-            socketSender.send(defense);
+            socket.send(defense);
         } catch (Exception e) {
             logger.error("Unable to send device defense packet.", e);
         }
@@ -737,14 +736,14 @@ public class VirtualCdj extends LifecycleParticipant {
         mixerAssigned.set(0);
 
         // Send the initial series of three "coming online" packets.
-        Arrays.fill(helloBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        Arrays.fill(helloBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
         System.arraycopy(getDeviceName().getBytes(), 0, helloBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         for (int i = 1; i <= 3; i++) {
             try {
                 logger.debug("Sending hello packet " + i);
                 DatagramPacket announcement = new DatagramPacket(helloBytes, helloBytes.length,
                         broadcastAddress.get(), AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
-                socketSender.send(announcement);
+                socket.send(announcement);
                 Thread.sleep(300);
             } catch (Exception e) {
                 logger.warn("Unable to send hello packet to network, failing to go online.", e);
@@ -767,16 +766,16 @@ public class VirtualCdj extends LifecycleParticipant {
 
             // Send the series of three initial device number claim packets, unless we are interrupted by a defense
             // or a mixer assigning us a specific number.
-            Arrays.fill(claimStage1bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+            Arrays.fill(claimStage1bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
             System.arraycopy(getDeviceName().getBytes(), 0, claimStage1bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
             System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, claimStage1bytes, 0x26, 6);
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
-                claimStage1bytes[0x24] = (byte)i;  // The packet counter.
+                claimStage1bytes[0x24] = (byte) i;  // The packet counter.
                 try {
                     logger.debug("Sending claim stage 1 packet " + i);
                     DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
                             broadcastAddress.get(), AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
-                    socketSender.send(announcement);
+                    socket.send(announcement);
                     //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
@@ -796,19 +795,19 @@ public class VirtualCdj extends LifecycleParticipant {
 
             // Send the middle series of device claim packets, unless we are interrupted by a defense
             // or a mixer assigning us a specific number.
-            Arrays.fill(claimStage2bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+            Arrays.fill(claimStage2bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
             System.arraycopy(getDeviceName().getBytes(), 0, claimStage2bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
             System.arraycopy(matchedAddress.getAddress().getAddress(), 0, claimStage2bytes, 0x24, 4);
             System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, claimStage2bytes, 0x28, 6);
-            claimStage2bytes[0x2e] = (byte)claimingNumber.get();  // The number we are claiming.
-            claimStage2bytes[0x31] = (getDeviceNumber() == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
+            claimStage2bytes[0x2e] = (byte) claimingNumber.get();  // The number we are claiming.
+            claimStage2bytes[0x31] = (getDeviceNumber() == 0) ? (byte) 1 : (byte) 2;  // The auto-assign flag.
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
-                claimStage2bytes[0x2f] = (byte)i;  // The packet counter.
+                claimStage2bytes[0x2f] = (byte) i;  // The packet counter.
                 try {
                     logger.debug("Sending claim stage 2 packet " + i + " for device " + claimStage2bytes[0x2e]);
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
                             broadcastAddress.get(), AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
-                    socketSender.send(announcement);
+                    socket.send(announcement);
                     //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
@@ -834,16 +833,16 @@ public class VirtualCdj extends LifecycleParticipant {
 
             // Send the final series of device claim packets, unless we are interrupted by a defense, or the mixer
             // acknowledges our acceptance of its assignment.
-            Arrays.fill(claimStage3bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+            Arrays.fill(claimStage3bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
             System.arraycopy(getDeviceName().getBytes(), 0, claimStage3bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-            claimStage3bytes[0x24] = (byte)claimingNumber.get();  // The number we are claiming.
+            claimStage3bytes[0x24] = (byte) claimingNumber.get();  // The number we are claiming.
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
-                claimStage3bytes[0x25] = (byte)i;  // The packet counter.
+                claimStage3bytes[0x25] = (byte) i;  // The packet counter.
                 try {
                     logger.debug("Sending claim stage 3 packet " + i + " for device " + claimStage3bytes[0x24]);
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
                             broadcastAddress.get(), AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
-                    socketSender.send(announcement);
+                    socket.send(announcement);
                     //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
@@ -864,7 +863,7 @@ public class VirtualCdj extends LifecycleParticipant {
             claimed = true;  // If we finished all our loops, the number we wanted is ours.
         }
         // Set the device number we claimed.
-        keepAliveBytes[DEVICE_NUMBER_OFFSET] = (byte)claimingNumber.getAndSet(0);
+        keepAliveBytes[DEVICE_NUMBER_OFFSET] = (byte) claimingNumber.getAndSet(0);
         mixerAssigned.set(0);
         return true;  // Huzzah, we found the right device number to use!
     }
@@ -881,7 +880,8 @@ public class VirtualCdj extends LifecycleParticipant {
         UpdateSocketConnection.getInstance().addUpdateListener(updateListener);
         UpdateSocketConnection.getInstance().start();
 
-        socketSender = UpdateSocketConnection.getInstance().getSocketSender();
+        socket = UpdateSocketConnection.getInstance();
+
         matchingInterfaces = UpdateSocketConnection.getInstance().getMatchingInterfaces();
         matchedAddress = UpdateSocketConnection.getInstance().getMatchedAddress();
 
@@ -898,7 +898,7 @@ public class VirtualCdj extends LifecycleParticipant {
             // We couldn't get a device number, so clean up and report failure.
             logger.warn("Unable to allocate a device number for the Virtual CDJ, giving up.");
             AnnouncementSocketConnection.getInstance().removeIgnoredAddress(getLocalAddress());
-            socketSender.close();
+            AnnouncementSocketConnection.getInstance().stop();
             return false;
         }
 
@@ -928,7 +928,7 @@ public class VirtualCdj extends LifecycleParticipant {
     public Set<DeviceAnnouncement> findUnreachablePlayers() {
         ensureRunning();
         Set<DeviceAnnouncement> result = new HashSet<DeviceAnnouncement>();
-        for (DeviceAnnouncement candidate: DeviceFinder.getInstance().getCurrentDevices()) {
+        for (DeviceAnnouncement candidate : DeviceFinder.getInstance().getCurrentDevices()) {
             if (!Util.sameNetwork(matchedAddress.getNetworkPrefixLength(), matchedAddress.getAddress(), candidate.getAddress())) {
                 result.add(candidate);
             }
@@ -1001,7 +1001,6 @@ public class VirtualCdj extends LifecycleParticipant {
      * driven by receipt of device announcement packets.</p>
      *
      * @param deviceNumber the device number to try to claim
-     *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
@@ -1023,12 +1022,10 @@ public class VirtualCdj extends LifecycleParticipant {
             } catch (Throwable t) {
                 logger.error("Problem stopping sending status during shutdown", t);
             }
-            AnnouncementSocketConnection.getInstance().removeIgnoredAddress(socketSender.getLocalAddress());
-            socketSender.close();
             broadcastAddress.set(null);
             updates.clear();
             setTempoMaster(null);
-            setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
+            setDeviceNumber((byte) 0);  // Set up for self-assignment if restarted.
             deliverLifecycleAnnouncement(logger, false);
         }
     }
@@ -1041,7 +1038,7 @@ public class VirtualCdj extends LifecycleParticipant {
         try {
             DatagramPacket announcement = new DatagramPacket(keepAliveBytes, keepAliveBytes.length,
                     broadcastAddress, AnnouncementSocketConnection.ANNOUNCEMENT_PORT);
-            socketSender.send(announcement);
+            socket.send(announcement);
             Thread.sleep(getAnnounceInterval());
         } catch (Throwable t) {
             logger.warn("Unable to send announcement packet, flushing DeviceFinder due to likely network change and shutting down.", t);
@@ -1053,7 +1050,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Get the most recent status we have seen from all devices that are recent enough to be considered still
      * active on the network.
-
+     *
      * @return the most recent detailed status update received for all active devices
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
@@ -1079,7 +1076,6 @@ public class VirtualCdj extends LifecycleParticipant {
      * combines both status updates and beat messages, and so is more likely to be current and definitive.</p>
      *
      * @param device the update identifying the device for which current status information is desired
-     *
      * @return the most recent detailed status update received for that device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
@@ -1097,7 +1093,6 @@ public class VirtualCdj extends LifecycleParticipant {
      * combines both status updates and beat messages, and so is more likely to be current and definitive.</p>
      *
      * @param device the announcement identifying the device for which current status information is desired
-     *
      * @return the most recent detailed status update received for that device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
@@ -1115,7 +1110,6 @@ public class VirtualCdj extends LifecycleParticipant {
      * combines both status updates and beat messages, and so is more likely to be current and definitive.</p>
      *
      * @param deviceNumber the device number of interest
-     *
      * @return the matching detailed status update or null if none have been received
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
@@ -1227,13 +1221,94 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
+     * <p>Adds the specified device update listener to receive device updates whenever they come in.
+     * If {@code listener} is {@code null} or already present in the list
+     * of registered listeners, no exception is thrown and no action is performed.</p>
+     *
+     * <p>To reduce latency, device updates are delivered to listeners directly on the thread that is receiving them
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.</p>
+     *
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and device updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the device update listener to add
+     */
+    @SuppressWarnings("SameParameterValue")
+    public void addUpdateListener(DeviceUpdateListener listener) {
+        UpdateSocketConnection.getInstance().addUpdateListener(listener);
+    }
+
+    /**
+     * Removes the specified device update listener so it no longer receives device updates when they come in.
+     * If {@code listener} is {@code null} or not present
+     * in the list of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the device update listener to remove
+     */
+    public void removeUpdateListener(DeviceUpdateListener listener) {
+        UpdateSocketConnection.getInstance().removeUpdateListener(listener);
+    }
+
+    /**
+     * Get the set of device update listeners that are currently registered.
+     *
+     * @return the currently registered update listeners
+     */
+    public Set<DeviceUpdateListener> getUpdateListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return UpdateSocketConnection.getInstance().getUpdateListeners();
+    }
+
+    /**
+     * <p>Adds the specified media details listener to receive detail responses whenever they come in.
+     * If {@code listener} is {@code null} or already present in the list
+     * of registered listeners, no exception is thrown and no action is performed.</p>
+     *
+     * <p>To reduce latency, device updates are delivered to listeners directly on the thread that is receiving them
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.</p>
+     *
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and detail updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the media details listener to add
+     */
+    public void addMediaDetailsListener(MediaDetailsListener listener) {
+        UpdateSocketConnection.getInstance().addMediaDetailsListener(listener);
+    }
+
+    /**
+     * Removes the specified media details listener so it no longer receives detail responses when they come in.
+     * If {@code listener} is {@code null} or not present
+     * in the list of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the media details listener to remove
+     */
+    public void removeMediaDetailsListener(MediaDetailsListener listener) {
+        UpdateSocketConnection.getInstance().removeMediaDetailsListener(listener);
+    }
+
+    /**
+     * Get the set of media details listeners that are currently registered.
+     *
+     * @return the currently registered details listeners
+     */
+    public Set<MediaDetailsListener> getMediaDetailsListeners() {
+        return UpdateSocketConnection.getInstance().getMediaDetailsListeners();
+    }
+
+    /**
      * Finish the work of building and sending a protocol packet.
      *
-     * @param kind the type of packet to create and send
-     * @param payload the content which will follow our device name in the packet
+     * @param kind        the type of packet to create and send
+     * @param payload     the content which will follow our device name in the packet
      * @param destination where the packet should be sent
-     * @param port the port to which the packet should be sent
-     *
+     * @param port        the port to which the packet should be sent
      * @throws IOException if there is a problem sending the packet
      */
     @SuppressWarnings("SameParameterValue")
@@ -1243,13 +1318,13 @@ public class VirtualCdj extends LifecycleParticipant {
                 ByteBuffer.wrap(payload));
         packet.setAddress(destination);
         packet.setPort(port);
-        socketSender.send(packet);
+        socket.send(packet);
     }
 
     /**
      * The bytes after the device name in a media query packet.
      */
-    private final static byte[] MEDIA_QUERY_PAYLOAD = { 0x01,
+    private final static byte[] MEDIA_QUERY_PAYLOAD = {0x01,
             0x00, 0x0d, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     /**
@@ -1257,7 +1332,6 @@ public class VirtualCdj extends LifecycleParticipant {
      * {@link MetadataFinder} when a response is received.
      *
      * @param slot the slot holding media we want to know about.
-     *
      * @throws IOException if there is a problem sending the request.
      */
     public void sendMediaQuery(SlotReference slot) throws IOException {
@@ -1270,7 +1344,7 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(MEDIA_QUERY_PAYLOAD, 0, payload, 0, MEDIA_QUERY_PAYLOAD.length);
         payload[2] = getDeviceNumber();
         System.arraycopy(keepAliveBytes, 44, payload, 5, 4);  // Copy in our IP address.
-        payload[12] = (byte)slot.player;
+        payload[12] = (byte) slot.player;
         payload[16] = slot.slot.protocolValue;
         assembleAndSendPacket(Util.PacketType.MEDIA_QUERY, payload, announcement.getAddress(), UPDATE_PORT);
     }
@@ -1278,16 +1352,15 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The bytes after the device name in a sync control command packet.
      */
-    private final static byte[] SYNC_CONTROL_PAYLOAD = { 0x01,
-            0x00, 0x0d, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x0f };
+    private final static byte[] SYNC_CONTROL_PAYLOAD = {0x01,
+            0x00, 0x0d, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x0f};
 
     /**
      * Assemble and send a packet that performs sync control, turning a device's sync mode on or off, or telling it
      * to become the tempo master.
      *
-     * @param target an update from the device whose sync state is to be set
+     * @param target  an update from the device whose sync state is to be set
      * @param command the byte identifying the specific sync command to be sent
-     *
      * @throws IOException if there is a problem sending the command to the device
      */
     private void sendSyncControlCommand(DeviceUpdate target, byte command) throws IOException {
@@ -1304,10 +1377,9 @@ public class VirtualCdj extends LifecycleParticipant {
      * Tell a device to turn sync on or off.
      *
      * @param deviceNumber the device whose sync state is to be set
-     * @param synced {@code} true if sync should be turned on, else it will be turned off
-     *
-     * @throws IOException if there is a problem sending the command to the device
-     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     * @param synced       {@code} true if sync should be turned on, else it will be turned off
+     * @throws IOException              if there is a problem sending the command to the device
+     * @throws IllegalStateException    if the {@code VirtualCdj} is not active
      * @throws IllegalArgumentException if {@code deviceNumber} is not found on the network
      */
     public void sendSyncModeCommand(int deviceNumber, boolean synced) throws IOException {
@@ -1323,22 +1395,20 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param target an update from the device whose sync state is to be set
      * @param synced {@code} true if sync should be turned on, else it will be turned off
-     *
-     * @throws IOException if there is a problem sending the command to the device
+     * @throws IOException           if there is a problem sending the command to the device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
-     * @throws NullPointerException if {@code update} is {@code null}
+     * @throws NullPointerException  if {@code update} is {@code null}
      */
     public void sendSyncModeCommand(DeviceUpdate target, boolean synced) throws IOException {
-        sendSyncControlCommand(target, synced? (byte)0x10 : (byte)0x20);
+        sendSyncControlCommand(target, synced ? (byte) 0x10 : (byte) 0x20);
     }
 
     /**
      * Tell a device to become tempo master.
      *
      * @param deviceNumber the device we want to take over the role of tempo master
-     *
-     * @throws IOException if there is a problem sending the command to the device
-     * @throws IllegalStateException if the {@code VirtualCdj} is not active
+     * @throws IOException              if there is a problem sending the command to the device
+     * @throws IllegalStateException    if the {@code VirtualCdj} is not active
      * @throws IllegalArgumentException if {@code deviceNumber} is not found on the network
      */
     public void appointTempoMaster(int deviceNumber) throws IOException {
@@ -1353,29 +1423,27 @@ public class VirtualCdj extends LifecycleParticipant {
      * Tell a device to become tempo master.
      *
      * @param target an update from the device that we want to take over the role of tempo master
-     *
-     * @throws IOException if there is a problem sending the command to the device
+     * @throws IOException           if there is a problem sending the command to the device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
-     * @throws NullPointerException if {@code update} is {@code null}
+     * @throws NullPointerException  if {@code update} is {@code null}
      */
     public void appointTempoMaster(DeviceUpdate target) throws IOException {
-        sendSyncControlCommand(target, (byte)0x01);
+        sendSyncControlCommand(target, (byte) 0x01);
     }
 
     /**
      * The bytes after the device name in a fader start command packet.
      */
-    private final static byte[] FADER_START_PAYLOAD = { 0x01,
-            0x00, 0x0d, 0x00, 0x04, 0x02, 0x02, 0x02, 0x02 };
+    private final static byte[] FADER_START_PAYLOAD = {0x01,
+            0x00, 0x0d, 0x00, 0x04, 0x02, 0x02, 0x02, 0x02};
 
     /**
      * Broadcast a packet that tells some players to start playing and others to stop. If a player number is in
      * both sets, it will be told to stop. Numbers outside the range 1 to 4 are ignored.
      *
      * @param deviceNumbersToStart the players that should start playing if they aren't already
-     * @param deviceNumbersToStop the players that should stop playing
-     *
-     * @throws IOException if there is a problem broadcasting the command to the players
+     * @param deviceNumbersToStop  the players that should stop playing
+     * @throws IOException           if there is a problem broadcasting the command to the players
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public void sendFaderStartCommand(Set<Integer> deviceNumbersToStart, Set<Integer> deviceNumbersToStop) throws IOException {
@@ -1399,8 +1467,8 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The bytes after the device name in a channels on-air report packet.
      */
-    private final static byte[] CHANNELS_ON_AIR_PAYLOAD = { 0x01,
-            0x00, 0x0d, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    private final static byte[] CHANNELS_ON_AIR_PAYLOAD = {0x01,
+            0x00, 0x0d, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     /**
      * Broadcast a packet that tells the players which channels are on the air (audible in the mixer output).
@@ -1410,8 +1478,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * overridden.
      *
      * @param deviceNumbersOnAir the players whose channels are currently on the air
-     *
-     * @throws IOException if there is a problem broadcasting the command to the players
+     * @throws IOException           if there is a problem broadcasting the command to the players
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public void sendOnAirCommand(Set<Integer> deviceNumbersOnAir) throws IOException {
@@ -1432,9 +1499,9 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The bytes after the device name in an extended channels on-air report packet.
      */
-    private final static byte[] CHANNELS_ON_AIR_EXTENDED_PAYLOAD = { 0x01,
+    private final static byte[] CHANNELS_ON_AIR_EXTENDED_PAYLOAD = {0x01,
             0x03, 0x0d, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00 };
+            0x00, 0x00, 0x00, 0x00, 0x00};
 
     /**
      * Broadcast a packet that tells the players which channels are on the air (audible in the mixer output).
@@ -1444,8 +1511,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * overridden.
      *
      * @param deviceNumbersOnAir the players whose channels are currently on the air
-     *
-     * @throws IOException if there is a problem broadcasting the command to the players
+     * @throws IOException           if there is a problem broadcasting the command to the players
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public void sendOnAirExtendedCommand(Set<Integer> deviceNumbersOnAir) throws IOException {
@@ -1472,23 +1538,22 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The bytes after the device name in a load-track command packet.
      */
-    private final static byte[] LOAD_TRACK_PAYLOAD = { 0x01,
-            0x00, 0x0d, 0x00, 0x34,  0x0d, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x32,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00
+    private final static byte[] LOAD_TRACK_PAYLOAD = {0x01,
+            0x00, 0x0d, 0x00, 0x34, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
 
     /**
      * Send a packet to the target player telling it to load the specified track from the specified source player.
      *
      * @param targetPlayer the device number of the player that you want to have load a track
-     * @param rekordboxId the identifier of a track within the source player's rekordbox database
+     * @param rekordboxId  the identifier of a track within the source player's rekordbox database
      * @param sourcePlayer the device number of the player from which the track should be loaded
-     * @param sourceSlot the media slot from which the track should be loaded
-     * @param sourceType the type of track to be loaded
-     *
-     * @throws IOException if there is a problem sending the command
+     * @param sourceSlot   the media slot from which the track should be loaded
+     * @param sourceType   the type of track to be loaded
+     * @throws IOException           if there is a problem sending the command
      * @throws IllegalStateException if the {@code VirtualCdj} is not active or the target device cannot be found
      */
     public void sendLoadTrackCommand(int targetPlayer, int rekordboxId,
@@ -1504,13 +1569,12 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Send a packet to the target device telling it to load the specified track from the specified source player.
      *
-     * @param target an update from the player that you want to have load a track
-     * @param rekordboxId the identifier of a track within the source player's rekordbox database
+     * @param target       an update from the player that you want to have load a track
+     * @param rekordboxId  the identifier of a track within the source player's rekordbox database
      * @param sourcePlayer the device number of the player from which the track should be loaded
-     * @param sourceSlot the media slot from which the track should be loaded
-     * @param sourceType the type of track to be loaded
-     *
-     * @throws IOException if there is a problem sending the command
+     * @param sourceSlot   the media slot from which the track should be loaded
+     * @param sourceType   the type of track to be loaded
+     * @throws IOException           if there is a problem sending the command
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public void sendLoadTrackCommand(DeviceUpdate target, int rekordboxId,
@@ -1521,17 +1585,17 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(LOAD_TRACK_PAYLOAD, 0, payload, 0, LOAD_TRACK_PAYLOAD.length);
         payload[0x02] = getDeviceNumber();
         payload[0x05] = getDeviceNumber();
-        payload[0x09] = (byte)sourcePlayer;
+        payload[0x09] = (byte) sourcePlayer;
         payload[0x0a] = sourceSlot.protocolValue;
         payload[0x0b] = sourceType.protocolValue;
-        payload[0x21] = (byte)(target.getDeviceNumber() - 1);
+        payload[0x21] = (byte) (target.getDeviceNumber() - 1);
         if (target.deviceName.startsWith("XDJ-XZ")) {
             // Use the packet variant that seems to be necessary for the XDJ-XZ to accept it.
             payload[0x01] = 1;
             payload[0x2c] = 0x32;
             // See if we can find a rekordbox instance to pose as, which is also necessary to make this work.
             for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
-                final byte number = (byte)device.getDeviceNumber();
+                final byte number = (byte) device.getDeviceNumber();
                 if (number >= 0x11 && number < 0x20) {  // Aha! We can see a regular rekordbox instance, this will work.
                     payload[0x02] = number;
                     payload[0x05] = number;
@@ -1540,7 +1604,7 @@ public class VirtualCdj extends LifecycleParticipant {
             }
             if (payload[0x02] == getDeviceNumber()) {  // We did not find a laptop rekordbox, see if there's a mobile one.
                 for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
-                    final byte number = (byte)device.getDeviceNumber();
+                    final byte number = (byte) device.getDeviceNumber();
                     if (number >= 0x29 && number < 0x30) { // We can see rekordbox mobile, this will work too.
                         payload[0x02] = number;
                         payload[0x05] = number;
@@ -1556,19 +1620,19 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The bytes after the device name in a load-track acknowledgment packet.
      */
-    private final static byte[] YIELD_ACK_PAYLOAD = { 0x01,
-            0x00, 0x0d, 0x00, 0x08,  0x00, 0x00, 0x00, 0x0d,   0x00, 0x00, 0x00, 0x01
+    private final static byte[] YIELD_ACK_PAYLOAD = {0x01,
+            0x00, 0x0d, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x01
     };
 
     /**
      * The bytes after the device name in a load-settings command packet.
      */
-    private final static byte[] LOAD_SETTINGS_PAYLOAD = { 0x02,
-            0x0d, 0x0d, 0x00, 0x50,  0x12, 0x34, 0x56, 0x78,   0x00, 0x00, 0x00, 0x03,  0x00, 0x00, 0x00, 0x00,
-            0x00, 0x01, 0x00, 0x00,  0x00, 0x01, 0x01, 0x01,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+    private final static byte[] LOAD_SETTINGS_PAYLOAD = {0x02,
+            0x0d, 0x0d, 0x00, 0x50, 0x12, 0x34, 0x56, 0x78, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00
     };
 
@@ -1576,9 +1640,8 @@ public class VirtualCdj extends LifecycleParticipant {
      * Send a packet to the target player telling it to apply the supplied settings.
      *
      * @param targetPlayer the device number of the player that you want to configure
-     * @param settings the device settings that should be loaded
-     *
-     * @throws IOException if there is a problem sending the command
+     * @param settings     the device settings that should be loaded
+     * @throws IOException           if there is a problem sending the command
      * @throws IllegalStateException if the {@code VirtualCdj} is not active or the target device cannot be found
      */
     public void sendLoadSettingsCommand(int targetPlayer, PlayerSettings settings)
@@ -1593,10 +1656,9 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Send a packet to the target device telling it to apply the supplied settings.
      *
-     * @param target an update from the player that you want to configure
+     * @param target   an update from the player that you want to configure
      * @param settings the device settings that should be loaded
-     *
-     * @throws IOException if there is a problem sending the command
+     * @throws IOException           if there is a problem sending the command
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
     public void sendLoadSettingsCommand(DeviceUpdate target, PlayerSettings settings) throws IOException {
@@ -1604,7 +1666,7 @@ public class VirtualCdj extends LifecycleParticipant {
         byte[] payload = new byte[LOAD_SETTINGS_PAYLOAD.length];
         System.arraycopy(LOAD_SETTINGS_PAYLOAD, 0, payload, 0, LOAD_SETTINGS_PAYLOAD.length);
         Util.setPayloadByte(payload, 0x20, getDeviceNumber());
-        Util.setPayloadByte(payload, 0x21, (byte)target.getDeviceNumber());
+        Util.setPayloadByte(payload, 0x21, (byte) target.getDeviceNumber());
         Util.setPayloadByte(payload, 0x2c, settings.onAirDisplay.protocolValue);
         Util.setPayloadByte(payload, 0x2d, settings.lcdBrightness.protocolValue);
         Util.setPayloadByte(payload, 0x2e, settings.quantize.protocolValue);
@@ -1654,7 +1716,6 @@ public class VirtualCdj extends LifecycleParticipant {
      * work, please open an issue.
      *
      * @param interval the millisecond interval that will pass between each status packet we send
-     *
      * @throws IllegalArgumentException if {@code interval} is less than 20 or more than 2000
      */
     public synchronized void setStatusInterval(int interval) {
@@ -1706,11 +1767,11 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The bytes following the device name in a beat packet.
      */
-    private static final byte[] BEAT_PAYLOAD = { 0x01,
-            0x00, 0x0d, 0x00, 0x3c,  0x01, 0x01, 0x01, 0x01,   0x02, 0x02, 0x02, 0x02,  0x10, 0x10, 0x10, 0x10,
-            0x04, 0x04, 0x04, 0x04,  0x20, 0x20, 0x20, 0x20,   0x08, 0x08, 0x08, 0x08,    -1,   -1,   -1,   -1,
-            -1,   -1,   -1,   -1,    -1,   -1,   -1,   -1,     -1,   -1,   -1,   -1,    -1,   -1,   -1,   -1,
-            -1,   -1,   -1,   -1,  0x00, 0x10, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x0b, 0x00, 0x00, 0x0d};
+    private static final byte[] BEAT_PAYLOAD = {0x01,
+            0x00, 0x0d, 0x00, 0x3c, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x02, 0x02, 0x10, 0x10, 0x10, 0x10,
+            0x04, 0x04, 0x04, 0x04, 0x20, 0x20, 0x20, 0x20, 0x08, 0x08, 0x08, 0x08, -1, -1, -1, -1,
+            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+            -1, -1, -1, -1, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x0d};
 
     /**
      * Sends a beat packet. Generally this should only be invoked when our {@link BeatSender} has determined that it is
@@ -1727,7 +1788,6 @@ public class VirtualCdj extends LifecycleParticipant {
      * time to do so, but it is public to allow experimentation.
      *
      * @param snapshot the time at which the beat to be sent occurred, for computation of its beat number
-     *
      * @return the beat number that was sent
      */
     public long sendBeat(Snapshot snapshot) {
@@ -1735,18 +1795,18 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(BEAT_PAYLOAD, 0, payload, 0, BEAT_PAYLOAD.length);
         payload[0x02] = getDeviceNumber();
 
-        Util.numberToBytes((int)snapshot.getBeatInterval(), payload, 0x05, 4);
-        Util.numberToBytes((int)(snapshot.getBeatInterval() * 2), payload, 0x09, 4);
-        Util.numberToBytes((int)(snapshot.getBeatInterval() * 4), payload, 0x11, 4);
-        Util.numberToBytes((int)(snapshot.getBeatInterval() * 8), payload, 0x19, 4);
+        Util.numberToBytes((int) snapshot.getBeatInterval(), payload, 0x05, 4);
+        Util.numberToBytes((int) (snapshot.getBeatInterval() * 2), payload, 0x09, 4);
+        Util.numberToBytes((int) (snapshot.getBeatInterval() * 4), payload, 0x11, 4);
+        Util.numberToBytes((int) (snapshot.getBeatInterval() * 8), payload, 0x19, 4);
 
         final int beatsLeft = 5 - snapshot.getBeatWithinBar();
-        final int nextBar = (int)(snapshot.getBeatInterval() * beatsLeft);
+        final int nextBar = (int) (snapshot.getBeatInterval() * beatsLeft);
         Util.numberToBytes(nextBar, payload, 0x0d, 4);
-        Util.numberToBytes(nextBar + (int)snapshot.getBarInterval(), payload, 0x15, 4);
+        Util.numberToBytes(nextBar + (int) snapshot.getBarInterval(), payload, 0x15, 4);
 
-        Util.numberToBytes((int)Math.round(snapshot.getTempo() * 100), payload, 0x3b, 2);
-        payload[0x3d] = (byte)snapshot.getBeatWithinBar();
+        Util.numberToBytes((int) Math.round(snapshot.getTempo() * 100), payload, 0x3b, 2);
+        payload[0x3d] = (byte) snapshot.getBeatWithinBar();
         payload[0x40] = getDeviceNumber();
 
         try {
@@ -1773,10 +1833,9 @@ public class VirtualCdj extends LifecycleParticipant {
      * you are using one of the standard player numbers, 1-4.
      *
      * @param send if {@code true} we will send status packets, and can participate in (and control) tempo and beat sync
-     *
      * @throws IllegalStateException if the virtual CDJ is not running, or if it is not using a device number in the
      *                               range 1 through 4
-     * @throws IOException if there is a problem starting the {@link BeatFinder}
+     * @throws IOException           if there is a problem starting the {@link BeatFinder}
      */
     public synchronized void setSendingStatus(boolean send) throws IOException {
         if (isSendingStatus() == send) {
@@ -1793,7 +1852,7 @@ public class VirtualCdj extends LifecycleParticipant {
             BeatFinder.getInstance().addLifecycleListener(beatFinderLifecycleListener);
 
             final AtomicBoolean stillRunning = new AtomicBoolean(true);
-            sendingStatus =  stillRunning;  // Allow other threads to stop us when necessary.
+            sendingStatus = stillRunning;  // Allow other threads to stop us when necessary.
 
             Thread sender = new Thread(null, new Runnable() {
                 @Override
@@ -1939,8 +1998,8 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private final AtomicBoolean master = new AtomicBoolean(false);
 
-    private static final byte[] MASTER_HANDOFF_REQUEST_PAYLOAD = { 0x01,
-            0x00, 0x0d, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0d };
+    private static final byte[] MASTER_HANDOFF_REQUEST_PAYLOAD = {0x01,
+            0x00, 0x0d, 0x00, 0x04, 0x00, 0x00, 0x00, 0x0d};
 
     /**
      * When have started the process of requesting the tempo master role from another player, this gets set to its
@@ -1953,7 +2012,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * up with us in charge of the group tempo and beat alignment.
      *
      * @throws IllegalStateException if we are not sending status updates
-     * @throws IOException if there is a problem sending the master yield request
+     * @throws IOException           if there is a problem sending the master yield request
      */
     public synchronized void becomeTempoMaster() throws IOException {
         logger.debug("Trying to become master.");
@@ -2186,16 +2245,16 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The template used to assemble a status packet when we are sending them.
      */
-    private final static byte[] STATUS_PAYLOAD = { 0x01,
-            0x04, 0x00, 0x00, (byte)0xf8, 0x00, 0x00, 0x01, 0x00, 0x00,  0x03,  0x01,  0x00, 0x00, 0x00, 0x00, 0x01,  // 0x020
-            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte)0xa0, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x030
+    private final static byte[] STATUS_PAYLOAD = {0x01,
+            0x04, 0x00, 0x00, (byte) 0xf8, 0x00, 0x00, 0x01, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01,  // 0x020
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xa0, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x030
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x040
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x050
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x04, 0x04, 0x00, 0x00, 0x00, 0x04,  // 0x060
             0x00, 0x00, 0x00, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x31, 0x2e, 0x34, 0x33,  // 0x070
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte)0xff, 0x00, 0x00, 0x10, 0x00, 0x00,  // 0x080
-            (byte)0x80, 0x00, 0x00, 0x00, 0x7f, (byte)0xff, (byte)0xff, (byte)0xff, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x090
-            0x00, 0x00, 0x00, 0x00, 0x01, (byte)0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x0a0
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xff, 0x00, 0x00, 0x10, 0x00, 0x00,  // 0x080
+            (byte) 0x80, 0x00, 0x00, 0x00, 0x7f, (byte) 0xff, (byte) 0xff, (byte) 0xff, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x090
+            0x00, 0x00, 0x00, 0x00, 0x01, (byte) 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x0a0
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x0b0
             0x00, 0x10, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0f, 0x01, 0x00, 0x00,  // 0x0c0
             0x12, 0x34, 0x56, 0x78, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00,  // 0x0d0
@@ -2216,7 +2275,7 @@ public class VirtualCdj extends LifecycleParticipant {
         double distance = playState.distanceFromBeat();
         while (playing.get() &&
                 (((distance < 0.0) && (Math.abs(distance) <= BeatSender.SLEEP_THRESHOLD)) ||
-                ((distance >= 0.0) && (distance <= (BeatSender.BEAT_THRESHOLD + 1))))) {
+                        ((distance >= 0.0) && (distance <= (BeatSender.BEAT_THRESHOLD + 1))))) {
             try {
                 //noinspection BusyWait
                 Thread.sleep(2);
@@ -2241,19 +2300,19 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(STATUS_PAYLOAD, 0, payload, 0, STATUS_PAYLOAD.length);
         payload[0x02] = getDeviceNumber();
         payload[0x05] = payload[0x02];
-        payload[0x08] = (byte)(playing ? 1 : 0);        // a, playing flag
+        payload[0x08] = (byte) (playing ? 1 : 0);        // a, playing flag
         payload[0x09] = payload[0x02];                  // Dr, the player from which the track was loaded
-        payload[0x5c] = (byte)(playing ? 3 : 5);        // P1, playing flag
+        payload[0x5c] = (byte) (playing ? 3 : 5);        // P1, playing flag
         Util.numberToBytes(syncCounter.get(), payload, 0x65, 4);
-        payload[0x6a] = (byte)(0x84 +                   // F, main status bit vector
+        payload[0x6a] = (byte) (0x84 +                   // F, main status bit vector
                 (playing ? 0x40 : 0) + (master.get() ? 0x20 : 0) + (synced.get() ? 0x10 : 0) + (onAir.get() ? 0x08 : 0));
-        payload[0x6c] = (byte)(playing ? 0x7a : 0x7e);  // P2, playing flag
-        Util.numberToBytes((int)Math.round(getTempo() * 100), payload, 0x73, 2);
-        payload[0x7e] = (byte)(playing ? 9 : 1);        // P3, playing flag
-        payload[0x7f] = (byte)(master.get() ? 1 : 0);   // Mm, tempo master flag
-        payload[0x80] = (byte)nextMaster.get();         // Mh, tempo master handoff indicator
-        Util.numberToBytes((int)playState.getBeat(), payload, 0x81, 4);
-        payload[0x87] = (byte)(playState.getBeatWithinBar());
+        payload[0x6c] = (byte) (playing ? 0x7a : 0x7e);  // P2, playing flag
+        Util.numberToBytes((int) Math.round(getTempo() * 100), payload, 0x73, 2);
+        payload[0x7e] = (byte) (playing ? 9 : 1);        // P3, playing flag
+        payload[0x7f] = (byte) (master.get() ? 1 : 0);   // Mm, tempo master flag
+        payload[0x80] = (byte) nextMaster.get();         // Mh, tempo master handoff indicator
+        Util.numberToBytes((int) playState.getBeat(), payload, 0x81, 4);
+        payload[0x87] = (byte) (playState.getBeatWithinBar());
         Util.numberToBytes(packetCounter.incrementAndGet(), payload, 0xa9, 4);
 
         DatagramPacket packet = Util.buildPacket(Util.PacketType.CDJ_STATUS,
@@ -2263,7 +2322,7 @@ public class VirtualCdj extends LifecycleParticipant {
         for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
             packet.setAddress(device.getAddress());
             try {
-                socketSender.send(packet);
+                socket.send(packet);
             } catch (IOException e) {
                 logger.warn("Unable to send status packet to " + device, e);
             }
@@ -2294,16 +2353,16 @@ public class VirtualCdj extends LifecycleParticipant {
         BeatFinder.getInstance().addOnAirListener(new OnAirListener() {
             @Override
             public void channelsOnAir(Set<Integer> audibleChannels) {
-                setOnAir(audibleChannels.contains((int)getDeviceNumber()));
+                setOnAir(audibleChannels.contains((int) getDeviceNumber()));
             }
         });
 
         BeatFinder.getInstance().addFaderStartListener(new FaderStartListener() {
             @Override
             public void fadersChanged(Set<Integer> playersToStart, Set<Integer> playersToStop) {
-                if (playersToStart.contains((int)getDeviceNumber())) {
+                if (playersToStart.contains((int) getDeviceNumber())) {
                     setPlaying(true);
-                } else if (playersToStop.contains((int)getDeviceNumber())) {
+                } else if (playersToStop.contains((int) getDeviceNumber())) {
                     setPlaying(false);
                 }
             }
@@ -2397,7 +2456,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * We have received a packet from a device trying to claim a device number, see if we should defend it.
      *
-     * @param packet the packet received
+     * @param packet       the packet received
      * @param deviceOffset the index of the byte within the packet holding the device number being claimed
      */
     private void handleDeviceClaimPacket(DatagramPacket packet, int deviceOffset) {
@@ -2414,7 +2473,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * The {@link DeviceFinder} delegates packets it doesn't know how to deal with to us using this method, because
      * they relate to claiming or defending device numbers, which is our responsibility.
      *
-     * @param kind the kind of packet that was received
+     * @param kind   the kind of packet that was received
      * @param packet the actual bytes of the packet
      */
     void handleSpecialAnnouncementPacket(Util.PacketType kind, DatagramPacket packet) {
@@ -2456,7 +2515,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     logger.warn("Another device is defending a number we are not using, ignoring: " + defendedDevice);
                 }
             } else {
-                logger.warn("Received device number defense message for device number " + defendedDevice +  " when we are not even running!");
+                logger.warn("Received device number defense message for device number " + defendedDevice + " when we are not even running!");
             }
         } else {
             logger.warn("Received unrecognized special announcement packet type: " + kind);

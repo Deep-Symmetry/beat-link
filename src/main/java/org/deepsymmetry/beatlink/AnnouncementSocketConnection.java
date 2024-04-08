@@ -15,12 +15,12 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AnnouncementSocketConnection extends LifecycleParticipant implements SocketSender {
     private static final Logger logger = LoggerFactory.getLogger(AnnouncementSocketConnection.class);
 
-    public static final AnnouncementSocketConnection connectionsManager = new AnnouncementSocketConnection();
+    public static final AnnouncementSocketConnection ourInstance = new AnnouncementSocketConnection();
 
     /**
      * The socket used to receive device status packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> announcementSocket = new AtomicReference<DatagramSocket>();
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>();
 
     /**
      * Track when we started listening for announcement packets.
@@ -45,10 +45,10 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
      * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
     public boolean isRunning() {
-        return announcementSocket.get() != null;
+        return socket.get() != null;
     }
     public static AnnouncementSocketConnection getInstance() {
-        return connectionsManager;
+        return ourInstance;
     }
 
     /**
@@ -56,10 +56,10 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
      *
      * @param announcement the message announcing the new announcements
      */
-    private void deliverDeviceAnnouncement(final DeviceAnnouncement announcement) {
-        for (final AnnouncementListener listener : getDeviceAnnouncementListeners()) {
+    private void deliverAnnouncementPacket(final DeviceAnnouncement announcement) {
+        for (final AnnouncementPacketListener listener : getAnnouncementPacketListeners()) {
             try {
-                listener.handleDeviceAnnouncement(announcement);
+                listener.handleAnnouncementPacket(announcement);
             } catch (Throwable t) {
                 logger.warn("Problem delivering announcement to listener", t);
             }
@@ -77,7 +77,7 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     public synchronized void start() throws SocketException {
         if (!isRunning()) {
             // This needs to happen first as this will be how users of this
-            announcementSocket.set(new DatagramSocket(ANNOUNCEMENT_PORT));
+            socket.set(new DatagramSocket(ANNOUNCEMENT_PORT));
             startTime.set(System.currentTimeMillis());
             deliverLifecycleAnnouncement(logger, true);
 
@@ -91,11 +91,11 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
                     while (isRunning()) {
                         try {
                             if (DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
-                                announcementSocket.get().setSoTimeout(60000);  // We have no devices to check for timeout; block for a whole minute to check for shutdown
+                                socket.get().setSoTimeout(60000);  // We have no devices to check for timeout; block for a whole minute to check for shutdown
                             } else {
-                                announcementSocket.get().setSoTimeout(1000);  // Check every second to see if a device has vanished
+                                socket.get().setSoTimeout(1000);  // Check every second to see if a device has vanished
                             }
-                            announcementSocket.get().receive(packet);
+                            socket.get().receive(packet);
                             received = !ignoredAddresses.contains(packet.getAddress());
                         } catch (SocketTimeoutException ste) {
                             received = false;
@@ -123,7 +123,7 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
                                         }
                                         DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
 
-                                        deliverDeviceAnnouncement(announcement);
+                                        deliverAnnouncementPacket(announcement);
                                     }
                                 } else if (kind == Util.PacketType.DEVICE_HELLO) {
                                     logger.debug("Received device hello packet.");
@@ -133,31 +133,29 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
                                 }
                             }
                         } catch (Throwable t) {
-                            logger.warn("Problem processing DeviceAnnouncement packet", t);
+                            logger.warn("Problem processing AnnouncementPacket", t);
                         }
                     }
                 }
-            }, "beat-link DeviceFinder receiver");
+            }, "beat-link AnnouncementSocketConnection receiver");
             receiver.setDaemon(true);
             receiver.start();
         }
     }
 
     public void send(DatagramPacket packet) throws IOException {
-        announcementSocket.get().send(packet);
+        if (isRunning()) {
+            socket.get().send(packet);
+        } else {
+            logger.warn("Socket is null, cannot send packet.");
+        }
     }
-
-    @Override
-    public SocketSender getSocketSender() {
-        return this;
-    }
-
 
     /**
      * Keeps track of the registered device announcement listeners.
      */
-    private final Set<AnnouncementListener> deviceListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<AnnouncementListener, Boolean>());
+    private final Set<AnnouncementPacketListener> announcementPacketListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<AnnouncementPacketListener, Boolean>());
 
     /**
      * Adds the specified device announcement listener to receive device announcements when DJ Link devices
@@ -171,9 +169,9 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
      *
      * @param listener the device announcement listener to add
      */
-    public void addDeviceAnnouncementListener(AnnouncementListener listener) {
+    public void addAnnouncementPacketListener(AnnouncementPacketListener listener) {
         if (listener != null) {
-            deviceListeners.add(listener);
+            announcementPacketListeners.add(listener);
         }
     }
 
@@ -184,9 +182,9 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
      *
      * @param listener the device announcement listener to remove
      */
-    public void removeDeviceAnnouncementListener(AnnouncementListener listener) {
+    public void removeAnnouncementPacketListener(AnnouncementPacketListener listener) {
         if (listener != null) {
-            deviceListeners.remove(listener);
+            announcementPacketListeners.remove(listener);
         }
     }
 
@@ -196,28 +194,9 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
      * @return the currently registered device announcement listeners
      */
     @SuppressWarnings("WeakerAccess")
-    public Set<AnnouncementListener> getDeviceAnnouncementListeners() {
+    public Set<AnnouncementPacketListener> getAnnouncementPacketListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<AnnouncementListener>(deviceListeners));
-    }
-
-    /**
-     * Stop listening for device announcements. Also discard any announcements which had been received, and
-     * notify any registered listeners that those devices have been lost.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public synchronized void stopAnnouncementSocket() {
-        if (isRunning()) {
-            announcementSocket.get().close();
-            announcementSocket.set(null);
-            flushAnnouncementSocket();
-            deliverLifecycleAnnouncement(logger, false);
-        }
-    }
-
-    public synchronized void flushAnnouncementSocket() {
-        DeviceFinder.getInstance().flush();
-        // VirtualRekordbox should also flush its announcement stuff here.
+        return Collections.unmodifiableSet(new HashSet<AnnouncementPacketListener>(announcementPacketListeners));
     }
 
     /**
@@ -227,9 +206,8 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
     @SuppressWarnings("WeakerAccess")
     public synchronized void stop() {
         if (isRunning()) {
-            announcementSocket.get().close();
-            announcementSocket.set(null);
-            flushAnnouncementSocket();
+            socket.get().close();
+            socket.set(null);
             deliverLifecycleAnnouncement(logger, false);
         }
     }
@@ -285,10 +263,6 @@ public class AnnouncementSocketConnection extends LifecycleParticipant implement
      */
     public InetAddress getLocalAddress() {
         ensureRunning();
-        return announcementSocket.get().getLocalAddress();
-    }
-    @Override
-    public void close() {
-        stopAnnouncementSocket();
+        return socket.get().getLocalAddress();
     }
 }

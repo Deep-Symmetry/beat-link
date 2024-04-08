@@ -1157,7 +1157,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * {@link MediaDetailsListener}.
      */
     private MetadataFinder() {
-        UpdateSocketConnection.getInstance().addMediaDetailsListener(new MediaDetailsListener() {
+        VirtualCdj.getInstance().addMediaDetailsListener(new MediaDetailsListener() {
             @Override
             public void detailsAvailable(MediaDetails details) {
                 mediaDetails.put(details.slotReference, details);
