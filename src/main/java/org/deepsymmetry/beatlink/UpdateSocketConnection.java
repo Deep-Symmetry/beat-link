@@ -125,9 +125,6 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
             // Open our communication socket.
             socket.set(new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress()));
 
-            // Inform the DeviceFinder to ignore our own device announcement packets.
-            AnnouncementSocketConnection.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
-
             // Set up our buffer and packet to receive incoming messages.
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);

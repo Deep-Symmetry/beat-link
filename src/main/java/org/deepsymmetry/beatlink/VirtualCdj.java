@@ -44,13 +44,15 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private SocketSender socket;
 
+    AtomicBoolean running = new AtomicBoolean(false);
+
     /**
      * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
      *
      * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
     public boolean isRunning() {
-        return UpdateSocketConnection.getInstance().isRunning() && claimingNumber.get() == 0;
+        return UpdateSocketConnection.getInstance().isRunning() && claimingNumber.get() == 0 && running.get();
     }
 
     /**
@@ -902,6 +904,8 @@ public class VirtualCdj extends LifecycleParticipant {
             return false;
         }
 
+        running.set(true);
+
         // Create the thread which announces our participation in the DJ Link network, to request update packets
         Thread announcer = new Thread(null, new Runnable() {
             @Override
@@ -913,7 +917,13 @@ public class VirtualCdj extends LifecycleParticipant {
         }, "beat-link VirtualCdj announcement sender");
         announcer.setDaemon(true);
         announcer.start();
+
+        // Inform the DeviceFinder to ignore our own device announcement packets.
+        AnnouncementSocketConnection.getInstance().addIgnoredAddress(socket.getLocalAddress());
+
+
         deliverLifecycleAnnouncement(logger, true);
+
         return true;
     }
 
@@ -1017,6 +1027,9 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public synchronized void stop() {
         if (isRunning()) {
+
+            running.set(false);
+
             try {
                 setSendingStatus(false);
             } catch (Throwable t) {
