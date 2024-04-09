@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AnnouncementSocketConnection extends LifecycleParticipant implements SocketSender {
     private static final Logger logger = LoggerFactory.getLogger(AnnouncementSocketConnection.class);
 
-    public static final AnnouncementSocketConnection ourInstance = new AnnouncementSocketConnection();
+    private static final AnnouncementSocketConnection ourInstance = new AnnouncementSocketConnection();
 
     /**
      * The socket used to receive device status packets while we are active.

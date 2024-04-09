@@ -32,11 +32,6 @@ public class VirtualCdj extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class);
 
-    /**
-     * The port to which other devices will send status update messages.
-     */
-    @SuppressWarnings("WeakerAccess")
-    public static final int UPDATE_PORT = 50002;
     public static final int MAC_ADDRESS_OFFSET = 38;
 
     /**
@@ -389,62 +384,6 @@ public class VirtualCdj extends LifecycleParticipant {
             deliverTempoChangedAnnouncement(newTempo);
         }
     }
-
-//    /**
-//     * Given an update packet sent to us, create the appropriate object to describe it.
-//     *
-//     * @param packet the packet received on our update port
-//     * @return the corresponding {@link DeviceUpdate} subclass, or {@code nil} if the packet was not recognizable
-//     */
-//    private DeviceUpdate buildUpdate(DatagramPacket packet) {
-//        final int length = packet.getLength();
-//        final Util.PacketType kind = Util.validateHeader(packet, UPDATE_PORT);
-//
-//        if (kind == null) {
-//            logger.warn("Ignoring unrecognized packet sent to update port.");
-//            return null;
-//        }
-//
-//        switch (kind) {
-//            case MIXER_STATUS:
-//                if (length != 56) {
-//                    logger.warn("Processing a Mixer Status packet with unexpected length " + length + ", expected 56 bytes.");
-//                }
-//                if (length >= 56) {
-//                    return new MixerStatus(packet);
-//                } else {
-//                    logger.warn("Ignoring too-short Mixer Status packet.");
-//                    return null;
-//                }
-//
-//            case CDJ_STATUS:
-//                if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
-//                    return new CdjStatus(packet);
-//
-//                } else {
-//                    logger.warn("Ignoring too-short CDJ Status packet with length " + length + " (we need " + CdjStatus.MINIMUM_PACKET_SIZE +
-//                            " bytes).");
-//                    return null;
-//                }
-//
-//            case LOAD_TRACK_ACK:
-//                logger.info("Received track load acknowledgment from player " + packet.getData()[0x21]);
-//                return null;
-//
-//            case MEDIA_QUERY:
-//                logger.warn("Received a media query packet, we don’t yet support responding to this.");
-//                return null;
-//
-//            case MEDIA_RESPONSE:
-//                deliverMediaDetailsUpdate(new MediaDetails(packet));
-//                return null;
-//
-//            default:
-//                logger.warn("Ignoring " + kind.name + " packet sent to update port.");
-//                return null;
-//        }
-//    }
-
 
     /**
      * Process a device update once it has been received. Track it as the most recent update from its address,
@@ -1360,7 +1299,7 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(keepAliveBytes, 44, payload, 5, 4);  // Copy in our IP address.
         payload[12] = (byte) slot.player;
         payload[16] = slot.slot.protocolValue;
-        assembleAndSendPacket(Util.PacketType.MEDIA_QUERY, payload, announcement.getAddress(), UPDATE_PORT);
+        assembleAndSendPacket(Util.PacketType.MEDIA_QUERY, payload, announcement.getAddress(), UpdateSocketConnection.UPDATE_PORT);
     }
 
     /**
@@ -1628,7 +1567,7 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         }
         Util.numberToBytes(rekordboxId, payload, 0x0d, 4);
-        assembleAndSendPacket(Util.PacketType.LOAD_TRACK_COMMAND, payload, target.getAddress(), UPDATE_PORT);
+        assembleAndSendPacket(Util.PacketType.LOAD_TRACK_COMMAND, payload, target.getAddress(), UpdateSocketConnection.UPDATE_PORT);
     }
 
     /**
@@ -1707,7 +1646,7 @@ public class VirtualCdj extends LifecycleParticipant {
         Util.setPayloadByte(payload, 0x4d, settings.jogWheelDisplay.protocolValue);
         Util.setPayloadByte(payload, 0x4e, settings.padButtonBrightness.protocolValue);
         Util.setPayloadByte(payload, 0x4f, settings.jogWheelLcdBrightness.protocolValue);
-        assembleAndSendPacket(Util.PacketType.LOAD_SETTINGS_COMMAND, payload, target.getAddress(), UPDATE_PORT);
+        assembleAndSendPacket(Util.PacketType.LOAD_SETTINGS_COMMAND, payload, target.getAddress(), UpdateSocketConnection.UPDATE_PORT);
     }
 
     /**
@@ -2332,7 +2271,7 @@ public class VirtualCdj extends LifecycleParticipant {
         DatagramPacket packet = Util.buildPacket(Util.PacketType.CDJ_STATUS,
                 ByteBuffer.wrap(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
                 ByteBuffer.wrap(payload));
-        packet.setPort(UPDATE_PORT);
+        packet.setPort(UpdateSocketConnection.UPDATE_PORT);
         for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
             packet.setAddress(device.getAddress());
             try {
@@ -2426,7 +2365,7 @@ public class VirtualCdj extends LifecycleParticipant {
                             payload[0x02] = getDeviceNumber();
                             payload[0x08] = getDeviceNumber();
                             try {
-                                assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_RESPONSE, payload, lastStatusFromNewMaster.getAddress(), UPDATE_PORT);
+                                assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_RESPONSE, payload, lastStatusFromNewMaster.getAddress(), UpdateSocketConnection.UPDATE_PORT);
                             } catch (Throwable t) {
                                 logger.error("Problem sending master yield acknowledgment to player " + deviceNumber, t);
                             }
