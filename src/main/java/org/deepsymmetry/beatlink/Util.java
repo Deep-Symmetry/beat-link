@@ -64,12 +64,12 @@ public class Util {
         /**
          * Used to ask a player for information about the media mounted in a slot.
          */
-        MEDIA_QUERY(0x05, "Media Query", VirtualCdj.UPDATE_PORT),
+        MEDIA_QUERY(0x05, "Media Query", UpdateSocketConnection.UPDATE_PORT),
 
         /**
          * The response sent when a Media Query is received.
          */
-        MEDIA_RESPONSE(0x06, "Media Response", VirtualCdj.UPDATE_PORT),
+        MEDIA_RESPONSE(0x06, "Media Response", UpdateSocketConnection.UPDATE_PORT),
 
         /**
          * An initial series of three of these packets is sent when a device first joins the network, at 300ms
@@ -127,17 +127,17 @@ public class Util {
          * A status update from a player, with a great many status flags, pitch, tempo, and beat-within-bar details.
          * Sadly, the same number is used (on port 50000) as part of the CDJ startup process.
          */
-        CDJ_STATUS(0x0a, "CDJ Status", VirtualCdj.UPDATE_PORT),
+        CDJ_STATUS(0x0a, "CDJ Status", UpdateSocketConnection.UPDATE_PORT),
 
         /**
          * A command to load a particular track; usually sent by rekordbox.
          */
-        LOAD_TRACK_COMMAND(0x19, "Load Track Command", VirtualCdj.UPDATE_PORT),
+        LOAD_TRACK_COMMAND(0x19, "Load Track Command", UpdateSocketConnection.UPDATE_PORT),
 
         /**
          * A response indicating that the specified track is being loaded.
          */
-        LOAD_TRACK_ACK(0x1a, "Load Track Acknowledgment", VirtualCdj.UPDATE_PORT),
+        LOAD_TRACK_ACK(0x1a, "Load Track Acknowledgment", UpdateSocketConnection.UPDATE_PORT),
 
         /**
          * Used by an incoming tempo master to ask the current tempo master to relinquish that role.
@@ -164,7 +164,7 @@ public class Util {
         /**
          * A status update from the mixer, with status flags, pitch, and tempo, and beat-within-bar information.
          */
-        MIXER_STATUS(0x29, "Mixer Status", VirtualCdj.UPDATE_PORT),
+        MIXER_STATUS(0x29, "Mixer Status", UpdateSocketConnection.UPDATE_PORT),
 
         /**
          * Used to tell a player to turn sync on or off, or that it should become the tempo master.
@@ -174,7 +174,7 @@ public class Util {
         /**
          * A command to apply settings to a player; usually sent by rekordbox
          */
-        LOAD_SETTINGS_COMMAND(0x34, "Load Settings Command", VirtualCdj.UPDATE_PORT);
+        LOAD_SETTINGS_COMMAND(0x34, "Load Settings Command", UpdateSocketConnection.UPDATE_PORT);
 
         /**
          * The value that appears in the type byte which identifies this type of packet.
