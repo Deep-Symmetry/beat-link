@@ -430,15 +430,13 @@ public class UpdateSocketConnection extends LifecycleParticipant implements Sock
                 return null;
 
             case MEDIA_RESPONSE:
-                if (packet.getLength() > MediaDetails.MINIMUM_PACKET_SIZE) {
-                    logger.error("MEDIA RESPONSE");
+                if (packet.getLength() >= MediaDetails.MINIMUM_PACKET_SIZE) {
                     deliverMediaDetailsUpdate(new MediaDetails(packet));
                 }
                 return null;
 
             case DEVICE_HELLO:
                 if (packet.getLength() > MediaDetails.MINIMUM_PACKET_SIZE) {
-                    logger.error("DEVICE HELLO");
                     deliverMediaDetailsUpdate(new MediaDetails(packet));
                 }
                 return null;

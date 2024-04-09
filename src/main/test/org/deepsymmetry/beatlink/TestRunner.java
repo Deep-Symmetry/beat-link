@@ -18,7 +18,7 @@ public class TestRunner {
         VirtualCdj.getInstance().start((byte)0x01);
         MetadataFinder.getInstance().start();
         CrateDigger.getInstance().start();
-        BeatFinder.getInstance().start();
+       // BeatFinder.getInstance().start();
 //
 //        DeviceFinder.getInstance().addDeviceAnnouncementListener(new DeviceAnnouncementListener() {
 //            @Override

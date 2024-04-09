@@ -453,67 +453,69 @@ public class VirtualCdj extends LifecycleParticipant {
      * role from or to another device.
      */
     private void processUpdate(DeviceUpdate update) {
-        updates.put(DeviceReference.getDeviceReference(update), update);
+        if (isRunning()) {
+            updates.put(DeviceReference.getDeviceReference(update), update);
 
-        // Keep track of the largest sync number we see.
-        if (update instanceof CdjStatus) {
-            int syncNumber = ((CdjStatus) update).getSyncNumber();
-            if (syncNumber > this.largestSyncCounter.get()) {
-                this.largestSyncCounter.set(syncNumber);
+            // Keep track of the largest sync number we see.
+            if (update instanceof CdjStatus) {
+                int syncNumber = ((CdjStatus) update).getSyncNumber();
+                if (syncNumber > this.largestSyncCounter.get()) {
+                    this.largestSyncCounter.set(syncNumber);
+                }
             }
-        }
 
-        // Deal with the tempo master complexities, including handoff to/from us.
-        if (update.isTempoMaster()) {
-            final Integer packetYieldingTo = update.getDeviceMasterIsBeingYieldedTo();
-            if (packetYieldingTo == null) {
-                // This is a normal, non-yielding master packet. Update our notion of the current master, and,
-                // if we were yielding, finish that process, updating our sync number appropriately.
-                if (master.get()) {
-                    if (nextMaster.get() == update.deviceNumber) {
-                        syncCounter.set(largestSyncCounter.get() + 1);
-                    } else {
-                        if (nextMaster.get() == 0xff) {
-                            logger.warn("Saw master asserted by player " + update.deviceNumber +
-                                    " when we were not yielding it.");
+            // Deal with the tempo master complexities, including handoff to/from us.
+            if (update.isTempoMaster()) {
+                final Integer packetYieldingTo = update.getDeviceMasterIsBeingYieldedTo();
+                if (packetYieldingTo == null) {
+                    // This is a normal, non-yielding master packet. Update our notion of the current master, and,
+                    // if we were yielding, finish that process, updating our sync number appropriately.
+                    if (master.get()) {
+                        if (nextMaster.get() == update.deviceNumber) {
+                            syncCounter.set(largestSyncCounter.get() + 1);
                         } else {
-                            logger.warn("Expected to yield master role to player " + nextMaster.get() +
-                                    " but saw master asserted by player " + update.deviceNumber);
+                            if (nextMaster.get() == 0xff) {
+                                logger.warn("Saw master asserted by player " + update.deviceNumber +
+                                        " when we were not yielding it.");
+                            } else {
+                                logger.warn("Expected to yield master role to player " + nextMaster.get() +
+                                        " but saw master asserted by player " + update.deviceNumber);
+                            }
                         }
                     }
-                }
-                master.set(false);
-                nextMaster.set(0xff);
-                setTempoMaster(update);
-                if (update.getBpm() != 0xffff) {  // Ignore invalid tempo, i.e. when master has no track loaded.
-                    setMasterTempo(update.getEffectiveTempo());
+                    master.set(false);
+                    nextMaster.set(0xff);
+                    setTempoMaster(update);
+                    if (update.getBpm() != 0xffff) {  // Ignore invalid tempo, i.e. when master has no track loaded.
+                        setMasterTempo(update.getEffectiveTempo());
+                    }
+                } else {
+                    // This is a yielding master packet. If it is us that is being yielded to, take over master.
+                    // Log a message if it was unsolicited, and a warning if it's coming from a different player than
+                    // we asked.
+                    if (packetYieldingTo == getDeviceNumber()) {
+                        if (update.deviceNumber != masterYieldedFrom.get()) {
+                            if (masterYieldedFrom.get() == 0) {
+                                logger.info("Accepting unsolicited Master yield; we must be the only synced device playing.");
+                            } else {
+                                logger.warn("Expected player " + masterYieldedFrom.get() + " to yield master to us, but player " +
+                                        update.deviceNumber + " did.");
+                            }
+                        }
+                        master.set(true);
+                        masterYieldedFrom.set(0);
+                        setTempoMaster(null);
+                        setMasterTempo(getTempo());
+                    }
                 }
             } else {
-                // This is a yielding master packet. If it is us that is being yielded to, take over master.
-                // Log a message if it was unsolicited, and a warning if it's coming from a different player than
-                // we asked.
-                if (packetYieldingTo == getDeviceNumber()) {
-                    if (update.deviceNumber != masterYieldedFrom.get()) {
-                        if (masterYieldedFrom.get() == 0) {
-                            logger.info("Accepting unsolicited Master yield; we must be the only synced device playing.");
-                        } else {
-                            logger.warn("Expected player " + masterYieldedFrom.get() + " to yield master to us, but player " +
-                                    update.deviceNumber + " did.");
-                        }
-                    }
-                    master.set(true);
-                    masterYieldedFrom.set(0);
+                // This update was not acting as a tempo master; if we thought it should be, update our records.
+                DeviceUpdate oldMaster = getTempoMaster();
+                if (oldMaster != null && oldMaster.getAddress().equals(update.getAddress()) &&
+                        oldMaster.getDeviceNumber() == update.getDeviceNumber()) {
+                    // This device has resigned master status, and nobody else has claimed it so far
                     setTempoMaster(null);
-                    setMasterTempo(getTempo());
                 }
-            }
-        } else {
-            // This update was not acting as a tempo master; if we thought it should be, update our records.
-            DeviceUpdate oldMaster = getTempoMaster();
-            if (oldMaster != null && oldMaster.getAddress().equals(update.getAddress()) &&
-                    oldMaster.getDeviceNumber() == update.getDeviceNumber()) {
-                // This device has resigned master status, and nobody else has claimed it so far
-                setTempoMaster(null);
             }
         }
     }
@@ -879,6 +881,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws SocketException if there is a problem opening a socket on the right network
      */
     private boolean createVirtualCdj() throws SocketException {
+        running.set(true);
         UpdateSocketConnection.getInstance().addUpdateListener(updateListener);
         UpdateSocketConnection.getInstance().start();
 
@@ -904,8 +907,6 @@ public class VirtualCdj extends LifecycleParticipant {
             return false;
         }
 
-        running.set(true);
-
         // Create the thread which announces our participation in the DJ Link network, to request update packets
         Thread announcer = new Thread(null, new Runnable() {
             @Override
@@ -920,7 +921,6 @@ public class VirtualCdj extends LifecycleParticipant {
 
         // Inform the DeviceFinder to ignore our own device announcement packets.
         AnnouncementSocketConnection.getInstance().addIgnoredAddress(socket.getLocalAddress());
-
 
         deliverLifecycleAnnouncement(logger, true);
 
@@ -1039,6 +1039,7 @@ public class VirtualCdj extends LifecycleParticipant {
             updates.clear();
             setTempoMaster(null);
             setDeviceNumber((byte) 0);  // Set up for self-assignment if restarted.
+            UpdateSocketConnection.getInstance().removeUpdateListener(updateListener);
             deliverLifecycleAnnouncement(logger, false);
         }
     }
