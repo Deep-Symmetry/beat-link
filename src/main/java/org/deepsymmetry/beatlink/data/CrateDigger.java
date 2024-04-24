@@ -303,7 +303,7 @@ public class CrateDigger {
 
     /**
      * Format a number of bytes in a human-centric format.
-     * From https://stackoverflow.com/a/3758880/802383
+     * From <a href="https://stackoverflow.com/a/3758880/802383">Stack Overflow</a>
      *
      * @param bytes the number of bytes
      * @param si {code @true} if should use SI interpretation where k=1000
@@ -471,16 +471,6 @@ public class CrateDigger {
     }
 
     /**
-     * Transforms an album art path to the version that will contain high resolution art, if that is available.
-     *
-     * @param artPath standard resolution album art path
-     * @return path at which high resolution art might be found
-     */
-    private String highResolutionPath(String artPath) {
-        return artPath.replaceFirst("(\\.\\w+$)", "_m$1");
-    }
-
-    /**
      * This is the mechanism by which we offer metadata to the {@link MetadataProvider} while we are running.
      */
     private final MetadataProvider metadataProvider = new MetadataProvider() {
@@ -518,7 +508,7 @@ public class CrateDigger {
                         file.deleteOnExit();  // Prepare to download it.
                         if (ArtFinder.getInstance().getRequestHighResolutionArt()) {
                             try {
-                                fetchFile(art.getSlotReference(), highResolutionPath(Database.getText(artworkRow.path())), file, 1);
+                                fetchFile(art.getSlotReference(), Util.highResolutionPath(Database.getText(artworkRow.path())), file, 1);
                             } catch (IOException e) {
                                 if (!(e instanceof FileNotFoundException)) {
                                     logger.error("Unexpected exception type trying to load high resolution album art", e);
@@ -776,9 +766,9 @@ public class CrateDigger {
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *

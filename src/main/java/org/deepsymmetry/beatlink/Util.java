@@ -944,6 +944,16 @@ public class Util {
         }
     }
 
+    /**
+     * Transforms an album art path to the version that will contain high resolution art, if that is available.
+     *
+     * @param artPath standard resolution album art path
+     * @return path at which high resolution art might be found
+     */
+    public static String highResolutionPath(String artPath) {
+        return artPath.replaceFirst("(\\.\\w+$)", "_m$1");
+    }
+
 
     /**
      * Prevent instantiation.
