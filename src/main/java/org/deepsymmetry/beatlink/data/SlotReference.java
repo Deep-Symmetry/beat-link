@@ -55,17 +55,8 @@ public class SlotReference {
      */
     @SuppressWarnings("WeakerAccess")
     public static synchronized SlotReference getSlotReference(int player, CdjStatus.TrackSourceSlot slot) {
-        Map<CdjStatus.TrackSourceSlot, SlotReference> playerMap = instances.get(player);
-        if (playerMap == null) {
-            playerMap = new HashMap<CdjStatus.TrackSourceSlot, SlotReference>();
-            instances.put(player, playerMap);
-        }
-        SlotReference result = playerMap.get(slot);
-        if (result == null) {
-            result = new SlotReference(player, slot);
-            playerMap.put(slot, result);
-        }
-        return result;
+        Map<CdjStatus.TrackSourceSlot, SlotReference> playerMap = instances.computeIfAbsent(player, k -> new HashMap<CdjStatus.TrackSourceSlot, SlotReference>());
+        return playerMap.computeIfAbsent(slot, s -> new SlotReference(player, s));
     }
 
     /**

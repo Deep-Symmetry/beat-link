@@ -252,7 +252,6 @@ public class CrateDigger {
      * @throws IOException if there is a problem fetching the file
      */
     private void fetchFile(SlotReference slot, String path, File destination, int retryLimit) throws IOException {
-        destination.deleteOnExit();
         final DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
         if (player == null) {
             throw new IOException("Cannot fetch file from player that is not found on the network; slot: " + slot);
@@ -264,6 +263,7 @@ public class CrateDigger {
         while (triesMade < retryLimit) {
             try {
                 FileFetcher.getInstance().fetch(player.getAddress(), mountPath(slot.slot), path, destination);
+                destination.deleteOnExit();
                 return;
             } catch (IOException e) {
                 if (path.startsWith("PIONEER/") &&
@@ -738,7 +738,7 @@ public class CrateDigger {
      *
      * @return the created temporary directory.
      */
-    private File createDownloadDirectory() {
+    static File createDownloadDirectory() {
         File baseDir = new File(System.getProperty("java.io.tmpdir"));
         String baseName = "bl-" + System.currentTimeMillis() + "-";
 
