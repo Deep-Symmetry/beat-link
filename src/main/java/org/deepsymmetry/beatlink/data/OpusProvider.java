@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
 import io.kaitai.struct.RandomAccessFileKaitaiStream;
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.CdjStatus;
 import org.deepsymmetry.beatlink.MediaDetails;
 import org.deepsymmetry.beatlink.Util;
@@ -31,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * @author James Elliott
  * @since 8.0.0 */
+@API(status = API.Status.STABLE)  // TODO get rid of all IntelliJ code pattern entry points and @SuppressWarnings annotations, use this instead.
 public class OpusProvider {
 
     private final Logger logger = LoggerFactory.getLogger(OpusProvider.class);
@@ -45,7 +47,7 @@ public class OpusProvider {
      *
      * @return true if track metadata is being proxied from mounted media archives for Opus Quad players
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return running.get();
     }
@@ -58,7 +60,7 @@ public class OpusProvider {
     /**
      * Holds the parsed database for the media we are proxying for the USB 1 slot of the Opus Quad.
      */
-    private final AtomicReference<Database> usb1database = new AtomicReference<Database>();
+    private final AtomicReference<Database> usb1database = new AtomicReference<>();
 
     /**
      * Holds the ZIP filesystem of the media export mounted for USB slot 2 of the Opus Quad.
@@ -68,7 +70,7 @@ public class OpusProvider {
     /**
      * Holds the parsed database for the media we are proxying for the USB 2 slot of the Opus Quad.
      */
-    private final AtomicReference<Database> usb2database = new AtomicReference<Database>();
+    private final AtomicReference<Database> usb2database = new AtomicReference<>();
 
     /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
@@ -84,6 +86,7 @@ public class OpusProvider {
      * @throws java.io.IOException if there is a problem attaching the archive
      * @throws IllegalArgumentException if a slot other than the SD or USB slot is specified
      */
+    @API(status = API.Status.STABLE)
     public synchronized void attachMetadataArchive(File archive, CdjStatus.TrackSourceSlot slot) throws IOException {
 
         // Determine which slot we are adjusting the archive for.
@@ -102,7 +105,7 @@ public class OpusProvider {
                 //noinspection ResultOfMethodCallIgnored
                 formerDatabase.sourceFile.delete();
             } catch (IOException e) {
-                logger.error("Problem closing database for " + slot, e);
+                logger.error("Problem closing database for {}", slot, e);
             }
         }
         final FileSystem formerArchive = filesystemReference.getAndSet(null);
@@ -156,7 +159,7 @@ public class OpusProvider {
      *
      * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Database findDatabase(DataReference reference) {
         if (reference.player >= 9 && reference.player <= 12) {  // This is an Opus Quad deck.
             return findDatabase(reference.getSlotReference());
@@ -175,6 +178,7 @@ public class OpusProvider {
      *
      * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
      */
+    @API(status = API.Status.STABLE)
     public Database findDatabase(SlotReference slot) {
         switch (slot.slot) {
             case SD_SLOT:
@@ -197,6 +201,7 @@ public class OpusProvider {
      *
      * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
      */
+    @API(status = API.Status.STABLE)
     public FileSystem findFilesystem(DataReference reference) {
         return findFilesystem(reference.getSlotReference());
     }
@@ -212,6 +217,7 @@ public class OpusProvider {
      *
      * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
      */
+    @API(status = API.Status.STABLE)
     public FileSystem findFilesystem(SlotReference slot) {
         switch (slot.slot) {
             case SD_SLOT:
@@ -264,6 +270,25 @@ public class OpusProvider {
     }
 
     /**
+     * Helper method to extract a file from the metadata archive. Handles the fact that archives created from HFS+
+     * media hide the PIONEER folder with a leading period.
+     *
+     * @param archive the filesystem mounted from the metadata ZIP file
+     * @param sourcePath identifies the desired file within the archive
+     * @param destination the file on the host filesystem to which the file should be extracted
+     *
+     * @throws IOException if there is a problem extracting the file
+     */
+    private void extractFile(FileSystem archive, String sourcePath, File destination) throws IOException {
+        if (sourcePath.startsWith("PIONEER/") && !Files.isReadable(archive.getPath(sourcePath))) {
+            extractFile(archive, "." + sourcePath, destination);  // We must be dealing with HFS+ media.
+            return;
+        }
+        Files.copy(archive.getPath(sourcePath), destination.toPath());
+        destination.deleteOnExit();
+    }
+
+    /**
      * Find an analysis file for the specified track, with the specified file extension.
      * Be sure to call {@code _io().close()} when you are done using the returned struct.
      *
@@ -289,25 +314,21 @@ public class OpusProvider {
                         if (file.canRead()) {  // We have already downloaded it.
                             return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                         }
-                        // Extract it.
-                        Files.copy(filesystem.getPath(requestedPath), file.toPath());  // TODO function that can handle .PIONEER HFS+ variant?
-                        file.deleteOnExit();
+                        extractFile(filesystem, requestedPath, file);
                         return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                     }
                 } catch (Exception e) {  // We can give a more specific error including the file path.
-                    logger.error("Problem parsing requested analysis file " + requestedPath + " for track " + track +
-                            " from database " + database, e);
+                    logger.error("Problem parsing requested analysis file {} for track {} from database {}", requestedPath, track, database, e);
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
                 } finally {
                     Util.freeNamedLock(filePath);
                 }
             } else {
-                logger.warn("Unable to find track " + track + " in database " + database);
+                logger.warn("Unable to find track {} in database {}", track, database);
             }
         } catch (Exception e) {
-            logger.error("Problem extracting analysis file with extension " + extension.toUpperCase() +
-                    " for track " + track + " from database " + database, e);
+            logger.error("Problem extracting analysis file with extension {} for track {} from database {}", extension.toUpperCase(), track, database, e);
             if (file != null) {
                 //noinspection ResultOfMethodCallIgnored
                 file.delete();
@@ -318,7 +339,9 @@ public class OpusProvider {
 
     /**
      * This is the mechanism by which we offer metadata to the {@link MetadataProvider} while we are running.
+     * Exposed as public so that it can be used for testing and as a utility if desired.
      */
+    @API(status = API.Status.STABLE)
     public final MetadataProvider metadataProvider = new MetadataProvider() {
         @Override
         public List<MediaDetails> supportedMedia() {
@@ -332,7 +355,7 @@ public class OpusProvider {
                 try {
                     return new TrackMetadata(track, database, getCueList(sourceMedia, track));
                 } catch (Exception e) {
-                    logger.error("Problem fetching metadata for track " + track + " from database " + database, e);
+                    logger.error("Problem fetching metadata for track {} from database {}", track, database, e);
                 }
             }
             return null;
@@ -340,9 +363,44 @@ public class OpusProvider {
 
         @Override
         public AlbumArt getAlbumArt(MediaDetails sourceMedia, DataReference art) {
-            // TODO implement!
-            return null;
-        }
+            File file = null;
+            final Database database = findDatabase(art);
+            final FileSystem archive = findFilesystem(art);
+            if (database != null) {
+                try {
+                    RekordboxPdb.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
+                    if (artworkRow != null) {
+                        file = new File(extractDirectory, slotPrefix(art.getSlotReference().slot) +
+                                "art-" + art.rekordboxId + ".jpg");
+                        if (file.canRead()) {
+                            return new AlbumArt(art, file);
+                        }
+                        if (ArtFinder.getInstance().getRequestHighResolutionArt()) {
+                            try {
+                                extractFile(archive, Util.highResolutionPath(Database.getText(artworkRow.path())), file);
+                            } catch (IOException e) {
+                                if (!(e instanceof java.nio.file.NoSuchFileException)) {
+                                    logger.error("Unexpected exception type trying to load high resolution album art", e);
+                                }
+                                // Fall back to looking for the normal resolution art.
+                                extractFile(archive, Database.getText(artworkRow.path()), file);
+                            }
+                        } else {
+                            extractFile(archive, Database.getText(artworkRow.path()), file);
+                        }
+                        return new AlbumArt(art, file);
+                    } else {
+                        logger.warn("Unable to find artwork " + art + " in database " + database);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Problem fetching artwork " + art + " from database " + database, e);
+                    if (file != null) {
+                        //noinspection ResultOfMethodCallIgnored
+                        file.delete();
+                    }
+                }
+            }
+            return null;        }
 
         @Override
         public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
@@ -369,7 +427,7 @@ public class OpusProvider {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching cue list for track " + track + " from database " + database, e);
+                    logger.error("Problem fetching cue list for track {} from database {}", track, database, e);
                 }
             }
             return null;        }
@@ -396,7 +454,7 @@ public class OpusProvider {
     /**
      * Start proxying track metadata from mounted archives for the Opus Quad decks.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public synchronized void start()  {
         if (!isRunning()) {
             running.set(true);
@@ -407,7 +465,7 @@ public class OpusProvider {
     /**
      * Stop proxying track metadata for Opus Quad decks.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             running.set(false);
@@ -425,6 +483,7 @@ public class OpusProvider {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static OpusProvider getInstance() {
         return instance;
     }
@@ -432,7 +491,7 @@ public class OpusProvider {
     /**
      * The folder into which database exports and track analysis files will be extracted.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final File extractDirectory;
 
     /**
