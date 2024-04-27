@@ -85,15 +85,12 @@ public class CrateDigger {
     private final LifecycleListener lifecycleListener = new LifecycleListener() {
         @Override
         public void started(final LifecycleParticipant sender) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        logger.info("CrateDigger starting because {} has.", sender);
-                        start();
-                    } catch (Throwable t) {
-                        logger.error("Problem starting the CrateDigger in response to a lifecycle event.", t);
-                    }
+            new Thread(() -> {
+                try {
+                    logger.info("CrateDigger starting because {} has.", sender);
+                    start();
+                } catch (Throwable t) {
+                    logger.error("Problem starting the CrateDigger in response to a lifecycle event.", t);
                 }
             }).start();
         }
@@ -110,14 +107,14 @@ public class CrateDigger {
     /**
      * Keeps tracks of the media that we have discovered name their database folder ".PIONEER" rather than "PIONEER".
      */
-    private final Set<SlotReference> mediaWithHiddenPioneerFolder = new HashSet<SlotReference>();
+    private final Set<SlotReference> mediaWithHiddenPioneerFolder = new HashSet<>();
 
     /**
      * Keeps track of the DeviceAnnouncement packets associated with media we hear about, so that if the device
      * has already disappeared from the network when we learn about the unmount (caused by the loss of the device),
      * we can still know what address it used to have, in order to properly clean up the {@link FileFetcher} cache.
      */
-    private final Map<Integer, DeviceAnnouncement> addressBackup = new ConcurrentHashMap<Integer, DeviceAnnouncement>();
+    private final Map<Integer, DeviceAnnouncement> addressBackup = new ConcurrentHashMap<>();
 
     /**
      * Clear the {@link org.deepsymmetry.cratedigger.FileFetcher} cache when media is unmounted, so it does not try
@@ -190,12 +187,12 @@ public class CrateDigger {
      * Keep track of the slots we are currently trying to fetch local databases for, so we only do it once even if
      * multiple media details responses arrive while we are working on the first.
      */
-    private final Set<SlotReference> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<SlotReference, Boolean>());
+    private final Set<SlotReference> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Holds the local databases we have fetched for mounted media, so we can use them to respond to metadata requests.
      */
-    private final Map<SlotReference, Database> databases = new ConcurrentHashMap<SlotReference, Database>();
+    private final Map<SlotReference, Database> databases = new ConcurrentHashMap<>();
 
     /**
      * Return the filesystem path needed to mount the NFS filesystem associated with a particular media slot.
@@ -275,7 +272,7 @@ public class CrateDigger {
                 }
                 triesMade++;
                 if (triesMade < retryLimit) {
-                    logger.warn("Attempt to fetch file from player failed, tries left: " + (retryLimit - triesMade), e);
+                    logger.warn("Attempt to fetch file from player failed, tries left: {}", retryLimit - triesMade, e);
                     try {
                         //noinspection BusyWait
                         Thread.sleep(Math.min(MAX_RETRY_INTERVAL, triesMade * RETRY_BACKOFF));
@@ -329,38 +326,34 @@ public class CrateDigger {
                     details.slotReference.slot != CdjStatus.TrackSourceSlot.COLLECTION &&  // We always use dbserver to talk to rekordbox.
                     !databases.containsKey(details.slotReference) &&
                     activeRequests.add(details.slotReference)) {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        File file = null;
-                        try {
-                            file = new File(downloadDirectory, slotPrefix(details.slotReference) + "export.pdb");
-                            logger.info("Fetching rekordbox export.pdb from player " + details.slotReference.player +
-                                    ", slot " + details.slotReference.slot);
-                            long started = System.nanoTime();
-                            fetchFile(details.slotReference, "PIONEER/rekordbox/export.pdb", file);
-                            long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
-                            logger.info("Finished fetching export.pdb from player " + details.slotReference.player +
-                                    ", slot " + details.slotReference.slot + "; received " +
-                                    humanReadableByteCount(file.length(), true) + " in " + duration + "ms, " +
-                                    humanReadableByteCount(file.length() * 1000 / duration, true) + "/s.");
-                            started = System.nanoTime();
-                            Database database = new Database(file);
-                            duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
-                            logger.info("Parsing database took " + duration + "ms, " +
-                                            (database.trackIndex.size() * 1000L / duration) + " tracks/s");
-                            databases.put(details.slotReference, database);
-                            deliverDatabaseUpdate(details.slotReference, database, true);
-                        } catch (Throwable t) {
-                            logger.error("Problem fetching rekordbox database for media " + details +
-                                    ", will not offer metadata for it.", t);
-                            if (file != null) {
-                                //noinspection ResultOfMethodCallIgnored
-                                file.delete();
-                            }
-                        } finally {
-                            activeRequests.remove(details.slotReference);
+                new Thread(() -> {
+                    File file = null;
+                    try {
+                        file = new File(downloadDirectory, slotPrefix(details.slotReference) + "export.pdb");
+                        logger.info("Fetching rekordbox export.pdb from player " + details.slotReference.player +
+                                ", slot " + details.slotReference.slot);
+                        long started = System.nanoTime();
+                        fetchFile(details.slotReference, "PIONEER/rekordbox/export.pdb", file);
+                        long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+                        logger.info("Finished fetching export.pdb from player " + details.slotReference.player +
+                                ", slot " + details.slotReference.slot + "; received " +
+                                humanReadableByteCount(file.length(), true) + " in " + duration + "ms, " +
+                                humanReadableByteCount(file.length() * 1000 / duration, true) + "/s.");
+                        started = System.nanoTime();
+                        final Database database = new Database(file);
+                        duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+                        logger.info("Parsing database took {}ms, {} tracks/s", duration, database.trackIndex.size() * 1000L / duration);
+                        databases.put(details.slotReference, database);
+                        deliverDatabaseUpdate(details.slotReference, database, true);
+                    } catch (Throwable t) {
+                        logger.error("Problem fetching rekordbox database for media " + details +
+                                ", will not offer metadata for it.", t);
+                        if (file != null) {
+                            //noinspection ResultOfMethodCallIgnored
+                            file.delete();
                         }
+                    } finally {
+                        activeRequests.remove(details.slotReference);
                     }
                 }).start();
             }
@@ -431,7 +424,7 @@ public class CrateDigger {
     private RekordboxAnlz findTrackAnalysis(DataReference track, Database database, String extension) {
         File file = null;
         try {
-            RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
+            final RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
             if (trackRow != null) {
                 file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
                         "track-" + track.rekordboxId + "-anlz" + extension.toLowerCase());
@@ -449,19 +442,17 @@ public class CrateDigger {
                         return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
                     }
                 } catch (Exception e) {  // We can give a more specific error including the file path.
-                    logger.error("Problem parsing requested analysis file " + requestedPath + " for track " + track +
-                            " from database " + database, e);
+                    logger.error("Problem parsing requested analysis file {} for track {} from database {}", requestedPath, track, database, e);
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
                 } finally {
                     Util.freeNamedLock(filePath);
                 }
             } else {
-                logger.warn("Unable to find track " + track + " in database " + database);
+                logger.warn("Unable to find track {} in database {}", track, database);
             }
         } catch (Exception e) {
-            logger.error("Problem fetching analysis file with extension " + extension.toUpperCase() +
-                    " for track " + track + " from database " + database, e);
+            logger.error("Problem fetching analysis file with extension {} for track {} from database {}", extension.toUpperCase(), track, database, e);
             if (file != null) {
                 //noinspection ResultOfMethodCallIgnored
                 file.delete();
@@ -481,12 +472,12 @@ public class CrateDigger {
 
         @Override
         public TrackMetadata getTrackMetadata(MediaDetails sourceMedia, DataReference track) {
-            Database database = findDatabase(track);
+            final Database database = findDatabase(track);
             if (database != null) {
                 try {
                     return new TrackMetadata(track, database, getCueList(sourceMedia, track));
                 } catch (Exception e) {
-                    logger.error("Problem fetching metadata for track " + track + " from database " + database, e);
+                    logger.error("Problem fetching metadata for track {} from database {}", track, database, e);
                 }
             }
             return null;
@@ -495,7 +486,7 @@ public class CrateDigger {
         @Override
         public AlbumArt getAlbumArt(MediaDetails sourceMedia, DataReference art) {
             File file = null;
-            Database database = findDatabase(art);
+            final Database database = findDatabase(art);
             if (database != null) {
                 try {
                     RekordboxPdb.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
@@ -521,10 +512,10 @@ public class CrateDigger {
                         }
                         return new AlbumArt(art, file);
                     } else {
-                        logger.warn("Unable to find artwork " + art + " in database " + database);
+                        logger.warn("Unable to find artwork {} in database {}", art, database);
                     }
                 } catch (Exception e) {
-                    logger.warn("Problem fetching artwork " + art + " from database " + database, e);
+                    logger.warn("Problem fetching artwork {} from database {}", art, database, e);
                     if (file != null) {
                         //noinspection ResultOfMethodCallIgnored
                         file.delete();
@@ -536,10 +527,10 @@ public class CrateDigger {
 
         @Override
         public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
-            Database database = findDatabase(track);
+            final Database database = findDatabase(track);
             if (database != null) {
                 try {
-                    RekordboxAnlz file = findTrackAnalysis(track, database);
+                    final RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
                         try {
                             return new BeatGrid(track, file);
@@ -548,7 +539,7 @@ public class CrateDigger {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching beat grid for track " + track + " from database " + database, e);
+                    logger.error("Problem fetching beat grid for track {} from database {}", track, database, e);
                 }
             }
             return null;
@@ -556,7 +547,7 @@ public class CrateDigger {
 
         @Override
         public CueList getCueList(MediaDetails sourceMedia, DataReference track) {
-            Database database = findDatabase(track);
+            final Database database = findDatabase(track);
             if (database != null) {
                 try {
                     // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues
@@ -572,7 +563,7 @@ public class CrateDigger {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching cue list for track " + track + " from database " + database, e);
+                    logger.error("Problem fetching cue list for track {} from database {}", track, database, e);
                 }
             }
             return null;
@@ -580,7 +571,7 @@ public class CrateDigger {
 
         @Override
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
-            Database database = findDatabase(track);
+            final Database database = findDatabase(track);
             if (database != null) {
                 try {
                     RekordboxAnlz file = findExtendedAnalysis(track, database);  // Look for color preview first
@@ -594,10 +585,10 @@ public class CrateDigger {
                 } catch (IllegalStateException e) {
                     logger.info("No color preview waveform found, checking for blue version.");
                 } catch (Exception e) {
-                    logger.error("Problem fetching color waveform preview for track " + track + " from database " + database, e);
+                    logger.error("Problem fetching color waveform preview for track {} from database {}", track, database, e);
                 }
                 try {
-                    RekordboxAnlz file = findTrackAnalysis(track, database);
+                    final RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
                         try {
                             return new WaveformPreview(track, file);
@@ -606,7 +597,7 @@ public class CrateDigger {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching waveform preview for track " + track + " from database " + database, e);
+                    logger.error("Problem fetching waveform preview for track {} from database {}", track, database, e);
                 }
             }
             return null;
@@ -614,10 +605,10 @@ public class CrateDigger {
 
         @Override
         public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
-            Database database = findDatabase(track);
+            final Database database = findDatabase(track);
             if (database != null) {
                 try {
-                    RekordboxAnlz file = findExtendedAnalysis(track, database);
+                    final RekordboxAnlz file = findExtendedAnalysis(track, database);
                     if (file != null) {
                         try {
                             return new WaveformDetail(track, file);
@@ -626,7 +617,7 @@ public class CrateDigger {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching waveform preview for track " + track + " from database " + database, e);
+                    logger.error("Problem fetching waveform preview for track {} from database {}", track, database, e);
                 }
             }
             return null;
@@ -634,7 +625,7 @@ public class CrateDigger {
 
         @Override
         public RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag) {
-            Database database = findDatabase(track);
+            final Database database = findDatabase(track);
             if (database != null) {
                 try {
                     if ((typeTag.length()) > 4) {
@@ -662,9 +653,7 @@ public class CrateDigger {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching analysis file " + fileExtension + " section " + typeTag +
-                            " for track " + track + " from database " + database, e);
-
+                    logger.error("Problem fetching analysis file {} section {} for track {} from database {}", fileExtension, typeTag, track, database, e);
                 }
             }
             return null;
@@ -755,7 +744,7 @@ public class CrateDigger {
      * Keeps track of the registered database listeners.
      */
     private final Set<DatabaseListener> dbListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<DatabaseListener, Boolean>());
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Adds the specified database listener to receive updates when a rekordbox database has been obtained for a
@@ -796,7 +785,7 @@ public class CrateDigger {
     @SuppressWarnings("WeakerAccess")
     public Set<DatabaseListener> getDatabaseListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<DatabaseListener>(dbListeners));
+        return Collections.unmodifiableSet(new HashSet<>(dbListeners));
     }
 
     /**

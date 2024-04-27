@@ -390,10 +390,10 @@ public class OpusProvider {
                         }
                         return new AlbumArt(art, file);
                     } else {
-                        logger.warn("Unable to find artwork " + art + " in database " + database);
+                        logger.warn("Unable to find artwork {} in database {}", art, database);
                     }
                 } catch (Exception e) {
-                    logger.warn("Problem fetching artwork " + art + " from database " + database, e);
+                    logger.warn("Problem fetching artwork {} from database {}", art, database, e);
                     if (file != null) {
                         //noinspection ResultOfMethodCallIgnored
                         file.delete();
@@ -404,20 +404,34 @@ public class OpusProvider {
 
         @Override
         public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
-            // TODO implement!
+            final Database database = findDatabase(track);
+            if (database != null) {
+                try {
+                    final RekordboxAnlz file = findTrackAnalysis(track, database, findFilesystem(track));
+                    if (file != null) {
+                        try {
+                            return new BeatGrid(track, file);
+                        } finally {
+                            file._io().close();
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching beat grid for track {} from database {}", track, database, e);
+                }
+            }
             return null;
         }
 
         @Override
         public CueList getCueList(MediaDetails sourceMedia, DataReference track) {
             final Database database = findDatabase(track);
-            final FileSystem fileSystem = findFilesystem(track);
+            final FileSystem archive = findFilesystem(track);
             if (database != null) {
                 try {
                     // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues
-                    RekordboxAnlz file = findExtendedAnalysis(track, database, fileSystem);
+                    RekordboxAnlz file = findExtendedAnalysis(track, database, archive);
                     if (file ==  null) {  // No extended analysis found, fall back to the basic one
-                        file = findTrackAnalysis(track, database, fileSystem);
+                        file = findTrackAnalysis(track, database, archive);
                     }
                     if (file != null) {
                         try {
@@ -434,19 +448,92 @@ public class OpusProvider {
 
         @Override
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
-            // TODO implement!
+            final Database database = findDatabase(track);
+            final FileSystem archive = findFilesystem(track);
+            if (database != null) {
+                try {
+                    final RekordboxAnlz file = findExtendedAnalysis(track, database, archive);  // Look for color preview first
+                    if (file != null) {
+                        try {
+                            return new WaveformPreview(track, file);
+                        } finally {
+                            file._io().close();
+                        }
+                    }
+                } catch (IllegalStateException e) {
+                    logger.info("No color preview waveform found, checking for blue version.");
+                } catch (Exception e) {
+                    logger.error("Problem fetching color waveform preview for track {} from database {}", track, database, e);
+                }
+                try {
+                    final RekordboxAnlz file = findTrackAnalysis(track, database, archive);
+                    if (file != null) {
+                        try {
+                            return new WaveformPreview(track, file);
+                        } finally {
+                            file._io().close();
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching waveform preview for track {} from database {}", track, database, e);
+                }
+            }
             return null;
         }
 
         @Override
         public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
-            // TODO implement!
+            final Database database = findDatabase(track);
+            if (database != null) {
+                try {
+                    RekordboxAnlz file = findExtendedAnalysis(track, database, findFilesystem(track));
+                    if (file != null) {
+                        try {
+                            return new WaveformDetail(track, file);
+                        } finally {
+                            file._io().close();
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching waveform preview for track {} from database {}", track, database, e);
+                }
+            }
             return null;
         }
 
         @Override
         public RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag) {
-            // TODO implement!
+            final Database database = findDatabase(track);
+            if (database != null) {
+                try {
+                    if ((typeTag.length()) > 4) {
+                        throw new IllegalArgumentException("typeTag cannot be longer than four characters");
+                    }
+
+                    int fourcc = 0;  // Convert the type tag to an integer as found in the analysis file.
+                    for (int i = 0; i < 4; i++) {
+                        fourcc = fourcc * 256;
+                        if (i < (typeTag.length())) {
+                            fourcc = fourcc + typeTag.charAt(i);
+                        }
+                    }
+
+                    final RekordboxAnlz file = findTrackAnalysis(track, database, findFilesystem(track), fileExtension);  // Open the desired file to scan.
+                    if (file != null) {
+                        try {  // Scan for the requested tag type.
+                            for (RekordboxAnlz.TaggedSection section : file.sections()) {
+                                if (section.fourcc() == RekordboxAnlz.SectionTags.byId(fourcc)) {
+                                    return section;
+                                }
+                            }
+                        } finally {
+                            file._io().close();
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching analysis file {} section {} for track {} from database {}", fileExtension, typeTag, track, database, e);
+                }
+            }
             return null;
         }
     };
