@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -52,12 +53,29 @@ public class DeviceFinder extends LifecycleParticipant {
     private static final AtomicLong firstDeviceTime = new AtomicLong(0);
 
     /**
+     * Indicates we were started with VirtualRekordbox running so we are just acting as a proxy for it, to
+     * work with the Opus Quad.
+     */
+    private final AtomicBoolean proxyingForVirtualRekordbox = new AtomicBoolean(false);
+
+    /**
+     * Check whether we are simply proxying information from VirtualRekordbox so that we can work with the Opus
+     * Quad rather than real Pro DJ Link hardware.
+     *
+     * @return an indication that we are in a limited mode to support the Opus Quad.
+     */
+    public boolean inOpusQuadCompatibilityMode() {
+        return proxyingForVirtualRekordbox.get();
+    }
+
+    /**
      * Check whether we are presently listening for device announcements.
      *
-     * @return {@code true} if our socket is open and monitoring for DJ Link device announcements on the network
+     * @return {@code true} if our socket is open and monitoring for DJ Link device announcements on the network,
+     *         or if we were started in a mode where we delegate most of our responsibility to VirtualRekordbox
      */
     public boolean isRunning() {
-        return socket.get() != null;
+        return inOpusQuadCompatibilityMode() || socket.get() != null;
     }
 
     /**
@@ -93,9 +111,10 @@ public class DeviceFinder extends LifecycleParticipant {
     private final Map<DeviceReference, DeviceAnnouncement> devices = new ConcurrentHashMap<DeviceReference, DeviceAnnouncement>();
 
     /**
-     * Remove any device announcements that are so old that the device seems to have gone away.
+     * Remove any device announcements that are so old that the device seems to have gone away. Will be called by
+     * VirtualRekordbox when in Opus Quad compatibility mode.
      */
-    private void expireDevices() {
+     void expireDevices() {
         long now = System.currentTimeMillis();
         // Make a copy so we don't have to worry about concurrent modification.
         Map<DeviceReference, DeviceAnnouncement> copy = new HashMap<DeviceReference, DeviceAnnouncement>(devices);
@@ -111,7 +130,7 @@ public class DeviceFinder extends LifecycleParticipant {
     }
 
     /**
-     * Record a device announcement in the devices map, so we know whe saw it.
+     * Record a device announcement in the devices map, so we know we saw it.
      *
      * @param announcement the announcement to be recorded
      */
@@ -172,17 +191,62 @@ public class DeviceFinder extends LifecycleParticipant {
     }
 
     /**
-     * Start listening for device announcements and keeping track of the DJ Link devices visible on the network.
-     * If already listening, has no effect.
+     * Makes sure we get shut down if the VirtualRekordbox does when in proxy mode.
+     */
+    private final LifecycleListener virtualRekordboxLifecycleListener = new LifecycleListener() {
+        @Override
+        public void started(LifecycleParticipant sender) {
+            logger.debug("Nothing to do when VirtualRekordbox starts.");
+        }
+
+        @Override
+        public void stopped(LifecycleParticipant sender) {
+            if (inOpusQuadCompatibilityMode()) {
+                logger.info("Shutting down because VirtualRekordbox is and we were proxying for it.");
+                stop();
+            }
+        }
+    };
+
+    /**
+     * Handle a device announcement packet we have received, or one that VirtualRekordbox has received if we
+     * are in Opus Quad compatibility mode.
+     *
+     * @param announcement the device announcement that has been received.
+     */
+    void processAnnouncement(DeviceAnnouncement announcement) {
+        final boolean foundNewDevice = isDeviceNew(announcement);
+        updateDevices(announcement);
+        if (foundNewDevice) {
+            deliverFoundAnnouncement(announcement);
+        }
+    }
+
+    /**
+     * <p>In normal operation (with Pro DJ Link devices), start listening for device announcements and keeping
+     * track of the DJ Link devices visible on the network.  If VirtualRekordbox is running, then we are actually
+     * in Opus Quad compatibility mode, and will do far less,acting as a proxy for packets that it is responsible
+     * for receiving.</p>
+     *
+     * <p>If already active, has no effect.</p>
      *
      * @throws SocketException if the socket to listen on port 50000 cannot be created
      */
     public synchronized void start() throws SocketException {
 
         if (!isRunning()) {
-            socket.set(new DatagramSocket(ANNOUNCEMENT_PORT));
             startTime.set(System.currentTimeMillis());
             deliverLifecycleAnnouncement(logger, true);
+
+            // See if we are just going to proxy information for VirtualRekordbox.
+            // TODO uncomment once this exists.
+//            VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
+//            if (VirtualRekordbox.getInstance().isRunning()) {
+//                proxyingForVirtualRekordbox.set(true);
+//                return true;
+//            }
+
+            socket.set(new DatagramSocket(ANNOUNCEMENT_PORT));
 
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -224,11 +288,7 @@ public class DeviceFinder extends LifecycleParticipant {
                                                     packet.getLength() + ".");
                                         }
                                         DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
-                                        final boolean foundNewDevice = isDeviceNew(announcement);
-                                        updateDevices(announcement);
-                                        if (foundNewDevice) {
-                                            deliverFoundAnnouncement(announcement);
-                                        }
+                                        processAnnouncement(announcement);
                                         if (VirtualCdj.getInstance().isRunning() &&
                                                 announcement.getDeviceNumber() == VirtualCdj.getInstance().getDeviceNumber()) {
                                             // Someone is using the same device number as we are! Try to defend it.
