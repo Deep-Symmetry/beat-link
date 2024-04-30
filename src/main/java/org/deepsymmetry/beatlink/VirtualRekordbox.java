@@ -1,15 +1,5 @@
 package org.deepsymmetry.beatlink;
 
-import java.io.IOException;
-import java.net.*;
-import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.deepsymmetry.electro.Metronome;
@@ -17,20 +7,24 @@ import org.deepsymmetry.electro.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.*;
+import java.nio.ByteBuffer;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.*;
+
 /**
- * Provides the ability to create a virtual CDJ device that can lurk on a DJ Link network and receive packets sent to
- * players, monitoring the detailed state of the other devices. This detailed information is helpful for augmenting
- * what {@link BeatFinder} reports, allowing you to keep track of which player is the tempo master, how many beats of
- * a track have been played, how close a player is getting to its next cue point, and more. It is also the foundation
- * for finding out the rekordbox ID of the loaded track, which supports all the features associated with the
- * {@link MetadataFinder}.
+ * Provides the ability to emulate the Rekordbox lighting application which causes devices to share their player state
+ * and PSSI (track phrase data). This limited information, in conjunction with downloading the Rekordbox USB data, is
+ * helpful for augmenting the limited updates from the players to provide almost full Beat Link functionality.
  *
- * @author James Elliott
+ * @author Kris Prep
  */
 @SuppressWarnings("WeakerAccess")
-public class VirtualCdj extends LifecycleParticipant {
+public class VirtualRekordbox extends LifecycleParticipant {
 
-    private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class);
+    private static final Logger logger = LoggerFactory.getLogger(VirtualRekordbox.class);
 
     /**
      * The port to which other devices will send status update messages.
@@ -45,34 +39,12 @@ public class VirtualCdj extends LifecycleParticipant {
     private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>();
 
     /**
-     * Indicates we were started with VirtualRekordbox running so we are just acting as a proxy for it, to
-     * work with the Opus Quad.
-     */
-    private final AtomicBoolean proxyingForVirtualRekordbox = new AtomicBoolean(false);
-
-    /**
-     * Check whether we are simply proxying information from VirtualRekordbox so that we can work with the Opus
-     * Quad rather than real Pro DJ Link hardware.
-     *
-     * @return an indication that we are in a limited mode to support the Opus Quad.
-     */
-    public boolean inOpusQuadCompatibilityMode() {
-        return proxyingForVirtualRekordbox.get();
-    }
-
-    public void setInOpusQuadCompatibilityMode(boolean inOpusCompatibilityMode){
-        proxyingForVirtualRekordbox.set(inOpusCompatibilityMode);
-    }
-
-
-    /**
      * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
      *
-     * @return true if our socket is open, sending presence announcements, and receiving status packets,
-     *         or if we were started in a mode where we delegate most of our responsibility to VirtualRekordbox
+     * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
     public boolean isRunning() {
-        return inOpusQuadCompatibilityMode() || (socket.get() != null && claimingNumber.get() == 0);
+        return socket.get() != null && claimingNumber.get() == 0;
     }
 
     /**
@@ -225,6 +197,27 @@ public class VirtualCdj extends LifecycleParticipant {
             0x02, 0x00, 0x00, 0x00,  0x01, 0x64
     };
 
+    private static final byte[] initializeRekordboxLightingBytes = {
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x11, 0x72, 0x65, 0x6b, 0x6f, 0x72, 0x64,
+            0x62, 0x6f, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x17,
+            0x01, 0x04, 0x17, 0x01, 0x00, 0x00, 0x00, 0x6d, 0x00, 0x61, 0x00, 0x63, 0x00, 0x62, 0x00, 0x6f, 0x00,
+            0x6f, 0x00, 0x6b, 0x00, 0x20, 0x00, 0x70, 0x00, 0x72, 0x00, 0x6f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+
     /**
      * The location of the device name in the announcement packet.
      */
@@ -261,45 +254,6 @@ public class VirtualCdj extends LifecycleParticipant {
         }
         Arrays.fill(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_OFFSET + DEVICE_NAME_LENGTH, (byte)0);
         System.arraycopy(name.getBytes(), 0, keepAliveBytes, DEVICE_NAME_OFFSET, name.getBytes().length);
-    }
-
-    /**
-     * Reacts to player status updates to reflect the current playback state.
-     */
-    private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
-        @Override
-        public void received(DeviceUpdate update) {
-            processUpdate(update);
-        }
-    };
-
-    public DeviceUpdateListener getUpdateListener() {
-        return updateListener;
-    }
-
-
-    /**
-     * Reacts to player status updates to reflect the current playback state.
-     */
-    private final MasterListener masterListener = new MasterListener() {
-        @Override
-        public void masterChanged(DeviceUpdate update) {
-            deliverMasterChangedAnnouncement(update);
-        }
-
-        @Override
-        public void tempoChanged(double tempo) {
-            deliverTempoChangedAnnouncement(tempo);
-        }
-
-        @Override
-        public void newBeat(Beat beat) {
-            deliverBeatAnnouncement(beat);
-        }
-    };
-
-    public MasterListener getMasterListener() {
-        return masterListener;
     }
 
     /**
@@ -455,10 +409,9 @@ public class VirtualCdj extends LifecycleParticipant {
      * @param packet the packet received on our update port
      * @return the corresponding {@link DeviceUpdate} subclass, or {@code nil} if the packet was not recognizable
      */
-    private DeviceUpdate buildUpdate(DatagramPacket packet) {
+    private DeviceUpdate buildUpdate(DatagramPacket packet) throws IOException {
         final int length = packet.getLength();
         final Util.PacketType kind = Util.validateHeader(packet, UPDATE_PORT);
-
         if (kind == null) {
             logger.warn("Ignoring unrecognized packet sent to update port.");
             return null;
@@ -479,12 +432,24 @@ public class VirtualCdj extends LifecycleParticipant {
             case CDJ_STATUS:
                 if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
                     return new CdjStatus(packet);
-
                 } else {
                     logger.warn("Ignoring too-short CDJ Status packet with length " + length + " (we need " + CdjStatus.MINIMUM_PACKET_SIZE +
                             " bytes).");
                     return null;
                 }
+
+            case DEVICE_REKORDBOX_LIGHTING_HELLO_BYTES:
+                if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
+                    return new CdjStatus(packet);
+                } else {
+                    logger.warn("Opus Hello bytes packet.");
+                    return null;
+                }
+
+            case OPUS_METADATA:
+                logger.info("Received track load metadata from player " + packet.getData()[0x21]);
+                return null;
+
 
             case LOAD_TRACK_ACK:
                 logger.info("Received track load acknowledgment from player " + packet.getData()[0x21]);
@@ -495,7 +460,15 @@ public class VirtualCdj extends LifecycleParticipant {
                 return null;
 
             case MEDIA_RESPONSE:
-                deliverMediaDetailsUpdate(new MediaDetails(packet));
+                if (packet.getLength() >= MediaDetails.MINIMUM_PACKET_SIZE) {
+                    deliverMediaDetailsUpdate(new MediaDetails(packet));
+                }
+                return null;
+
+            case DEVICE_HELLO:
+                if (packet.getLength() > MediaDetails.MINIMUM_PACKET_SIZE) {
+                    deliverMediaDetailsUpdate(new MediaDetails(packet));
+                }
                 return null;
 
             default:
@@ -504,18 +477,30 @@ public class VirtualCdj extends LifecycleParticipant {
         }
     }
 
+    /**
+     * This will send the bytes Rekordbox Lighting sends to a player to acknowledge its existence on the network and
+     * trigger it to begin sendin CDJStatus packets.
+     * @param deviceAddress
+     * @throws IOException
+     */
+    public void sendRekordboxLightingPacket(InetAddress deviceAddress) {
+        DatagramPacket updatesAnnouncement = new DatagramPacket(initializeRekordboxLightingBytes, initializeRekordboxLightingBytes.length,
+                deviceAddress, UPDATE_PORT);
+        try {
+            socket.get().send(updatesAnnouncement);
+        } catch (IOException e) {
+            logger.warn("Unable to send Rekordbox lighting hello packet. Will try again when next device announces itself.");
+        }
+    }
 
 
     /**
-     * <p>Process a device update once it has been received. Track it as the most recent update from its address,
+     * Process a device update once it has been received. Track it as the most recent update from its address,
      * and notify any registered listeners, including master listeners if it results in changes to tracked state,
      * such as the current master player and tempo. Also handles the Baroque dance of handing off the tempo master
-     * role from or to another device.</p>
-     *
-     * <p>This used to be a private method, but it was made package accessible as part of the effort to support
-     * Opus Quad hardware, so the VirtualRekordbox could proxy the status packets it receives through us.</p>
+     * role from or to another device.
      */
-    void processUpdate(DeviceUpdate update) {
+    private void processUpdate(DeviceUpdate update) {
         updates.put(DeviceReference.getDeviceReference(update), update);
 
         // Keep track of the largest sync number we see.
@@ -684,6 +669,12 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private List<NetworkInterface> matchingInterfaces = null;
 
+    /*
+     * Holds the interface address we chose to communicate with the DJ Link device we found during startup,
+     * so we can check if there are any unreachable ones.
+     */
+    private InterfaceAddress matchedAddress = null;
+
     /**
      * Check the interfaces that match the address from which we are receiving DJ Link traffic. If there is more
      * than one value in this list, that is a problem because we will likely receive duplicate packets that will
@@ -696,12 +687,6 @@ public class VirtualCdj extends LifecycleParticipant {
         ensureRunning();
         return Collections.unmodifiableList(matchingInterfaces);
     }
-
-    /**
-     * Holds the interface address we chose to communicate with the DJ Link device we found during startup,
-     * so we can check if there are any unreachable ones.
-     */
-    private InterfaceAddress matchedAddress = null;
 
     /**
      * If we are in the process of trying to establish a device number, this will hold the number we are
@@ -926,32 +911,48 @@ public class VirtualCdj extends LifecycleParticipant {
         return true;  // Huzzah, we found the right device number to use!
     }
 
+    public void sendRekordboxLightingAnnouncement(AtomicReference<DatagramSocket> announceSocket){
+        if (isRunning()) {
+            DatagramPacket announcement = new DatagramPacket(keepAliveBytes, keepAliveBytes.length,
+                    broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
+            try {
+                socket.get().send(announcement);
+            } catch (IOException e) {
+                logger.error("Exception sending announce, trying again.", e);
+            }
+        }
+    }
+
     /**
-     * Once we have seen some DJ Link devices on the network, we can proceed to create a virtual player on that
-     * same network.
      *
-     * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}.
-     * @throws SocketException if there is a problem opening a socket on the right network
+     *
+     * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}.
+     * @throws Exception if there is a problem opening a socket on the right network
      */
-    private boolean createVirtualCdj() throws SocketException {
+    private boolean createVirtualRekordbox() throws Exception {
+        VirtualCdj.getInstance().setInOpusQuadCompatibilityMode(true);
+
         // Find the network interface and address to use to communicate with the first device we found.
         matchingInterfaces = new ArrayList<NetworkInterface>();
         matchedAddress = null;
-        DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
-        for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            InterfaceAddress candidate = findMatchingAddress(aDevice, networkInterface);
-            if (candidate != null) {
-                if (matchedAddress == null) {
-                    matchedAddress = candidate;
-                }
-                matchingInterfaces.add(networkInterface);
-            }
-        }
 
-        if (matchedAddress == null) {
-            logger.warn("Unable to find network interface to communicate with " + aDevice +
-                    ", giving up.");
-            return false;
+        running.set(true);
+
+        // Forward Updates, MediaDetails and Master info to VirtualCdj.
+        // That's where all clients are used to getting them.
+        addUpdateListener(VirtualCdj.getInstance().getUpdateListener());
+        addMediaDetailsListener(VirtualCdj.getInstance().getMediaDetailsListener());
+        addMasterListener(VirtualCdj.getInstance().getMasterListener());
+
+        for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+            for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
+                if (address.getAddress() instanceof Inet4Address && !address.getAddress().getHostAddress().contains("127.0.0.1")) {
+                    if (matchedAddress == null) {
+                        matchedAddress = address;
+                    }
+                    matchingInterfaces.add(networkInterface);
+                }
+            }
         }
 
         logger.info("Found matching network interface " + matchingInterfaces.get(0).getDisplayName() + " (" +
@@ -964,14 +965,23 @@ public class VirtualCdj extends LifecycleParticipant {
             }
         }
 
-        // Copy the chosen interface's hardware and IP addresses into the announcement packet template
-        System.arraycopy(matchingInterfaces.get(0).getHardwareAddress(), 0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
-        System.arraycopy(matchedAddress.getAddress().getAddress(), 0, keepAliveBytes, 44, 4);
-        broadcastAddress.set(matchedAddress.getBroadcast());
-
         // Open our communication socket.
         socket.set(new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress()));
 
+        System.arraycopy(getMatchingInterfaces().get(0).getHardwareAddress(),
+                0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
+        System.arraycopy(matchedAddress.getAddress().getAddress(),
+                0, keepAliveBytes, 44, 4);
+        System.arraycopy(getMatchingInterfaces().get(0).getHardwareAddress(),
+                0, initializeRekordboxLightingBytes, MAC_ADDRESS_OFFSET, 6);
+        System.arraycopy(matchedAddress.getAddress().getAddress(),
+                0, initializeRekordboxLightingBytes, 44, 4);
+
+        // Copy the chosen interface's hardware and IP addresses into the announcement packet template
+        broadcastAddress.set(matchedAddress.getBroadcast());
+
+        // Inform the DeviceFinder to ignore our own Rekordbox Lighting announcement broadcast packets.
+        DeviceFinder.getInstance().addIgnoredAddress(matchedAddress.getBroadcast());
         // Inform the DeviceFinder to ignore our own device announcement packets.
         DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
 
@@ -986,30 +996,6 @@ public class VirtualCdj extends LifecycleParticipant {
         }
 
         // Set up our buffer and packet to receive incoming messages.
-        final Thread receiver = createStatusReceiver();
-        receiver.start();
-
-        // Create the thread which announces our participation in the DJ Link network, to request update packets
-        Thread announcer = new Thread(null, new Runnable() {
-            @Override
-            public void run() {
-                while (isRunning()) {
-                    sendAnnouncement(broadcastAddress.get());
-                }
-            }
-        }, "beat-link VirtualCdj announcement sender");
-        announcer.setDaemon(true);
-        announcer.start();
-        deliverLifecycleAnnouncement(logger, true);
-        return true;
-    }
-
-    /**
-     * Create a thread that will wait for and process status update packets sent to our socket.
-     *
-     * @return the thread
-     */
-    private Thread createStatusReceiver() {
         final byte[] buffer = new byte[512];
         final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
@@ -1047,26 +1033,42 @@ public class VirtualCdj extends LifecycleParticipant {
         }, "beat-link VirtualCdj status receiver");
         receiver.setDaemon(true);
         receiver.setPriority(Thread.MAX_PRIORITY);
-        return receiver;
+        receiver.start();
+
+
+        // Create the thread which announces our participation in the DJ Link network, to request update packets
+        Thread announcer = new Thread(null, new Runnable() {
+            @Override
+            public void run() {
+                while (isRunning()) {
+                    sendAnnouncements(broadcastAddress.get());
+                }
+            }
+        }, "beat-link VirtualRekordbox announcement/updates sender");
+        announcer.setDaemon(true);
+        announcer.start();
+
+        // Inform the DeviceFinder to ignore our own broadcast Rekordbox announcement packets.
+        DeviceFinder.getInstance().addIgnoredAddress(matchedAddress.getBroadcast());
+
+        deliverLifecycleAnnouncement(logger, true);
+
+        return true;
     }
 
     /**
-     * Checks if we can see any players that are on a different network than the one we chose for the Virtual CDJ.
-     * If so, we are not going to be able to communicate with them, and they should all be moved onto a single
-     * network.
-     *
-     * @return the device announcements of any players which are on unreachable networks, or hopefully an empty list
-     * @throws IllegalStateException if we are not running
+     * Send an announcement packet so the other devices see us as Rekordbox Lighting and send us updates.
      */
-    public Set<DeviceAnnouncement> findUnreachablePlayers() {
-        ensureRunning();
-        Set<DeviceAnnouncement> result = new HashSet<DeviceAnnouncement>();
-        for (DeviceAnnouncement candidate: DeviceFinder.getInstance().getCurrentDevices()) {
-            if (!Util.sameNetwork(matchedAddress.getNetworkPrefixLength(), matchedAddress.getAddress(), candidate.getAddress())) {
-                result.add(candidate);
-            }
+    private void sendAnnouncements(InetAddress broadcastAddress) {
+        try {
+            sendRekordboxLightingPacket(broadcastAddress);
+
+            Thread.sleep(getAnnounceInterval());
+        } catch (Throwable t) {
+            logger.warn("Unable to send announcement packet, flushing DeviceFinder due to likely network change and shutting down.", t);
+            DeviceFinder.getInstance().flush();
+            stop();
         }
-        return Collections.unmodifiableSet(result);
     }
 
     /**
@@ -1088,45 +1090,19 @@ public class VirtualCdj extends LifecycleParticipant {
     };
 
     /**
-     * Makes sure we get shut down if the VirtualRekordbox does when in proxy mode.
-     */
-    private final LifecycleListener virtualRekordboxLifecycleListener = new LifecycleListener() {
-        @Override
-        public void started(LifecycleParticipant sender) {
-            logger.debug("Nothing to do when VirtualRekordbox starts.");
-        }
-
-        @Override
-        public void stopped(LifecycleParticipant sender) {
-            if (inOpusQuadCompatibilityMode()) {
-                logger.info("Shutting down because VirtualRekordbox is and we were proxying for it.");
-                stop();
-            }
-        }
-    };
-
-    /**
-     * <p>In normal operation (with Pro DJ Link devices), start announcing ourselves and listening for status packets.
-     * If VirtualRekordbox is running, then we are actually in Opus Quad compatibility mode, and will do far less,
-     * acting as a proxy for packets that it is responsible for receiving. Normal operation Requires the
+     * Start announcing ourselves and listening for status packets. If already active, has no effect. Requires the
      * {@link DeviceFinder} to be active in order to find out how to communicate with other devices, so will start
-     * that if it is not already.</p>
-     *
-     * <p>If already active, has no effect.</p>
+     * that if it is not already.
      *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
-     * @throws SocketException if the socket to listen on port 50002 cannot be created
+     * @throws Exception if the socket to listen on port 50002 cannot be created
      */
     @SuppressWarnings("UnusedReturnValue")
-    public synchronized boolean start() throws SocketException {
+    public synchronized boolean start() throws Exception {
         if (!isRunning()) {
-            // See if we are just going to proxy information for VirtualRekordbox.
-            // TODO uncomment once this exists.
-//            VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
-//            if (VirtualRekordbox.getInstance().isRunning()) {
-//                proxyingForVirtualRekordbox.set(true);
-//                return true;
-//            }
+            if (VirtualCdj.getInstance().isRunning()) {
+                throw new IllegalStateException("Cannot start VirtualRekordbox when VirtualCdj has already been started up");
+            }
 
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
             DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);
@@ -1148,7 +1124,7 @@ public class VirtualCdj extends LifecycleParticipant {
                 return false;
             }
 
-            return createVirtualCdj();
+            return createVirtualRekordbox();
         }
         return true;  // We were already active
     }
@@ -1168,7 +1144,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
-    public synchronized boolean start(byte deviceNumber) throws SocketException {
+    public synchronized boolean start(byte deviceNumber) throws Exception {
         if (!isRunning()) {
             setDeviceNumber(deviceNumber);
             return start();
@@ -1181,11 +1157,6 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public synchronized void stop() {
         if (isRunning()) {
-            if (inOpusQuadCompatibilityMode()) {
-                // We were just running in proxy mode, so nothing really needs shutting down.
-                proxyingForVirtualRekordbox.set(false);
-                return;
-            }
             try {
                 setSendingStatus(false);
             } catch (Throwable t) {
@@ -1217,62 +1188,6 @@ public class VirtualCdj extends LifecycleParticipant {
             DeviceFinder.getInstance().flush();
             stop();
         }
-    }
-
-    /**
-     * Get the most recent status we have seen from all devices that are recent enough to be considered still
-     * active on the network.
-
-     * @return the most recent detailed status update received for all active devices
-     * @throws IllegalStateException if the {@code VirtualCdj} is not active
-     */
-    public Set<DeviceUpdate> getLatestStatus() {
-        ensureRunning();
-        Set<DeviceUpdate> result = new HashSet<DeviceUpdate>();
-        long now = System.currentTimeMillis();
-        for (DeviceUpdate update : updates.values()) {
-            if (now - update.getTimestamp() <= DeviceFinder.MAXIMUM_AGE) {
-                result.add(update);
-            }
-        }
-        return Collections.unmodifiableSet(result);
-    }
-
-    /**
-     * Look up the most recent status we have seen for a device, given another update from it, which might be a
-     * beat packet containing far less information.
-     *
-     * <p><em>Note:</em> If you are trying to determine the current tempo or beat being played by the device, you should
-     * either use the status you just received, or
-     * {@link org.deepsymmetry.beatlink.data.TimeFinder#getLatestUpdateFor(int)} instead, because that
-     * combines both status updates and beat messages, and so is more likely to be current and definitive.</p>
-     *
-     * @param device the update identifying the device for which current status information is desired
-     *
-     * @return the most recent detailed status update received for that device
-     * @throws IllegalStateException if the {@code VirtualCdj} is not active
-     */
-    public DeviceUpdate getLatestStatusFor(DeviceUpdate device) {
-        ensureRunning();
-        return updates.get(DeviceReference.getDeviceReference(device));
-    }
-
-    /**
-     * Look up the most recent status we have seen for a device, given its device announcement packet as returned
-     * by {@link DeviceFinder#getCurrentDevices()}.
-     *
-     * <p><em>Note:</em> If you are trying to determine the current tempo or beat being played by the device, you should
-     * use {@link org.deepsymmetry.beatlink.data.TimeFinder#getLatestUpdateFor(int)} instead, because that
-     * combines both status updates and beat messages, and so is more likely to be current and definitive.</p>
-     *
-     * @param device the announcement identifying the device for which current status information is desired
-     *
-     * @return the most recent detailed status update received for that device
-     * @throws IllegalStateException if the {@code VirtualCdj} is not active
-     */
-    public DeviceUpdate getLatestStatusFor(DeviceAnnouncement device) {
-        ensureRunning();
-        return updates.get(DeviceReference.getDeviceReference(device));
     }
 
     /**
@@ -1460,18 +1375,6 @@ public class VirtualCdj extends LifecycleParticipant {
                 logger.warn("Problem delivering device update to listener", t);
             }
         }
-    }
-
-    // This is a way to get mediaDetails from Rekordbox and pass to all MediaDetailsListeners
-    private final MediaDetailsListener mediaDetailsListener = new MediaDetailsListener(){
-        @Override
-        public void detailsAvailable(MediaDetails details) {
-            deliverMediaDetailsUpdate(details);
-        }
-    };
-
-    public MediaDetailsListener getMediaDetailsListener() {
-        return mediaDetailsListener;
     }
 
     /**
@@ -2006,6 +1909,9 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private final AtomicReference<BeatSender> beatSender = new AtomicReference<BeatSender>();
 
+
+    AtomicBoolean running = new AtomicBoolean(false);
+
     /**
      * Check whether we are currently running a {@link BeatSender}; if we are, notify it that there has been a change
      * to the metronome timeline, so it needs to wake up and reassess its situation.
@@ -2099,9 +2005,6 @@ public class VirtualCdj extends LifecycleParticipant {
 
         if (send) {  // Start sending status packets.
             ensureRunning();
-            if (proxyingForVirtualRekordbox.get()) {
-                throw new IllegalStateException("Cannot send status when in Opus Quad compatibility mode.");
-            }
             if ((getDeviceNumber() < 1) || (getDeviceNumber() > 4)) {
                 throw new IllegalStateException("Can only send status when using a standard player number, 1 through 4.");
             }
@@ -2590,21 +2493,21 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Holds the singleton instance of this class.
      */
-    private static final VirtualCdj ourInstance = new VirtualCdj();
+    private static final VirtualRekordbox ourInstance = new VirtualRekordbox();
 
     /**
      * Get the singleton instance of this class.
      *
      * @return the only instance of this class which exists
      */
-    public static VirtualCdj getInstance() {
+    public static VirtualRekordbox getInstance() {
         return ourInstance;
     }
 
     /**
      * Register any relevant listeners; private to prevent instantiation.
      */
-    private VirtualCdj() {
+    private VirtualRekordbox() {
         masterTempo.set(Double.doubleToLongBits(0.0));  // Note that we have no master tempo yet.
 
         // Arrange to have our status accurately reflect any relevant updates and commands from the mixer.
@@ -2783,14 +2686,14 @@ public class VirtualCdj extends LifecycleParticipant {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("VirtualCdj[number:").append(getDeviceNumber()).append(", name:").append(getDeviceName());
+        sb.append("VirtualRekordbox[number:").append(getDeviceNumber()).append(", name:").append(getDeviceName());
         sb.append(", announceInterval:").append(getAnnounceInterval());
         sb.append(", useStandardPlayerNumber:").append(getUseStandardPlayerNumber());
         sb.append(", tempoEpsilon:").append(getTempoEpsilon()).append(", active:").append(isRunning());
         if (isRunning()) {
             sb.append(", localAddress:").append(getLocalAddress().getHostAddress());
             sb.append(", broadcastAddress:").append(getBroadcastAddress().getHostAddress());
-            sb.append(", latestStatus:").append(getLatestStatus()).append(", masterTempo:").append(getMasterTempo());
+            sb.append(", masterTempo:").append(getMasterTempo());
             sb.append(", tempoMaster:").append(getTempoMaster());
             sb.append(", isSendingStatus:").append(isSendingStatus());
             if (isSendingStatus()) {

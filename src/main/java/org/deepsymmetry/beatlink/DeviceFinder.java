@@ -143,7 +143,6 @@ public class DeviceFinder extends LifecycleParticipant {
      * Check whether a device is already known, or if it is newly found.
      *
      * @param announcement the message from the device to be considered
-     *
      * @return true if this is the first message from this device
      */
     private boolean isDeviceNew(DeviceAnnouncement announcement) {
@@ -182,7 +181,6 @@ public class DeviceFinder extends LifecycleParticipant {
      * {@link VirtualCdj}'s beat messages when it is broadcasting them, for example.
      *
      * @param address the address to be checked as a candidate to be ignored
-     *
      * @return {@code true} if packets from the address should be ignored
      */
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
@@ -288,7 +286,26 @@ public class DeviceFinder extends LifecycleParticipant {
                                                     packet.getLength() + ".");
                                         }
                                         DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
-                                        processAnnouncement(announcement);
+
+                                       // processAnnouncement(announcement);
+
+                                        if (VirtualRekordbox.getInstance().isRunning() && announcement.getDeviceNumber() == 9) {
+                                            // This is the Opus Quad, fill in the players
+                                            for (int i = 1; i <= 4; i++) {
+                                                DeviceAnnouncement opusAnnouncement = new DeviceAnnouncement(packet, i);
+                                                updateDevices(opusAnnouncement);
+                                                if (isDeviceNew(opusAnnouncement)) {
+                                                    deliverFoundAnnouncement(announcement);
+                                                }
+                                                VirtualRekordbox.getInstance().sendRekordboxLightingAnnouncement(socket);
+                                            }
+                                        } else {
+                                            updateDevices(announcement);
+                                            if (isDeviceNew(announcement)) {
+                                                deliverFoundAnnouncement(announcement);
+                                            }
+                                        }
+
                                         if (VirtualCdj.getInstance().isRunning() &&
                                                 announcement.getDeviceNumber() == VirtualCdj.getInstance().getDeviceNumber()) {
                                             // Someone is using the same device number as we are! Try to defend it.
@@ -354,7 +371,6 @@ public class DeviceFinder extends LifecycleParticipant {
      * as long as the Virtual CDJ is active.
      *
      * @return the devices which have been heard from recently enough to be considered present on the network
-     *
      * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
     public Set<DeviceAnnouncement> getCurrentDevices() {
@@ -371,9 +387,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * with the specified device number, if any.
      *
      * @param deviceNumber the device number of interest
-     *
      * @return the matching announcement or null if no such device has been heard from
-     *
      * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
     public DeviceAnnouncement getLatestAnnouncementFrom(int deviceNumber) {
@@ -391,6 +405,7 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     private final Set<DeviceAnnouncementListener> deviceListeners =
             Collections.newSetFromMap(new ConcurrentHashMap<DeviceAnnouncementListener, Boolean>());
+
     /**
      * Adds the specified device announcement listener to receive device announcements when DJ Link devices
      * are found on or leave the network. If {@code listener} is {@code null} or already present in the list
@@ -496,7 +511,7 @@ public class DeviceFinder extends LifecycleParticipant {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder() ;
+        StringBuilder sb = new StringBuilder();
         sb.append("DeviceFinder[active:").append(isRunning());
         if (isRunning()) {
             sb.append(", startTime:").append(getStartTime()).append(", firstDeviceTime:").append(getFirstDeviceTime());
