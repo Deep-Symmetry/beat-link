@@ -663,6 +663,10 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if we are not running
      */
     public List<NetworkInterface> getMatchingInterfaces() {
+        if (proxyingForVirtualRekordbox.get()) {
+            return VirtualRekordbox.getInstance().getMatchingInterfaces();
+        }
+
         ensureRunning();
         return Collections.unmodifiableList(matchingInterfaces);
     }
@@ -1094,6 +1098,11 @@ public class VirtualCdj extends LifecycleParticipant {
             VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
             if (VirtualRekordbox.getInstance().isRunning()) {
                 proxyingForVirtualRekordbox.set(true);
+
+                // Set values that other callers might ask VirtualCdj for.
+                matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
+                matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
+
                 return true;
             }
 

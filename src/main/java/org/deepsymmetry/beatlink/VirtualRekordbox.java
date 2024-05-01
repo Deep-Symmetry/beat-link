@@ -439,6 +439,16 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     private InterfaceAddress matchedAddress = null;
 
+
+    /**
+     * Returns the first device IP address that we found when starting up this class.
+     *
+     * @return InterfaceAddress of the first device we find.
+     */
+    public InterfaceAddress getMatchedAddress() {
+        return matchedAddress;
+    }
+
     /**
      * Check the interfaces that match the address from which we are receiving DJ Link traffic. If there is more
      * than one value in this list, that is a problem because we will likely receive duplicate packets that will
