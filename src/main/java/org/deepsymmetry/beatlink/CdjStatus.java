@@ -519,22 +519,6 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * Adjust the player numbers from the Opus-Quad so that they are 1-4 as expected.
-     *
-     * @return the proper value
-     */
-    private int translateOpusPlayerNumbers(int reportedPlayerNumber) {
-        switch (reportedPlayerNumber){
-            case 9: return 1;
-            case 10: return 2;
-            case 11: return 3;
-            case 12: return 4;
-        }
-
-        return reportedPlayerNumber;
-    }
-
-    /**
      * Determine the enum value corresponding to the track type found in the packet.
      *
      * @return the proper value

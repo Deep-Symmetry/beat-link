@@ -59,7 +59,12 @@ public abstract class DeviceUpdate {
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         deviceName = new String(packetBytes, 11, 20).trim();
         preNexusCdj = deviceName.startsWith("CDJ") && (deviceName.endsWith("900") || deviceName.endsWith("2000"));
-        deviceNumber = Util.unsign(packetBytes[33]);
+
+        if (Util.isOpusQuad(deviceName)){
+            deviceNumber = translateOpusPlayerNumbers(packetBytes[40]);
+        } else {
+            deviceNumber = Util.unsign(packetBytes[33]);
+        }
     }
 
     /**
@@ -195,6 +200,22 @@ public abstract class DeviceUpdate {
      */
     @SuppressWarnings("WeakerAccess")
     public abstract boolean isBeatWithinBarMeaningful();
+
+    /**
+     * Adjust the player numbers from the Opus-Quad so that they are 1-4 as expected.
+     *
+     * @return the proper value
+     */
+    int translateOpusPlayerNumbers(int reportedPlayerNumber) {
+        switch (reportedPlayerNumber){
+            case 9: return 1;
+            case 10: return 2;
+            case 11: return 3;
+            case 12: return 4;
+        }
+
+        return reportedPlayerNumber;
+    }
 
     @Override
     public String toString() {
