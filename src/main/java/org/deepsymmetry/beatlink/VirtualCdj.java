@@ -60,11 +60,6 @@ public class VirtualCdj extends LifecycleParticipant {
         return proxyingForVirtualRekordbox.get();
     }
 
-    public void setInOpusQuadCompatibilityMode(boolean inOpusCompatibilityMode){
-        proxyingForVirtualRekordbox.set(inOpusCompatibilityMode);
-    }
-
-
     /**
      * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
      *
@@ -1121,12 +1116,11 @@ public class VirtualCdj extends LifecycleParticipant {
     public synchronized boolean start() throws SocketException {
         if (!isRunning()) {
             // See if we are just going to proxy information for VirtualRekordbox.
-            // TODO uncomment once this exists.
-//            VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
-//            if (VirtualRekordbox.getInstance().isRunning()) {
-//                proxyingForVirtualRekordbox.set(true);
-//                return true;
-//            }
+            VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
+            if (VirtualRekordbox.getInstance().isRunning()) {
+                proxyingForVirtualRekordbox.set(true);
+                return true;
+            }
 
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
             DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);

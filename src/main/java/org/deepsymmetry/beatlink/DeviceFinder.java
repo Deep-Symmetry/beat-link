@@ -205,7 +205,7 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * <p>In normal operation (with Pro DJ Link devices), start listening for device announcements and keeping
      * track of the DJ Link devices visible on the network.  If VirtualRekordbox is running, then we are actually
-     * in Opus Quad compatibility mode, and will do far less,acting as a proxy for packets that it is responsible
+     * in Opus Quad compatibility mode, and will do far less, acting as a proxy for packets that it is responsible
      * for receiving.</p>
      *
      * <p>If already active, has no effect.</p>

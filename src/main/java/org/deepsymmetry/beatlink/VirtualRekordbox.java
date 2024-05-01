@@ -34,14 +34,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
     public static final int MAC_ADDRESS_OFFSET = 38;
 
     /**
-     * The socket used to receive device announcement packets while we are active.
-     */
-    private final AtomicReference<DatagramSocket> announcementSocket = new AtomicReference<DatagramSocket>();
-
-    /**
      * The socket used to receive device status packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> updateSocket = new AtomicReference<DatagramSocket>();
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>();
 
     /**
      * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
@@ -49,7 +44,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
     public boolean isRunning() {
-        return updateSocket.get() != null && claimingNumber.get() == 0;
+        return socket.get() != null && claimingNumber.get() == 0;
     }
 
     /**
@@ -60,7 +55,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     public InetAddress getLocalAddress() {
         ensureRunning();
-        return updateSocket.get().getLocalAddress();
+        return socket.get().getLocalAddress();
     }
 
     /**
@@ -491,7 +486,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         DatagramPacket updatesAnnouncement = new DatagramPacket(initializeRekordboxLightingBytes, initializeRekordboxLightingBytes.length,
                 broadcastAddress.get(), UPDATE_PORT);
         try {
-            updateSocket.get().send(updatesAnnouncement);
+            socket.get().send(updatesAnnouncement);
         } catch (IOException e) {
             logger.warn("Unable to send Rekordbox lighting hello packet. Will try again when next device announces itself.");
         }
@@ -717,7 +712,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @param mixerAddress the address from which we received a mixer device number assignment offer
      */
     private void requestNumberFromMixer(InetAddress mixerAddress) {
-        final DatagramSocket currentSocket = updateSocket.get();
+        final DatagramSocket currentSocket = socket.get();
         if (currentSocket == null) {
             logger.warn("Gave up before sending device number request to mixer.");
             return;  // We've already given up.
@@ -749,7 +744,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *                       device number we are using
      */
     void defendDeviceNumber(InetAddress invaderAddress) {
-        final DatagramSocket currentSocket = updateSocket.get();
+        final DatagramSocket currentSocket = socket.get();
         if (currentSocket == null) {
             logger.warn("Went offline before we could defend our device number.");
             return;
@@ -790,7 +785,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 logger.debug("Sending hello packet " + i);
                 DatagramPacket announcement = new DatagramPacket(helloBytes, helloBytes.length,
                         broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                updateSocket.get().send(announcement);
+                socket.get().send(announcement);
                 Thread.sleep(300);
             } catch (Exception e) {
                 logger.warn("Unable to send hello packet to network, failing to go online.", e);
@@ -822,7 +817,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     logger.debug("Sending claim stage 1 packet " + i);
                     DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                    updateSocket.get().send(announcement);
+                    socket.get().send(announcement);
                     //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
@@ -854,7 +849,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     logger.debug("Sending claim stage 2 packet " + i + " for device " + claimStage2bytes[0x2e]);
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                    updateSocket.get().send(announcement);
+                    socket.get().send(announcement);
                     //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
@@ -889,7 +884,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     logger.debug("Sending claim stage 3 packet " + i + " for device " + claimStage3bytes[0x24]);
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                    updateSocket.get().send(announcement);
+                    socket.get().send(announcement);
                     //noinspection BusyWait
                     Thread.sleep(300);
                 } catch (Exception e) {
@@ -920,7 +915,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
             DatagramPacket announcement = new DatagramPacket(keepAliveBytes, keepAliveBytes.length,
                     broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
             try {
-                this.updateSocket.get().send(announcement);
+                this.socket.get().send(announcement);
             } catch (IOException e) {
                 logger.error("Exception sending announce, trying again.", e);
             }
@@ -934,7 +929,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @throws Exception if there is a problem opening a socket on the right network
      */
     private boolean createVirtualRekordbox() throws Exception {
-        VirtualCdj.getInstance().setInOpusQuadCompatibilityMode(true);
 
         // Find the network interface and address to use to communicate with the first device we found.
         matchingInterfaces = new ArrayList<NetworkInterface>();
@@ -970,7 +964,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         }
 
         // Open our communication socket.
-        updateSocket.set(new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress()));
+        socket.set(new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress()));
 
         System.arraycopy(getMatchingInterfaces().get(0).getHardwareAddress(),
                 0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
@@ -987,17 +981,20 @@ public class VirtualRekordbox extends LifecycleParticipant {
         // Inform the DeviceFinder to ignore our own Rekordbox Lighting announcement broadcast packets.
         DeviceFinder.getInstance().addIgnoredAddress(matchedAddress.getBroadcast());
         // Inform the DeviceFinder to ignore our own device announcement packets.
-        DeviceFinder.getInstance().addIgnoredAddress(updateSocket.get().getLocalAddress());
+        DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
 
         // Determine the device number we are supposed to use, and make sure it can be claimed by us.
         if (!claimDeviceNumber()) {
             // We couldn't get a device number, so clean up and report failure.
             logger.warn("Unable to allocate a device number for the Virtual CDJ, giving up.");
-            DeviceFinder.getInstance().removeIgnoredAddress(updateSocket.get().getLocalAddress());
-            updateSocket.get().close();
-            updateSocket.set(null);
+            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
+            socket.get().close();
+            socket.set(null);
             return false;
         }
+
+        // Now that VirtualRekordbox is running, start up VirtualCdj and it will run in proxy mode.
+        VirtualCdj.getInstance().start();
 
         // Set up our buffer and packet to receive incoming messages.
         final byte[] buffer = new byte[512];
@@ -1010,7 +1007,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 boolean received;
                 while (isRunning()) {
                     try {
-                        updateSocket.get().receive(packet);
+                        socket.get().receive(packet);
                         received = true;
                     } catch (IOException e) {
                         // Don't log a warning if the exception was due to the socket closing at shutdown.
@@ -1023,7 +1020,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         received = false;
                     }
                     try {
-                        if (received && (packet.getAddress() != updateSocket.get().getLocalAddress())) {
+                        if (received && (packet.getAddress() != socket.get().getLocalAddress())) {
                             DeviceUpdate update = buildUpdate(packet);
                             if (update != null) {
                                 processUpdate(update);
@@ -1167,9 +1164,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
             } catch (Throwable t) {
                 logger.error("Problem stopping sending status during shutdown", t);
             }
-            DeviceFinder.getInstance().removeIgnoredAddress(updateSocket.get().getLocalAddress());
-            updateSocket.get().close();
-            updateSocket.set(null);
+            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
+            socket.get().close();
+            socket.set(null);
             broadcastAddress.set(null);
             updates.clear();
             setTempoMaster(null);
@@ -1186,7 +1183,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         try {
             DatagramPacket announcement = new DatagramPacket(keepAliveBytes, keepAliveBytes.length,
                     broadcastAddress, DeviceFinder.ANNOUNCEMENT_PORT);
-            updateSocket.get().send(announcement);
+            socket.get().send(announcement);
             Thread.sleep(getAnnounceInterval());
         } catch (Throwable t) {
             logger.warn("Unable to send announcement packet, flushing DeviceFinder due to likely network change and shutting down.", t);
@@ -1465,7 +1462,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 ByteBuffer.wrap(payload));
         packet.setAddress(destination);
         packet.setPort(port);
-        updateSocket.get().send(packet);
+        socket.get().send(packet);
     }
 
     /**
@@ -2488,7 +2485,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
             packet.setAddress(device.getAddress());
             try {
-                updateSocket.get().send(packet);
+                socket.get().send(packet);
             } catch (IOException e) {
                 logger.warn("Unable to send status packet to " + device, e);
             }
