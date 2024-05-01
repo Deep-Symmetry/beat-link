@@ -81,6 +81,14 @@ public class Util {
         DEVICE_HELLO(0x0a, "Device Hello", DeviceFinder.ANNOUNCEMENT_PORT),
 
         /**
+         * These are the bytes that all in one players like the Opus-Quad send to announce to Rekordbox Lighting that
+         * it is available on the network. Once VirtualRekordbox sends its hello message to the player, it stops sending
+         * these and starts sending CdjStatus updates.
+         */
+        DEVICE_REKORDBOX_LIGHTING_HELLO_BYTES(0x10, "Rekordbox Lighting Hello Bytes", VirtualCdj.UPDATE_PORT),
+
+
+        /**
          * A series of three of these is sent at 300ms intervals when a device is starting to establish its
          * device number.
          */
@@ -131,6 +139,13 @@ public class Util {
          * Sadly, the same number is used (on port 50000) as part of the CDJ startup process.
          */
         CDJ_STATUS(0x0a, "CDJ Status", VirtualCdj.UPDATE_PORT),
+
+        /**
+         * Metadata that includes track album art, possibly waveforms and more. We do not use this information at the moment
+         * because it is not complete enough to support all of the Beat Link Trigger functionality. Instead, we download
+         * the track data from a Rekordbox USB.
+         */
+        OPUS_METADATA(0x56, "OPUS Metadata", VirtualCdj.UPDATE_PORT),
 
         /**
          * A command to load a particular track; usually sent by rekordbox.
@@ -954,6 +969,9 @@ public class Util {
         return artPath.replaceFirst("(\\.\\w+$)", "_m$1");
     }
 
+    public static boolean isOpusQuad(String deviceName){
+        return deviceName.equals("OPUS-QUAD");
+    }
 
     /**
      * Prevent instantiation.

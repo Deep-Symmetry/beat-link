@@ -55,6 +55,25 @@ public class DeviceAnnouncement {
     }
 
     /**
+     * Constructor sets all the immutable interpreted fields based on the packet content.
+     * This Constructor allows you to inject Device Number.
+     *
+     * @param packet the device announcement packet that was received
+     * @param deviceNumber the device number you want to emulate
+     */
+    public DeviceAnnouncement(DatagramPacket packet, int deviceNumber) {
+        if (packet.getLength() != 54) {
+            throw new IllegalArgumentException("Device announcement packet must be 54 bytes long");
+        }
+        address = packet.getAddress();
+        packetBytes = new byte[packet.getLength()];
+        System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
+        timestamp = System.currentTimeMillis();
+        name = new String(packetBytes, 12, 20).trim();
+        number = deviceNumber;
+    }
+
+    /**
      * Get the address on which this device was seen.
      *
      * @return the network address from which the device is communicating

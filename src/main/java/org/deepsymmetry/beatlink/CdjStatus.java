@@ -503,6 +503,22 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
+     * Determine the enum value corresponding to the track source slot found in the packet from an Opus-Quad.
+     *
+     * @return the proper value
+     */
+    private TrackSourceSlot findOpusTrackSourceSlot() {
+        if (rekordboxId != 0) {
+           switch (packetBytes[41]){
+               case 0: return TrackSourceSlot.SD_SLOT;
+               case 3: return TrackSourceSlot.USB_SLOT;
+           }
+        }
+
+        return TrackSourceSlot.UNKNOWN;
+    }
+
+    /**
      * Determine the enum value corresponding to the track type found in the packet.
      *
      * @return the proper value
@@ -613,8 +629,6 @@ public class CdjStatus extends DeviceUpdate {
         if (expectedStatusPacketSizes.add(packetBytes.length)) {
             logger.warn("Processing CDJ Status packets with unexpected lengths " + packetBytes.length + ".");
         }
-        trackSourcePlayer = packetBytes[40];
-        trackSourceSlot = findTrackSourceSlot();
         trackType = findTrackType();
         rekordboxId = (int)Util.bytesToNumber(packetBytes, 44, 4);
         pitch = (int)Util.bytesToNumber(packetBytes, 141, 3);
@@ -624,6 +638,14 @@ public class CdjStatus extends DeviceUpdate {
         playState3 = findPlayState3();
         firmwareVersion = new String(packetBytes, 124, 4).trim();
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
+
+        if (Util.isOpusQuad(deviceName)) {
+            trackSourcePlayer = translateOpusPlayerNumbers(packetBytes[40]);
+            trackSourceSlot = findOpusTrackSourceSlot();
+        } else {
+            trackSourcePlayer = packetBytes[40];
+            trackSourceSlot = findTrackSourceSlot();
+        }
     }
 
     /**
