@@ -646,7 +646,6 @@ public class CdjStatus extends DeviceUpdate {
             trackSourcePlayer = packetBytes[40];
             trackSourceSlot = findTrackSourceSlot();
         }
-        logger.info("cdj status {}", this);
     }
 
     /**

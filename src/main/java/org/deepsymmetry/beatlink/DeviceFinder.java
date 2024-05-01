@@ -263,9 +263,8 @@ public class DeviceFinder extends LifecycleParticipant {
                                         DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
 
                                         if (Util.isOpusQuad(announcement.getDeviceName())) {
-                                            createAndProcessOpusAnnouncements(packet);
 
-                                            logger.error("{}",devices);
+                                            createAndProcessOpusAnnouncements(packet);
                                         } else {
 
                                             processAnnouncement(announcement);
