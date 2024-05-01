@@ -639,7 +639,7 @@ public class CdjStatus extends DeviceUpdate {
         firmwareVersion = new String(packetBytes, 124, 4).trim();
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
 
-        if (deviceName.equals("OPUS-QUAD")) {
+        if (Util.isOpusQuad(deviceName)) {
             trackSourcePlayer = translateOpusPlayerNumbers(packetBytes[40]);
             trackSourceSlot = findOpusTrackSourceSlot();
         } else {
