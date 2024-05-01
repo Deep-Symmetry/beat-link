@@ -207,14 +207,7 @@ public abstract class DeviceUpdate {
      * @return the proper value
      */
     int translateOpusPlayerNumbers(int reportedPlayerNumber) {
-        switch (reportedPlayerNumber){
-            case 9: return 1;
-            case 10: return 2;
-            case 11: return 3;
-            case 12: return 4;
-        }
-
-        return reportedPlayerNumber;
+        return reportedPlayerNumber & 7;
     }
 
     @Override

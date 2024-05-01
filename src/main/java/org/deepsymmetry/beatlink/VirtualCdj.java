@@ -272,31 +272,6 @@ public class VirtualCdj extends LifecycleParticipant {
         return updateListener;
     }
 
-
-    /**
-     * Reacts to player status updates to reflect the current playback state.
-     */
-    private final MasterListener masterListener = new MasterListener() {
-        @Override
-        public void masterChanged(DeviceUpdate update) {
-            deliverMasterChangedAnnouncement(update);
-        }
-
-        @Override
-        public void tempoChanged(double tempo) {
-            deliverTempoChangedAnnouncement(tempo);
-        }
-
-        @Override
-        public void newBeat(Beat beat) {
-            deliverBeatAnnouncement(beat);
-        }
-    };
-
-    public MasterListener getMasterListener() {
-        return masterListener;
-    }
-
     /**
      * The initial packet sent three times when coming online.
      */
@@ -1454,18 +1429,6 @@ public class VirtualCdj extends LifecycleParticipant {
                 logger.warn("Problem delivering device update to listener", t);
             }
         }
-    }
-
-    // This is a way to get mediaDetails from Rekordbox and pass to all MediaDetailsListeners
-    private final MediaDetailsListener mediaDetailsListener = new MediaDetailsListener(){
-        @Override
-        public void detailsAvailable(MediaDetails details) {
-            deliverMediaDetailsUpdate(details);
-        }
-    };
-
-    public MediaDetailsListener getMediaDetailsListener() {
-        return mediaDetailsListener;
     }
 
     /**
