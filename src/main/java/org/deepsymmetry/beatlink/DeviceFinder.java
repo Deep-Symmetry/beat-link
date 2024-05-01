@@ -336,6 +336,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * as long as the Virtual CDJ is active.
      *
      * @return the devices which have been heard from recently enough to be considered present on the network
+     *
      * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
     public Set<DeviceAnnouncement> getCurrentDevices() {
@@ -352,7 +353,9 @@ public class DeviceFinder extends LifecycleParticipant {
      * with the specified device number, if any.
      *
      * @param deviceNumber the device number of interest
+     *
      * @return the matching announcement or null if no such device has been heard from
+     *
      * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
     public DeviceAnnouncement getLatestAnnouncementFrom(int deviceNumber) {
@@ -370,7 +373,6 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     private final Set<DeviceAnnouncementListener> deviceListeners =
             Collections.newSetFromMap(new ConcurrentHashMap<DeviceAnnouncementListener, Boolean>());
-
     /**
      * Adds the specified device announcement listener to receive device announcements when DJ Link devices
      * are found on or leave the network. If {@code listener} is {@code null} or already present in the list
