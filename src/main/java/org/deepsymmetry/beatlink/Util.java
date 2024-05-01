@@ -969,6 +969,9 @@ public class Util {
         return artPath.replaceFirst("(\\.\\w+$)", "_m$1");
     }
 
+    public static boolean isOpusQuad(String deviceName){
+        return deviceName.equals("OPUS-QUAD");
+    }
 
     /**
      * Prevent instantiation.

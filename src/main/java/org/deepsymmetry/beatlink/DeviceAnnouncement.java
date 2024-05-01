@@ -56,15 +56,10 @@ public class DeviceAnnouncement {
 
     /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
+     * This Constructor allows you to inject Device Number.
      *
      * @param packet the device announcement packet that was received
-     * @param deviceNumber the device number that we want to inject
-     */
-
-    /**
-     *
-     * @param packet
-     * @param deviceNumber
+     * @param deviceNumber the device number you want to emulate
      */
     public DeviceAnnouncement(DatagramPacket packet, int deviceNumber) {
         if (packet.getLength() != 54) {

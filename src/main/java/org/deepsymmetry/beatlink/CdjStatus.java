@@ -503,6 +503,38 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
+     * Determine the enum value corresponding to the track source slot found in the packet from an Opus-Quad.
+     *
+     * @return the proper value
+     */
+    private TrackSourceSlot findOpusTrackSourceSlot() {
+        if (rekordboxId != 0) {
+           switch (packetBytes[41]){
+               case 0: return TrackSourceSlot.SD_SLOT;
+               case 3: return TrackSourceSlot.USB_SLOT;
+           }
+        }
+
+        return TrackSourceSlot.UNKNOWN;
+    }
+
+    /**
+     * Adjust the player numbers from the Opus-Quad so that they are 1-4 as expected.
+     *
+     * @return the proper value
+     */
+    private int translateOpusPlayerNumbers(int reportedPlayerNumber) {
+        switch (reportedPlayerNumber){
+            case 9: return 1;
+            case 10: return 2;
+            case 11: return 3;
+            case 12: return 4;
+        }
+
+        return reportedPlayerNumber;
+    }
+
+    /**
      * Determine the enum value corresponding to the track type found in the packet.
      *
      * @return the proper value
@@ -613,8 +645,6 @@ public class CdjStatus extends DeviceUpdate {
         if (expectedStatusPacketSizes.add(packetBytes.length)) {
             logger.warn("Processing CDJ Status packets with unexpected lengths " + packetBytes.length + ".");
         }
-        trackSourcePlayer = packetBytes[40];
-        trackSourceSlot = findTrackSourceSlot();
         trackType = findTrackType();
         rekordboxId = (int)Util.bytesToNumber(packetBytes, 44, 4);
         pitch = (int)Util.bytesToNumber(packetBytes, 141, 3);
@@ -624,6 +654,15 @@ public class CdjStatus extends DeviceUpdate {
         playState3 = findPlayState3();
         firmwareVersion = new String(packetBytes, 124, 4).trim();
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
+
+        if (deviceName.equals("OPUS-QUAD")) {
+            trackSourcePlayer = translateOpusPlayerNumbers(packetBytes[40]);
+            trackSourceSlot = findOpusTrackSourceSlot();
+        } else {
+            trackSourcePlayer = packetBytes[40];
+            trackSourceSlot = findTrackSourceSlot();
+        }
+        logger.info("cdj status {}", this);
     }
 
     /**

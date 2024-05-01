@@ -53,29 +53,13 @@ public class DeviceFinder extends LifecycleParticipant {
     private static final AtomicLong firstDeviceTime = new AtomicLong(0);
 
     /**
-     * Indicates we were started with VirtualRekordbox running so we are just acting as a proxy for it, to
-     * work with the Opus Quad.
-     */
-    private final AtomicBoolean proxyingForVirtualRekordbox = new AtomicBoolean(false);
-
-    /**
-     * Check whether we are simply proxying information from VirtualRekordbox so that we can work with the Opus
-     * Quad rather than real Pro DJ Link hardware.
-     *
-     * @return an indication that we are in a limited mode to support the Opus Quad.
-     */
-    public boolean inOpusQuadCompatibilityMode() {
-        return proxyingForVirtualRekordbox.get();
-    }
-
-    /**
      * Check whether we are presently listening for device announcements.
      *
      * @return {@code true} if our socket is open and monitoring for DJ Link device announcements on the network,
      *         or if we were started in a mode where we delegate most of our responsibility to VirtualRekordbox
      */
     public boolean isRunning() {
-        return inOpusQuadCompatibilityMode() || socket.get() != null;
+        return socket.get() != null;
     }
 
     /**
@@ -111,10 +95,9 @@ public class DeviceFinder extends LifecycleParticipant {
     private final Map<DeviceReference, DeviceAnnouncement> devices = new ConcurrentHashMap<DeviceReference, DeviceAnnouncement>();
 
     /**
-     * Remove any device announcements that are so old that the device seems to have gone away. Will be called by
-     * VirtualRekordbox when in Opus Quad compatibility mode.
+     * Remove any device announcements that are so old that the device seems to have gone away.
      */
-     void expireDevices() {
+     private void expireDevices() {
         long now = System.currentTimeMillis();
         // Make a copy so we don't have to worry about concurrent modification.
         Map<DeviceReference, DeviceAnnouncement> copy = new HashMap<DeviceReference, DeviceAnnouncement>(devices);
@@ -143,6 +126,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * Check whether a device is already known, or if it is newly found.
      *
      * @param announcement the message from the device to be considered
+     *
      * @return true if this is the first message from this device
      */
     private boolean isDeviceNew(DeviceAnnouncement announcement) {
@@ -181,6 +165,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * {@link VirtualCdj}'s beat messages when it is broadcasting them, for example.
      *
      * @param address the address to be checked as a candidate to be ignored
+     *
      * @return {@code true} if packets from the address should be ignored
      */
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
@@ -189,34 +174,31 @@ public class DeviceFinder extends LifecycleParticipant {
     }
 
     /**
-     * Makes sure we get shut down if the VirtualRekordbox does when in proxy mode.
-     */
-    private final LifecycleListener virtualRekordboxLifecycleListener = new LifecycleListener() {
-        @Override
-        public void started(LifecycleParticipant sender) {
-            logger.debug("Nothing to do when VirtualRekordbox starts.");
-        }
-
-        @Override
-        public void stopped(LifecycleParticipant sender) {
-            if (inOpusQuadCompatibilityMode()) {
-                logger.info("Shutting down because VirtualRekordbox is and we were proxying for it.");
-                stop();
-            }
-        }
-    };
-
-    /**
-     * Handle a device announcement packet we have received, or one that VirtualRekordbox has received if we
-     * are in Opus Quad compatibility mode.
+     * Handle a device announcement packet we have received.
      *
      * @param announcement the device announcement that has been received.
      */
-    void processAnnouncement(DeviceAnnouncement announcement) {
+    private void processAnnouncement(DeviceAnnouncement announcement) {
         final boolean foundNewDevice = isDeviceNew(announcement);
         updateDevices(announcement);
         if (foundNewDevice) {
             deliverFoundAnnouncement(announcement);
+        }
+    }
+
+    /**
+     * Handle a device announcement packet we have received from the Opus Quad.
+     *
+     * @param packet the packet from Opus Quad to infer the 4 players
+     */
+    private void createAndProcessOpusAnnouncements(DatagramPacket packet) {
+        for (int i = 1; i <= 4; i++) {
+            DeviceAnnouncement opusAnnouncement = new DeviceAnnouncement(packet, i);
+            updateDevices(opusAnnouncement);
+
+            if (isDeviceNew(opusAnnouncement)) {
+                deliverFoundAnnouncement(opusAnnouncement);
+            }
         }
     }
 
@@ -235,14 +217,6 @@ public class DeviceFinder extends LifecycleParticipant {
         if (!isRunning()) {
             startTime.set(System.currentTimeMillis());
             deliverLifecycleAnnouncement(logger, true);
-
-            // See if we are just going to proxy information for VirtualRekordbox.
-            // TODO uncomment once this exists.
-//            VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
-//            if (VirtualRekordbox.getInstance().isRunning()) {
-//                proxyingForVirtualRekordbox.set(true);
-//                return true;
-//            }
 
             socket.set(new DatagramSocket(ANNOUNCEMENT_PORT));
 
@@ -285,31 +259,23 @@ public class DeviceFinder extends LifecycleParticipant {
                                             logger.warn("Processing too-long " + kind.name + " packet; expected 54 bytes, but got " +
                                                     packet.getLength() + ".");
                                         }
+
                                         DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
 
-                                       // processAnnouncement(announcement);
+                                        if (Util.isOpusQuad(announcement.getDeviceName())) {
+                                            createAndProcessOpusAnnouncements(packet);
 
-                                        if (VirtualRekordbox.getInstance().isRunning() && announcement.getDeviceNumber() == 9) {
-                                            // This is the Opus Quad, fill in the players
-                                            for (int i = 1; i <= 4; i++) {
-                                                DeviceAnnouncement opusAnnouncement = new DeviceAnnouncement(packet, i);
-                                                updateDevices(opusAnnouncement);
-                                                if (isDeviceNew(opusAnnouncement)) {
-                                                    deliverFoundAnnouncement(announcement);
-                                                }
-                                                VirtualRekordbox.getInstance().sendRekordboxLightingAnnouncement(socket);
-                                            }
+                                            logger.error("{}",devices);
                                         } else {
-                                            updateDevices(announcement);
-                                            if (isDeviceNew(announcement)) {
-                                                deliverFoundAnnouncement(announcement);
-                                            }
-                                        }
 
-                                        if (VirtualCdj.getInstance().isRunning() &&
-                                                announcement.getDeviceNumber() == VirtualCdj.getInstance().getDeviceNumber()) {
-                                            // Someone is using the same device number as we are! Try to defend it.
-                                            VirtualCdj.getInstance().defendDeviceNumber(announcement.getAddress());
+                                            processAnnouncement(announcement);
+
+
+                                            if (VirtualCdj.getInstance().isRunning() &&
+                                                    announcement.getDeviceNumber() == VirtualCdj.getInstance().getDeviceNumber()) {
+                                                // Someone is using the same device number as we are! Try to defend it.
+                                                VirtualCdj.getInstance().defendDeviceNumber(announcement.getAddress());
+                                            }
                                         }
                                     }
                                 } else if (kind == Util.PacketType.DEVICE_HELLO) {
