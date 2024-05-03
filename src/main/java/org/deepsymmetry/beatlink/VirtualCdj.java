@@ -45,13 +45,13 @@ public class VirtualCdj extends LifecycleParticipant {
     private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>();
 
     /**
-     * Indicates we were started with VirtualRekordbox running so we are just acting as a proxy for it, to
+     * Indicates we started {@link VirtualRekordbox} running so we are just acting as a proxy for it, to
      * work with the Opus Quad.
      */
     private final AtomicBoolean proxyingForVirtualRekordbox = new AtomicBoolean(false);
 
     /**
-     * Check whether we are simply proxying information from VirtualRekordbox so that we can work with the Opus
+     * Check whether we are simply proxying information from {@link VirtualRekordbox} so that we can work with the Opus
      * Quad rather than real Pro DJ Link hardware.
      *
      * @return an indication that we are in a limited mode to support the Opus Quad.
@@ -64,7 +64,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
      *
      * @return true if our socket is open, sending presence announcements, and receiving status packets,
-     *         or if we were started in a mode where we delegate most of our responsibility to VirtualRekordbox
+     *         or if we were started in a mode where we delegate most of our responsibility to {@link VirtualRekordbox}
      */
     public boolean isRunning() {
         return inOpusQuadCompatibilityMode() || (socket.get() != null && claimingNumber.get() == 0);
@@ -483,7 +483,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * role from or to another device.</p>
      *
      * <p>This used to be a private method, but it was made package accessible as part of the effort to support
-     * Opus Quad hardware, so the VirtualRekordbox could proxy the status packets it receives through us.</p>
+     * Opus Quad hardware, so {@link VirtualRekordbox} could proxy the status packets it receives through us.</p>
      */
     void processUpdate(DeviceUpdate update) {
         updates.put(DeviceReference.getDeviceReference(update), update);
@@ -1062,7 +1062,7 @@ public class VirtualCdj extends LifecycleParticipant {
     };
 
     /**
-     * Makes sure we get shut down if the VirtualRekordbox does when in proxy mode.
+     * Makes sure we get shut down if {@link VirtualRekordbox} does when in proxy mode.
      */
     private final LifecycleListener virtualRekordboxLifecycleListener = new LifecycleListener() {
         @Override
@@ -1081,30 +1081,19 @@ public class VirtualCdj extends LifecycleParticipant {
 
     /**
      * <p>In normal operation (with Pro DJ Link devices), start announcing ourselves and listening for status packets.
-     * If VirtualRekordbox is running, then we are actually in Opus Quad compatibility mode, and will do far less,
-     * acting as a proxy for packets that it is responsible for receiving. Normal operation Requires the
-     * {@link DeviceFinder} to be active in order to find out how to communicate with other devices, so will start
-     * that if it is not already.</p>
+     * If, however, we find an Opus Quad on the network, start {@link VirtualRekordbox} and operate in a more
+     * limited Opus Quad compatibility mode, acting as a proxy for packets that it is responsible for receiving.
+     * Either mode requires the {@link DeviceFinder} to be active in order to find out how to communicate with
+     * other devices, so will start that if it is not already.</p>
      *
      * <p>If already active, has no effect.</p>
      *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
-     * @throws SocketException if the socket to listen on port 50002 cannot be created
+     * @throws Exception if the socket to listen on port 50002 cannot be created or there is some other problem starting.
      */
     @SuppressWarnings("UnusedReturnValue")
-    public synchronized boolean start() throws SocketException {
+    public synchronized boolean start() throws Exception {
         if (!isRunning()) {
-            // See if we are just going to proxy information for VirtualRekordbox.
-            VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
-            if (VirtualRekordbox.getInstance().isRunning()) {
-                proxyingForVirtualRekordbox.set(true);
-
-                // Set values that other callers might ask VirtualCdj for.
-                matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
-                matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
-
-                return true;
-            }
 
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
             DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);
@@ -1126,6 +1115,22 @@ public class VirtualCdj extends LifecycleParticipant {
                 return false;
             }
 
+            // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
+            for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
+                if (Util.isOpusQuad(device.getDeviceName())) {
+                    proxyingForVirtualRekordbox.set(true);
+                    VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
+                    final boolean success = VirtualRekordbox.getInstance().start();
+                    if (success) {
+                        // Copy values from VirtualRekordbox that we depend on for various internal calculations.
+                        matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
+                        matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
+                    }
+                    return success;
+                }
+            }
+
+            proxyingForVirtualRekordbox.set(false);
             return createVirtualCdj();
         }
         return true;  // We were already active
@@ -1144,9 +1149,9 @@ public class VirtualCdj extends LifecycleParticipant {
      * @param deviceNumber the device number to try to claim
      *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
-     * @throws SocketException if the socket to listen on port 50002 cannot be created
+     * @throws Exception if the socket to listen on port 50002 cannot be created or there is some other problem starting.
      */
-    public synchronized boolean start(byte deviceNumber) throws SocketException {
+    public synchronized boolean start(byte deviceNumber) throws Exception {
         if (!isRunning()) {
             setDeviceNumber(deviceNumber);
             return start();
