@@ -1440,6 +1440,18 @@ public class VirtualCdj extends LifecycleParticipant {
         }
     }
 
+    // This is a way to get mediaDetails from Rekordbox and pass to all MediaDetailsListeners
+    private final MediaDetailsListener mediaDetailsListener = new MediaDetailsListener(){
+        @Override
+        public void detailsAvailable(MediaDetails details) {
+            deliverMediaDetailsUpdate(details);
+        }
+    };
+
+    public MediaDetailsListener getMediaDetailsListener() {
+        return mediaDetailsListener;
+    }
+
     /**
      * Keeps track of the registered media details listeners.
      */

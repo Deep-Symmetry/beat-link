@@ -161,10 +161,7 @@ public class OpusProvider {
      */
     @API(status = API.Status.STABLE)
     public Database findDatabase(DataReference reference) {
-        if (reference.player >= 9 && reference.player <= 12) {  // This is an Opus Quad deck.
-            return findDatabase(reference.getSlotReference());
-        }
-        return null;
+        return findDatabase(reference.getSlotReference());
     }
 
     /**

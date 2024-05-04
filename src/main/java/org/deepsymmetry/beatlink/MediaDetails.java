@@ -9,9 +9,7 @@ import java.awt.*;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Represents information about the media mounted in a player's slot; returned in response to a media query packet.
@@ -120,6 +118,32 @@ public class MediaDetails {
             }
         }
         return numBytes;
+    }
+
+    /**
+     * Constructor sets all the immutable interpreted fields based on constructor inputs
+     *
+     * @param packet the media response packet that was received
+     */
+
+    /**
+     *
+     * @param slotReference Slot Reference for the
+     * @param mediaType
+     * @param name
+     */
+    public MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name) {
+        this.slotReference = slotReference;
+        this.mediaType = mediaType;
+        this.name = name;
+        this.creationDate = "";
+        this.trackCount = 100;
+        this.totalSize = 100;
+        this.playlistCount = 100;
+        this.rawBytes = ByteBuffer.wrap(new byte[]{});
+        this.color = new Color(100);
+        this.freeSpace = 100;
+        this.hasMySettings = false;
     }
 
     /**
