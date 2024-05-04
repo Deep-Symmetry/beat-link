@@ -645,6 +645,8 @@ public class CdjStatus extends DeviceUpdate {
             trackSourceSlot = findOpusTrackSourceSlot();
             // isLocalSdLoaded() == true
             packetBytes[115] = 0;
+            // isLocalUsbLoaded() == true
+            packetBytes[111] = 0;
         } else {
             trackSourcePlayer = packetBytes[40];
             trackSourceSlot = findTrackSourceSlot();
