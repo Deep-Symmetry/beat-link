@@ -511,7 +511,8 @@ public class CdjStatus extends DeviceUpdate {
         if (rekordboxId != 0) {
            switch (packetBytes[41]){
                case 0: return TrackSourceSlot.SD_SLOT;
-               case 3: return TrackSourceSlot.USB_SLOT;
+               // TODO, figure out a way to identify more than one USB at a time
+               case 3: return TrackSourceSlot.SD_SLOT;
            }
         }
 

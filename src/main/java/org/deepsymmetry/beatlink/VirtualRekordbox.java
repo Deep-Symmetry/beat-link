@@ -314,12 +314,13 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
                     CdjStatus status = new CdjStatus(packet);
 
-//                    MediaDetails details = new MediaDetails(
-//                            SlotReference.getSlotReference(status.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT),
-//                            CdjStatus.TrackType.REKORDBOX,
-//                            status.getDeviceName());
-//
-//                    deliverMediaDetailsUpdate(details);
+                    // Need to fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider
+                    MediaDetails details = new MediaDetails(
+                            SlotReference.getSlotReference(status.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT),
+                            CdjStatus.TrackType.REKORDBOX,
+                            status.getDeviceName());
+
+                    deliverMediaDetailsUpdate(details);
 
                     return status;
                 } else {
@@ -337,17 +338,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 }
 
             case OPUS_METADATA:
-                if (packet.getData()[0x25] == 0x02) {
-                    OpusMetadata metadata = new OpusMetadata(packet.getData());
-
-                    logger.info("beatgrid");
-                }
-//                StringBuilder sb = new StringBuilder();
-//                for (byte b : packet.getData()) {
-//                    sb.append(String.format("%02X ", b));
-//                }
-//                System.out.println();
-//                logger.info("Received track load metadata from player " + packet.getData()[0x21]);
+                logger.info("Received track load metadata from player " + packet.getData()[0x21]);
                 return null;
 
             default:
@@ -355,32 +346,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 return null;
         }
     }
-
-    public class OpusMetadata {
-        private byte[] packetBytes;
-
-        public OpusMetadata(byte[] packetBytes) {
-            StringBuilder sb = new StringBuilder();
-            for (byte b : packetBytes) {
-                sb.append(String.format("%02X ", b));
-            }
-            System.out.println(sb);
-            this.packetBytes = packetBytes;
-        }
-
-        public byte[] getPacketBytes() {
-            return packetBytes;
-        }
-
-        public String toString(){
-            StringBuilder sb = new StringBuilder();
-            for (byte b : packetBytes) {
-                sb.append(String.format("%02X ", b));
-            }
-            return sb.toString();
-        }
-    }
-
 
     /**
      * This will send the bytes Rekordbox Lighting sends to a player to acknowledge its existence on the network and
@@ -812,27 +777,30 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @throws Exception if there is a problem opening a socket on the right network
      */
     private boolean createVirtualRekordbox() throws Exception {
-        OpusProvider.getInstance().attachMetadataArchive(new File("/Users/cprepos/krisprep/BLT Archive/archive.blm"), CdjStatus.TrackSourceSlot.SD_SLOT);
-        OpusProvider.getInstance().attachMetadataArchive(new File("/Users/cprepos/krisprep/BLT Archive/archive.blm"), CdjStatus.TrackSourceSlot.USB_SLOT);
         OpusProvider.getInstance().start();
-
-        // Find the network interface and address to use to communicate with the first device we found.
-        matchingInterfaces = new ArrayList<NetworkInterface>();
-        matchedAddress = null;
 
         // Forward Updates to VirtualCdj. That's where all clients are used to getting them.
         addUpdateListener(VirtualCdj.getInstance().getUpdateListener());
         addMediaDetailsListener(VirtualCdj.getInstance().getMediaDetailsListener());
 
+        // Find the network interface and address to use to communicate with the first device we found.
+        matchingInterfaces = new ArrayList<NetworkInterface>();
+        matchedAddress = null;
+        DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
-                if (address.getAddress() instanceof Inet4Address && !address.getAddress().getHostAddress().contains("127.0.0.1")) {
-                    if (matchedAddress == null) {
-                        matchedAddress = address;
-                    }
-                    matchingInterfaces.add(networkInterface);
+            InterfaceAddress candidate = Util.findMatchingAddress(aDevice, networkInterface);
+            if (candidate != null) {
+                if (matchedAddress == null) {
+                    matchedAddress = candidate;
                 }
+                matchingInterfaces.add(networkInterface);
             }
+        }
+
+        if (matchedAddress == null) {
+            logger.warn("Unable to find network interface to communicate with " + aDevice +
+                    ", giving up.");
+            return false;
         }
 
         logger.info("Found matching network interface " + matchingInterfaces.get(0).getDisplayName() + " (" +
@@ -874,9 +842,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
             socket.set(null);
             return false;
         }
-
-        // Now that VirtualRekordbox is running, start up VirtualCdj and it will run in proxy mode.
-        VirtualCdj.getInstance().start();
 
         // Set up our buffer and packet to receive incoming messages.
         final byte[] buffer = new byte[512];
@@ -985,9 +950,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
     @SuppressWarnings("UnusedReturnValue")
     synchronized boolean start() throws Exception {
         if (!isRunning()) {
-            if (VirtualCdj.getInstance().isRunning()) {
-                throw new IllegalStateException("Cannot start VirtualRekordbox when VirtualCdj has already been started up");
-            }
 
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
             DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);

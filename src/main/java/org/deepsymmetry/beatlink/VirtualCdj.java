@@ -564,29 +564,6 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Scan a network interface to find if it has an address space which matches the device we are trying to reach.
-     * If so, return the address specification.
-     *
-     * @param aDevice the DJ Link device we are trying to communicate with
-     * @param networkInterface the network interface we are testing
-     * @return the address which can be used to communicate with the device on the interface, or null
-     */
-    private InterfaceAddress findMatchingAddress(DeviceAnnouncement aDevice, NetworkInterface networkInterface) {
-        for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
-            if (address == null) {
-                // This should never happen, but we are protecting against a Windows Java bug, see
-                // https://bugs.java.com/bugdatabase/view_bug?bug_id=8023649
-                logger.warn("Received a null InterfaceAddress from networkInterface.getInterfaceAddresses(), is this Windows? " +
-                        "Do you have a VPN installed? Trying to recover by ignoring it.");
-            } else if ((address.getBroadcast() != null) &&
-                    Util.sameNetwork(address.getNetworkPrefixLength(), aDevice.getAddress(), address.getAddress())) {
-                return address;
-            }
-        }
-        return null;
-    }
-
-    /**
      * The number of milliseconds for which the {@link DeviceFinder} needs to have been watching the network in order
      * for us to be confident we can choose a device number that will not conflict.
      */
@@ -913,7 +890,7 @@ public class VirtualCdj extends LifecycleParticipant {
         matchedAddress = null;
         DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            InterfaceAddress candidate = findMatchingAddress(aDevice, networkInterface);
+            InterfaceAddress candidate = Util.findMatchingAddress(aDevice, networkInterface);
             if (candidate != null) {
                 if (matchedAddress == null) {
                     matchedAddress = candidate;
@@ -1118,7 +1095,6 @@ public class VirtualCdj extends LifecycleParticipant {
             // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
             for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
                 if (Util.isOpusQuad(device.getDeviceName())) {
-                    proxyingForVirtualRekordbox.set(true);
                     VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
                     final boolean success = VirtualRekordbox.getInstance().start();
                     if (success) {
@@ -1126,6 +1102,10 @@ public class VirtualCdj extends LifecycleParticipant {
                         matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
                         matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
                     }
+
+                    // This must be set after we start VirtualRekordbox, otherwise we will get an IllegalStateException
+                    // because VirtualRekordbox should not be started up if VirtualCdj is still running.
+                    proxyingForVirtualRekordbox.set(true);
                     return success;
                 }
             }

@@ -2,8 +2,7 @@ package org.deepsymmetry.beatlink;
 
 import java.awt.*;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
@@ -957,6 +956,29 @@ public class Util {
             default:
                 return "Unknown Mood";  // We don't recognize this mood.
         }
+    }
+
+    /**
+     * Scan a network interface to find if it has an address space which matches the device we are trying to reach.
+     * If so, return the address specification.
+     *
+     * @param aDevice the DJ Link device we are trying to communicate with
+     * @param networkInterface the network interface we are testing
+     * @return the address which can be used to communicate with the device on the interface, or null
+     */
+    public static InterfaceAddress findMatchingAddress(DeviceAnnouncement aDevice, NetworkInterface networkInterface) {
+        for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
+            if (address == null) {
+                // This should never happen, but we are protecting against a Windows Java bug, see
+                // https://bugs.java.com/bugdatabase/view_bug?bug_id=8023649
+                logger.warn("Received a null InterfaceAddress from networkInterface.getInterfaceAddresses(), is this Windows? " +
+                        "Do you have a VPN installed? Trying to recover by ignoring it.");
+            } else if ((address.getBroadcast() != null) &&
+                    Util.sameNetwork(address.getNetworkPrefixLength(), aDevice.getAddress(), address.getAddress())) {
+                return address;
+            }
+        }
+        return null;
     }
 
     /**
