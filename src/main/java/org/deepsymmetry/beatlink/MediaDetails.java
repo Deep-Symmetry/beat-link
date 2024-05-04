@@ -127,22 +127,24 @@ public class MediaDetails {
      */
 
     /**
+     * Custom constructor to emulate an actual MediaDetails object from CDJs. This allows our Status packets
+     * to use OpusProvider to enrich the track data.
      *
-     * @param slotReference Slot Reference for the
-     * @param mediaType
-     * @param name
+     * @param slotReference Slot Reference to Emulate
+     * @param mediaType Media Type to Emulate
+     * @param name Name of device
      */
     public MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name) {
         this.slotReference = slotReference;
         this.mediaType = mediaType;
         this.name = name;
         this.creationDate = "";
-        this.trackCount = 100;
-        this.totalSize = 100;
-        this.playlistCount = 100;
+        this.trackCount = 0;
+        this.totalSize = 0;
+        this.playlistCount = 0;
         this.rawBytes = ByteBuffer.wrap(new byte[]{});
-        this.color = new Color(100);
-        this.freeSpace = 100;
+        this.color = new Color(0);
+        this.freeSpace = 0;
         this.hasMySettings = false;
     }
 
