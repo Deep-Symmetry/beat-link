@@ -134,7 +134,7 @@ public class MediaDetails {
      * @param mediaType Media Type to Emulate
      * @param name Name of device
      */
-    public MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name) {
+    MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name) {
         this.slotReference = slotReference;
         this.mediaType = mediaType;
         this.name = name;
