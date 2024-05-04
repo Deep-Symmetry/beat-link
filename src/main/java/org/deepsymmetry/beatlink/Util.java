@@ -962,11 +962,11 @@ public class Util {
      * Scan a network interface to find if it has an address space which matches the device we are trying to reach.
      * If so, return the address specification.
      *
-     * @param aDevice the DJ Link device we are trying to communicate with
+     * @param announcement the DJ Link device we are trying to communicate with
      * @param networkInterface the network interface we are testing
      * @return the address which can be used to communicate with the device on the interface, or null
      */
-    public static InterfaceAddress findMatchingAddress(DeviceAnnouncement aDevice, NetworkInterface networkInterface) {
+    public static InterfaceAddress findMatchingAddress(DeviceAnnouncement announcement, NetworkInterface networkInterface) {
         for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
             if (address == null) {
                 // This should never happen, but we are protecting against a Windows Java bug, see
@@ -974,7 +974,7 @@ public class Util {
                 logger.warn("Received a null InterfaceAddress from networkInterface.getInterfaceAddresses(), is this Windows? " +
                         "Do you have a VPN installed? Trying to recover by ignoring it.");
             } else if ((address.getBroadcast() != null) &&
-                    Util.sameNetwork(address.getNetworkPrefixLength(), aDevice.getAddress(), address.getAddress())) {
+                    Util.sameNetwork(address.getNetworkPrefixLength(), announcement.getAddress(), address.getAddress())) {
                 return address;
             }
         }
