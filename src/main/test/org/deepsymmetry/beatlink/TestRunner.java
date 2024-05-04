@@ -15,9 +15,8 @@ public class TestRunner {
     @Test
     public void TestRunner() throws Exception {
 
-        VirtualRekordbox.getInstance().start();
-        VirtualRekordbox.getInstance().addUpdateListener(new DeviceUpdateListener() {
-            Database db = new Database(new File("/Users/cprepos/Desktop/PIONEER/rekordbox/export.pdb"));
+        VirtualCdj.getInstance().start();
+        VirtualCdj.getInstance().addUpdateListener(new DeviceUpdateListener() {
             @Override
             public void received(DeviceUpdate update) {
                 if (update instanceof CdjStatus) {

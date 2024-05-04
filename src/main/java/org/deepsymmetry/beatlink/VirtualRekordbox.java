@@ -22,8 +22,6 @@ import java.util.concurrent.atomic.*;
  */
 @SuppressWarnings("WeakerAccess")
 public class VirtualRekordbox extends LifecycleParticipant {
-    private static Database db = null;
-
     private static final Logger logger = LoggerFactory.getLogger(VirtualRekordbox.class);
 
     /**
@@ -316,12 +314,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
                     CdjStatus status = new CdjStatus(packet);
 
-                    MediaDetails details = new MediaDetails(
-                            SlotReference.getSlotReference(status.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT),
-                            CdjStatus.TrackType.REKORDBOX,
-                            status.getDeviceName());
-
-                    deliverMediaDetailsUpdate(details);
+//                    MediaDetails details = new MediaDetails(
+//                            SlotReference.getSlotReference(status.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT),
+//                            CdjStatus.TrackType.REKORDBOX,
+//                            status.getDeviceName());
+//
+//                    deliverMediaDetailsUpdate(details);
 
                     return status;
                 } else {
@@ -814,7 +812,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @throws Exception if there is a problem opening a socket on the right network
      */
     private boolean createVirtualRekordbox() throws Exception {
-        db = new Database(new File("/Users/cprepos/Desktop/PIONEER/rekordbox/export.pdb"));
         OpusProvider.getInstance().attachMetadataArchive(new File("/Users/cprepos/krisprep/BLT Archive/archive.blm"), CdjStatus.TrackSourceSlot.SD_SLOT);
         OpusProvider.getInstance().attachMetadataArchive(new File("/Users/cprepos/krisprep/BLT Archive/archive.blm"), CdjStatus.TrackSourceSlot.USB_SLOT);
         OpusProvider.getInstance().start();
