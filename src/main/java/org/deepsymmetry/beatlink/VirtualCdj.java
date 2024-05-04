@@ -1095,6 +1095,7 @@ public class VirtualCdj extends LifecycleParticipant {
             // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
             for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
                 if (Util.isOpusQuad(device.getDeviceName())) {
+                    proxyingForVirtualRekordbox.set(true);
                     VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
                     final boolean success = VirtualRekordbox.getInstance().start();
                     if (success) {
@@ -1102,8 +1103,6 @@ public class VirtualCdj extends LifecycleParticipant {
                         matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
                         matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
                     }
-
-                    proxyingForVirtualRekordbox.set(true);
                     return success;
                 }
             }
@@ -1429,7 +1428,7 @@ public class VirtualCdj extends LifecycleParticipant {
         }
     }
 
-    // This is a way to get mediaDetails from Rekordbox and pass to all MediaDetailsListeners
+    // This is a way to get mediaDetails from VirtualRekordbox and pass to all MediaDetailsListeners listening from VirtualCdj.
     private final MediaDetailsListener mediaDetailsListener = new MediaDetailsListener(){
         @Override
         public void detailsAvailable(MediaDetails details) {
