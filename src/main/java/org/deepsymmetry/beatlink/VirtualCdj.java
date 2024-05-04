@@ -1103,8 +1103,6 @@ public class VirtualCdj extends LifecycleParticipant {
                         matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
                     }
 
-                    // This must be set after we start VirtualRekordbox, otherwise we will get an IllegalStateException
-                    // because VirtualRekordbox should not be started up if VirtualCdj is still running.
                     proxyingForVirtualRekordbox.set(true);
                     return success;
                 }
