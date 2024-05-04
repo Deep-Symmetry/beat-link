@@ -976,13 +976,14 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * Start announcing ourselves and listening for status packets. If already active, has no effect. Requires the
      * {@link DeviceFinder} to be active in order to find out how to communicate with other devices, so will start
-     * that if it is not already.
+     * that if it is not already. Only accessible within the package because {@link VirtualCdj} is responsible for
+     * starting and stopping this service when it detects an Opus Quad.
      *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}, or it was already running.
      * @throws Exception if the socket to listen on port 50002 cannot be created
      */
     @SuppressWarnings("UnusedReturnValue")
-    public synchronized boolean start() throws Exception {
+    synchronized boolean start() throws Exception {
         if (!isRunning()) {
             if (VirtualCdj.getInstance().isRunning()) {
                 throw new IllegalStateException("Cannot start VirtualRekordbox when VirtualCdj has already been started up");
@@ -1027,7 +1028,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
-    public synchronized boolean start(byte deviceNumber) throws Exception {
+    synchronized boolean start(byte deviceNumber) throws Exception {
+        // TODO I am not sure we actually need this method. If we do want to control the device number that is used,
+        //      we will need to add a mechanism do that from VirtualCdj.
         if (!isRunning()) {
             setDeviceNumber(deviceNumber);
             return start();
@@ -1038,7 +1041,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * Stop announcing ourselves and listening for status updates.
      */
-    public synchronized void stop() {
+    synchronized void stop() {
         if (isRunning()) {
             DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
             socket.get().close();
