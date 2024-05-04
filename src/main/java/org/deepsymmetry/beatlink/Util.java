@@ -976,7 +976,7 @@ public class Util {
             } else if ((address.getBroadcast() != null) &&
                     Util.sameNetwork(address.getNetworkPrefixLength(), announcement.getAddress(), address.getAddress())) {
                 return address;
-            }`
+            }
         }
         return null;
     }
