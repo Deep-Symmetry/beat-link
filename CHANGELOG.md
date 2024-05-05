@@ -6,6 +6,12 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [7.4.0] - 2024-05-04
+
+May the Fourth be with you.
+
 ### Fixed
 
 - It turns out there is a [bug](https://bugs.java.com/bugdatabase/view_bug?bug_id=8023649)
@@ -25,7 +31,9 @@ This change log follows the conventions of
   that led to this change in direction.
 - Upgraded to version 0.2.0 of Crate Digger, which had a couple of backwards-incompatible
   changes to accommodate a new linter in the latest release of the Kaitai Struct Compiler
-  which identified places where field names were not following the style guide.
+  which identified places where field names were not following the style guide. It also
+  supports creating metadata archives for use with the Opus Quad, which won’t be taken
+  advantage of until Beat Link 8.0.
 
 ## [7.3.0] - 2023-11-24
 
@@ -837,7 +845,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.3.0...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.4.0...HEAD
+[7.4.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.3.0...v7.4.0
 [7.3.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.2.0...v7.3.0
 [7.2.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.1.0...v7.2.0
 [7.1.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.1...v7.1.0

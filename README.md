@@ -593,7 +593,7 @@ that’s fantastic! Please take a look at the
 <a href="https://deepsymmetry.org"><img align="right" alt="Deep Symmetry"
  src="assets/DS-logo-github.png" width="250" height="150"></a>
 
-Copyright © 2016–2023 [Deep Symmetry, LLC](https://deepsymmetry.org)
+Copyright © 2016–2024 [Deep Symmetry, LLC](https://deepsymmetry.org)
 
 Distributed under the [Eclipse Public License
 2.0](https://opensource.org/licenses/EPL-2.0). By using this software
