@@ -1428,18 +1428,6 @@ public class VirtualCdj extends LifecycleParticipant {
         }
     }
 
-    // This is a way to get mediaDetails from VirtualRekordbox and pass to all MediaDetailsListeners listening from VirtualCdj.
-    private final MediaDetailsListener mediaDetailsListener = new MediaDetailsListener(){
-        @Override
-        public void detailsAvailable(MediaDetails details) {
-            deliverMediaDetailsUpdate(details);
-        }
-    };
-
-    public MediaDetailsListener getMediaDetailsListener() {
-        return mediaDetailsListener;
-    }
-
     /**
      * Keeps track of the registered media details listeners.
      */
@@ -1492,11 +1480,11 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Send a media details response to all registered listeners.
+     * Send a media details response to all registered listeners. Is also called from VirtualRekordbox in proxy mode.
      *
      * @param details the response that has just arrived
      */
-    private void deliverMediaDetailsUpdate(final MediaDetails details) {
+    void deliverMediaDetailsUpdate(final MediaDetails details) {
         for (MediaDetailsListener listener : getMediaDetailsListeners()) {
             try {
                 listener.detailsAvailable(details);
