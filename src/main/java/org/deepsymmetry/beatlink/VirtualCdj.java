@@ -564,29 +564,6 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Scan a network interface to find if it has an address space which matches the device we are trying to reach.
-     * If so, return the address specification.
-     *
-     * @param aDevice the DJ Link device we are trying to communicate with
-     * @param networkInterface the network interface we are testing
-     * @return the address which can be used to communicate with the device on the interface, or null
-     */
-    private InterfaceAddress findMatchingAddress(DeviceAnnouncement aDevice, NetworkInterface networkInterface) {
-        for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
-            if (address == null) {
-                // This should never happen, but we are protecting against a Windows Java bug, see
-                // https://bugs.java.com/bugdatabase/view_bug?bug_id=8023649
-                logger.warn("Received a null InterfaceAddress from networkInterface.getInterfaceAddresses(), is this Windows? " +
-                        "Do you have a VPN installed? Trying to recover by ignoring it.");
-            } else if ((address.getBroadcast() != null) &&
-                    Util.sameNetwork(address.getNetworkPrefixLength(), aDevice.getAddress(), address.getAddress())) {
-                return address;
-            }
-        }
-        return null;
-    }
-
-    /**
      * The number of milliseconds for which the {@link DeviceFinder} needs to have been watching the network in order
      * for us to be confident we can choose a device number that will not conflict.
      */
@@ -913,7 +890,7 @@ public class VirtualCdj extends LifecycleParticipant {
         matchedAddress = null;
         DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            InterfaceAddress candidate = findMatchingAddress(aDevice, networkInterface);
+            InterfaceAddress candidate = Util.findMatchingAddress(aDevice, networkInterface);
             if (candidate != null) {
                 if (matchedAddress == null) {
                     matchedAddress = candidate;
@@ -1503,11 +1480,11 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Send a media details response to all registered listeners.
+     * Send a media details response to all registered listeners. Is also called from VirtualRekordbox in proxy mode.
      *
      * @param details the response that has just arrived
      */
-    private void deliverMediaDetailsUpdate(final MediaDetails details) {
+    void deliverMediaDetailsUpdate(final MediaDetails details) {
         for (MediaDetailsListener listener : getMediaDetailsListeners()) {
             try {
                 listener.detailsAvailable(details);

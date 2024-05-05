@@ -2,9 +2,7 @@ package org.deepsymmetry.beatlink.data;
 
 import io.kaitai.struct.RandomAccessFileKaitaiStream;
 import org.apiguardian.api.API;
-import org.deepsymmetry.beatlink.CdjStatus;
-import org.deepsymmetry.beatlink.MediaDetails;
-import org.deepsymmetry.beatlink.Util;
+import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.cratedigger.Database;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.deepsymmetry.cratedigger.pdb.RekordboxPdb;
@@ -161,7 +159,7 @@ public class OpusProvider {
      */
     @API(status = API.Status.STABLE)
     public Database findDatabase(DataReference reference) {
-        if (reference.player >= 9 && reference.player <= 12) {  // This is an Opus Quad deck.
+        if (VirtualRekordbox.getInstance().isRunning()) {
             return findDatabase(reference.getSlotReference());
         }
         return null;

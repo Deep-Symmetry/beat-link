@@ -815,10 +815,10 @@ public class CrateDigger {
      * and register the listeners that hook us into the streams of information we need.
      */
     private CrateDigger() {
-        MetadataFinder.getInstance().addLifecycleListener(lifecycleListener);
-        MetadataFinder.getInstance().addMountListener(mountListener);
-        DeviceFinder.getInstance().addDeviceAnnouncementListener(deviceListener);
-        VirtualCdj.getInstance().addMediaDetailsListener(mediaDetailsListener);
+//        MetadataFinder.getInstance().addLifecycleListener(lifecycleListener);
+//        MetadataFinder.getInstance().addMountListener(mountListener);
+//        DeviceFinder.getInstance().addDeviceAnnouncementListener(deviceListener);
+//        VirtualCdj.getInstance().addMediaDetailsListener(mediaDetailsListener);
         downloadDirectory = createDownloadDirectory();
     }
 

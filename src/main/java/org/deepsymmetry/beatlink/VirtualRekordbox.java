@@ -1,13 +1,12 @@
 package org.deepsymmetry.beatlink;
 
-import org.deepsymmetry.beatlink.data.MetadataFinder;
+import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.*;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.*;
@@ -21,7 +20,6 @@ import java.util.concurrent.atomic.*;
  */
 @SuppressWarnings("WeakerAccess")
 public class VirtualRekordbox extends LifecycleParticipant {
-
     private static final Logger logger = LoggerFactory.getLogger(VirtualRekordbox.class);
 
     /**
@@ -121,7 +119,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return the virtual player number
      */
     public synchronized byte getDeviceNumber() {
-        return keepAliveBytes[DEVICE_NUMBER_OFFSET];
+        return rekordboxKeepAliveBytes[DEVICE_NUMBER_OFFSET];
     }
 
     /**
@@ -138,7 +136,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         if (isRunning()) {
             throw new IllegalStateException("Can't change device number once started.");
         }
-        keepAliveBytes[DEVICE_NUMBER_OFFSET] = number;
+        rekordboxKeepAliveBytes[DEVICE_NUMBER_OFFSET] = number;
     }
 
     /**
@@ -176,32 +174,33 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * and IP address, as described in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-keep-alive">Packet Analysis document</a>.
      */
-    private static final byte[] keepAliveBytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x06, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x02, 0x00, 0x36,  0x00, 0x01, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x02, 0x00, 0x00, 0x00,  0x01, 0x64
+    private static final byte[] rekordboxKeepAliveBytes = {
+            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,  0x4f, 0x4c, 0x06, 0x00, 0x72, 0x65, 0x6b, 0x6f, 0x72,
+            0x64, 0x62, 0x6f, 0x78,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x03,
+            0x00, 0x36, 0x17, 0x01,  0x18, 0x3e, (byte) 0xef, (byte) 0xda, 0x5b, (byte) 0xca, (byte) 0xc0, (byte) 0xa8,
+            0x02, 0x0b, 0x04, 0x01,  0x00, 0x00, 0x04, 0x08
     };
 
-    private static final byte[] initializeRekordboxLightingBytes = {
-            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x11, 0x72, 0x65, 0x6b, 0x6f, 0x72, 0x64,
-            0x62, 0x6f, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x17,
-            0x01, 0x04, 0x17, 0x01, 0x00, 0x00, 0x00, 0x6d, 0x00, 0x61, 0x00, 0x63, 0x00, 0x62, 0x00, 0x6f, 0x00,
-            0x6f, 0x00, 0x6b, 0x00, 0x20, 0x00, 0x70, 0x00, 0x72, 0x00, 0x6f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    private static final byte[] rekordboxLightingRequestStatusBytes = {
+            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,  0x4f, 0x4c, 0x11, 0x72,  0x65, 0x6b, 0x6f, 0x72,
+            0x64, 0x62, 0x6f, 0x78,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x01,
+            0x01, 0x17, 0x01, 0x04,  0x17, 0x01, 0x00, 0x00,  0x00, 0x6d, 0x00, 0x61,  0x00, 0x63, 0x00, 0x62,
+            0x00, 0x6f, 0x00, 0x6f,  0x00, 0x6b, 0x00, 0x20,  0x00, 0x70, 0x00, 0x72,  0x00, 0x6f, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00
     };
 
     /**
@@ -225,7 +224,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return the device name reported in our presence announcement packets
      */
     public static String getDeviceName() {
-        return new String(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).trim();
+        return new String(rekordboxKeepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).trim();
     }
 
     /**
@@ -312,7 +311,18 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
             case CDJ_STATUS:
                 if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
-                    return new CdjStatus(packet);
+                    CdjStatus status = new CdjStatus(packet);
+
+                    // Need to fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider
+                    MediaDetails details = new MediaDetails(
+                            SlotReference.getSlotReference(status.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT),
+                            CdjStatus.TrackType.REKORDBOX,
+                            status.getDeviceName());
+
+                    // Forward this to VirtualCdj where it will be sent to clients.
+                    VirtualCdj.getInstance().deliverMediaDetailsUpdate(details);
+
+                    return status;
                 } else {
                     logger.warn("Ignoring too-short CDJ Status packet with length " + length + " (we need " + CdjStatus.MINIMUM_PACKET_SIZE +
                             " bytes).");
@@ -340,10 +350,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * This will send the bytes Rekordbox Lighting sends to a player to acknowledge its existence on the network and
      * trigger it to begin sending CDJStatus packets.
-     *
      */
     public void sendRekordboxLightingPacket() {
-        DatagramPacket updatesAnnouncement = new DatagramPacket(initializeRekordboxLightingBytes, initializeRekordboxLightingBytes.length,
+        DatagramPacket updatesAnnouncement = new DatagramPacket(rekordboxLightingRequestStatusBytes, rekordboxLightingRequestStatusBytes.length,
                 broadcastAddress.get(), UPDATE_PORT);
         try {
             socket.get().send(updatesAnnouncement);
@@ -494,12 +503,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
         }
 
         // Send a packet directly to the mixer telling it we are ready for its device assignment.
-        Arrays.fill(assignmentRequestBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        Arrays.fill(assignmentRequestBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
         System.arraycopy(getDeviceName().getBytes(), 0, assignmentRequestBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, assignmentRequestBytes, 0x24, 4);
-        System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, assignmentRequestBytes, 0x28, 6);
+        System.arraycopy(rekordboxKeepAliveBytes, MAC_ADDRESS_OFFSET, assignmentRequestBytes, 0x28, 6);
         // Can't call getDeviceNumber() on next line because that's synchronized!
-        assignmentRequestBytes[0x31] = (keepAliveBytes[DEVICE_NUMBER_OFFSET] == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
+        assignmentRequestBytes[0x31] = (rekordboxKeepAliveBytes[DEVICE_NUMBER_OFFSET] == 0) ? (byte) 1 : (byte) 2;  // The auto-assign flag.
         assignmentRequestBytes[0x2f] = 1;  // The packet counter.
         try {
             DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
@@ -526,9 +535,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
         }
 
         // Send a packet to the interloper telling it that we are using that device number.
-        Arrays.fill(deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        Arrays.fill(deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
         System.arraycopy(getDeviceName().getBytes(), 0, deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-        deviceNumberDefenseBytes[0x24] = keepAliveBytes[DEVICE_NUMBER_OFFSET];
+        deviceNumberDefenseBytes[0x24] = rekordboxKeepAliveBytes[DEVICE_NUMBER_OFFSET];
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, deviceNumberDefenseBytes, 0x25, 4);
         try {
             DatagramPacket defense = new DatagramPacket(deviceNumberDefenseBytes, deviceNumberDefenseBytes.length,
@@ -553,7 +562,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         mixerAssigned.set(0);
 
         // Send the initial series of three "coming online" packets.
-        Arrays.fill(helloBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+        Arrays.fill(helloBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
         System.arraycopy(getDeviceName().getBytes(), 0, helloBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         for (int i = 1; i <= 3; i++) {
             try {
@@ -583,11 +592,11 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
             // Send the series of three initial device number claim packets, unless we are interrupted by a defense
             // or a mixer assigning us a specific number.
-            Arrays.fill(claimStage1bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+            Arrays.fill(claimStage1bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
             System.arraycopy(getDeviceName().getBytes(), 0, claimStage1bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-            System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, claimStage1bytes, 0x26, 6);
+            System.arraycopy(rekordboxKeepAliveBytes, MAC_ADDRESS_OFFSET, claimStage1bytes, 0x26, 6);
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
-                claimStage1bytes[0x24] = (byte)i;  // The packet counter.
+                claimStage1bytes[0x24] = (byte) i;  // The packet counter.
                 try {
                     logger.debug("Sending claim stage 1 packet " + i);
                     DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
@@ -612,14 +621,14 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
             // Send the middle series of device claim packets, unless we are interrupted by a defense
             // or a mixer assigning us a specific number.
-            Arrays.fill(claimStage2bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+            Arrays.fill(claimStage2bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
             System.arraycopy(getDeviceName().getBytes(), 0, claimStage2bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
             System.arraycopy(matchedAddress.getAddress().getAddress(), 0, claimStage2bytes, 0x24, 4);
-            System.arraycopy(keepAliveBytes, MAC_ADDRESS_OFFSET, claimStage2bytes, 0x28, 6);
-            claimStage2bytes[0x2e] = (byte)claimingNumber.get();  // The number we are claiming.
-            claimStage2bytes[0x31] = (getDeviceNumber() == 0)? (byte)1 : (byte)2;  // The auto-assign flag.
+            System.arraycopy(rekordboxKeepAliveBytes, MAC_ADDRESS_OFFSET, claimStage2bytes, 0x28, 6);
+            claimStage2bytes[0x2e] = (byte) claimingNumber.get();  // The number we are claiming.
+            claimStage2bytes[0x31] = (getDeviceNumber() == 0) ? (byte) 1 : (byte) 2;  // The auto-assign flag.
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
-                claimStage2bytes[0x2f] = (byte)i;  // The packet counter.
+                claimStage2bytes[0x2f] = (byte) i;  // The packet counter.
                 try {
                     logger.debug("Sending claim stage 2 packet " + i + " for device " + claimStage2bytes[0x2e]);
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
@@ -650,11 +659,11 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
             // Send the final series of device claim packets, unless we are interrupted by a defense, or the mixer
             // acknowledges our acceptance of its assignment.
-            Arrays.fill(claimStage3bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte)0);
+            Arrays.fill(claimStage3bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
             System.arraycopy(getDeviceName().getBytes(), 0, claimStage3bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-            claimStage3bytes[0x24] = (byte)claimingNumber.get();  // The number we are claiming.
+            claimStage3bytes[0x24] = (byte) claimingNumber.get();  // The number we are claiming.
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
-                claimStage3bytes[0x25] = (byte)i;  // The packet counter.
+                claimStage3bytes[0x25] = (byte) i;  // The packet counter.
                 try {
                     logger.debug("Sending claim stage 3 packet " + i + " for device " + claimStage3bytes[0x24]);
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
@@ -680,14 +689,14 @@ public class VirtualRekordbox extends LifecycleParticipant {
             claimed = true;  // If we finished all our loops, the number we wanted is ours.
         }
         // Set the device number we claimed.
-        keepAliveBytes[DEVICE_NUMBER_OFFSET] = (byte)claimingNumber.getAndSet(0);
+        rekordboxKeepAliveBytes[DEVICE_NUMBER_OFFSET] = (byte) claimingNumber.getAndSet(0);
         mixerAssigned.set(0);
         return true;  // Huzzah, we found the right device number to use!
     }
 
-    public void sendRekordboxLightingAnnouncement(){
+    public void sendRekordboxAnnouncement() {
         if (isRunning()) {
-            DatagramPacket announcement = new DatagramPacket(keepAliveBytes, keepAliveBytes.length,
+            DatagramPacket announcement = new DatagramPacket(rekordboxKeepAliveBytes, rekordboxKeepAliveBytes.length,
                     broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
             try {
                 this.socket.get().send(announcement);
@@ -698,29 +707,33 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     *
-     *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}.
      * @throws Exception if there is a problem opening a socket on the right network
      */
     private boolean createVirtualRekordbox() throws Exception {
-
-        // Find the network interface and address to use to communicate with the first device we found.
-        matchingInterfaces = new ArrayList<NetworkInterface>();
-        matchedAddress = null;
+        OpusProvider.getInstance().start();
 
         // Forward Updates to VirtualCdj. That's where all clients are used to getting them.
         addUpdateListener(VirtualCdj.getInstance().getUpdateListener());
 
+        // Find the network interface and address to use to communicate with the first device we found.
+        matchingInterfaces = new ArrayList<NetworkInterface>();
+        matchedAddress = null;
+        DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
-                if (address.getAddress() instanceof Inet4Address && !address.getAddress().getHostAddress().contains("127.0.0.1")) {
-                    if (matchedAddress == null) {
-                        matchedAddress = address;
-                    }
-                    matchingInterfaces.add(networkInterface);
+            InterfaceAddress candidate = Util.findMatchingAddress(aDevice, networkInterface);
+            if (candidate != null) {
+                if (matchedAddress == null) {
+                    matchedAddress = candidate;
                 }
+                matchingInterfaces.add(networkInterface);
             }
+        }
+
+        if (matchedAddress == null) {
+            logger.warn("Unable to find network interface to communicate with " + aDevice +
+                    ", giving up.");
+            return false;
         }
 
         logger.info("Found matching network interface " + matchingInterfaces.get(0).getDisplayName() + " (" +
@@ -737,13 +750,13 @@ public class VirtualRekordbox extends LifecycleParticipant {
         socket.set(new DatagramSocket(UPDATE_PORT, matchedAddress.getAddress()));
 
         System.arraycopy(getMatchingInterfaces().get(0).getHardwareAddress(),
-                0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
+                0, rekordboxKeepAliveBytes, MAC_ADDRESS_OFFSET, 6);
         System.arraycopy(matchedAddress.getAddress().getAddress(),
-                0, keepAliveBytes, 44, 4);
+                0, rekordboxKeepAliveBytes, 44, 4);
         System.arraycopy(getMatchingInterfaces().get(0).getHardwareAddress(),
-                0, initializeRekordboxLightingBytes, MAC_ADDRESS_OFFSET, 6);
+                0, rekordboxLightingRequestStatusBytes, MAC_ADDRESS_OFFSET, 6);
         System.arraycopy(matchedAddress.getAddress().getAddress(),
-                0, initializeRekordboxLightingBytes, 44, 4);
+                0, rekordboxLightingRequestStatusBytes, 44, 4);
 
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template
         broadcastAddress.set(matchedAddress.getBroadcast());
@@ -762,9 +775,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
             socket.set(null);
             return false;
         }
-
-        // Now that VirtualRekordbox is running, start up VirtualCdj and it will run in proxy mode.
-        VirtualCdj.getInstance().start();
 
         // Set up our buffer and packet to receive incoming messages.
         final byte[] buffer = new byte[512];
@@ -832,12 +842,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     private void sendAnnouncements() {
         try {
+            sendRekordboxAnnouncement();
             sendRekordboxLightingPacket();
-            sendRekordboxLightingAnnouncement();
 
             Thread.sleep(getAnnounceInterval());
         } catch (Throwable t) {
-            logger.warn("Unable to send announcement packet, flushing DeviceFinder due to likely network change and shutting down.", t);
+            logger.warn("Unable to send announcement packets, flushing DeviceFinder due to likely network change and shutting down.", t);
             DeviceFinder.getInstance().flush();
             stop();
         }
@@ -873,9 +883,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
     @SuppressWarnings("UnusedReturnValue")
     synchronized boolean start() throws Exception {
         if (!isRunning()) {
-            if (VirtualCdj.getInstance().isRunning()) {
-                throw new IllegalStateException("Cannot start VirtualRekordbox when VirtualCdj has already been started up");
-            }
 
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
             DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);
@@ -913,7 +920,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * driven by receipt of device announcement packets.</p>
      *
      * @param deviceNumber the device number to try to claim
-     *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
@@ -937,7 +943,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
             socket.set(null);
             broadcastAddress.set(null);
             updates.clear();
-            setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
+            setDeviceNumber((byte) 0);  // Set up for self-assignment if restarted.
             deliverLifecycleAnnouncement(logger, false);
         }
     }
@@ -952,7 +958,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * combines both status updates and beat messages, and so is more likely to be current and definitive.</p>
      *
      * @param deviceNumber the device number of interest
-     *
      * @return the matching detailed status update or null if none have been received
      * @throws IllegalStateException if the {@code VirtualRekordbox} is not active
      */
@@ -1050,12 +1055,13 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * Register any relevant listeners; private to prevent instantiation.
      */
-    private VirtualRekordbox() {}
+    private VirtualRekordbox() {
+    }
 
     /**
      * We have received a packet from a device trying to claim a device number, see if we should defend it.
      *
-     * @param packet the packet received
+     * @param packet       the packet received
      * @param deviceOffset the index of the byte within the packet holding the device number being claimed
      */
     private void handleDeviceClaimPacket(DatagramPacket packet, int deviceOffset) {
@@ -1072,7 +1078,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * The {@link DeviceFinder} delegates packets it doesn't know how to deal with to us using this method, because
      * they relate to claiming or defending device numbers, which is our responsibility.
      *
-     * @param kind the kind of packet that was received
+     * @param kind   the kind of packet that was received
      * @param packet the actual bytes of the packet
      */
     void handleSpecialAnnouncementPacket(Util.PacketType kind, DatagramPacket packet) {
@@ -1114,7 +1120,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     logger.warn("Another device is defending a number we are not using, ignoring: " + defendedDevice);
                 }
             } else {
-                logger.warn("Received device number defense message for device number " + defendedDevice +  " when we are not even running!");
+                logger.warn("Received device number defense message for device number " + defendedDevice + " when we are not even running!");
             }
         } else {
             logger.warn("Received unrecognized special announcement packet type: " + kind);
