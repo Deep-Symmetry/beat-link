@@ -10,27 +10,21 @@ This change log follows the conventions of
 
 - The ability to proxy metadata from mounted archive files corresponding to USB media mounted in the Opus Quad, which cannot itself provide that information.
 
+
+## [7.4.0] - 2024-05-04
+
+May the Fourth be with you.
+
 ### Fixed
 
-- It turns out there is a [bug](https://bugs.java.com/bugdatabase/view_bug?bug_id=8023649)
-  in Java under Windows that can sometimes return `null` values in the list of network
-  addresses associated with an interface. Beat Link now has defensive code to protect
-  itself against this and avoid crashing.
+- It turns out there is a [bug](https://bugs.java.com/bugdatabase/view_bug?bug_id=8023649) in Java under Windows that can sometimes return `null` values in the list of network addresses associated with an interface. Beat Link now has defensive code to protect itself against this and avoid crashing.
 
 ### Changed
 
-- Replaced the dependency on [ConcurrentLinkedHashMap](https://github.com/ben-manes/concurrentlinkedhashmap)
-  with a much-simplified in-project implementation based on some suggestions kindly
-  shared by [Ben Manes](https://github.com/ben-manes), the author of that library,
-  so that Beat Link Trigger can work as a pre-compiled GraalVM 
-  [native-image](https://www.graalvm.org/latest/reference-manual/native-image/), while
-  retaining its backwards compatibility with Java 6 environments (like afterglow-max).
-  Thanks to [Noah Zoschke](https://github.com/nzoschke) for the [pull request](https://github.com/Deep-Symmetry/beat-link/pull/66)
-  that led to this change in direction.
-- Upgraded to version 0.2.0 of Crate Digger, which had a couple of backwards-incompatible
-  changes to accommodate a new linter in the latest release of the Kaitai Struct Compiler
-  which identified places where field names were not following the style guide.
+- Replaced the dependency on [ConcurrentLinkedHashMap](https://github.com/ben-manes/concurrentlinkedhashmap) with a much-simplified in-project implementation based on some suggestions kindly shared by [Ben Manes](https://github.com/ben-manes), the author of that library, so that Beat Link Trigger can work as a pre-compiled GraalVM [native-image](https://www.graalvm.org/latest/reference-manual/native-image/), while retaining its backwards compatibility with Java 6 environments (like afterglow-max). Thanks to [Noah Zoschke](https://github.com/nzoschke) for the [pull request](https://github.com/Deep-Symmetry/beat-link/pull/66) that led to this change in direction.
+- Upgraded to version 0.2.0 of Crate Digger, which had a couple of backwards-incompatible changes to accommodate a new linter in the latest release of the Kaitai Struct Compiler which identified places where field names were not following the style guide. It also supports creating metadata archives for use with the Opus Quad.
 - Upgraded to building Java 11 class files (since the new version of Crate Digger does), so we can take advantage of new APIs.
+
 
 ## [7.3.0] - 2023-11-24
 
@@ -63,7 +57,7 @@ This change log follows the conventions of
   was slightly inaccurate because of two transposed digits in a calculation.
 - The code that detects pre-nexus CDJs was confused by the CDJ-3000.
 - Sometimes beat packets can come after a status packet at the very beginning of a
-  new beat, and this used to cause the beat number to jump up and back down. 
+  new beat, and this used to cause the beat number to jump up and back down.
 - The clipping region was not being set correctly when painting phrase information
   at the bottom of the waveform detail component, which could cause the fill dots
   to extend beyond the edge of the component in certain circumstances.
@@ -842,7 +836,8 @@ This change log follows the conventions of
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.3.0...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.4.0...HEAD
+[7.4.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.3.0...v7.4.0
 [7.3.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.2.0...v7.3.0
 [7.2.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.1.0...v7.2.0
 [7.1.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.0.1...v7.1.0
