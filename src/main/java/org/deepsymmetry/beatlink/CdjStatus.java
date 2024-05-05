@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.deepsymmetry.beatlink.data.OpusProvider;
+import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -643,10 +645,10 @@ public class CdjStatus extends DeviceUpdate {
         if (Util.isOpusQuad(deviceName)) {
             trackSourcePlayer = translateOpusPlayerNumbers(packetBytes[40]);
             trackSourceSlot = findOpusTrackSourceSlot();
-            // isLocalSdLoaded() == true
-            packetBytes[115] = 0;
-            // isLocalUsbLoaded() == true
-            packetBytes[111] = 0;
+            // Indicate whether we have a metadata archive available for the SD slot:
+            packetBytes[115] = (byte) ((OpusProvider.getInstance().findDatabase(SlotReference.getSlotReference(1, TrackSourceSlot.SD_SLOT)) == null) ? 4 : 0);
+            // Indicate whether we have a metadata archive available for the USB slot:
+            packetBytes[111] = (byte) ((OpusProvider.getInstance().findDatabase(SlotReference.getSlotReference(1, TrackSourceSlot.USB_SLOT)) == null) ? 4 : 0);
         } else {
             trackSourcePlayer = packetBytes[40];
             trackSourceSlot = findTrackSourceSlot();
