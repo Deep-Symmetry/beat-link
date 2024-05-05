@@ -124,13 +124,7 @@ public class MediaDetails {
     }
 
     /**
-     * Constructor sets all the immutable interpreted fields based on constructor inputs
-     *
-     * @param packet the media response packet that was received
-     */
-
-    /**
-     * Custom constructor to emulate an actual MediaDetails object from CDJs. This allows our Status packets
+     * Constructor to emulate an actual MediaDetails object from CDJs. This allows our Status packets
      * to use OpusProvider to enrich the track data. OpusProvider must be started up to use this method.
      *
      * @param slotReference Slot Reference to Emulate
