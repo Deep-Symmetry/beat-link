@@ -1,7 +1,9 @@
 package org.deepsymmetry.beatlink;
 
 import org.deepsymmetry.beatlink.data.ColorItem;
+import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
+import org.deepsymmetry.cratedigger.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,6 +11,7 @@ import java.awt.*;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
+import java.nio.file.FileSystem;
 import java.util.*;
 
 /**
@@ -128,20 +131,25 @@ public class MediaDetails {
 
     /**
      * Custom constructor to emulate an actual MediaDetails object from CDJs. This allows our Status packets
-     * to use OpusProvider to enrich the track data.
+     * to use OpusProvider to enrich the track data. OpusProvider must be started up to use this method.
      *
      * @param slotReference Slot Reference to Emulate
      * @param mediaType Media Type to Emulate
      * @param name Name of device
      */
     MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name) {
+        if (!OpusProvider.getInstance().isRunning()) {
+            throw new IllegalStateException("OpusProvider must be started up to use this Constructor");
+        }
+        Database db = OpusProvider.getInstance().findDatabase(slotReference);
+        FileSystem fs = OpusProvider.getInstance().findFilesystem(slotReference);
         this.slotReference = slotReference;
         this.mediaType = mediaType;
         this.name = name;
-        this.creationDate = "";
-        this.trackCount = 0;
+        this.creationDate = Long.toString(db.sourceFile.lastModified());
+        this.trackCount = db.trackIndex.size();
         this.totalSize = 0;
-        this.playlistCount = 0;
+        this.playlistCount = db.playlistIndex.size();
         this.rawBytes = ByteBuffer.wrap(new byte[]{});
         this.color = new Color(0);
         this.freeSpace = 0;
