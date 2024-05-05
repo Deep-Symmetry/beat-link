@@ -323,6 +323,7 @@ public class CrateDigger {
         @Override
         public void detailsAvailable(final MediaDetails details) {
             if (isRunning() && details.mediaType == CdjStatus.TrackType.REKORDBOX &&
+                    !VirtualRekordbox.getInstance().isRunning() &&  // If we are dealing with an Opus Quad, we can’t download files.
                     details.slotReference.slot != CdjStatus.TrackSourceSlot.COLLECTION &&  // We always use dbserver to talk to rekordbox.
                     !databases.containsKey(details.slotReference) &&
                     activeRequests.add(details.slotReference)) {
@@ -815,10 +816,10 @@ public class CrateDigger {
      * and register the listeners that hook us into the streams of information we need.
      */
     private CrateDigger() {
-//        MetadataFinder.getInstance().addLifecycleListener(lifecycleListener);
-//        MetadataFinder.getInstance().addMountListener(mountListener);
-//        DeviceFinder.getInstance().addDeviceAnnouncementListener(deviceListener);
-//        VirtualCdj.getInstance().addMediaDetailsListener(mediaDetailsListener);
+        MetadataFinder.getInstance().addLifecycleListener(lifecycleListener);
+        MetadataFinder.getInstance().addMountListener(mountListener);
+        DeviceFinder.getInstance().addDeviceAnnouncementListener(deviceListener);
+        VirtualCdj.getInstance().addMediaDetailsListener(mediaDetailsListener);
         downloadDirectory = createDownloadDirectory();
     }
 

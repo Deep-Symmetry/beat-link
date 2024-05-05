@@ -149,12 +149,12 @@ public class OpusProvider {
     /**
      * Find the database we have been provided and parsed that can provide information about the supplied slot
      * reference, if any (we follow the XDJ-XZ convention of using {@link CdjStatus.TrackSourceSlot#SD_SLOT}
-     * to represent USB 1, and {@link CdjStatus.TrackSourceSlot#USB_SLOT} to represent USB 2).
+     * to represent USB 1, and {@link CdjStatus.TrackSourceSlot#USB_SLOT} to represent USB 2). Will always return
+     * {@code null} when {@link VirtualRekordbox} is not running, because we only supply metadata for Opus Quad
+     * devices that can’t do it on their own.
      *
      * @param reference identifies the location for which data is desired
-     *
      * @return the appropriate rekordbox extract to start from in finding that data, if we have one
-     *
      * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
      */
     @API(status = API.Status.STABLE)
