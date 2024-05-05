@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
@@ -103,20 +104,19 @@ public class MediaDetails {
     /**
      * Given a source byte array, return the UTF-16 string length in bytes by finding a UTF-16 NUL sequence.
      * If a UTF-16 NUL sequence is not found, maxLength or source.length-offset is returned, which ever is smaller.
-     * 
-     * @param source the source byte array representing a UTF-16 string
-     * @param offset the byte offset to start at in the source byte array
+     *
+     * @param source    the source byte array representing a UTF-16 string
+     * @param offset    the byte offset to start at in the source byte array
      * @param maxLength the maximum length of the UTF-16 string (in bytes)
-     * 
      * @return the length in number of bytes excluding the UTF-16 NUL sequence, else maxLength or source.length-offset, which ever is smaller.
      */
     private int getUTF16StringLength(byte[] source, int offset, int maxLength) {
         int numBytes = maxLength;
-        int clampedMaxLength = Math.min(maxLength, source.length-offset);
-        
-        for (int i=offset; i<offset+clampedMaxLength-1; i+=2) {
-            if (source[i] == 0x00 && source[i+1] == 0x00) {
-                numBytes = i-offset;
+        int clampedMaxLength = Math.min(maxLength, source.length - offset);
+
+        for (int i = offset; i < offset + clampedMaxLength - 1; i += 2) {
+            if (source[i] == 0x00 && source[i + 1] == 0x00) {
+                numBytes = i - offset;
                 break;
             }
         }
@@ -134,15 +134,14 @@ public class MediaDetails {
      * to use OpusProvider to enrich the track data. OpusProvider must be started up to use this method.
      *
      * @param slotReference Slot Reference to Emulate
-     * @param mediaType Media Type to Emulate
-     * @param name Name of device
+     * @param mediaType     Media Type to Emulate
+     * @param name          Name of device
      */
     MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name) {
         if (!OpusProvider.getInstance().isRunning()) {
             throw new IllegalStateException("OpusProvider must be started up to use this Constructor");
         }
         Database db = OpusProvider.getInstance().findDatabase(slotReference);
-        FileSystem fs = OpusProvider.getInstance().findFilesystem(slotReference);
         this.slotReference = slotReference;
         this.mediaType = mediaType;
         this.name = name;
@@ -168,7 +167,7 @@ public class MediaDetails {
     /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
      *
-     * @param packet the media response packet that was received or cached
+     * @param packet       the media response packet that was received or cached
      * @param packetLength the number of bytes within the packet which were actually received
      */
     public MediaDetails(byte[] packet, int packetLength) {
@@ -181,7 +180,7 @@ public class MediaDetails {
                     " bytes and were given only " + packetCopy.length);
         }
 
-        final int payloadLength = (int)Util.bytesToNumber(packetCopy, 0x22, 2);
+        final int payloadLength = (int) Util.bytesToNumber(packetCopy, 0x22, 2);
         if (packetCopy.length != payloadLength + 0x24) {
             logger.warn("Received Media response packet with reported payload length of " + payloadLength + " and actual payload length of " +
                     (packetCopy.length - 0x24));
@@ -220,9 +219,9 @@ public class MediaDetails {
             }
         }
 
-        trackCount = (int)Util.bytesToNumber(packetCopy, 0xa6, 2);
+        trackCount = (int) Util.bytesToNumber(packetCopy, 0xa6, 2);
         color = ColorItem.colorForId(packetCopy[0xa8]);
-        playlistCount = (int)Util.bytesToNumber(packetCopy, 0xae, 2);
+        playlistCount = (int) Util.bytesToNumber(packetCopy, 0xae, 2);
         hasMySettings = packetCopy[0xab] != 0;
         totalSize = Util.bytesToNumber(packetCopy, 0xb0, 8);
         freeSpace = Util.bytesToNumber(packetCopy, 0xb8, 8);
@@ -250,9 +249,7 @@ public class MediaDetails {
      * free space because those probably just reflect history entries being added.
      *
      * @param originalMedia the media details when information about it was saved
-     *
      * @return true if there have been detectable significant  changes to the media since it was saved
-     *
      * @throws IllegalArgumentException if the {@link #hashKey()} values of the media detail objects differ
      */
     public boolean hasChanged(MediaDetails originalMedia) {
