@@ -139,10 +139,16 @@ public class MediaDetails {
         this.slotReference = slotReference;
         this.mediaType = mediaType;
         this.name = name;
-        this.creationDate = Long.toString(db.sourceFile.lastModified());
-        this.trackCount = db.trackIndex.size();
+        if (db != null && db.sourceFile != null) {
+            this.creationDate = Long.toString(db.sourceFile.lastModified());
+            this.trackCount = db.trackIndex.size();
+            this.playlistCount = db.playlistIndex.size();
+        } else {
+            this.creationDate = "";
+            this.trackCount = 0;
+            this.playlistCount = 0;
+        }
         this.totalSize = 0;
-        this.playlistCount = db.playlistIndex.size();
         this.rawBytes = ByteBuffer.wrap(new byte[]{});
         this.color = new Color(0);
         this.freeSpace = 0;

@@ -5,11 +5,16 @@ import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.*;
+
+import static org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot.SD_SLOT;
+import static org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot.USB_SLOT;
 
 /**
  * Provides the ability to emulate the Rekordbox lighting application which causes devices to share their player state
@@ -283,13 +288,44 @@ public class VirtualRekordbox extends LifecycleParticipant {
             0x01, 0x02, 0x00, 0x29,  0x00, 0x00, 0x00, 0x00,   0x00
     };
 
+    private static final byte[] requestPSSIBytes = {
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x55, 0x72, 0x65, 0x6b, 0x6f, 0x72,
+            0x64, 0x62, 0x6f, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x17, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x0a, 0x02, 0x03, 0x01
+    };
+
+    private static final byte[] deviceName = "rekordbox".getBytes();
+
+    public void requestPSSI() throws IOException{
+        if (DeviceFinder.getInstance().isRunning() && !DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
+            InetAddress address = DeviceFinder.getInstance().getCurrentDevices().iterator().next().getAddress();
+            DatagramPacket packet = new DatagramPacket(requestPSSIBytes, requestPSSIBytes.length, address, UPDATE_PORT);
+
+            socket.get().send(packet);
+        }
+    }
+
+    public int indexOf(byte[] outerArray, byte[] smallerArray) {
+        for(int i = 0; i < outerArray.length - smallerArray.length+1; ++i) {
+            boolean found = true;
+            for(int j = 0; j < smallerArray.length; ++j) {
+                if (outerArray[i+j] != smallerArray[j]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) return i;
+        }
+        return -1;
+    }
+
     /**
      * Given an update packet sent to us, create the appropriate object to describe it.
      *
      * @param packet the packet received on our update port
      * @return the corresponding {@link DeviceUpdate} subclass, or {@code nil} if the packet was not recognizable
      */
-    private DeviceUpdate buildUpdate(DatagramPacket packet) throws IOException {
+    private DeviceUpdate buildUpdate(DatagramPacket packet) {
         final int length = packet.getLength();
         final Util.PacketType kind = Util.validateHeader(packet, UPDATE_PORT);
         if (kind == null) {
@@ -315,7 +351,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
                     // Need to fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider
                     MediaDetails details = new MediaDetails(
-                            SlotReference.getSlotReference(status.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT),
+                            SlotReference.getSlotReference(status.getDeviceNumber(), SD_SLOT),
                             CdjStatus.TrackType.REKORDBOX,
                             status.getDeviceName());
 
@@ -338,7 +374,15 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 }
 
             case OPUS_METADATA:
-                logger.info("Received track load metadata from player " + packet.getData()[0x21]);
+                // PSSI Data
+                if (packet.getData()[0x25] == 10) {
+                    int rekordboxId = (int) Util.bytesToNumber(packet.getData(), 0x28, 4);
+                    if (rekordboxId != 0) {
+                        byte[] pssiFromOpus = Arrays.copyOfRange(packet.getData(), 0x35, packet.getData().length);
+                        CdjStatus.TrackSourceSlot slot = (packet.getData()[0x2d] == 3) ? USB_SLOT: SD_SLOT;
+                        OpusProvider.getInstance().handlePSSIMatching(rekordboxId, pssiFromOpus, slot);
+                    }
+                }
                 return null;
 
             default:
@@ -711,6 +755,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @throws Exception if there is a problem opening a socket on the right network
      */
     private boolean createVirtualRekordbox() throws Exception {
+//        OpusProvider.getInstance().attachMetadataArchive(new File("/Users/cprepos/krisprep/BLT Archive/archive-black.blm"), CdjStatus.TrackSourceSlot.SD_SLOT);
+//        OpusProvider.getInstance().attachMetadataArchive(new File("/Users/cprepos/krisprep/BLT Archive/archive.blm"), CdjStatus.TrackSourceSlot.USB_SLOT);
+
         OpusProvider.getInstance().start();
 
         // Forward Updates to VirtualCdj. That's where all clients are used to getting them.
@@ -719,9 +766,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
         // Find the network interface and address to use to communicate with the first device we found.
         matchingInterfaces = new ArrayList<NetworkInterface>();
         matchedAddress = null;
-        DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
+        DeviceAnnouncement announcement = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            InterfaceAddress candidate = Util.findMatchingAddress(aDevice, networkInterface);
+            InterfaceAddress candidate = Util.findMatchingAddress(announcement, networkInterface);
             if (candidate != null) {
                 if (matchedAddress == null) {
                     matchedAddress = candidate;
@@ -731,7 +778,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         }
 
         if (matchedAddress == null) {
-            logger.warn("Unable to find network interface to communicate with " + aDevice +
+            logger.warn("Unable to find network interface to communicate with " + announcement +
                     ", giving up.");
             return false;
         }
@@ -846,6 +893,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
             sendRekordboxLightingPacket();
 
             Thread.sleep(getAnnounceInterval());
+
+            requestPSSI();
+
         } catch (Throwable t) {
             logger.warn("Unable to send announcement packets, flushing DeviceFinder due to likely network change and shutting down.", t);
             DeviceFinder.getInstance().flush();

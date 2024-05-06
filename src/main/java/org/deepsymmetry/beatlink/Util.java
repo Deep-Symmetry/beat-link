@@ -4,6 +4,7 @@ import java.awt.*;
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collections;
 import java.util.HashMap;
@@ -392,6 +393,18 @@ public class Util {
             buffer[index] = (byte)(number & 0xff);
             number = number >> 8;
         }
+    }
+
+    /**\
+     * Convert int to big array, little endian.
+     * @param i
+     * @return little endian byte array of int
+     */
+    public static byte[] intToLeByteArray(int i) {
+        final ByteBuffer bb = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE);
+        bb.order(ByteOrder.LITTLE_ENDIAN);
+        bb.putInt(i);
+        return bb.array();
     }
 
     /**

@@ -16,6 +16,8 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -56,6 +58,12 @@ public class OpusProvider {
     private final AtomicReference<FileSystem> usb1filesystem = new AtomicReference<>();
 
     /**
+     * Storing the current USB slot that the Opus is reporting as USB1. The Opus can report the same slot differently
+     * when it restarts so it needs to be re-evaluated when PSSI + track ID don't match.
+     */
+    private  AtomicReference<CdjStatus.TrackSourceSlot> usb1slot =  new AtomicReference<>();
+
+    /**
      * Holds the parsed database for the media we are proxying for the USB 1 slot of the Opus Quad.
      */
     private final AtomicReference<Database> usb1database = new AtomicReference<>();
@@ -66,9 +74,17 @@ public class OpusProvider {
     private final AtomicReference<FileSystem> usb2filesystem = new AtomicReference<>();
 
     /**
+     * Storing the current USB slot that the Opus is reporting as USB2. The Opus can report the same slot differently
+     * when it restarts so it needs to be re-evaluated when PSSI + track ID don't match.
+     */
+    private AtomicReference<CdjStatus.TrackSourceSlot> usb2slot =  new AtomicReference<>();
+
+    /**
      * Holds the parsed database for the media we are proxying for the USB 2 slot of the Opus Quad.
      */
     private final AtomicReference<Database> usb2database = new AtomicReference<>();
+
+    private final Map<String, CdjStatus.TrackSourceSlot> trackHashToSlot = new ConcurrentHashMap<>();
 
     /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
@@ -86,7 +102,6 @@ public class OpusProvider {
      */
     @API(status = API.Status.STABLE)
     public synchronized void attachMetadataArchive(File archive, CdjStatus.TrackSourceSlot slot) throws IOException {
-
         // Determine which slot we are adjusting the archive for.
         if (slot != CdjStatus.TrackSourceSlot.SD_SLOT && slot != CdjStatus.TrackSourceSlot.USB_SLOT) {
             throw new IllegalArgumentException("Unsupported slot, use SD_SLOT for USB 1 or USB_SLOT for USB 2: " + slot);
@@ -139,6 +154,7 @@ public class OpusProvider {
             // If we got here, this looks like a valid metadata archive because we found a valid database export inside it.
             databaseReference.set(database);
             filesystemReference.set(filesystem);
+
             logger.info("Attached metadata archive {} for slot {}.", filesystem, slot);
         } catch (Exception e) {
             filesystem.close();
@@ -535,6 +551,16 @@ public class OpusProvider {
             return null;
         }
     };
+
+    public void handlePSSIMatching(int rekordboxId, byte[] pssi, CdjStatus.TrackSourceSlot slot){
+        DataReference dataRef = new DataReference(9, slot, rekordboxId);
+        if (slot == CdjStatus.TrackSourceSlot.USB_SLOT) {
+            System.out.println("here");
+        } else {
+            System.out.println("here");
+        }
+    }
+
 
     /**
      * Start proxying track metadata from mounted archives for the Opus Quad decks.
