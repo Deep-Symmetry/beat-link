@@ -986,7 +986,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     try {
                         if (received && (packet.getAddress() != socket.get().getLocalAddress())) {
                             DeviceUpdate update = buildUpdate(packet);
-                            if (update != null) {
+                            if (update != null && isRunning()) {
                                 processUpdate(update);
                             }
                         }
@@ -1145,13 +1145,13 @@ public class VirtualCdj extends LifecycleParticipant {
             matchingInterfaces.clear();
             updates.clear();
             setTempoMaster(null);
-            setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
 
             if (inOpusQuadCompatibilityMode()) {
                 // We were running in proxy mode, so we need to shut down VirtualRekordbox, and nothing further.
                 VirtualRekordbox.getInstance().stop();
                 proxyingForVirtualRekordbox.set(false);
                 deliverLifecycleAnnouncement(logger, false);
+                setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
                 return;
             }
 
@@ -1165,6 +1165,7 @@ public class VirtualCdj extends LifecycleParticipant {
             socket.get().close();
             socket.set(null);
             deliverLifecycleAnnouncement(logger, false);
+            setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
         }
     }
 
