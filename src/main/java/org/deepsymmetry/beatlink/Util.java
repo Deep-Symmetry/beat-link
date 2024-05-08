@@ -362,6 +362,20 @@ public class Util {
     }
 
     /**
+     * Converts bytes to a hex string representation
+     *
+     * @param bytes the byte array containing the packet data
+     * @return the hex string representation of the bytes
+     */
+    public static String bytesToHex(byte[] bytes){
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString();
+    }
+
+    /**
      * Reconstructs a number that is represented by more than one byte in a network packet in little-endian order, for
      * the very few protocol values that are sent in this quirky way.
      *

@@ -512,8 +512,7 @@ public class CdjStatus extends DeviceUpdate {
     private TrackSourceSlot findOpusTrackSourceSlot() {
         if (rekordboxId != 0) {
            switch (packetBytes[41]){
-               case 0: return TrackSourceSlot.SD_SLOT;
-               // TODO, figure out a way to identify more than one USB at a time
+               case 0: return TrackSourceSlot.USB_SLOT;
                case 3: return TrackSourceSlot.SD_SLOT;
            }
         }
@@ -645,10 +644,10 @@ public class CdjStatus extends DeviceUpdate {
         if (Util.isOpusQuad(deviceName)) {
             trackSourcePlayer = translateOpusPlayerNumbers(packetBytes[40]);
             trackSourceSlot = findOpusTrackSourceSlot();
-            // Indicate whether we have a metadata archive available for the SD slot:
-            packetBytes[115] = (byte) ((OpusProvider.getInstance().findDatabase(SlotReference.getSlotReference(1, TrackSourceSlot.SD_SLOT)) == null) ? 4 : 0);
-            // Indicate whether we have a metadata archive available for the USB slot:
-            packetBytes[111] = (byte) ((OpusProvider.getInstance().findDatabase(SlotReference.getSlotReference(1, TrackSourceSlot.USB_SLOT)) == null) ? 4 : 0);
+            // Indicate that we want to listen for archives on the SD slot:
+            packetBytes[115] = 0;
+            // Indicate that we want to listen for archives on the USB slot:
+            packetBytes[111] = 0;
         } else {
             trackSourcePlayer = packetBytes[40];
             trackSourceSlot = findTrackSourceSlot();

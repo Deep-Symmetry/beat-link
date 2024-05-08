@@ -349,9 +349,14 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
                     CdjStatus status = new CdjStatus(packet);
 
+                    // If player number is zero the deck does not have a song loaded, just return.
+                    if (status.getTrackSourcePlayer() == 0) {
+                        return null;
+                    }
+
                     // Need to fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider
                     MediaDetails details = new MediaDetails(
-                            SlotReference.getSlotReference(status.getDeviceNumber(), SD_SLOT),
+                            SlotReference.getSlotReference(status.getDeviceNumber(), status.getTrackSourceSlot()),
                             CdjStatus.TrackType.REKORDBOX,
                             status.getDeviceName());
 
@@ -374,13 +379,16 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 }
 
             case OPUS_METADATA:
+                byte[] data = packet.getData();
                 // PSSI Data
-                if (packet.getData()[0x25] == 10) {
-                    int rekordboxId = (int) Util.bytesToNumber(packet.getData(), 0x28, 4);
+                if (data[0x25] == 10) {
+                    int rekordboxId = (int) Util.bytesToNumber(data, 0x28, 4);
+                    // If track is loaded
                     if (rekordboxId != 0) {
-                        byte[] pssiFromOpus = Arrays.copyOfRange(packet.getData(), 0x35, packet.getData().length);
-                        CdjStatus.TrackSourceSlot slot = (packet.getData()[0x2d] == 3) ? USB_SLOT: SD_SLOT;
-                        OpusProvider.getInstance().handlePSSIMatching(rekordboxId, pssiFromOpus, slot);
+                        final byte[] pssiFromOpus = Arrays.copyOfRange(data, 0x35, data.length);
+                        final CdjStatus.TrackSourceSlot slot = (data[0x2d] == 3) ? SD_SLOT: USB_SLOT;
+                        final int player = data[0x21];
+                        OpusProvider.getInstance().handlePSSIMatching(rekordboxId, pssiFromOpus, player, slot);
                     }
                 }
                 return null;
@@ -755,9 +763,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @throws Exception if there is a problem opening a socket on the right network
      */
     private boolean createVirtualRekordbox() throws Exception {
-//        OpusProvider.getInstance().attachMetadataArchive(new File("/Users/cprepos/krisprep/BLT Archive/archive-black.blm"), CdjStatus.TrackSourceSlot.SD_SLOT);
-//        OpusProvider.getInstance().attachMetadataArchive(new File("/Users/cprepos/krisprep/BLT Archive/archive.blm"), CdjStatus.TrackSourceSlot.USB_SLOT);
-
         OpusProvider.getInstance().start();
 
         // Forward Updates to VirtualCdj. That's where all clients are used to getting them.

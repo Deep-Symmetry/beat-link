@@ -14,11 +14,10 @@ import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -58,10 +57,9 @@ public class OpusProvider {
     private final AtomicReference<FileSystem> usb1filesystem = new AtomicReference<>();
 
     /**
-     * Storing the current USB slot that the Opus is reporting as USB1. The Opus can report the same slot differently
-     * when it restarts so it needs to be re-evaluated when PSSI + track ID don't match.
+     * Storing the USB slot that the Opus is reporting as this archive.
      */
-    private  AtomicReference<CdjStatus.TrackSourceSlot> usb1slot =  new AtomicReference<>();
+    private  AtomicReference<CdjStatus.TrackSourceSlot> opusReportedDataSlot1 =  new AtomicReference<>();
 
     /**
      * Holds the parsed database for the media we are proxying for the USB 1 slot of the Opus Quad.
@@ -77,14 +75,28 @@ public class OpusProvider {
      * Storing the current USB slot that the Opus is reporting as USB2. The Opus can report the same slot differently
      * when it restarts so it needs to be re-evaluated when PSSI + track ID don't match.
      */
-    private AtomicReference<CdjStatus.TrackSourceSlot> usb2slot =  new AtomicReference<>();
+    private AtomicReference<CdjStatus.TrackSourceSlot> opusReportedDataSlot2 =  new AtomicReference<>();
 
     /**
      * Holds the parsed database for the media we are proxying for the USB 2 slot of the Opus Quad.
      */
     private final AtomicReference<Database> usb2database = new AtomicReference<>();
 
-    private final Map<String, CdjStatus.TrackSourceSlot> trackHashToSlot = new ConcurrentHashMap<>();
+    /**
+     * Returns opus reported slot for archive 1
+     * @return the TrackSourceSlot for this archive
+     */
+    public AtomicReference<CdjStatus.TrackSourceSlot> getOpusReportedDataSlot1() {
+        return opusReportedDataSlot1;
+    }
+
+    /**
+     * Returns opus reported slot for archive 2
+     * @return the TrackSourceSlot for this archive
+     */
+    public AtomicReference<CdjStatus.TrackSourceSlot> getOpusReportedDataSlot2() {
+        return opusReportedDataSlot2;
+    }
 
     /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
@@ -194,14 +206,18 @@ public class OpusProvider {
      */
     @API(status = API.Status.STABLE)
     public Database findDatabase(SlotReference slot) {
-        switch (slot.slot) {
-            case SD_SLOT:
-                return usb1database.get();
-            case USB_SLOT:
-                return usb2database.get();
-            default:
-                throw new IllegalArgumentException("Unsupported slot, use SD_SLOT for USB 1 or USB_SLOT for USB 2: " + slot.slot);
+        CdjStatus.TrackSourceSlot slot1 = opusReportedDataSlot1.get();
+        CdjStatus.TrackSourceSlot slot2 = opusReportedDataSlot2.get();
+
+        if (slot.slot == slot1){
+            return usb1database.get();
         }
+
+        if (slot.slot == slot2){
+            return usb2database.get();
+        }
+
+        return null;
     }
 
     /**
@@ -233,14 +249,18 @@ public class OpusProvider {
      */
     @API(status = API.Status.STABLE)
     public FileSystem findFilesystem(SlotReference slot) {
-        switch (slot.slot) {
-            case SD_SLOT:
-                return usb1filesystem.get();
-            case USB_SLOT:
-                return usb2filesystem.get();
-            default:
-                throw new IllegalArgumentException("Unsupported slot, use SD_SLOT for USB 1 or USB_SLOT for USB 2: " + slot.slot);
+        CdjStatus.TrackSourceSlot slot1 = opusReportedDataSlot1.get();
+        CdjStatus.TrackSourceSlot slot2 = opusReportedDataSlot2.get();
+
+        if (slot.slot == slot1) {
+            return usb1filesystem.get();
         }
+
+        if (slot.slot == slot2) {
+            return usb2filesystem.get();
+        }
+
+        return null;
     }
 
     /**
@@ -552,13 +572,47 @@ public class OpusProvider {
         }
     };
 
-    public void handlePSSIMatching(int rekordboxId, byte[] pssi, CdjStatus.TrackSourceSlot slot){
-        DataReference dataRef = new DataReference(9, slot, rekordboxId);
-        if (slot == CdjStatus.TrackSourceSlot.USB_SLOT) {
-            System.out.println("here");
-        } else {
-            System.out.println("here");
+    private boolean matchSlot(DataReference dataRef, byte[]  pssiFromOpus, Database database, FileSystem fileSystem){
+        RekordboxAnlz anlz = findExtendedAnalysis(dataRef, database, fileSystem);
+        if (anlz != null) {
+            for (RekordboxAnlz.TaggedSection taggedSection : anlz.sections()) {
+                if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
+                    // Using hex to compare signed and unsigned bytes because hex is always signed.
+                    String pssiStringFromOpus = Util.bytesToHex(pssiFromOpus);
+                    String pssiStringFromDisk = Util.bytesToHex(taggedSection._raw_body());
+
+                    return pssiStringFromOpus.contains(pssiStringFromDisk);
+                }
+            }
         }
+        return false;
+    }
+
+    public void handlePSSIMatching(int rekordboxId, byte[] pssiFromOpus, int player, CdjStatus.TrackSourceSlot slot){
+        DataReference dataRef = new DataReference(player, CdjStatus.TrackSourceSlot.SD_SLOT, rekordboxId);
+        Database database1 = usb1database.get();
+        FileSystem fileSystem1 = usb1filesystem.get();
+        if (runMatch(dataRef, pssiFromOpus, database1, fileSystem1)){
+            opusReportedDataSlot1.set(slot);
+            return;
+        }
+
+        dataRef = new DataReference(player, CdjStatus.TrackSourceSlot.USB_SLOT, rekordboxId);
+        Database database2 = usb2database.get();
+        FileSystem fileSystem2 = usb2filesystem.get();
+        if (runMatch(dataRef, pssiFromOpus, database2, fileSystem2)){
+            opusReportedDataSlot2.set(slot);
+            return;
+        }
+
+        throw new IllegalStateException("Track from unrecognized USB");
+    }
+
+    private boolean runMatch(DataReference dataRef, byte[] pssiFromOpus, Database database, FileSystem fileSystem) {
+        if (database != null) {
+            return matchSlot(dataRef, pssiFromOpus, database, fileSystem);
+        }
+        return false;
     }
 
 

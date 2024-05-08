@@ -940,7 +940,7 @@ public class WaveformDetailComponent extends JComponent {
         if (!VirtualCdj.getInstance().isRunning()) return false;
         for (final PlaybackState state : playbackStateMap.values()) {
             final CdjStatus status = (CdjStatus) VirtualCdj.getInstance().getLatestStatusFor(state.player);
-            if (status.canReportLooping()) return true;
+            if (status != null && status.canReportLooping()) return true;
         }
         return false;
     }
