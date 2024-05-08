@@ -41,17 +41,17 @@ public class ConnectionManager extends LifecycleParticipant {
     /**
      * Keeps track of the clients that are currently active, indexed by player number
      */
-    private final Map<Integer,Client> openClients = new ConcurrentHashMap<Integer, Client>();
+    private final Map<Integer,Client> openClients = new ConcurrentHashMap<>();
 
     /**
      * Keeps track of how many tasks are currently using each client.
      */
-    private final Map<Client,Integer> useCounts = new ConcurrentHashMap<Client, Integer>();
+    private final Map<Client,Integer> useCounts = new ConcurrentHashMap<>();
 
     /**
      * Keeps track of the last time each client was used, so we can time out our connection.
      */
-    private final Map<Client,Long> timestamps = new ConcurrentHashMap<Client, Long>();
+    private final Map<Client,Long> timestamps = new ConcurrentHashMap<>();
 
     /**
      * How many seconds do we allow an idle connection to stay open?
@@ -200,7 +200,7 @@ public class ConnectionManager extends LifecycleParticipant {
     /**
      * Keeps track of the database server ports of all the players we have seen on the network.
      */
-    private final Map<Integer, Integer> dbServerPorts = new ConcurrentHashMap<Integer, Integer>();
+    private final Map<Integer, Integer> dbServerPorts = new ConcurrentHashMap<>();
 
     /**
      * Look up the database server port reported by a given player. You should not use this port directly; instead
@@ -229,13 +229,9 @@ public class ConnectionManager extends LifecycleParticipant {
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
-            // logger.info("Processing device found, number: " + announcement.getNumber() + ", name: " + announcement.getName());
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    requestPlayerDBServerPort(announcement);
-                }
-            }).start();
+            if (VirtualCdj.getInstance().inOpusQuadCompatibilityMode()) return;  // Nothing to do with Opus Quad.
+            logger.debug("Processing device found, number: {}, name: {}", announcement.getDeviceNumber(), announcement.getDeviceName());
+            new Thread(() -> requestPlayerDBServerPort(announcement)).start();
         }
 
         @Override
@@ -461,11 +457,11 @@ public class ConnectionManager extends LifecycleParticipant {
      * idle timeout, and closes them.
      */
     private synchronized void closeIdleClients() {
-        List<Client> candidates = new LinkedList<Client>(openClients.values());
+        List<Client> candidates = new LinkedList<>(openClients.values());
         logger.debug("Scanning for idle clients; " + candidates.size() + " candidates.");
         for (Client client : candidates) {
             if ((useCounts.get(client) < 1) &&
-                    ((timestamps.get(client) + idleLimit.get() * 1000) <= System.currentTimeMillis())) {
+                    ((timestamps.get(client) + idleLimit.get() * 1000L) <= System.currentTimeMillis())) {
                 logger.debug("Idle time reached for unused client {}", client);
                 closeClient(client);
             }
@@ -486,20 +482,17 @@ public class ConnectionManager extends LifecycleParticipant {
                 announcementListener.deviceFound(device);
             }
 
-            new Thread(null, new Runnable() {
-                @Override
-                public void run() {
-                    while (isRunning()) {
-                        try {
-                            //noinspection BusyWait
-                            Thread.sleep(500);
-                        } catch (InterruptedException e) {
-                            logger.warn("Interrupted sleeping to close idle dbserver clients");
-                        }
-                        closeIdleClients();
+            new Thread(null, () -> {
+                while (isRunning()) {
+                    try {
+                        //noinspection BusyWait
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        logger.warn("Interrupted sleeping to close idle dbserver clients");
                     }
-                    logger.info("Idle dbserver client closer shutting down.");
+                    closeIdleClients();
                 }
+                logger.info("Idle dbserver client closer shutting down.");
             }, "Idle dbserver client closer").start();
 
             running.set(true);
