@@ -574,6 +574,15 @@ public class OpusProvider {
         }
     };
 
+    /**
+     * Method that will use PSSI + rekordboxId to confirm that the database+filesystem match the song
+     *
+     * @param dataRef This is the track/slot data
+     * @param pssiFromOpus PSSI sent from the opus
+     * @param database the database we are comparing the PSSI+rekordboxId against
+     * @param fileSystem the fileSystem we are comparing the PSSI+rekordboxId against
+     * @return true if matched
+     */
     private boolean matchSlot(DataReference dataRef, byte[]  pssiFromOpus, Database database, FileSystem fileSystem){
         RekordboxAnlz anlz = findExtendedAnalysis(dataRef, database, fileSystem);
         if (anlz != null) {
@@ -590,6 +599,15 @@ public class OpusProvider {
         return false;
     }
 
+    /**
+     * This method will compare the track PSSI + rekordboxId against all of the mounted archives to confirm which one
+     * we need to use to get metadata.
+     *
+     * @param rekordboxId track ID
+     * @param pssiFromOpus PSSI metadata from Opus
+     * @param player player number
+     * @param slot Reported slot from Opus
+     */
     public void handlePSSIMatching(int rekordboxId, byte[] pssiFromOpus, int player, CdjStatus.TrackSourceSlot slot){
         DataReference dataRef = new DataReference(player, CdjStatus.TrackSourceSlot.SD_SLOT, rekordboxId);
         Database database1 = usb1database.get();
@@ -610,6 +628,15 @@ public class OpusProvider {
         throw new IllegalStateException("Track from unrecognized USB");
     }
 
+    /**
+     * Safety wrapper for matchSlot to ensure database is not null.
+     *
+     * @param dataRef This is the track/slot data
+     * @param pssiFromOpus PSSI sent from the opus
+     * @param database the database we are comparing the PSSI+rekordboxId against
+     * @param fileSystem the fileSystem we are comparing the PSSI+rekordboxId against
+     * @return true if matched, false it database is null or if not matched
+     */
     private boolean runMatch(DataReference dataRef, byte[] pssiFromOpus, Database database, FileSystem fileSystem) {
         if (database != null) {
             return matchSlot(dataRef, pssiFromOpus, database, fileSystem);
