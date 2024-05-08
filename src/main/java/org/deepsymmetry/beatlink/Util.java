@@ -4,7 +4,6 @@ import java.awt.*;
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -366,7 +365,7 @@ public class Util {
      * @param bytes the byte array containing the packet data
      * @return -1 if not found, otherwise return the index found.
      */
-    public static int allIndicesOf(ByteBuffer buf, byte[] bytes) {
+    public static int indexOfByteBuffer(ByteBuffer buf, byte[] bytes) {
         if (bytes.length == 0) {
             return -1;
         }

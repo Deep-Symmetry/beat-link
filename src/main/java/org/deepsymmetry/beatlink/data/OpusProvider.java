@@ -16,9 +16,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -591,7 +589,7 @@ public class OpusProvider {
                 if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
                     ByteBuffer pssiBufferFromOpus = ByteBuffer.wrap(pssiFromOpus);
 
-                    return Util.allIndicesOf(pssiBufferFromOpus, taggedSection._raw_body()) > -1;
+                    return Util.indexOfByteBuffer(pssiBufferFromOpus, taggedSection._raw_body()) > -1;
                 }
             }
         }
