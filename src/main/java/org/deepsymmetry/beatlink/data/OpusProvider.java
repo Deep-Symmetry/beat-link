@@ -207,11 +207,12 @@ public class OpusProvider {
     @API(status = API.Status.STABLE)
     public Database findDatabase(SlotReference slot) {
         CdjStatus.TrackSourceSlot slot1 = opusReportedDataSlot1.get();
-        CdjStatus.TrackSourceSlot slot2 = opusReportedDataSlot2.get();
 
         if (slot.slot == slot1){
             return usb1database.get();
         }
+
+        CdjStatus.TrackSourceSlot slot2 = opusReportedDataSlot2.get();
 
         if (slot.slot == slot2){
             return usb2database.get();
@@ -250,11 +251,12 @@ public class OpusProvider {
     @API(status = API.Status.STABLE)
     public FileSystem findFilesystem(SlotReference slot) {
         CdjStatus.TrackSourceSlot slot1 = opusReportedDataSlot1.get();
-        CdjStatus.TrackSourceSlot slot2 = opusReportedDataSlot2.get();
 
         if (slot.slot == slot1) {
             return usb1filesystem.get();
         }
+
+        CdjStatus.TrackSourceSlot slot2 = opusReportedDataSlot2.get();
 
         if (slot.slot == slot2) {
             return usb2filesystem.get();

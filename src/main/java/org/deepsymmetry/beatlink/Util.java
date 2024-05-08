@@ -409,18 +409,6 @@ public class Util {
         }
     }
 
-    /**\
-     * Convert int to big array, little endian.
-     * @param i
-     * @return little endian byte array of int
-     */
-    public static byte[] intToLeByteArray(int i) {
-        final ByteBuffer bb = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE);
-        bb.order(ByteOrder.LITTLE_ENDIAN);
-        bb.putInt(i);
-        return bb.array();
-    }
-
     /**
      * Converts the bytes that make up an internet address into the corresponding integer value to make
      * it easier to perform bit-masking operations on them.
