@@ -363,15 +363,17 @@ public class Util {
      *
      * @param buf the buffer of bytes to compare against
      * @param bytes the byte array containing the packet data
-     * @return -1 if not found, otherwise return the index found.
+     * @return -1 if not found or bytes are empty, otherwise return the index found.
      */
     public static int indexOfByteBuffer(ByteBuffer buf, byte[] bytes) {
         if (bytes.length == 0) {
             return -1;
         }
+
         OptionalInt optionalInt =  IntStream.rangeClosed(buf.position(), buf.limit() - bytes.length)
                 .filter(i -> IntStream.range(0, bytes.length).allMatch(j -> buf.get(i + j) == bytes[j]))
                 .findFirst();
+
         if (optionalInt.isPresent()) {
             return optionalInt.getAsInt();
         }
