@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -588,11 +589,9 @@ public class OpusProvider {
         if (anlz != null) {
             for (RekordboxAnlz.TaggedSection taggedSection : anlz.sections()) {
                 if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
-                    // Using hex to compare signed and unsigned bytes because hex is always signed.
-                    String pssiStringFromOpus = Util.bytesToHex(pssiFromOpus);
-                    String pssiStringFromDisk = Util.bytesToHex(taggedSection._raw_body());
+                    ByteBuffer pssiBufferFromOpus = ByteBuffer.wrap(pssiFromOpus);
 
-                    return pssiStringFromOpus.contains(pssiStringFromDisk);
+                    return Util.allIndicesOf(pssiBufferFromOpus, taggedSection._raw_body()) > -1;
                 }
             }
         }

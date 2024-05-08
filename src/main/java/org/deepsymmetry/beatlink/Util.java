@@ -6,11 +6,9 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.IntStream;
 
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz.SongStructureEntry;
@@ -362,17 +360,24 @@ public class Util {
     }
 
     /**
-     * Converts bytes to a hex string representation
+     * Finds the first index of occurrences of bytes in a ByteBuffer
      *
+     * @param buf the buffer of bytes to compare against
      * @param bytes the byte array containing the packet data
-     * @return the hex string representation of the bytes
+     * @return -1 if not found, otherwise return the index found.
      */
-    public static String bytesToHex(byte[] bytes){
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02X ", b));
+    public static int allIndicesOf(ByteBuffer buf, byte[] bytes) {
+        if (bytes.length == 0) {
+            return -1;
         }
-        return sb.toString();
+        OptionalInt optionalInt =  IntStream.rangeClosed(buf.position(), buf.limit() - bytes.length)
+                .filter(i -> IntStream.range(0, bytes.length).allMatch(j -> buf.get(i + j) == bytes[j]))
+                .findFirst();
+        if (optionalInt.isPresent()) {
+            return optionalInt.getAsInt();
+        }
+
+        return -1;
     }
 
     /**
