@@ -644,10 +644,10 @@ public class CdjStatus extends DeviceUpdate {
         if (Util.isOpusQuad(deviceName)) {
             trackSourcePlayer = translateOpusPlayerNumbers(packetBytes[40]);
             trackSourceSlot = findOpusTrackSourceSlot();
-            // Indicate that we want to listen for archives on the SD slot:
-            packetBytes[115] = 0;
-            // Indicate that we want to listen for archives on the USB slot:
-            packetBytes[111] = 0;
+            // Indicate whether we have a metadata archive available for the SD slot:
+            packetBytes[115] = (byte) ((OpusProvider.getInstance().findDatabase(SlotReference.getSlotReference(1, TrackSourceSlot.SD_SLOT)) == null) ? 4 : 0);
+            // Indicate whether we have a metadata archive available for the USB slot:
+            packetBytes[111] = (byte) ((OpusProvider.getInstance().findDatabase(SlotReference.getSlotReference(1, TrackSourceSlot.USB_SLOT)) == null) ? 4 : 0);
         } else {
             trackSourcePlayer = packetBytes[40];
             trackSourceSlot = findTrackSourceSlot();
