@@ -73,6 +73,12 @@ public class OpusProvider {
         private final Database database;
         private final FileSystem fileSystem;
 
+        /**
+         * Container for the usbSlot number, database and filesystem of any particular Rekordbox USB archive.
+         * @param usbSlot the slot that we have loaded the archive into. Does not correspond with the USB number in the Opus
+         * @param database the database which contains the indexes for tracks
+         * @param fileSystem the filesystem which contains the metadata
+         */
         public RekordboxUsbArchive(int usbSlot, Database database, FileSystem fileSystem) {
             this.usbSlot = usbSlot;
             this.database = database;
@@ -178,6 +184,7 @@ public class OpusProvider {
         final RekordboxUsbArchive formerArchive = archiveReference.getAndSet(null);
         if (formerArchive != null) {
             try {
+                logger.info("Detached metadata archive {} from USB{}", formerArchive, formerArchive.usbSlot);
                 formerArchive.getDatabase().close();
                 //noinspection ResultOfMethodCallIgnored
                 formerArchive.getDatabase().sourceFile.delete();
