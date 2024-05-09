@@ -373,8 +373,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
                         SlotReference slotRef = SlotReference.getSlotReference(player, USB_SLOT);
 
+                        // If missing, fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider.
+                        // This will happen once per player on startup (or reconnect).
                         if (MetadataFinder.getInstance().getMediaDetailsFor(slotRef) == null) {
-                            // Need to fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider
                             int trackCount = 0;
                             int playlistCount = 0;
                             long lastModified = 0;
@@ -397,7 +398,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                                     );
 
                             // Forward this to VirtualCdj where it will be sent to clients. This should only happen once
-                            // per SlotReference.
+                            // per SlotReference
                             VirtualCdj.getInstance().deliverMediaDetailsUpdate(details);
                         }
 
