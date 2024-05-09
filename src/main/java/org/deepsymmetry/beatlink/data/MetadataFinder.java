@@ -541,7 +541,7 @@ public class MetadataFinder extends LifecycleParticipant {
         if (mediaMounts.add(slot)) {
             deliverMountUpdate(slot, true);
         }
-        if (!mediaDetails.containsKey(slot)) {
+        if (!mediaDetails.containsKey(slot) && !VirtualCdj.getInstance().inOpusQuadCompatibilityMode()) {
             try {
                 VirtualCdj.getInstance().sendMediaQuery(slot);
             } catch (Exception e) {

@@ -1,15 +1,23 @@
 package org.deepsymmetry.beatlink;
 
+import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
+import org.deepsymmetry.cratedigger.Database;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.*;
+
+import static org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot.SD_SLOT;
+import static org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot.USB_SLOT;
 
 /**
  * Provides the ability to emulate the Rekordbox lighting application which causes devices to share their player state
@@ -283,13 +291,30 @@ public class VirtualRekordbox extends LifecycleParticipant {
             0x01, 0x02, 0x00, 0x29,  0x00, 0x00, 0x00, 0x00,   0x00
     };
 
+    private static final byte[] requestPSSIBytes = {
+            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x55, 0x72, 0x65, 0x6b, 0x6f, 0x72,
+            0x64, 0x62, 0x6f, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+            0x00, 0x17, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x0a, 0x02, 0x03, 0x01
+    };
+
+    private static final byte[] deviceName = "rekordbox".getBytes();
+
+    public void requestPSSI() throws IOException{
+        if (DeviceFinder.getInstance().isRunning() && !DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
+            InetAddress address = DeviceFinder.getInstance().getCurrentDevices().iterator().next().getAddress();
+            DatagramPacket packet = new DatagramPacket(requestPSSIBytes, requestPSSIBytes.length, address, UPDATE_PORT);
+
+            socket.get().send(packet);
+        }
+    }
+
     /**
      * Given an update packet sent to us, create the appropriate object to describe it.
      *
      * @param packet the packet received on our update port
      * @return the corresponding {@link DeviceUpdate} subclass, or {@code nil} if the packet was not recognizable
      */
-    private DeviceUpdate buildUpdate(DatagramPacket packet) throws IOException {
+    private DeviceUpdate buildUpdate(DatagramPacket packet) {
         final int length = packet.getLength();
         final Util.PacketType kind = Util.validateHeader(packet, UPDATE_PORT);
         if (kind == null) {
@@ -313,14 +338,10 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
                     CdjStatus status = new CdjStatus(packet);
 
-                    // Need to fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider
-                    MediaDetails details = new MediaDetails(
-                            SlotReference.getSlotReference(status.getDeviceNumber(), CdjStatus.TrackSourceSlot.SD_SLOT),
-                            CdjStatus.TrackType.REKORDBOX,
-                            status.getDeviceName());
-
-                    // Forward this to VirtualCdj where it will be sent to clients.
-                    VirtualCdj.getInstance().deliverMediaDetailsUpdate(details);
+                    // If player number is zero the deck does not have a song loaded, just return.
+                    if (status.getTrackSourcePlayer() == 0) {
+                        return null;
+                    }
 
                     return status;
                 } else {
@@ -338,7 +359,51 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 }
 
             case OPUS_METADATA:
-                logger.info("Received track load metadata from player " + packet.getData()[0x21]);
+                byte[] data = packet.getData();
+                // PSSI Data
+                if (data[0x25] == 10) {
+
+                    int rekordboxId = (int) Util.bytesToNumber(data, 0x28, 4);
+                    // If track is loaded and OpusProvider has attached media
+                    if (rekordboxId != 0 && OpusProvider.getInstance().hasAttachedArchive()) {
+                        final byte[] pssiFromOpus = Arrays.copyOfRange(data, 0x35, data.length);
+                        final int player = Util.translateOpusPlayerNumbers(data[0x21]);
+
+                        OpusProvider.getInstance().handlePSSIMatching(rekordboxId, pssiFromOpus, player);
+
+                        SlotReference slotRef = SlotReference.getSlotReference(player, USB_SLOT);
+
+                        // If missing, fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider.
+                        // This will happen once per player on startup (or reconnect).
+                        if (MetadataFinder.getInstance().getMediaDetailsFor(slotRef) == null) {
+                            int trackCount = 0;
+                            int playlistCount = 0;
+                            long lastModified = 0;
+
+                            OpusProvider.RekordboxUsbArchive archive = OpusProvider.getInstance().findArchive(slotRef);
+                            if (archive !=  null) {
+                                Database database = archive.getDatabase();
+                                trackCount = database.trackIndex.size();
+                                playlistCount = database.playlistIndex.size();
+                                lastModified = database.sourceFile.lastModified();
+
+                            }
+
+                            MediaDetails details = new MediaDetails(slotRef,
+                                    CdjStatus.TrackType.REKORDBOX,
+                                    OpusProvider.opusName,
+                                    trackCount,
+                                    playlistCount,
+                                    lastModified
+                                    );
+
+                            // Forward this to VirtualCdj where it will be sent to clients. This should only happen once
+                            // per SlotReference
+                            VirtualCdj.getInstance().deliverMediaDetailsUpdate(details);
+                        }
+
+                    }
+                }
                 return null;
 
             default:
@@ -719,9 +784,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
         // Find the network interface and address to use to communicate with the first device we found.
         matchingInterfaces = new ArrayList<NetworkInterface>();
         matchedAddress = null;
-        DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
+        DeviceAnnouncement announcement = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            InterfaceAddress candidate = Util.findMatchingAddress(aDevice, networkInterface);
+            InterfaceAddress candidate = Util.findMatchingAddress(announcement, networkInterface);
             if (candidate != null) {
                 if (matchedAddress == null) {
                     matchedAddress = candidate;
@@ -731,7 +796,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         }
 
         if (matchedAddress == null) {
-            logger.warn("Unable to find network interface to communicate with " + aDevice +
+            logger.warn("Unable to find network interface to communicate with " + announcement +
                     ", giving up.");
             return false;
         }
@@ -846,6 +911,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
             sendRekordboxLightingPacket();
 
             Thread.sleep(getAnnounceInterval());
+
+            requestPSSI();
+
         } catch (Throwable t) {
             logger.warn("Unable to send announcement packets, flushing DeviceFinder due to likely network change and shutting down.", t);
             DeviceFinder.getInstance().flush();

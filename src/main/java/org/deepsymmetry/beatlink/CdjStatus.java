@@ -1,7 +1,5 @@
 package org.deepsymmetry.beatlink;
 
-import org.deepsymmetry.beatlink.data.OpusProvider;
-import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -505,23 +503,6 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * Determine the enum value corresponding to the track source slot found in the packet from an Opus-Quad.
-     *
-     * @return the proper value
-     */
-    private TrackSourceSlot findOpusTrackSourceSlot() {
-        if (rekordboxId != 0) {
-           switch (packetBytes[41]){
-               case 0: return TrackSourceSlot.SD_SLOT;
-               // TODO, figure out a way to identify more than one USB at a time
-               case 3: return TrackSourceSlot.SD_SLOT;
-           }
-        }
-
-        return TrackSourceSlot.UNKNOWN;
-    }
-
-    /**
      * Determine the enum value corresponding to the track type found in the packet.
      *
      * @return the proper value
@@ -643,12 +624,10 @@ public class CdjStatus extends DeviceUpdate {
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
 
         if (Util.isOpusQuad(deviceName)) {
-            trackSourcePlayer = translateOpusPlayerNumbers(packetBytes[40]);
-            trackSourceSlot = findOpusTrackSourceSlot();
-            // Indicate whether we have a metadata archive available for the SD slot:
-            packetBytes[115] = (byte) ((OpusProvider.getInstance().findDatabase(SlotReference.getSlotReference(1, TrackSourceSlot.SD_SLOT)) == null) ? 4 : 0);
-            // Indicate whether we have a metadata archive available for the USB slot:
-            packetBytes[111] = (byte) ((OpusProvider.getInstance().findDatabase(SlotReference.getSlotReference(1, TrackSourceSlot.USB_SLOT)) == null) ? 4 : 0);
+            trackSourcePlayer = Util.translateOpusPlayerNumbers(packetBytes[40]);
+            trackSourceSlot = TrackSourceSlot.USB_SLOT;
+            // Indicate that we have a metadata archive available for the USB slot:
+            packetBytes[111] = 0;
         } else {
             trackSourcePlayer = packetBytes[40];
             trackSourceSlot = findTrackSourceSlot();

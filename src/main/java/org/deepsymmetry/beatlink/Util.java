@@ -5,12 +5,11 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.IntStream;
 
+import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz.SongStructureEntry;
 import org.slf4j.Logger;
@@ -358,6 +357,29 @@ public class Util {
             result = (result << 8) + unsign(buffer[index]);
         }
         return result;
+    }
+
+    /**
+     * Finds the first index of occurrences of bytes in a ByteBuffer
+     *
+     * @param buf the buffer of bytes to compare against
+     * @param bytes the byte array containing the packet data
+     * @return -1 if not found or bytes are empty, otherwise return the index found.
+     */
+    public static int indexOfByteBuffer(ByteBuffer buf, byte[] bytes) {
+        if (bytes.length == 0) {
+            return -1;
+        }
+
+        OptionalInt optionalInt =  IntStream.rangeClosed(buf.position(), buf.limit() - bytes.length)
+                .filter(i -> IntStream.range(0, bytes.length).allMatch(j -> buf.get(i + j) == bytes[j]))
+                .findFirst();
+
+        if (optionalInt.isPresent()) {
+            return optionalInt.getAsInt();
+        }
+
+        return -1;
     }
 
     /**
@@ -992,8 +1014,18 @@ public class Util {
     }
 
     public static boolean isOpusQuad(String deviceName){
-        return deviceName.equals("OPUS-QUAD");
+        return deviceName.equals(OpusProvider.opusName);
     }
+
+    /**
+     * Adjust the player numbers from the Opus-Quad so that they are 1-4 as expected.
+     *
+     * @return the proper value
+     */
+    public static int translateOpusPlayerNumbers(int reportedPlayerNumber) {
+        return reportedPlayerNumber & 7;
+    }
+
 
     /**
      * Prevent instantiation.

@@ -940,7 +940,9 @@ public class WaveformDetailComponent extends JComponent {
         if (!VirtualCdj.getInstance().isRunning()) return false;
         for (final PlaybackState state : playbackStateMap.values()) {
             final CdjStatus status = (CdjStatus) VirtualCdj.getInstance().getLatestStatusFor(state.player);
-            if (status.canReportLooping()) return true;
+            // status can be null because Opus will send empty updates when a song has not yet been loaded into a player.
+            // We should skip in this case.
+            if (status != null && status.canReportLooping()) return true;
         }
         return false;
     }

@@ -8,11 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
-import java.nio.file.FileSystem;
 import java.util.*;
 
 /**
@@ -131,18 +129,18 @@ public class MediaDetails {
      * @param mediaType     Media Type to Emulate
      * @param name          Name of device
      */
-    MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name) {
+    public MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name,
+                 int trackCount, int playlistCount, long lastModified) {
         if (!OpusProvider.getInstance().isRunning()) {
             throw new IllegalStateException("OpusProvider must be started up to use this Constructor");
         }
-        Database db = OpusProvider.getInstance().findDatabase(slotReference);
         this.slotReference = slotReference;
         this.mediaType = mediaType;
         this.name = name;
-        this.creationDate = Long.toString(db.sourceFile.lastModified());
-        this.trackCount = db.trackIndex.size();
+        this.creationDate = Long.toString(lastModified);
+        this.trackCount = trackCount;
         this.totalSize = 0;
-        this.playlistCount = db.playlistIndex.size();
+        this.playlistCount = playlistCount;
         this.rawBytes = ByteBuffer.wrap(new byte[]{});
         this.color = new Color(0);
         this.freeSpace = 0;
