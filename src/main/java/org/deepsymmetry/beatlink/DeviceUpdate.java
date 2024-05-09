@@ -61,7 +61,7 @@ public abstract class DeviceUpdate {
         preNexusCdj = deviceName.startsWith("CDJ") && (deviceName.endsWith("900") || deviceName.endsWith("2000"));
 
         if (Util.isOpusQuad(deviceName)){
-            deviceNumber = translateOpusPlayerNumbers(packetBytes[40]);
+            deviceNumber = Util.translateOpusPlayerNumbers(packetBytes[40]);
         } else {
             deviceNumber = Util.unsign(packetBytes[33]);
         }
@@ -200,15 +200,6 @@ public abstract class DeviceUpdate {
      */
     @SuppressWarnings("WeakerAccess")
     public abstract boolean isBeatWithinBarMeaningful();
-
-    /**
-     * Adjust the player numbers from the Opus-Quad so that they are 1-4 as expected.
-     *
-     * @return the proper value
-     */
-    int translateOpusPlayerNumbers(int reportedPlayerNumber) {
-        return reportedPlayerNumber & 7;
-    }
 
     @Override
     public String toString() {

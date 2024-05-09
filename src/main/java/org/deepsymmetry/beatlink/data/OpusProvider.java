@@ -16,6 +16,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -33,12 +34,19 @@ import java.util.concurrent.atomic.AtomicReference;
 @API(status = API.Status.STABLE)  // TODO get rid of all IntelliJ code pattern entry points and @SuppressWarnings annotations, use this instead.
 public class OpusProvider {
 
-    private final Logger logger = LoggerFactory.getLogger(OpusProvider.class);
+    private static final Logger logger = LoggerFactory.getLogger(OpusProvider.class);
+
+    /**
+     * Public constant for the opus name to be used throughout the codebase.
+     */
+    public static final String opusName = "OPUS-QUAD";
+
+
 
     /**
      * Keep track of whether we are running.
      */
-    private final AtomicBoolean running = new AtomicBoolean(false);
+    private static final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
      * Check whether we are currently running.
@@ -51,50 +59,88 @@ public class OpusProvider {
     }
 
     /**
-     * Holds the ZIP filesystem of the media export mounted for USB slot 1 of the Opus Quad.
+     * Check whether we currently have any attached media
+     *
+     * @return true if any database has attached data
      */
-    private final AtomicReference<FileSystem> usb1filesystem = new AtomicReference<>();
+    @API(status = API.Status.STABLE)
+    public boolean hasAttachedArchive() {
+        return usb1archive.get() != null || usb2archive.get() != null || usb3archive.get() != null;
+    }
 
-    /**
-     * Storing the USB slot that the Opus is reporting as this archive.
-     */
-    private  AtomicReference<CdjStatus.TrackSourceSlot> opusReportedDataSlot1 =  new AtomicReference<>();
+    public class RekordboxUsbArchive {
+        private int usbSlot;
+        private final Database database;
+        private final FileSystem fileSystem;
 
-    /**
-     * Holds the parsed database for the media we are proxying for the USB 1 slot of the Opus Quad.
-     */
-    private final AtomicReference<Database> usb1database = new AtomicReference<>();
+        public RekordboxUsbArchive(int usbSlot, Database database, FileSystem fileSystem) {
+            this.usbSlot = usbSlot;
+            this.database = database;
+            this.fileSystem = fileSystem;
+        }
 
-    /**
-     * Holds the ZIP filesystem of the media export mounted for USB slot 2 of the Opus Quad.
-     */
-    private final AtomicReference<FileSystem> usb2filesystem = new AtomicReference<>();
+        public int getUsbSlot() {
+            return usbSlot;
+        }
 
-    /**
-     * Storing the current USB slot that the Opus is reporting as USB2. The Opus can report the same slot differently
-     * when it restarts so it needs to be re-evaluated when PSSI + track ID don't match.
-     */
-    private AtomicReference<CdjStatus.TrackSourceSlot> opusReportedDataSlot2 =  new AtomicReference<>();
+        public Database getDatabase() {
+            return database;
+        }
 
-    /**
-     * Holds the parsed database for the media we are proxying for the USB 2 slot of the Opus Quad.
-     */
-    private final AtomicReference<Database> usb2database = new AtomicReference<>();
-
-    /**
-     * Returns opus reported slot for archive 1
-     * @return the TrackSourceSlot for this archive
-     */
-    public AtomicReference<CdjStatus.TrackSourceSlot> getOpusReportedDataSlot1() {
-        return opusReportedDataSlot1;
+        public FileSystem getFileSystem() {
+            return fileSystem;
+        }
     }
 
     /**
-     * Returns opus reported slot for archive 2
-     * @return the TrackSourceSlot for this archive
+     * Holds the archive information (USB slot number, parsed Database and Zipped Filesystem)
+     * of the 1st media export mounted for one of the Opus USB slots. These are dynamic and do not have
+     * to match Opus USB slot numbers.
      */
-    public AtomicReference<CdjStatus.TrackSourceSlot> getOpusReportedDataSlot2() {
-        return opusReportedDataSlot2;
+    private final AtomicReference<RekordboxUsbArchive> usb1archive = new AtomicReference<>();
+
+    /**
+     * Holds the archive information (USB slot number, parsed Database and Zipped Filesystem)
+     * of the 2nd media export mounted for one of the Opus USB slots. These are dynamic and do not have
+     * to match Opus USB slot numbers.
+     */
+    private final AtomicReference<RekordboxUsbArchive> usb2archive = new AtomicReference<>();
+
+    /**
+     * Holds the archive information (USB slot number, parsed Database and Zipped Filesystem)
+     * of the 3rd media export mounted for one of the Opus USB slots. These are dynamic and do not have
+     * to match Opus USB slot numbers.
+     */
+    private final AtomicReference<RekordboxUsbArchive> usb3archive = new AtomicReference<>();
+
+    /**
+     * Tracks the Database and FileSystem to use for which Opus player.
+     */
+    private final Map<SlotReference, RekordboxUsbArchive> slotReferenceToArchive = new ConcurrentHashMap<>();
+
+    /**
+     * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
+     * This is a convenience method to be backwards compatible for BeatLinkTrigger, but this should probably go.
+     *
+     * @param archiveFile the metadata archive that can provide metadata for tracks playing from the specified USB slot, or
+     *                {@code null} to stop providing metadata for that slot
+     * @param slot which TrackSourceSlot slot we are to provide metadata for. They are mapped to the USB slots
+     *
+     * @throws java.io.IOException if there is a problem attaching the archive
+     * @throws IllegalArgumentException if a slot other than the SD or USB slot is specified
+     */
+    @API(status = API.Status.STABLE)
+    public synchronized void attachMetadataArchive(File archiveFile, CdjStatus.TrackSourceSlot slot) throws IOException {
+        switch(slot){
+            case USB_SLOT:
+                attachMetadataArchive(archiveFile, 1);
+                break;
+            case SD_SLOT:
+                attachMetadataArchive(archiveFile, 2);
+                break;
+            case CD_SLOT:
+                attachMetadataArchive(archiveFile, 3);
+        }
     }
 
     /**
@@ -102,47 +148,46 @@ public class OpusProvider {
      * This must be a file created using {@link org.deepsymmetry.cratedigger.Archivist#createArchive(Database, File)}
      * from that media.
      *
-     * @param archive the metadata archive that can provide metadata for tracks playing from the specified USB slot, or
+     * @param archiveFile the metadata archive that can provide metadata for tracks playing from the specified USB slot, or
      *                {@code null} to stop providing metadata for that slot
-     * @param slot which USB slot we are to provide metadata for (we follow the XDJ-XZ convention of using
-     *            {@link CdjStatus.TrackSourceSlot#SD_SLOT} to represent USB 1, and
-     *            {@link CdjStatus.TrackSourceSlot#USB_SLOT} to represent USB 2)
+     * @param usbSlotNumber which USB slot we are to provide metadata for. Acceptable values are 1, 2 and 3.
      *
      * @throws java.io.IOException if there is a problem attaching the archive
      * @throws IllegalArgumentException if a slot other than the SD or USB slot is specified
      */
     @API(status = API.Status.STABLE)
-    public synchronized void attachMetadataArchive(File archive, CdjStatus.TrackSourceSlot slot) throws IOException {
+    public synchronized void attachMetadataArchive(File archiveFile, int usbSlotNumber) throws IOException {
         // Determine which slot we are adjusting the archive for.
-        if (slot != CdjStatus.TrackSourceSlot.SD_SLOT && slot != CdjStatus.TrackSourceSlot.USB_SLOT) {
-            throw new IllegalArgumentException("Unsupported slot, use SD_SLOT for USB 1 or USB_SLOT for USB 2: " + slot);
-        }
+        final AtomicReference<RekordboxUsbArchive> archiveReference;
 
-        final AtomicReference<Database> databaseReference = (slot == CdjStatus.TrackSourceSlot.SD_SLOT) ? usb1database : usb2database;
-        final AtomicReference<FileSystem> filesystemReference = (slot == CdjStatus.TrackSourceSlot.SD_SLOT) ? usb1filesystem : usb2filesystem;
+        switch (usbSlotNumber){
+            case 1:
+                archiveReference = usb1archive;
+                break;
+            case 2:
+                archiveReference = usb2archive;
+                break;
+            case 3:
+                archiveReference = usb3archive;
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported usbSlotNumber, can only use 1, 2 or 3.");
+        }
 
         // First close and remove any archive we had previously attached for this slot.
-        final Database formerDatabase = databaseReference.getAndSet(null);
-        if (formerDatabase != null) {
-            try {
-                formerDatabase.close();
-                //noinspection ResultOfMethodCallIgnored
-                formerDatabase.sourceFile.delete();
-            } catch (IOException e) {
-                logger.error("Problem closing database for {}", slot, e);
-            }
-        }
-        final FileSystem formerArchive = filesystemReference.getAndSet(null);
+        final RekordboxUsbArchive formerArchive = archiveReference.getAndSet(null);
         if (formerArchive != null) {
             try {
-                logger.info("Detached metadata archive {} from slot {}", formerArchive, slot);
-                formerArchive.close();
+                formerArchive.getDatabase().close();
+                //noinspection ResultOfMethodCallIgnored
+                formerArchive.getDatabase().sourceFile.delete();
+                formerArchive.getFileSystem().close();
             } catch (IOException e) {
-                logger.error("Problem closing archive filesystem for USB 1", e);
+                logger.error("Problem closing database or FileSystem for USB{}", usbSlotNumber, e);
             }
 
             // Clean up any extracted files associated with this archive.
-            final String prefix = slotPrefix(slot);
+            final String prefix = slotPrefix(usbSlotNumber);
             File[] files = extractDirectory.listFiles();
             if (files != null) {
                 for (File file : files) {
@@ -154,86 +199,57 @@ public class OpusProvider {
             }
         }
 
-        if (archive == null) return;  // Detaching is all we were asked to do, so we are done.
+        if (archiveFile == null) return;  // Detaching is all we were asked to do, so we are done.
 
         // Open the new archive filesystem.
-        FileSystem filesystem = FileSystems.newFileSystem(archive.toPath(), Thread.currentThread().getContextClassLoader());
+        FileSystem filesystem = FileSystems.newFileSystem(archiveFile.toPath(), Thread.currentThread().getContextClassLoader());
         try {
-            final File databaseFile = new File(extractDirectory, slotPrefix(slot) + "export.pdb");
+            final File databaseFile = new File(extractDirectory, slotPrefix(usbSlotNumber) + "export.pdb");
             Files.copy(filesystem.getPath("/export.pdb"), databaseFile.toPath());
             final Database database = new Database(databaseFile);
-            // If we got here, this looks like a valid metadata archive because we found a valid database export inside it.
-            databaseReference.set(database);
-            filesystemReference.set(filesystem);
 
-            logger.info("Attached metadata archive {} for slot {}.", filesystem, slot);
+            // If we got here, this looks like a valid metadata archive because we found a valid database export inside it.
+            archiveReference.set(new RekordboxUsbArchive(usbSlotNumber, database, filesystem));
+
+            logger.info("Attached metadata archive {} for slot {}.", filesystem, usbSlotNumber);
         } catch (Exception e) {
             filesystem.close();
-            throw new IOException("Problem reading export.pdb from metadata archive " + archive, e);
+            throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
         }
     }
 
     /**
-     * Find the database we have been provided and parsed that can provide information about the supplied slot
-     * reference, if any (we follow the XDJ-XZ convention of using {@link CdjStatus.TrackSourceSlot#SD_SLOT}
-     * to represent USB 1, and {@link CdjStatus.TrackSourceSlot#USB_SLOT} to represent USB 2). Will always return
-     * {@code null} when {@link VirtualRekordbox} is not running, because we only supply metadata for Opus Quad
-     * devices that can’t do it on their own.
-     *
-     * @param reference identifies the location for which data is desired
-     * @return the appropriate rekordbox extract to start from in finding that data, if we have one
-     * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
-     */
-    @API(status = API.Status.STABLE)
-    public Database findDatabase(DataReference reference) {
-        if (VirtualRekordbox.getInstance().isRunning()) {
-            return findDatabase(reference.getSlotReference());
-        }
-        return null;
-    }
-
-    /**
-     * Find the database we have been provided and parsed that can provide information about the supplied slot
-     * reference, if any (we follow the XDJ-XZ convention of using {@link CdjStatus.TrackSourceSlot#SD_SLOT}
+     * Find ZIP filesystem we have been provided that can provide metadata for the supplied
+     * slot reference, if any (we follow the XDJ-XZ convention of using {@link CdjStatus.TrackSourceSlot#SD_SLOT}
      * to represent USB 1, and {@link CdjStatus.TrackSourceSlot#USB_SLOT} to represent USB 2).
      *
-     * @param slot identifies the slot for which data is desired
+     * This is a convenience backwards compatible method for BLT to use.
      *
-     * @return the appropriate rekordbox extract to start from in finding that data, if we have one
+     * @param reference identifies the location for which metadata is desired
      *
-     * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
+     * @return the appropriate RekordboxArchive ZIP filesystem holding that metadata if we have one, or null.
      */
     @API(status = API.Status.STABLE)
-    public Database findDatabase(SlotReference slot) {
-        CdjStatus.TrackSourceSlot slot1 = opusReportedDataSlot1.get();
-
-        if (slot.slot == slot1){
-            return usb1database.get();
+    public FileSystem findFilesystem(SlotReference reference) {
+        RekordboxUsbArchive archive = findArchive(reference);
+        if (archive != null) {
+            return archive.getFileSystem();
         }
-
-        CdjStatus.TrackSourceSlot slot2 = opusReportedDataSlot2.get();
-
-        if (slot.slot == slot2){
-            return usb2database.get();
-        }
-
         return null;
     }
 
     /**
-     * Find the ZIP filesystem we have been provided that can provide metadata for the supplied slot
-     * reference, if any (we follow the XDJ-XZ convention of using {@link CdjStatus.TrackSourceSlot#SD_SLOT}
+     * Find the USB number, Database and ZIP filesystem we have been provided that can provide metadata for the supplied
+     * slot reference, if any (we follow the XDJ-XZ convention of using {@link CdjStatus.TrackSourceSlot#SD_SLOT}
      * to represent USB 1, and {@link CdjStatus.TrackSourceSlot#USB_SLOT} to represent USB 2).
      *
      * @param reference identifies the location for which metadata is desired
      *
-     * @return the appropriate archive ZIP filesystem holding that metadata, if we have one
-     *
-     * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
+     * @return the appropriate RekordboxArchive ZIP filesystem holding that metadata if we have one, or null.
      */
     @API(status = API.Status.STABLE)
-    public FileSystem findFilesystem(DataReference reference) {
-        return findFilesystem(reference.getSlotReference());
+    public RekordboxUsbArchive findArchive(DataReference reference) {
+        return findArchive(reference.getSlotReference());
     }
 
     /**
@@ -248,20 +264,8 @@ public class OpusProvider {
      * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
      */
     @API(status = API.Status.STABLE)
-    public FileSystem findFilesystem(SlotReference slot) {
-        CdjStatus.TrackSourceSlot slot1 = opusReportedDataSlot1.get();
-
-        if (slot.slot == slot1) {
-            return usb1filesystem.get();
-        }
-
-        CdjStatus.TrackSourceSlot slot2 = opusReportedDataSlot2.get();
-
-        if (slot.slot == slot2) {
-            return usb2filesystem.get();
-        }
-
-        return null;
+    public RekordboxUsbArchive findArchive(SlotReference slot) {
+        return slotReferenceToArchive.get(slot);
     }
 
     /**
@@ -272,8 +276,8 @@ public class OpusProvider {
      *
      * @return the prefix with which the names of all files downloaded from that slot will start
      */
-    private String slotPrefix(CdjStatus.TrackSourceSlot slot) {
-        return "slot-" + slot.protocolValue + "-";
+    private String slotPrefix(int slot) {
+        return "slot-" + slot + "-";
     }
 
     /**
@@ -286,8 +290,8 @@ public class OpusProvider {
      *
      * @return the parsed file containing the track analysis
      */
-    private RekordboxAnlz findTrackAnalysis(DataReference track, Database database, FileSystem filesystem) {
-        return findTrackAnalysis(track, database, filesystem, ".DAT");
+    private RekordboxAnlz findTrackAnalysis(int usbSlotNumber, DataReference track, Database database, FileSystem filesystem) {
+        return findTrackAnalysis(usbSlotNumber, track, database, filesystem, ".DAT");
     }
 
     /**
@@ -300,8 +304,8 @@ public class OpusProvider {
      *
      * @return the parsed file containing the track analysis
      */
-    private RekordboxAnlz findExtendedAnalysis(DataReference track, Database database, FileSystem filesystem) {
-        return findTrackAnalysis(track, database, filesystem, ".EXT");
+    private RekordboxAnlz findExtendedAnalysis(int usbSlotNumber, DataReference track, Database database, FileSystem filesystem) {
+        return findTrackAnalysis(usbSlotNumber, track, database, filesystem, ".EXT");
     }
 
     /**
@@ -334,12 +338,12 @@ public class OpusProvider {
      *
      * @return the parsed file containing the track analysis
      */
-    private RekordboxAnlz findTrackAnalysis(DataReference track, Database database, FileSystem filesystem, String extension) {
+    private RekordboxAnlz findTrackAnalysis(int usbSlotNumber, DataReference track, Database database, FileSystem filesystem, String extension) {
         File file = null;
         try {
             RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
             if (trackRow != null) {
-                file = new File(extractDirectory, slotPrefix(track.getSlotReference().slot) +
+                file = new File(extractDirectory, slotPrefix(usbSlotNumber) +
                         "track-" + track.rekordboxId + "-anlz" + extension.toLowerCase());
                 final String filePath = file.getCanonicalPath();
                 final String analyzePath = Database.getText(trackRow.analyzePath());
@@ -385,8 +389,9 @@ public class OpusProvider {
 
         @Override
         public TrackMetadata getTrackMetadata(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
-            if (database != null) {
+            final RekordboxUsbArchive archive = findArchive(track);
+            if (archive != null) {
+                Database database = archive.getDatabase();
                 try {
                     return new TrackMetadata(track, database, getCueList(sourceMedia, track));
                 } catch (Exception e) {
@@ -399,29 +404,33 @@ public class OpusProvider {
         @Override
         public AlbumArt getAlbumArt(MediaDetails sourceMedia, DataReference art) {
             File file = null;
-            final Database database = findDatabase(art);
-            final FileSystem archive = findFilesystem(art);
-            if (database != null) {
+            final RekordboxUsbArchive archive = findArchive(art);
+
+            if (archive != null) {
+
+                final FileSystem fileSystem = archive.getFileSystem();
+                final Database database = archive.getDatabase();
+
                 try {
                     RekordboxPdb.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
                     if (artworkRow != null) {
-                        file = new File(extractDirectory, slotPrefix(art.getSlotReference().slot) +
+                        file = new File(extractDirectory, slotPrefix(archive.getUsbSlot()) +
                                 "art-" + art.rekordboxId + ".jpg");
                         if (file.canRead()) {
                             return new AlbumArt(art, file);
                         }
                         if (ArtFinder.getInstance().getRequestHighResolutionArt()) {
                             try {
-                                extractFile(archive, Util.highResolutionPath(Database.getText(artworkRow.path())), file);
+                                extractFile(fileSystem, Util.highResolutionPath(Database.getText(artworkRow.path())), file);
                             } catch (IOException e) {
                                 if (!(e instanceof java.nio.file.NoSuchFileException)) {
                                     logger.error("Unexpected exception type trying to load high resolution album art", e);
                                 }
                                 // Fall back to looking for the normal resolution art.
-                                extractFile(archive, Database.getText(artworkRow.path()), file);
+                                extractFile(fileSystem, Database.getText(artworkRow.path()), file);
                             }
                         } else {
-                            extractFile(archive, Database.getText(artworkRow.path()), file);
+                            extractFile(fileSystem, Database.getText(artworkRow.path()), file);
                         }
                         return new AlbumArt(art, file);
                     } else {
@@ -439,10 +448,14 @@ public class OpusProvider {
 
         @Override
         public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
-            if (database != null) {
+            final RekordboxUsbArchive archive = findArchive(track);
+
+            if (archive != null) {
+
+                final Database database = archive.getDatabase();
+
                 try {
-                    final RekordboxAnlz file = findTrackAnalysis(track, database, findFilesystem(track));
+                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, database, archive.getFileSystem());
                     if (file != null) {
                         try {
                             return new BeatGrid(track, file);
@@ -459,14 +472,17 @@ public class OpusProvider {
 
         @Override
         public CueList getCueList(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
-            final FileSystem archive = findFilesystem(track);
-            if (database != null) {
+            final RekordboxUsbArchive archive = findArchive(track);
+            if (archive != null) {
+
+                final FileSystem fileSystem = archive.getFileSystem();
+                final Database database = archive.getDatabase();
+
                 try {
                     // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues
-                    RekordboxAnlz file = findExtendedAnalysis(track, database, archive);
+                    RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, database, fileSystem);
                     if (file ==  null) {  // No extended analysis found, fall back to the basic one
-                        file = findTrackAnalysis(track, database, archive);
+                        file = findTrackAnalysis(archive.getUsbSlot(), track, database, fileSystem);
                     }
                     if (file != null) {
                         try {
@@ -483,11 +499,14 @@ public class OpusProvider {
 
         @Override
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
-            final FileSystem archive = findFilesystem(track);
-            if (database != null) {
+            RekordboxUsbArchive archive = findArchive(track);
+            if (archive != null) {
+
+                final Database database = archive.getDatabase();
+                final FileSystem fileSystem = archive.getFileSystem();
+
                 try {
-                    final RekordboxAnlz file = findExtendedAnalysis(track, database, archive);  // Look for color preview first
+                    final RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, database, fileSystem);  // Look for color preview first
                     if (file != null) {
                         try {
                             return new WaveformPreview(track, file);
@@ -501,7 +520,7 @@ public class OpusProvider {
                     logger.error("Problem fetching color waveform preview for track {} from database {}", track, database, e);
                 }
                 try {
-                    final RekordboxAnlz file = findTrackAnalysis(track, database, archive);
+                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, database, fileSystem);
                     if (file != null) {
                         try {
                             return new WaveformPreview(track, file);
@@ -518,10 +537,14 @@ public class OpusProvider {
 
         @Override
         public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
-            if (database != null) {
+            final RekordboxUsbArchive archive = findArchive(track);
+
+            if (archive != null) {
+
+                final Database database = archive.getDatabase();
+
                 try {
-                    RekordboxAnlz file = findExtendedAnalysis(track, database, findFilesystem(track));
+                    RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, database, archive.getFileSystem());
                     if (file != null) {
                         try {
                             return new WaveformDetail(track, file);
@@ -538,8 +561,12 @@ public class OpusProvider {
 
         @Override
         public RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag) {
-            final Database database = findDatabase(track);
-            if (database != null) {
+            final RekordboxUsbArchive archive = findArchive(track);
+
+            if (archive != null) {
+
+                final Database database = archive.getDatabase();
+                final FileSystem fileSystem = archive.getFileSystem();
                 try {
                     if ((typeTag.length()) > 4) {
                         throw new IllegalArgumentException("typeTag cannot be longer than four characters");
@@ -553,7 +580,7 @@ public class OpusProvider {
                         }
                     }
 
-                    final RekordboxAnlz file = findTrackAnalysis(track, database, findFilesystem(track), fileExtension);  // Open the desired file to scan.
+                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, database, fileSystem, fileExtension);  // Open the desired file to scan.
                     if (file != null) {
                         try {  // Scan for the requested tag type.
                             for (RekordboxAnlz.TaggedSection section : file.sections()) {
@@ -578,12 +605,11 @@ public class OpusProvider {
      *
      * @param dataRef This is the track/slot data
      * @param pssiFromOpus PSSI sent from the opus
-     * @param database the database we are comparing the PSSI+rekordboxId against
-     * @param fileSystem the fileSystem we are comparing the PSSI+rekordboxId against
+     * @param archive the database and filesystem we are comparing the PSSI+rekordboxId against
      * @return true if matched
      */
-    private boolean matchSlot(DataReference dataRef, byte[]  pssiFromOpus, Database database, FileSystem fileSystem){
-        RekordboxAnlz anlz = findExtendedAnalysis(dataRef, database, fileSystem);
+    private boolean matchSlot(DataReference dataRef, byte[]  pssiFromOpus, RekordboxUsbArchive archive){
+        RekordboxAnlz anlz = findExtendedAnalysis(archive.getUsbSlot(), dataRef, archive.getDatabase(), archive.getFileSystem());
         if (anlz != null) {
             for (RekordboxAnlz.TaggedSection taggedSection : anlz.sections()) {
                 if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
@@ -603,26 +629,23 @@ public class OpusProvider {
      * @param rekordboxId track ID
      * @param pssiFromOpus PSSI metadata from Opus
      * @param player player number
-     * @param slot Reported slot from Opus
      */
-    public void handlePSSIMatching(int rekordboxId, byte[] pssiFromOpus, int player, CdjStatus.TrackSourceSlot slot){
-        DataReference dataRef = new DataReference(player, CdjStatus.TrackSourceSlot.SD_SLOT, rekordboxId);
-        Database database1 = usb1database.get();
-        FileSystem fileSystem1 = usb1filesystem.get();
-        if (runMatch(dataRef, pssiFromOpus, database1, fileSystem1)){
-            opusReportedDataSlot1.set(slot);
-            return;
-        }
+    public void handlePSSIMatching(int rekordboxId, byte[] pssiFromOpus, int player){
+        SlotReference slotRef = SlotReference.getSlotReference(player, CdjStatus.TrackSourceSlot.USB_SLOT);
+        DataReference dataRef = new DataReference(slotRef, rekordboxId);
 
-        dataRef = new DataReference(player, CdjStatus.TrackSourceSlot.USB_SLOT, rekordboxId);
-        Database database2 = usb2database.get();
-        FileSystem fileSystem2 = usb2filesystem.get();
-        if (runMatch(dataRef, pssiFromOpus, database2, fileSystem2)){
-            opusReportedDataSlot2.set(slot);
-            return;
-        }
+        RekordboxUsbArchive[] archives = new RekordboxUsbArchive[]{
+                usb1archive.get(),
+                usb2archive.get(),
+                usb3archive.get()
+        };
 
-        throw new IllegalStateException("Track from unrecognized USB");
+        for (RekordboxUsbArchive archive: archives) {
+            if (runMatch(dataRef, pssiFromOpus, archive)) {
+                slotReferenceToArchive.put(slotRef, archive);
+                return;
+            }
+        }
     }
 
     /**
@@ -630,13 +653,12 @@ public class OpusProvider {
      *
      * @param dataRef This is the track/slot data
      * @param pssiFromOpus PSSI sent from the opus
-     * @param database the database we are comparing the PSSI+rekordboxId against
-     * @param fileSystem the fileSystem we are comparing the PSSI+rekordboxId against
+     * @param archive the database and filesystem we are comparing the PSSI+rekordboxId against
      * @return true if matched, false it database is null or if not matched
      */
-    private boolean runMatch(DataReference dataRef, byte[] pssiFromOpus, Database database, FileSystem fileSystem) {
-        if (database != null) {
-            return matchSlot(dataRef, pssiFromOpus, database, fileSystem);
+    private boolean runMatch(DataReference dataRef, byte[] pssiFromOpus, RekordboxUsbArchive archive) {
+        if (archive != null) {
+            return matchSlot(dataRef, pssiFromOpus, archive);
         }
         return false;
     }
@@ -697,8 +719,9 @@ public class OpusProvider {
         StringBuilder sb = new StringBuilder();
         sb.append("OpusProvider[").append("running: ").append(isRunning());
         if (isRunning()) {
-            sb.append(", USB 1 media: ").append(usb1filesystem.get());
-            sb.append(", USB 2 media: ").append(usb2filesystem.get());
+            sb.append(", USB 1 media: ").append(usb1archive.get().getFileSystem());
+            sb.append(", USB 2 media: ").append(usb2archive.get().getFileSystem());
+            sb.append(", USB 3 media: ").append(usb3archive.get().getFileSystem());
         }
         return sb.append("]").toString();
     }

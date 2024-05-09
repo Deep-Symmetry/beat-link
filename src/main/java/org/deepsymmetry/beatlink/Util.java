@@ -9,6 +9,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 
+import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz.SongStructureEntry;
 import org.slf4j.Logger;
@@ -1013,8 +1014,18 @@ public class Util {
     }
 
     public static boolean isOpusQuad(String deviceName){
-        return deviceName.equals("OPUS-QUAD");
+        return deviceName.equals(OpusProvider.opusName);
     }
+
+    /**
+     * Adjust the player numbers from the Opus-Quad so that they are 1-4 as expected.
+     *
+     * @return the proper value
+     */
+    public static int translateOpusPlayerNumbers(int reportedPlayerNumber) {
+        return reportedPlayerNumber & 7;
+    }
+
 
     /**
      * Prevent instantiation.

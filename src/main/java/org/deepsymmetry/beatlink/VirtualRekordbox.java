@@ -1,7 +1,10 @@
 package org.deepsymmetry.beatlink;
 
+import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
+import org.deepsymmetry.cratedigger.Database;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -340,15 +343,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         return null;
                     }
 
-                    // Need to fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider
-                    MediaDetails details = new MediaDetails(
-                            SlotReference.getSlotReference(status.getDeviceNumber(), status.getTrackSourceSlot()),
-                            CdjStatus.TrackType.REKORDBOX,
-                            status.getDeviceName());
-
-                    // Forward this to VirtualCdj where it will be sent to clients.
-                    VirtualCdj.getInstance().deliverMediaDetailsUpdate(details);
-
                     return status;
                 } else {
                     logger.warn("Ignoring too-short CDJ Status packet with length " + length + " (we need " + CdjStatus.MINIMUM_PACKET_SIZE +
@@ -368,13 +362,45 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 byte[] data = packet.getData();
                 // PSSI Data
                 if (data[0x25] == 10) {
+
                     int rekordboxId = (int) Util.bytesToNumber(data, 0x28, 4);
-                    // If track is loaded
-                    if (rekordboxId != 0) {
+                    // If track is loaded and OpusProvider has attached media
+                    if (rekordboxId != 0 && OpusProvider.getInstance().hasAttachedArchive()) {
                         final byte[] pssiFromOpus = Arrays.copyOfRange(data, 0x35, data.length);
-                        final CdjStatus.TrackSourceSlot slot = (data[0x2d] == 3) ? SD_SLOT: USB_SLOT;
-                        final int player = data[0x21];
-                        OpusProvider.getInstance().handlePSSIMatching(rekordboxId, pssiFromOpus, player, slot);
+                        final int player = Util.translateOpusPlayerNumbers(data[0x21]);
+
+                        OpusProvider.getInstance().handlePSSIMatching(rekordboxId, pssiFromOpus, player);
+
+                        SlotReference slotRef = SlotReference.getSlotReference(player, USB_SLOT);
+
+                        if (MetadataFinder.getInstance().getMediaDetailsFor(slotRef) == null) {
+                            // Need to fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider
+                            int trackCount = 0;
+                            int playlistCount = 0;
+                            long lastModified = 0;
+
+                            OpusProvider.RekordboxUsbArchive archive = OpusProvider.getInstance().findArchive(slotRef);
+                            if (archive !=  null) {
+                                Database database = archive.getDatabase();
+                                trackCount = database.trackIndex.size();
+                                playlistCount = database.playlistIndex.size();
+                                lastModified = database.sourceFile.lastModified();
+
+                            }
+
+                            MediaDetails details = new MediaDetails(slotRef,
+                                    CdjStatus.TrackType.REKORDBOX,
+                                    OpusProvider.opusName,
+                                    trackCount,
+                                    playlistCount,
+                                    lastModified
+                                    );
+
+                            // Forward this to VirtualCdj where it will be sent to clients. This should only happen once
+                            // per SlotReference.
+                            VirtualCdj.getInstance().deliverMediaDetailsUpdate(details);
+                        }
+
                     }
                 }
                 return null;
