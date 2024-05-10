@@ -66,9 +66,9 @@ public class OpusProvider {
         private final FileSystem fileSystem;
 
         /**
-         * Container for the USB slot number, database and filesystem of any particular Rekordbox USB archive.
+         * Return information about the metadata archive, if any, attached for one of the Opus Quad USB slots.
          *
-         * @param usbSlot the slot that the user has attached the archive to, should correspond to the USB slot in the Opus Quad, so they can keep track of what they are doing
+         * @param usbSlot the slot number that the user has attached the archive to, should correspond to the USB slot in the Opus Quad, so they can keep track of what they are doing
          * @param database the parsed database which contains information about tracks, artwork, etc.
          * @param fileSystem the filesystem which contains the database and other metadata
          */
