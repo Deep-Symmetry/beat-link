@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.deepsymmetry.beatlink.data.OpusProvider;
+import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,7 +134,7 @@ public class CdjStatus extends DeviceUpdate {
     public static final Map<Byte,TrackSourceSlot> TRACK_SOURCE_SLOT_MAP;
 
     static {
-        Map<Byte,TrackSourceSlot> scratch = new HashMap<Byte, TrackSourceSlot>();
+        Map<Byte,TrackSourceSlot> scratch = new HashMap<>();
         for (TrackSourceSlot slot : TrackSourceSlot.values()) {
             scratch.put(slot.protocolValue, slot);
         }
@@ -198,7 +200,7 @@ public class CdjStatus extends DeviceUpdate {
     public static final Map<Byte,TrackType> TRACK_TYPE_MAP;
 
     static {
-        Map<Byte,TrackType> scratch = new HashMap<Byte, TrackType>();
+        Map<Byte,TrackType> scratch = new HashMap<>();
         for (TrackType type : TrackType.values()) {
             scratch.put(type.protocolValue, type);
         }
@@ -308,7 +310,7 @@ public class CdjStatus extends DeviceUpdate {
     public static final Map<Byte,PlayState1> PLAY_STATE_1_MAP;
 
     static {
-        Map<Byte,PlayState1> scratch = new HashMap<Byte, PlayState1>();
+        Map<Byte,PlayState1> scratch = new HashMap<>();
         for (PlayState1 state : PlayState1.values()) {
             scratch.put(state.protocolValue, state);
         }
@@ -373,7 +375,7 @@ public class CdjStatus extends DeviceUpdate {
     public static final Map<Byte,PlayState2> PLAY_STATE_2_MAP;
 
     static {
-        Map<Byte,PlayState2> scratch = new HashMap<Byte, PlayState2>();
+        Map<Byte,PlayState2> scratch = new HashMap<>();
         for (PlayState2 state : PlayState2.values()) {
             scratch.put(state.protocolValue, state);
         }
@@ -445,7 +447,7 @@ public class CdjStatus extends DeviceUpdate {
     public static final Map<Byte,PlayState3> PLAY_STATE_3_MAP;
 
     static {
-        Map<Byte,PlayState3> scratch = new HashMap<Byte, PlayState3>();
+        Map<Byte,PlayState3> scratch = new HashMap<>();
         for (PlayState3 state : PlayState3.values()) {
             scratch.put(state.protocolValue, state);
         }
@@ -567,7 +569,7 @@ public class CdjStatus extends DeviceUpdate {
      * Contains the sizes we expect CDJ status packets to have so we can log a warning if we get an unusual
      * one. We will then add the new size to the list so it only gets logged once per run.
      */
-    private static final Set<Integer> expectedStatusPacketSizes = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private static final Set<Integer> expectedStatusPacketSizes = Collections.newSetFromMap(new ConcurrentHashMap<>());
     static {
         expectedStatusPacketSizes.addAll(Arrays.asList(0xd0, 0xd4, 0x11c, 0x124));
     }
@@ -578,7 +580,7 @@ public class CdjStatus extends DeviceUpdate {
      * size, a comma, and the actual size), so we can report it just once and don’t fill up the log file with endless
      * copies or the same warning.
      */
-    private static final Set<String> misreportedPacketSizes = Collections.newSetFromMap(new HashMap<String, Boolean>());
+    private static final Set<String> misreportedPacketSizes = Collections.newSetFromMap(new HashMap<>());
 
     /**
      * The smallest packet size from which we can be constructed. Anything less than this and we are missing
@@ -611,7 +613,7 @@ public class CdjStatus extends DeviceUpdate {
         }
 
         if (expectedStatusPacketSizes.add(packetBytes.length)) {
-            logger.warn("Processing CDJ Status packets with unexpected lengths " + packetBytes.length + ".");
+            logger.warn("Processing CDJ Status packets with unexpected lengths {}.", packetBytes.length);
         }
         trackType = findTrackType();
         rekordboxId = (int)Util.bytesToNumber(packetBytes, 44, 4);
@@ -624,10 +626,17 @@ public class CdjStatus extends DeviceUpdate {
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
 
         if (Util.isOpusQuad(deviceName)) {
-            trackSourcePlayer = Util.translateOpusPlayerNumbers(packetBytes[40]);
+            int sourcePlayer = Util.translateOpusPlayerNumbers(packetBytes[40]);
+            if (sourcePlayer != 0) {
+                final SlotReference matchedSourceSlot = VirtualRekordbox.getInstance().findMatchedTrackSourceSlotForPlayer(deviceNumber);
+                if (matchedSourceSlot != null) {
+                    sourcePlayer = matchedSourceSlot.player;
+                }
+            }
+            trackSourcePlayer = sourcePlayer;
             trackSourceSlot = TrackSourceSlot.USB_SLOT;
-            // Indicate that we have a metadata archive available for the USB slot:
-            packetBytes[111] = 0;
+            // Indicate whether we have a metadata archive available for the USB slot:
+            packetBytes[111] = (byte) (OpusProvider.getInstance().findArchive(deviceNumber) == null? 4 : 0);
         } else {
             trackSourcePlayer = packetBytes[40];
             trackSourceSlot = findTrackSourceSlot();

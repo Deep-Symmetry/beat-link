@@ -1481,11 +1481,11 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
-     * Send a media details response to all registered listeners. Is also called from VirtualRekordbox in proxy mode.
+     * Send a media details response to all registered listeners, only public so that it can be called from {@link org.deepsymmetry.beatlink.data.OpusProvider} when archives are attached.
      *
      * @param details the response that has just arrived
      */
-    void deliverMediaDetailsUpdate(final MediaDetails details) {
+    public void deliverMediaDetailsUpdate(final MediaDetails details) {
         for (MediaDetailsListener listener : getMediaDetailsListeners()) {
             try {
                 listener.detailsAvailable(details);

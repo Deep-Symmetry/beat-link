@@ -1,14 +1,10 @@
 package org.deepsymmetry.beatlink;
 
-import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
-import org.deepsymmetry.cratedigger.Database;
-import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -16,7 +12,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.*;
 
-import static org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot.SD_SLOT;
 import static org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot.USB_SLOT;
 
 /**
@@ -299,6 +294,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
     private static final byte[] deviceName = "rekordbox".getBytes();
 
+    // TODO this (and the arrays above) need JavaDoc.
     public void requestPSSI() throws IOException{
         if (DeviceFinder.getInstance().isRunning() && !DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
             InetAddress address = DeviceFinder.getInstance().getCurrentDevices().iterator().next().getAddress();
@@ -306,6 +302,28 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
             socket.get().send(packet);
         }
+    }
+
+    /**
+     * Keeps track of the PSSI bytes we have received for each player.
+     */
+    private final Map<Integer, ByteBuffer> playerSongStructures = new ConcurrentHashMap<>();
+
+    /**
+     * Keeps track of the source slots we've matched to metadata archives for each player.
+     */
+    private final Map<Integer, SlotReference> playerTrackSourceSlots = new ConcurrentHashMap<>();
+
+    /**
+     * Given a player number (normalized to the range 1-4), returns the track source slot associated with the
+     * metadata archive that we have matched that player's track to, if any, so we can report it in a meaningful
+     * way in {@link CdjStatus} packets.
+     *
+     * @param player the player whose track we are interested in
+     * @return the Opus Quad USB slot that has a metadata archive mounted that matched that player's current track
+     */
+    SlotReference findMatchedTrackSourceSlotForPlayer(int player) {
+        return playerTrackSourceSlots.get(player);
     }
 
     /**
@@ -338,15 +356,14 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
                     CdjStatus status = new CdjStatus(packet);
 
-                    // If player number is zero the deck does not have a song loaded, just return.
+                    // If source player number is zero the deck does not have a song loaded, clear the PSSI and source slot we had for that player.
                     if (status.getTrackSourcePlayer() == 0) {
-                        return null;
+                        playerSongStructures.remove(status.getDeviceNumber());
+                        playerTrackSourceSlots.remove(status.getDeviceNumber());
                     }
-
                     return status;
                 } else {
-                    logger.warn("Ignoring too-short CDJ Status packet with length " + length + " (we need " + CdjStatus.MINIMUM_PACKET_SIZE +
-                            " bytes).");
+                    logger.warn("Ignoring too-short CDJ Status packet with length {} (we need " + CdjStatus.MINIMUM_PACKET_SIZE + " bytes).", length);
                     return null;
                 }
 
@@ -361,47 +378,20 @@ public class VirtualRekordbox extends LifecycleParticipant {
             case OPUS_METADATA:
                 byte[] data = packet.getData();
                 // PSSI Data
-                if (data[0x25] == 10) {
+                if (data[0x25] == 10) {  // TODO should this be a named constant?
 
-                    int rekordboxId = (int) Util.bytesToNumber(data, 0x28, 4);
-                    // If track is loaded and OpusProvider has attached media
-                    if (rekordboxId != 0 && OpusProvider.getInstance().hasAttachedArchive()) {
-                        final byte[] pssiFromOpus = Arrays.copyOfRange(data, 0x35, data.length);
+                    final int rekordboxId = (int) Util.bytesToNumber(data, 0x28, 4);
+                    // Record this song structure so that we can use it for matching tracks in CdjStatus packets.
+                    if (rekordboxId != 0) {
+                        final ByteBuffer pssiFromOpus = ByteBuffer.wrap(Arrays.copyOfRange(data, 0x35, data.length));
                         final int player = Util.translateOpusPlayerNumbers(data[0x21]);
-
-                        OpusProvider.getInstance().handlePSSIMatching(rekordboxId, pssiFromOpus, player);
-
-                        SlotReference slotRef = SlotReference.getSlotReference(player, USB_SLOT);
-
-                        // If missing, fill in MediaDetails otherwise MetadataFinder won't forward us to OpusProvider.
-                        // This will happen once per player on startup (or reconnect).
-                        if (MetadataFinder.getInstance().getMediaDetailsFor(slotRef) == null) {
-                            int trackCount = 0;
-                            int playlistCount = 0;
-                            long lastModified = 0;
-
-                            OpusProvider.RekordboxUsbArchive archive = OpusProvider.getInstance().findArchive(slotRef);
-                            if (archive !=  null) {
-                                Database database = archive.getDatabase();
-                                trackCount = database.trackIndex.size();
-                                playlistCount = database.playlistIndex.size();
-                                lastModified = database.sourceFile.lastModified();
-
-                            }
-
-                            MediaDetails details = new MediaDetails(slotRef,
-                                    CdjStatus.TrackType.REKORDBOX,
-                                    OpusProvider.opusName,
-                                    trackCount,
-                                    playlistCount,
-                                    lastModified
-                                    );
-
-                            // Forward this to VirtualCdj where it will be sent to clients. This should only happen once
-                            // per SlotReference
-                            VirtualCdj.getInstance().deliverMediaDetailsUpdate(details);
+                        playerSongStructures.put(player, pssiFromOpus);
+                        // Also record the conceptual source slot that represents the USB slot from which this track seems to have been loaded
+                        // TODO we need to check that the track was loaded from a player, and not rekordbox, as well, before trying to do this!
+                        final int sourceSlot = OpusProvider.getInstance().findMatchingUsbSlotForTrack(rekordboxId, player, pssiFromOpus);
+                        if (sourceSlot != 0) {  // We found match, record it.
+                            playerTrackSourceSlots.put(player, SlotReference.getSlotReference(sourceSlot, USB_SLOT));
                         }
-
                     }
                 }
                 return null;
@@ -912,7 +902,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
             Thread.sleep(getAnnounceInterval());
 
-            requestPSSI();
+            requestPSSI();  // TODO Shouldn't we only do this when we detect a new track has been loaded?
 
         } catch (Throwable t) {
             logger.warn("Unable to send announcement packets, flushing DeviceFinder due to likely network change and shutting down.", t);
