@@ -172,8 +172,15 @@ public class OpusProvider {
 
             // Send a media update so clients know this media is mounted.
             final SlotReference slotReference = SlotReference.getSlotReference(usbSlotNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
-            final MediaDetails newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, databaseFile.getName(),
+            final MediaDetails newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, filesystem.toString(),
                     database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
+
+            // Wait for media mount to exist before continuing otherwise we might not properly register the drive
+            // and wind up in a bad state.
+            while (!MetadataFinder.getInstance().getMountedMediaSlots().contains(slotReference)) {
+                Thread.sleep(50);
+            }
+
             VirtualCdj.getInstance().deliverMediaDetailsUpdate(newDetails);
         } catch (Exception e) {
             filesystem.close();
