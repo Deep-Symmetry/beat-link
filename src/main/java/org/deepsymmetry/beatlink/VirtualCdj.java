@@ -1142,7 +1142,7 @@ public class VirtualCdj extends LifecycleParticipant {
     public synchronized void stop() {
         if (isRunning()) {
             broadcastAddress.set(null);
-            matchingInterfaces.clear();
+            matchingInterfaces = null;
             updates.clear();
             setTempoMaster(null);
 
