@@ -182,7 +182,6 @@ public class OpusProvider {
             }
 
             VirtualCdj.getInstance().deliverMediaDetailsUpdate(newDetails);
-
         } catch (Exception e) {
             filesystem.close();
             throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
