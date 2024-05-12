@@ -4,11 +4,16 @@ All notable changes to this project will be documented in this file.
 This change log follows the conventions of
 [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased][unreleased]
+## [Unreleased (opus branch)][unreleased-opus]
 
 ### Added
 
 - The ability to proxy metadata from mounted archive files corresponding to USB media mounted in the Opus Quad, which cannot itself provide that information.
+
+
+## [Unreleased][unreleased]
+
+Nothing so far
 
 
 ## [7.4.0] - 2024-05-04
@@ -836,6 +841,7 @@ May the Fourth be with you.
 - Initial early release of DeviceFinder.
 
 
+[unreleased-opus]: https://github.com/Deep-Symmetry/beat-link-trigger/compare/main...opus
 [unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.4.0...HEAD
 [7.4.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.3.0...v7.4.0
 [7.3.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.2.0...v7.3.0
