@@ -625,8 +625,9 @@ public class CdjStatus extends DeviceUpdate {
         firmwareVersion = new String(packetBytes, 124, 4).trim();
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
 
-        if (Util.isOpusQuad(deviceName)) {
-            int sourcePlayer = Util.translateOpusPlayerNumbers(packetBytes[40]);
+        final byte trackSourceByte = packetBytes[40];
+        if (Util.isOpusQuad(deviceName) && (trackSourceByte < 16)) {
+            int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
             if (sourcePlayer != 0) {
                 final SlotReference matchedSourceSlot = VirtualRekordbox.getInstance().findMatchedTrackSourceSlotForPlayer(deviceNumber);
                 if (matchedSourceSlot != null) {
@@ -638,7 +639,7 @@ public class CdjStatus extends DeviceUpdate {
             // Indicate whether we have a metadata archive available for the USB slot:
             packetBytes[111] = (byte) (OpusProvider.getInstance().findArchive(deviceNumber) == null? 4 : 0);
         } else {
-            trackSourcePlayer = packetBytes[40];
+            trackSourcePlayer = trackSourceByte;
             trackSourceSlot = findTrackSourceSlot();
         }
     }
