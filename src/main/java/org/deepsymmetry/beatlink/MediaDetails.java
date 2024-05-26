@@ -3,14 +3,13 @@ package org.deepsymmetry.beatlink;
 import org.deepsymmetry.beatlink.data.ColorItem;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
-import org.deepsymmetry.cratedigger.Database;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
-import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -91,7 +90,7 @@ public class MediaDetails {
      * Contains the sizes we expect Media response packets to have so we can log a warning if we get an unusual
      * one. We will then add the new size to the list so it only gets logged once per run.
      */
-    private static final Set<Integer> expectedMediaPacketSizes = new HashSet<Integer>(Collections.singletonList(0xc0));
+    private static final Set<Integer> expectedMediaPacketSizes = new HashSet<>(Collections.singletonList(0xc0));
 
     /**
      * The smallest packet size from which we can be constructed. Anything less than this and we are missing
@@ -122,12 +121,15 @@ public class MediaDetails {
     }
 
     /**
-     * Constructor to emulate an actual MediaDetails object from CDJs. This allows our Status packets
-     * to use OpusProvider to enrich the track data. OpusProvider must be started up to use this method.
+     * Constructor to emulate an actual MediaDetails object from CDJs. This allows our status packets
+     * to use {@link OpusProvider} to enrich the track data. {@link OpusProvider} must be started to use this method.
      *
-     * @param slotReference Slot Reference to Emulate
+     * @param slotReference Slot Reference to which these media details belong
      * @param mediaType     Media Type to Emulate
-     * @param name          Name of device
+     * @param name          Name of the emulated media volume
+     * @param trackCount    How many tracks are present in the media
+     * @param playlistCount How many playlists are present in the media
+     * @param lastModified  When the media was last changed
      */
     public MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name,
                  int trackCount, int playlistCount, long lastModified) {
@@ -200,15 +202,11 @@ public class MediaDetails {
             name = "rekordbox mobile";
             creationDate = "";
         } else {
-            try {
-                int mediaNameLength = getUTF16StringLength(packetCopy, 0x2c, 0x40);
-                int creationDateLength = getUTF16StringLength(packetCopy, 0x6c, 0x18);
+            int mediaNameLength = getUTF16StringLength(packetCopy, 0x2c, 0x40);
+            int creationDateLength = getUTF16StringLength(packetCopy, 0x6c, 0x18);
 
-                name = new String(packetCopy, 0x2c, mediaNameLength, "UTF-16BE").trim();
-                creationDate = new String(packetCopy, 0x6c, creationDateLength, "UTF-16BE").trim();
-            } catch (UnsupportedEncodingException e) {
-                throw new IllegalStateException("Java no longer supports UTF-16BE encoding?!", e);
-            }
+            name = new String(packetCopy, 0x2c, mediaNameLength, StandardCharsets.UTF_16BE).trim();
+            creationDate = new String(packetCopy, 0x6c, creationDateLength, StandardCharsets.UTF_16BE).trim();
         }
 
         trackCount = (int) Util.bytesToNumber(packetCopy, 0xa6, 2);

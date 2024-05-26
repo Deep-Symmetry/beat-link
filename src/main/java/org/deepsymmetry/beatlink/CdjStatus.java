@@ -348,6 +348,10 @@ public class CdjStatus extends DeviceUpdate {
          */
         STOPPED (0x7e),
         /**
+         * We have seen the Opus Quad report this value when it is playing but the main status flag lies about that fact.
+         */
+        OPUS_MOVING (0xfa),
+        /**
          * We saw an unknown value, so we don’t know what it means.
          */
         UNKNOWN (-1);
@@ -752,19 +756,28 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * Was the CDJ playing a track when this update was sent?
+     * Was the CDJ playing a track when this update was sent? Has special logic to try to accommodate the quirks of
+     * both pre-nexus players and the Opus Quad.
      *
      * @return true if the play flag was set, or, if this seems to be a non-nexus player, if <em>P<sub>1</sub></em>
-     *         has a value corresponding to a playing state.
+     *         and <em>P<sub>2</sub></em> have values corresponding to a playing state.
      */
     @SuppressWarnings("WeakerAccess")
     public boolean isPlaying() {
         if (packetBytes.length >= 212) {
-            return (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
+            final boolean simpleResult = (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
+            if (!simpleResult && Util.isOpusQuad(deviceName)) {
+                // Sometimes the Opus Quad lies and reports that it is not playing in this flag, even though it actually is.
+                // Try to recover from that.
+                return playState1 == PlayState1.PLAYING || playState1 == PlayState1.LOOPING ||
+                        (playState1 == PlayState1.SEARCHING && (playState2.protocolValue & 0x0f) == 0x0a);
+            } else {
+                return simpleResult;
+            }
         } else {
-            final PlayState1 state = getPlayState1();
-            return  state == PlayState1.PLAYING || state == PlayState1.LOOPING ||
-                    (state == PlayState1.SEARCHING && getPlayState2() == PlayState2.MOVING);
+            // Pre-nexus players don’t send this critical flag byte at all, so we always have to infer play state.
+            return playState1 == PlayState1.PLAYING || playState1 == PlayState1.LOOPING ||
+                    (playState1 == PlayState1.SEARCHING && playState2 == PlayState2.MOVING);
         }
     }
 

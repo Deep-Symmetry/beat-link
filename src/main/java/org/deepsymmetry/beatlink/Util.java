@@ -226,18 +226,12 @@ public class Util {
      */
     public static final Map<Integer, Map<Byte, PacketType>> PACKET_TYPE_MAP;
     static {
-        Map<Integer, Map<Byte, PacketType>> scratch = new HashMap<Integer, Map<Byte, PacketType>>();
+        Map<Integer, Map<Byte, PacketType>> scratch = new HashMap<>();
         for (PacketType packetType : PacketType.values()) {
-            Map<Byte, PacketType> portMap = scratch.get(packetType.port);
-            if (portMap == null) {
-                portMap = new HashMap<Byte, PacketType>();
-                scratch.put(packetType.port, portMap);
-            }
+            Map<Byte, PacketType> portMap = scratch.computeIfAbsent(packetType.port, k -> new HashMap<>());
             portMap.put(packetType.protocolValue, packetType);
         }
-        for (Map.Entry<Integer, Map<Byte, PacketType>> entry : scratch.entrySet()) {
-            scratch.put(entry.getKey(), Collections.unmodifiableMap(entry.getValue()));
-        }
+        scratch.replaceAll((k, v) -> Collections.unmodifiableMap(v));
         PACKET_TYPE_MAP = Collections.unmodifiableMap(scratch);
     }
 
@@ -275,12 +269,12 @@ public class Util {
     /**
      * Used to keep track of when we report seeing a packet to an unexpected port, so we only do that once.
      */
-    private static final Set<Integer> unknownPortsReported = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private static final Set<Integer> unknownPortsReported = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Used to keep track of when we report seeing a packet of an unknown type reported to a port, so we do that only once.
      */
-    private static final Map<Integer, Set<Byte>> unknownPortTypesReported = new ConcurrentHashMap<Integer, Set<Byte>>();
+    private static final Map<Integer, Set<Byte>> unknownPortTypesReported = new ConcurrentHashMap<>();
 
     /**
      * Check to see whether a packet starts with the standard header bytes, followed by a known byte identifying it.
@@ -317,12 +311,9 @@ public class Util {
 
         final PacketType result = portMap.get(data[PACKET_TYPE_OFFSET]);
         if (result == null) {  // Warn about unrecognized type, once.
-            Set<Byte> typesReportedForPort = unknownPortTypesReported.get(port);
-            if (typesReportedForPort == null) {  // First problem we have seen for this port, set up set for it.
-                typesReportedForPort = Collections.newSetFromMap(new ConcurrentHashMap<Byte, Boolean>());
-                unknownPortTypesReported.put(port, typesReportedForPort);
-            }
-           if (!typesReportedForPort.contains(data[PACKET_TYPE_OFFSET])) {
+            Set<Byte> typesReportedForPort = unknownPortTypesReported.computeIfAbsent(port, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
+            // First problem we have seen for this port, set up set for it.
+            if (!typesReportedForPort.contains(data[PACKET_TYPE_OFFSET])) {
                logger.warn("Do not know any Pro DJ Link packets received on port " + port + " with type " +
                        String.format("0x%02x", data[PACKET_TYPE_OFFSET]) + " (this will be reported only once).");
                typesReportedForPort.add(data[PACKET_TYPE_OFFSET]);
@@ -541,13 +532,13 @@ public class Util {
      * one thread creates the file and another thinks it has already been downloaded and tries to
      * parse the partial file.
      */
-    private static final Map<String, Object> namedLocks = new HashMap<String, Object>();
+    private static final Map<String, Object> namedLocks = new HashMap<>();
 
     /**
      * Counts the threads that are currently using a named lock, so we can know when it can be
      * removed from the maps.
      */
-    private static final Map<String, Integer> namedLockUseCounts = new HashMap<String, Integer>();
+    private static final Map<String, Integer> namedLockUseCounts = new HashMap<>();
 
     /**
      * Obtain an object that can be synchronized against to provide exclusive access to a named resource,
@@ -1018,9 +1009,11 @@ public class Util {
     }
 
     /**
-     * Adjust the player numbers from the Opus-Quad so that they are 1-4 as expected.
+     * Adjust the player numbers from the Opus-Quad so that they are 1-4 as expected by users and the rest of the
+     * ecosystem.
      *
-     * @return the proper value
+     * @param reportedPlayerNumber the device number actually reported by the Opus Quad in the range 9-12
+     * @return the logical value in the range 1-4 corresponding to the deck label
      */
     public static int translateOpusPlayerNumbers(int reportedPlayerNumber) {
         return reportedPlayerNumber & 7;
