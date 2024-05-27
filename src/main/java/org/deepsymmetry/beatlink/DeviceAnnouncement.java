@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.deepsymmetry.beatlink.data.OpusProvider;
+
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 
@@ -50,7 +52,7 @@ public class DeviceAnnouncement {
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         timestamp = System.currentTimeMillis();
-        name = new String(packetBytes, 12, 20).trim();
+        name = new String(packetBytes, 12, 20).trim().intern();
         number = Util.unsign(packetBytes[36]);
     }
 
@@ -69,7 +71,7 @@ public class DeviceAnnouncement {
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         timestamp = System.currentTimeMillis();
-        name = new String(packetBytes, 12, 20).trim();
+        name = new String(packetBytes, 12, 20).trim().intern();
         number = deviceNumber;
     }
 
@@ -152,6 +154,18 @@ public class DeviceAnnouncement {
         System.arraycopy(packetBytes, 0, result, 0, packetBytes.length);
         return result;
     }
+
+    /**
+     * Check whether a device update came from an Opus Quad, which behaves very differently from true Pro DJ Link hardware.
+     *
+     * @return {@code true} when the device name reported in this update matches the one reported by the Opus Quad
+     */
+    public boolean isOpusQuad() {
+        //noinspection StringEquality
+        return name == OpusProvider.opusName;  // Since strings are interned, can be compared this way.
+    }
+
+
 
     @Override
     public String toString() {

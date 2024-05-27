@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.deepsymmetry.beatlink.data.OpusProvider;
+
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 
@@ -57,10 +59,10 @@ public abstract class DeviceUpdate {
         address = packet.getAddress();
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
-        deviceName = new String(packetBytes, 11, 20).trim();
+        deviceName = new String(packetBytes, 11, 20).trim().intern();
         preNexusCdj = deviceName.startsWith("CDJ") && (deviceName.endsWith("900") || deviceName.endsWith("2000"));
 
-        if (Util.isOpusQuad(deviceName)){
+        if (isFromOpusQuad()) {
             deviceNumber = Util.translateOpusPlayerNumbers(packetBytes[40]);
         } else {
             deviceNumber = Util.unsign(packetBytes[33]);
@@ -98,7 +100,7 @@ public abstract class DeviceUpdate {
      * Check whether this packet seems to have come from a CDJ older
      * than the original Nexus series (which means, for example, that
      * beat numbers will not be available, so the {@link org.deepsymmetry.beatlink.data.TimeFinder}
-     * can't work with it.
+     * can't work with it).
      *
      * @return {@code true} if the device name starts with "CDJ" and ends with "0".
      */
@@ -113,6 +115,16 @@ public abstract class DeviceUpdate {
      */
     public int getDeviceNumber() {
         return deviceNumber;
+    }
+
+    /**
+     * Check whether a device update came from an Opus Quad, which behaves very differently from true Pro DJ Link hardware.
+     *
+     * @return {@code true} when the device name reported in this update matches the one reported by the Opus Quad
+     */
+    public boolean isFromOpusQuad() {
+        //noinspection StringEquality
+        return deviceName == OpusProvider.opusName;  // Since strings are interned, can be compared this way.
     }
 
     /**
@@ -183,9 +195,9 @@ public abstract class DeviceUpdate {
 
     /**
      * Get the position within a measure of music at which the most recent beat fell (a value from 1 to 4, where 1 represents
-     * the down beat). This value will be accurate for players when the track was properly configured within rekordbox
+     * the downbeat). This value will be accurate for players when the track was properly configured within rekordbox
      * (and if the music follows a standard House 4/4 time signature). The mixer makes no effort to synchronize
-     * down beats with players, however, so this value is meaningless when coming from the mixer. The usefulness of
+     * downbeats with players, however, so this value is meaningless when coming from the mixer. The usefulness of
      * this value can be checked with {@link #isBeatWithinBarMeaningful()}.
      *
      * @return the beat number within the current measure of music

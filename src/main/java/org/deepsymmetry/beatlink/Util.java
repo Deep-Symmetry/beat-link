@@ -9,7 +9,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 
-import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz.SongStructureEntry;
 import org.slf4j.Logger;
@@ -140,7 +139,7 @@ public class Util {
 
         /**
          * Metadata that includes track album art, possibly waveforms and more. We do not use this information at the moment
-         * because it is not complete enough to support all of the Beat Link Trigger functionality. Instead, we download
+         * because it is not complete enough to support all the Beat Link Trigger functionality. Instead, we download
          * the track data from a Rekordbox USB.
          */
         OPUS_METADATA(0x56, "OPUS Metadata", VirtualCdj.UPDATE_PORT),
@@ -289,8 +288,7 @@ public class Util {
         byte[] data = packet.getData();
 
         if (data.length < PACKET_TYPE_OFFSET) {
-            logger.warn("Packet is too short to be a Pro DJ Link packet; must be at least " + PACKET_TYPE_OFFSET +
-                    " bytes long, was only " + data.length + ".");
+            logger.warn("Packet is too short to be a Pro DJ Link packet; must be at least " + PACKET_TYPE_OFFSET + " bytes long, was only {}.", data.length);
             return null;
         }
 
@@ -302,8 +300,7 @@ public class Util {
         final Map<Byte, PacketType> portMap = PACKET_TYPE_MAP.get(port);
         if (portMap == null) {  // Warn about unrecognized port, once, and return null for packet type.
             if (!unknownPortsReported.contains(port)) {
-                logger.warn("Do not know any Pro DJ Link packets that are received on port " + port +
-                        " (this will be reported only once).");
+                logger.warn("Do not know any Pro DJ Link packets that are received on port {} (this will be reported only once).", port);
                 unknownPortsReported.add(port);
             }
             return null;
@@ -314,8 +311,7 @@ public class Util {
             Set<Byte> typesReportedForPort = unknownPortTypesReported.computeIfAbsent(port, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
             // First problem we have seen for this port, set up set for it.
             if (!typesReportedForPort.contains(data[PACKET_TYPE_OFFSET])) {
-               logger.warn("Do not know any Pro DJ Link packets received on port " + port + " with type " +
-                       String.format("0x%02x", data[PACKET_TYPE_OFFSET]) + " (this will be reported only once).");
+                logger.warn("Do not know any Pro DJ Link packets received on port {} with type {} (this will be reported only once).", port, String.format("0x%02x", data[PACKET_TYPE_OFFSET]));
                typesReportedForPort.add(data[PACKET_TYPE_OFFSET]);
            }
         }
@@ -434,7 +430,7 @@ public class Util {
      */
     public static boolean sameNetwork(int prefixLength, InetAddress address1, InetAddress address2) {
         if (logger.isDebugEnabled()) {
-            logger.debug("Comparing address " + address1.getHostAddress() + " with " + address2.getHostAddress() + ", prefixLength=" + prefixLength);
+            logger.debug("Comparing address {} with {}, prefixLength={}", address1.getHostAddress(), address2.getHostAddress(), prefixLength);
         }
         long prefixMask = 0xffffffffL & (-1L << (32 - prefixLength));
         return (addressToLong(address1) & prefixMask) == (addressToLong(address2) & prefixMask);
@@ -1002,10 +998,6 @@ public class Util {
      */
     public static String highResolutionPath(String artPath) {
         return artPath.replaceFirst("(\\.\\w+$)", "_m$1");
-    }
-
-    public static boolean isOpusQuad(String deviceName){
-        return deviceName.equals(OpusProvider.opusName);
     }
 
     /**

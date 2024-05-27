@@ -36,11 +36,9 @@ public class OpusProvider {
     private static final Logger logger = LoggerFactory.getLogger(OpusProvider.class);
 
     /**
-     * Public constant for the opus name to be used throughout the codebase.
+     * The device name reported by Opus Quad, so we can recognize when we are dealing with one of these devices.
      */
     public static final String opusName = "OPUS-QUAD";
-
-
 
     /**
      * Keep track of whether we are running.

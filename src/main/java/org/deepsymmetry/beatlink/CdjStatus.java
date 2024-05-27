@@ -28,7 +28,7 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * The byte within a status packet which indicates that the device is in the process of handing off the tempo
-     * master role to anther device, labeled <i>M<sub>h</sub></i> in the
+     * master role to another device, labeled <i>M<sub>h</sub></i> in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      *
      * <p>Normally it holds the value 0xff, but during a tempo master hand-off, it holds
@@ -570,8 +570,8 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
-     * Contains the sizes we expect CDJ status packets to have so we can log a warning if we get an unusual
-     * one. We will then add the new size to the list so it only gets logged once per run.
+     * Contains the sizes we expect CDJ status packets to have, so we can log a warning if we get an unusual
+     * one. We will then add the new size to the list, so it only gets logged once per run.
      */
     private static final Set<Integer> expectedStatusPacketSizes = Collections.newSetFromMap(new ConcurrentHashMap<>());
     static {
@@ -610,8 +610,7 @@ public class CdjStatus extends DeviceUpdate {
         if (packetBytes.length != reportedPacketSize) {
             final String reportedKey = reportedPacketSize + "," + packetBytes.length;
             if (misreportedPacketSizes.add(reportedKey)) {
-                logger.warn("Received CDJ status packet with reported payload length of " + payloadLength + " and actual payload length of " +
-                        (packetBytes.length - 0x24));
+                logger.warn("Received CDJ status packet with reported payload length of {} and actual payload length of {}", payloadLength, packetBytes.length - 0x24);
 
             }
         }
@@ -630,7 +629,7 @@ public class CdjStatus extends DeviceUpdate {
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
 
         final byte trackSourceByte = packetBytes[40];
-        if (Util.isOpusQuad(deviceName) && (trackSourceByte < 16)) {
+        if (isFromOpusQuad() && (trackSourceByte < 16)) {
             int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
             if (sourcePlayer != 0) {
                 final SlotReference matchedSourceSlot = VirtualRekordbox.getInstance().findMatchedTrackSourceSlotForPlayer(deviceNumber);
@@ -707,7 +706,7 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * Get the position within a measure of music at which the most recent beat occurred (a value from 1 to 4, where 1
-     * represents the down beat). This value will be accurate when the track was properly configured within rekordbox
+     * represents the downbeat). This value will be accurate when the track was properly configured within rekordbox
      * (and if the music follows a standard House 4/4 time signature).
      *
      * <p>When the track being played has not been analyzed by rekordbox, or is playing on a non-nexus player, this
@@ -766,7 +765,7 @@ public class CdjStatus extends DeviceUpdate {
     public boolean isPlaying() {
         if (packetBytes.length >= 212) {
             final boolean simpleResult = (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
-            if (!simpleResult && Util.isOpusQuad(deviceName)) {
+            if (!simpleResult && isFromOpusQuad()) {
                 // Sometimes the Opus Quad lies and reports that it is not playing in this flag, even though it actually is.
                 // Try to recover from that.
                 return playState1 == PlayState1.PLAYING || playState1 == PlayState1.LOOPING ||
@@ -897,7 +896,7 @@ public class CdjStatus extends DeviceUpdate {
      * Audio CDs will reflect the audio track count, while data discs
      * will generally have one track regardless of how many usable audio files they contain when mounted. Also,
      * if the CD drive has powered off because of an extended period of not being used, when a track had been loaded
-     * from that disc, this seems to return 1 (you can check for that condition by calling {@link #isDiscSlotAsleep()}.
+     * from that disc, this seems to return 1 (you can check for that condition by calling {@link #isDiscSlotAsleep()}).
      *
      * @return the number of tracks found on the mounted disc or loaded playlist/player menu, or zero if no disc is mounted nor is a playlist/menu in use
      */

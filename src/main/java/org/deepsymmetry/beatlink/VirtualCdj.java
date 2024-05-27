@@ -42,10 +42,10 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The socket used to receive device status packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>();
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<>();
 
     /**
-     * Indicates we started {@link VirtualRekordbox} running so we are just acting as a proxy for it, to
+     * Indicates we started {@link VirtualRekordbox} running, so we are just acting as a proxy for it, to
      * work with the Opus Quad.
      */
     private final AtomicBoolean proxyingForVirtualRekordbox = new AtomicBoolean(false);
@@ -86,7 +86,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * up by finding the network interface address on which we are receiving the other devices'
      * announcement broadcasts.
      */
-    private final AtomicReference<InetAddress> broadcastAddress = new AtomicReference<InetAddress>();
+    private final AtomicReference<InetAddress> broadcastAddress = new AtomicReference<>();
 
     /**
      * Return the broadcast address used to reach the DJ Link network.
@@ -102,7 +102,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Keep track of the most recent updates we have seen, indexed by the address they came from.
      */
-    private final Map<DeviceReference, DeviceUpdate> updates = new ConcurrentHashMap<DeviceReference, DeviceUpdate>();
+    private final Map<DeviceReference, DeviceUpdate> updates = new ConcurrentHashMap<>();
 
     /**
      * Should we try to use a device number in the range 1 to 4 if we find one is available?
@@ -142,7 +142,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * This starts out being zero unless you explicitly assign another value, which means that the <code>VirtualCdj</code>
      * should assign itself an unused device number by watching the network when you call
      * {@link #start()}. If {@link #getUseStandardPlayerNumber()} returns {@code true}, self-assignment will try to
-     * find a value in the range 1 to 4. Otherwise it will try to find a value in the range 7 to 15 (so that it does
+     * find a value in the range 1 to 4. Otherwise, it will try to find a value in the range 7 to 15 (so that it does
      * not even conflict with newer CDJ-3000 networks, which can use channels 5 and 6). Even when told
      * to use a standard player number, if all device numbers in that range are already in use, we will be forced to
      * use a larger number.
@@ -261,12 +261,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Reacts to player status updates to reflect the current playback state.
      */
-    private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
-        @Override
-        public void received(DeviceUpdate update) {
-            processUpdate(update);
-        }
-    };
+    private final DeviceUpdateListener updateListener = this::processUpdate;
 
     public DeviceUpdateListener getUpdateListener() {
         return updateListener;
@@ -331,7 +326,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Keep track of which device has reported itself as the current tempo master.
      */
-    private final AtomicReference<DeviceUpdate> tempoMaster = new AtomicReference<DeviceUpdate>();
+    private final AtomicReference<DeviceUpdate> tempoMaster = new AtomicReference<>();
 
     /**
      * Check which device is the current tempo master, returning the {@link DeviceUpdate} packet in which it
@@ -437,7 +432,7 @@ public class VirtualCdj extends LifecycleParticipant {
         switch (kind) {
             case MIXER_STATUS:
                 if (length != 56) {
-                    logger.warn("Processing a Mixer Status packet with unexpected length " + length + ", expected 56 bytes.");
+                    logger.warn("Processing a Mixer Status packet with unexpected length {}, expected 56 bytes.", length);
                 }
                 if (length >= 56) {
                     return new MixerStatus(packet);
@@ -451,13 +446,12 @@ public class VirtualCdj extends LifecycleParticipant {
                     return new CdjStatus(packet);
 
                 } else {
-                    logger.warn("Ignoring too-short CDJ Status packet with length " + length + " (we need " + CdjStatus.MINIMUM_PACKET_SIZE +
-                            " bytes).");
+                    logger.warn("Ignoring too-short CDJ Status packet with length {} (we need " + CdjStatus.MINIMUM_PACKET_SIZE + " bytes).", length);
                     return null;
                 }
 
             case LOAD_TRACK_ACK:
-                logger.info("Received track load acknowledgment from player " + packet.getData()[0x21]);
+                logger.info("Received track load acknowledgment from player {}", packet.getData()[0x21]);
                 return null;
 
             case MEDIA_QUERY:
@@ -469,7 +463,7 @@ public class VirtualCdj extends LifecycleParticipant {
                 return null;
 
             default:
-                logger.warn("Ignoring " + kind.name + " packet sent to update port.");
+                logger.warn("Ignoring {} packet sent to update port.", kind.name);
                 return null;
         }
     }
@@ -507,11 +501,9 @@ public class VirtualCdj extends LifecycleParticipant {
                         syncCounter.set(largestSyncCounter.get() + 1);
                     } else {
                         if (nextMaster.get() == 0xff) {
-                            logger.warn("Saw master asserted by player " + update.deviceNumber +
-                                    " when we were not yielding it.");
+                            logger.warn("Saw master asserted by player {} when we were not yielding it.", update.deviceNumber);
                         } else {
-                            logger.warn("Expected to yield master role to player " + nextMaster.get() +
-                                    " but saw master asserted by player " + update.deviceNumber);
+                            logger.warn("Expected to yield master role to player {} but saw master asserted by player {}", nextMaster.get(), update.deviceNumber);
                         }
                     }
                 }
@@ -530,8 +522,7 @@ public class VirtualCdj extends LifecycleParticipant {
                         if (masterYieldedFrom.get() == 0) {
                             logger.info("Accepting unsolicited Master yield; we must be the only synced device playing.");
                         } else {
-                            logger.warn("Expected player " + masterYieldedFrom.get() + " to yield master to us, but player " +
-                                    update.deviceNumber + " did.");
+                            logger.warn("Expected player {} to yield master to us, but player {} did.", masterYieldedFrom.get(), update.deviceNumber);
                         }
                     }
                     master.set(true);
@@ -597,14 +588,14 @@ public class VirtualCdj extends LifecycleParticipant {
 
         if (claimingNumber.get() == 0) {
             // We have not yet tried a number. If we are not supposed to use standard player numbers, make sure
-            // the first one we try is 7 (to accommodate the CDJ-3000, which can use channels 5 and 6.
+            // the first one we try is 7 (to accommodate the CDJ-3000, which can use channels 5 and 6).
             if (!getUseStandardPlayerNumber()) {
                 claimingNumber.set(6);
             }
         }
 
         // Record what numbers we have already seen, since there is no point trying one of them.
-        Set<Integer> numbersUsed = new HashSet<Integer>();
+        Set<Integer> numbersUsed = new HashSet<>();
         for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
             numbersUsed.add(device.getDeviceNumber());
         }
@@ -615,13 +606,12 @@ public class VirtualCdj extends LifecycleParticipant {
             if (!numbersUsed.contains(result)) {  // We found one that is not used, so we can use it
                 claimingNumber.set(result);
                 if (getUseStandardPlayerNumber() && (result > 4)) {
-                    logger.warn("Unable to self-assign a standard player number, all are in use. Trying number " +
-                            result + ".");
+                    logger.warn("Unable to self-assign a standard player number, all are in use. Trying number {}.", result);
                 }
                 return true;
             }
         }
-        logger.warn("Found no unused device numbers between " + startingNumber + " and 15, giving up.");
+        logger.warn("Found no unused device numbers between {} and 15, giving up.", startingNumber);
         return false;
     }
 
@@ -656,7 +646,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
     /**
      * If we are in the process of trying to establish a device number, this will hold the number we are
-     * currently trying to claim. Otherwise it will hold the value 0.
+     * currently trying to claim. Otherwise, it will hold the value 0.
      */
     private final AtomicInteger claimingNumber = new AtomicInteger(0);
 
@@ -696,8 +686,7 @@ public class VirtualCdj extends LifecycleParticipant {
         try {
             DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
                     mixerAddress, DeviceFinder.ANNOUNCEMENT_PORT);
-            logger.debug("Sending device number request to mixer at address " + announcement.getAddress().getHostAddress() +
-                    ", port " + announcement.getPort());
+            logger.debug("Sending device number request to mixer at address {}, port {}", announcement.getAddress().getHostAddress(), announcement.getPort());
             currentSocket.send(announcement);
         } catch (Exception e) {
             logger.warn("Unable to send device number request to mixer.", e);
@@ -725,8 +714,7 @@ public class VirtualCdj extends LifecycleParticipant {
         try {
             DatagramPacket defense = new DatagramPacket(deviceNumberDefenseBytes, deviceNumberDefenseBytes.length,
                     invaderAddress, DeviceFinder.ANNOUNCEMENT_PORT);
-            logger.info("Sending device number defense packet to invader at address " + defense.getAddress().getHostAddress() +
-                    ", port " + defense.getPort());
+            logger.info("Sending device number defense packet to invader at address {}, port {}", defense.getAddress().getHostAddress(), defense.getPort());
             currentSocket.send(defense);
         } catch (Exception e) {
             logger.error("Unable to send device defense packet.", e);
@@ -749,7 +737,7 @@ public class VirtualCdj extends LifecycleParticipant {
         System.arraycopy(getDeviceName().getBytes(), 0, helloBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         for (int i = 1; i <= 3; i++) {
             try {
-                logger.debug("Sending hello packet " + i);
+                logger.debug("Sending hello packet {}", i);
                 DatagramPacket announcement = new DatagramPacket(helloBytes, helloBytes.length,
                         broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                 socket.get().send(announcement);
@@ -781,7 +769,7 @@ public class VirtualCdj extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage1bytes[0x24] = (byte)i;  // The packet counter.
                 try {
-                    logger.debug("Sending claim stage 1 packet " + i);
+                    logger.debug("Sending claim stage 1 packet {}", i);
                     DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -796,7 +784,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     if (getDeviceNumber() == 0) {  // We are trying to pick a number.
                         continue selfAssignLoop;  // Try the next available number, if any.
                     }
-                    logger.warn("Unable to use device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
+                    logger.warn("Unable to use device number {}, another device has it. Failing to go online.", getDeviceNumber());
                     claimingNumber.set(0);
                     return false;
                 }
@@ -813,7 +801,7 @@ public class VirtualCdj extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage2bytes[0x2f] = (byte)i;  // The packet counter.
                 try {
-                    logger.debug("Sending claim stage 2 packet " + i + " for device " + claimStage2bytes[0x2e]);
+                    logger.debug("Sending claim stage 2 packet {} for device {}", i, claimStage2bytes[0x2e]);
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -828,7 +816,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     if (getDeviceNumber() == 0) {  // We are trying to pick a number.
                         continue selfAssignLoop;  // Try the next available number, if any.
                     }
-                    logger.warn("Unable to use device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
+                    logger.warn("Unable to use device number {}, another device has it. Failing to go online.", getDeviceNumber());
                     claimingNumber.set(0);
                     return false;
                 }
@@ -848,7 +836,7 @@ public class VirtualCdj extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage3bytes[0x25] = (byte)i;  // The packet counter.
                 try {
-                    logger.debug("Sending claim stage 3 packet " + i + " for device " + claimStage3bytes[0x24]);
+                    logger.debug("Sending claim stage 3 packet {} for device {}", i, claimStage3bytes[0x24]);
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -863,7 +851,7 @@ public class VirtualCdj extends LifecycleParticipant {
                     if (getDeviceNumber() == 0) {  // We are trying to pick a number.
                         continue selfAssignLoop;  // Try the next available number, if any.
                     }
-                    logger.warn("Unable to use device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
+                    logger.warn("Unable to use device number {}, another device has it. Failing to go online.", getDeviceNumber());
                     claimingNumber.set(0);
                     return false;
                 }
@@ -886,7 +874,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private boolean createVirtualCdj() throws SocketException {
         // Find the network interface and address to use to communicate with the first device we found.
-        matchingInterfaces = new ArrayList<NetworkInterface>();
+        matchingInterfaces = new ArrayList<>();
         matchedAddress = null;
         DeviceAnnouncement aDevice = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
@@ -900,18 +888,15 @@ public class VirtualCdj extends LifecycleParticipant {
         }
 
         if (matchedAddress == null) {
-            logger.warn("Unable to find network interface to communicate with " + aDevice +
-                    ", giving up.");
+            logger.warn("Unable to find network interface to communicate with {}, giving up.", aDevice);
             return false;
         }
 
-        logger.info("Found matching network interface " + matchingInterfaces.get(0).getDisplayName() + " (" +
-                matchingInterfaces.get(0).getName() + "), will use address " + matchedAddress);
+        logger.info("Found matching network interface {} ({}), will use address {}", matchingInterfaces.get(0).getDisplayName(), matchingInterfaces.get(0).getName(), matchedAddress);
         if (matchingInterfaces.size() > 1) {
             for (ListIterator<NetworkInterface> it = matchingInterfaces.listIterator(1); it.hasNext(); ) {
                 NetworkInterface extra = it.next();
-                logger.warn("Network interface " + extra.getDisplayName() + " (" + extra.getName() +
-                        ") sees same network: we will likely get duplicate DJ Link packets, causing severe problems.");
+                logger.warn("Network interface {} ({}) sees same network: we will likely get duplicate DJ Link packets, causing severe problems.", extra.getDisplayName(), extra.getName());
             }
         }
 
@@ -941,12 +926,9 @@ public class VirtualCdj extends LifecycleParticipant {
         receiver.start();
 
         // Create the thread which announces our participation in the DJ Link network, to request update packets
-        Thread announcer = new Thread(null, new Runnable() {
-            @Override
-            public void run() {
-                while (isRunning()) {
-                    sendAnnouncement(broadcastAddress.get());
-                }
+        Thread announcer = new Thread(null, () -> {
+            while (isRunning()) {
+                sendAnnouncement(broadcastAddress.get());
             }
         }, "beat-link VirtualCdj announcement sender");
         announcer.setDaemon(true);
@@ -965,34 +947,31 @@ public class VirtualCdj extends LifecycleParticipant {
         final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
         // Create the update reception thread
-        Thread receiver = new Thread(null, new Runnable() {
-            @Override
-            public void run() {
-                boolean received;
-                while (isRunning()) {
-                    try {
-                        socket.get().receive(packet);
-                        received = true;
-                    } catch (IOException e) {
-                        // Don't log a warning if the exception was due to the socket closing at shutdown.
-                        if (isRunning()) {
-                            // We did not expect to have a problem; log a warning and shut down.
-                            logger.warn("Problem reading from DeviceStatus socket, flushing DeviceFinder due to likely network change and shutting down.", e);
-                            DeviceFinder.getInstance().flush();
-                            stop();
-                        }
-                        received = false;
+        Thread receiver = new Thread(null, () -> {
+            boolean received;
+            while (isRunning()) {
+                try {
+                    socket.get().receive(packet);
+                    received = true;
+                } catch (IOException e) {
+                    // Don't log a warning if the exception was due to the socket closing at shutdown.
+                    if (isRunning()) {
+                        // We did not expect to have a problem; log a warning and shut down.
+                        logger.warn("Problem reading from DeviceStatus socket, flushing DeviceFinder due to likely network change and shutting down.", e);
+                        DeviceFinder.getInstance().flush();
+                        stop();
                     }
-                    try {
-                        if (received && (packet.getAddress() != socket.get().getLocalAddress())) {
-                            DeviceUpdate update = buildUpdate(packet);
-                            if (update != null && isRunning()) {
-                                processUpdate(update);
-                            }
+                    received = false;
+                }
+                try {
+                    if (received && (packet.getAddress() != socket.get().getLocalAddress())) {
+                        DeviceUpdate update = buildUpdate(packet);
+                        if (update != null && isRunning()) {
+                            processUpdate(update);
                         }
-                    } catch (Throwable t) {
-                        logger.warn("Problem processing device update packet", t);
                     }
+                } catch (Throwable t) {
+                    logger.warn("Problem processing device update packet", t);
                 }
             }
         }, "beat-link VirtualCdj status receiver");
@@ -1011,7 +990,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public Set<DeviceAnnouncement> findUnreachablePlayers() {
         ensureRunning();
-        Set<DeviceAnnouncement> result = new HashSet<DeviceAnnouncement>();
+        Set<DeviceAnnouncement> result = new HashSet<>();
         for (DeviceAnnouncement candidate: DeviceFinder.getInstance().getCurrentDevices()) {
             if (!Util.sameNetwork(matchedAddress.getNetworkPrefixLength(), matchedAddress.getAddress(), candidate.getAddress())) {
                 result.add(candidate);
@@ -1075,7 +1054,7 @@ public class VirtualCdj extends LifecycleParticipant {
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
             DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);
 
-            // Find some DJ Link devices so we can figure out the interface and address to use to talk to them
+            // Find some DJ Link devices, so we can figure out the interface and address to use to talk to them
             DeviceFinder.getInstance().start();
             for (int i = 0; DeviceFinder.getInstance().getCurrentDevices().isEmpty() && i < 20; i++) {
                 try {
@@ -1094,7 +1073,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
             // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
             for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
-                if (Util.isOpusQuad(device.getDeviceName())) {
+                if (device.isOpusQuad()) {
                     proxyingForVirtualRekordbox.set(true);
                     VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
                     final boolean success = VirtualRekordbox.getInstance().start();
@@ -1195,7 +1174,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public Set<DeviceUpdate> getLatestStatus() {
         ensureRunning();
-        Set<DeviceUpdate> result = new HashSet<DeviceUpdate>();
+        Set<DeviceUpdate> result = new HashSet<>();
         long now = System.currentTimeMillis();
         for (DeviceUpdate update : updates.values()) {
             if (now - update.getTimestamp() <= DeviceFinder.MAXIMUM_AGE) {
@@ -1269,7 +1248,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * Keeps track of the registered master listeners.
      */
     private final Set<MasterListener> masterListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<MasterListener, Boolean>());
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified master listener to receive device updates when there are changes related
@@ -1314,7 +1293,7 @@ public class VirtualCdj extends LifecycleParticipant {
     @SuppressWarnings("WeakerAccess")
     public Set<MasterListener> getMasterListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<MasterListener>(masterListeners));
+        return Collections.unmodifiableSet(new HashSet<>(masterListeners));
     }
 
     /**
@@ -1366,7 +1345,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * Keeps track of the registered device update listeners.
      */
     private final Set<DeviceUpdateListener> updateListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<DeviceUpdateListener, Boolean>());
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified device update listener to receive device updates whenever they come in.
@@ -1411,7 +1390,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public Set<DeviceUpdateListener> getUpdateListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<DeviceUpdateListener>(updateListeners));
+        return Collections.unmodifiableSet(new HashSet<>(updateListeners));
     }
 
     /**
@@ -1433,7 +1412,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * Keeps track of the registered media details listeners.
      */
     private final Set<MediaDetailsListener> detailsListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<MediaDetailsListener, Boolean>());
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified media details listener to receive detail responses whenever they come in.
@@ -1477,7 +1456,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     public Set<MediaDetailsListener> getMediaDetailsListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<MediaDetailsListener>(detailsListeners));
+        return Collections.unmodifiableSet(new HashSet<>(detailsListeners));
     }
 
     /**
@@ -1959,7 +1938,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * Will hold an instance when we are actively sending beats, so we can let it know when the metronome changes,
      * and when it is time to shut down.
      */
-    private final AtomicReference<BeatSender> beatSender = new AtomicReference<BeatSender>();
+    private final AtomicReference<BeatSender> beatSender = new AtomicReference<>();
 
     /**
      * Check whether we are currently running a {@link BeatSender}; if we are, notify it that there has been a change
@@ -2067,17 +2046,14 @@ public class VirtualCdj extends LifecycleParticipant {
             final AtomicBoolean stillRunning = new AtomicBoolean(true);
             sendingStatus =  stillRunning;  // Allow other threads to stop us when necessary.
 
-            Thread sender = new Thread(null, new Runnable() {
-                @Override
-                public void run() {
-                    while (stillRunning.get()) {
-                        sendStatus();
-                        try {
-                            //noinspection BusyWait
-                            Thread.sleep(getStatusInterval());
-                        } catch (InterruptedException e) {
-                            logger.warn("beat-link VirtualCDJ status sender thread was interrupted; continuing");
-                        }
+            Thread sender = new Thread(null, () -> {
+                while (stillRunning.get()) {
+                    sendStatus();
+                    try {
+                        //noinspection BusyWait
+                        Thread.sleep(getStatusInterval());
+                    } catch (InterruptedException e) {
+                        logger.warn("beat-link VirtualCDJ status sender thread was interrupted; continuing");
                     }
                 }
             }, "beat-link VirtualCdj status sender");
@@ -2125,7 +2101,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * playing, and it will keep time from there. When we stop again, we save the metronome's current beat here.
      */
     private final AtomicReference<Snapshot> whereStopped =
-            new AtomicReference<Snapshot>(metronome.getSnapshot(metronome.getStartTime()));
+            new AtomicReference<>(metronome.getSnapshot(metronome.getStartTime()));
 
     /**
      * Indicates whether we should currently pretend to be playing. This will only have an impact when we are sending
@@ -2216,7 +2192,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
     /**
      * When have started the process of requesting the tempo master role from another player, this gets set to its
-     * device number. Otherwise it has the value {@code 0}.
+     * device number. Otherwise, it has the value {@code 0}.
      */
     private final AtomicInteger requestingMasterRoleFromPlayer = new AtomicInteger(0);
 
@@ -2242,7 +2218,7 @@ public class VirtualCdj extends LifecycleParticipant {
             payload[2] = getDeviceNumber();
             payload[8] = getDeviceNumber();
             if (logger.isDebugEnabled()) {
-                logger.debug("Sending master yield request to player " + currentMaster);
+                logger.debug("Sending master yield request to player {}", currentMaster);
             }
             requestingMasterRoleFromPlayer.set(currentMaster.deviceNumber);
             assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_REQUEST, payload, currentMaster.address, BeatFinder.BEAT_PORT);
@@ -2358,7 +2334,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Controls the tempo at which we report ourselves to be playing. Only meaningful if we are sending status packets.
      * If {@link #isSynced()} is {@code true} and we are not the tempo master, any value set by this method will
-     * overridden by the the next tempo master change.
+     * be overridden by the next tempo master change.
      *
      * @param bpm the tempo, in beats per minute, that we should report in our status and beat packets
      */
@@ -2503,7 +2479,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
     /**
      * Send a status packet to all devices on the network. Used when we are actively sending status, presumably so we
-     * we can be the tempo master. Avoids sending one within twice {@link BeatSender#BEAT_THRESHOLD} milliseconds of
+     * can be the tempo master. Avoids sending one within twice {@link BeatSender#BEAT_THRESHOLD} milliseconds of
      * a beat, to make sure the beat packet announces the new beat before an early status packet confuses matters.
      */
     private void sendStatus() {
@@ -2537,7 +2513,7 @@ public class VirtualCdj extends LifecycleParticipant {
             try {
                 socket.get().send(packet);
             } catch (IOException e) {
-                logger.warn("Unable to send status packet to " + device, e);
+                logger.warn("Unable to send status packet to {}", device, e);
             }
         }
     }
@@ -2563,21 +2539,13 @@ public class VirtualCdj extends LifecycleParticipant {
         masterTempo.set(Double.doubleToLongBits(0.0));  // Note that we have no master tempo yet.
 
         // Arrange to have our status accurately reflect any relevant updates and commands from the mixer.
-        BeatFinder.getInstance().addOnAirListener(new OnAirListener() {
-            @Override
-            public void channelsOnAir(Set<Integer> audibleChannels) {
-                setOnAir(audibleChannels.contains((int)getDeviceNumber()));
-            }
-        });
+        BeatFinder.getInstance().addOnAirListener(audibleChannels -> setOnAir(audibleChannels.contains((int)getDeviceNumber())));
 
-        BeatFinder.getInstance().addFaderStartListener(new FaderStartListener() {
-            @Override
-            public void fadersChanged(Set<Integer> playersToStart, Set<Integer> playersToStop) {
-                if (playersToStart.contains((int)getDeviceNumber())) {
-                    setPlaying(true);
-                } else if (playersToStop.contains((int)getDeviceNumber())) {
-                    setPlaying(false);
-                }
+        BeatFinder.getInstance().addFaderStartListener((playersToStart, playersToStop) -> {
+            if (playersToStart.contains((int)getDeviceNumber())) {
+                setPlaying(true);
+            } else if (playersToStop.contains((int)getDeviceNumber())) {
+                setPlaying(false);
             }
         });
 
@@ -2591,14 +2559,11 @@ public class VirtualCdj extends LifecycleParticipant {
             public void becomeMaster() {
                 logger.debug("Received packet telling us to become master.");
                 if (isSendingStatus()) {
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                becomeTempoMaster();
-                            } catch (Throwable t) {
-                                logger.error("Problem becoming tempo master in response to sync command packet", t);
-                            }
+                    new Thread(() -> {
+                        try {
+                            becomeTempoMaster();
+                        } catch (Throwable t) {
+                            logger.error("Problem becoming tempo master in response to sync command packet", t);
                         }
                     }).start();
                 } else {
@@ -2611,14 +2576,14 @@ public class VirtualCdj extends LifecycleParticipant {
             @Override
             public void yieldMasterTo(int deviceNumber) {
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Received instruction to yield master to device " + deviceNumber);
+                    logger.debug("Received instruction to yield master to device {}", deviceNumber);
                 }
                 if (isTempoMaster()) {
                     if (isSendingStatus() && getDeviceNumber() != deviceNumber) {
                         nextMaster.set(deviceNumber);
                         final DeviceUpdate lastStatusFromNewMaster = getLatestStatusFor(deviceNumber);
                         if (lastStatusFromNewMaster == null) {
-                            logger.warn("Unable to send master yield response to device " + deviceNumber + ": no status updates have been received from it!");
+                            logger.warn("Unable to send master yield response to device {}: no status updates have been received from it!", deviceNumber);
                         } else {
                             byte[] payload = new byte[YIELD_ACK_PAYLOAD.length];
                             System.arraycopy(YIELD_ACK_PAYLOAD, 0, payload, 0, YIELD_ACK_PAYLOAD.length);
@@ -2627,12 +2592,12 @@ public class VirtualCdj extends LifecycleParticipant {
                             try {
                                 assembleAndSendPacket(Util.PacketType.MASTER_HANDOFF_RESPONSE, payload, lastStatusFromNewMaster.getAddress(), UPDATE_PORT);
                             } catch (Throwable t) {
-                                logger.error("Problem sending master yield acknowledgment to player " + deviceNumber, t);
+                                logger.error("Problem sending master yield acknowledgment to player {}", deviceNumber, t);
                             }
                         }
                     }
                 } else {
-                    logger.warn("Ignoring instruction to yield master to device " + deviceNumber + ": we were not tempo master.");
+                    logger.warn("Ignoring instruction to yield master to device {}: we were not tempo master.", deviceNumber);
 
                 }
             }
@@ -2640,7 +2605,7 @@ public class VirtualCdj extends LifecycleParticipant {
             @Override
             public void yieldResponse(int deviceNumber, boolean yielded) {
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Received yield response of " + yielded + " from device " + deviceNumber);
+                    logger.debug("Received yield response of {} from device {}", yielded, deviceNumber);
                 }
                 if (yielded) {
                     if (isSendingStatus()) {
@@ -2649,11 +2614,9 @@ public class VirtualCdj extends LifecycleParticipant {
                             masterYieldedFrom.set(deviceNumber);
                         } else {
                             if (requestingMasterRoleFromPlayer.get() == 0) {
-                                logger.warn("Ignoring master yield response from player " + deviceNumber +
-                                        " because we are not trying to become tempo master.");
+                                logger.warn("Ignoring master yield response from player {} because we are not trying to become tempo master.", deviceNumber);
                             } else {
-                                logger.warn("Ignoring master yield response from player " + deviceNumber +
-                                        " because we asked player " + requestingMasterRoleFromPlayer.get());
+                                logger.warn("Ignoring master yield response from player {} because we asked player {}", deviceNumber, requestingMasterRoleFromPlayer.get());
                             }
                         }
                     } else {
@@ -2697,7 +2660,7 @@ public class VirtualCdj extends LifecycleParticipant {
         } else if (kind == Util.PacketType.DEVICE_NUMBER_STAGE_3) {
             handleDeviceClaimPacket(packet, 0x24);
         } else if (kind == Util.PacketType.DEVICE_NUMBER_WILL_ASSIGN) {
-            logger.debug("The mixer at address " + packet.getAddress().getHostAddress() + " wants to assign us a specific device number.");
+            logger.debug("The mixer at address {} wants to assign us a specific device number.", packet.getAddress().getHostAddress());
             if (claimingNumber.get() != 0) {
                 requestNumberFromMixer(packet.getAddress());
             } else {
@@ -2706,9 +2669,9 @@ public class VirtualCdj extends LifecycleParticipant {
         } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGN) {
             mixerAssigned.set(packet.getData()[0x24]);
             if (mixerAssigned.get() == 0) {
-                logger.debug("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use any device.");
+                logger.debug("Mixer at address {} told us to use any device.", packet.getAddress().getHostAddress());
             } else {
-                logger.info("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use device number " + mixerAssigned.get());
+                logger.info("Mixer at address {} told us to use device number {}", packet.getAddress().getHostAddress(), mixerAssigned.get());
             }
         } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGNMENT_FINISHED) {
             mixerAssigned.set(claimingNumber.get());
@@ -2718,20 +2681,20 @@ public class VirtualCdj extends LifecycleParticipant {
             if (defendedDevice == 0) {
                 logger.warn("Ignoring unexplained attempt to defend device 0.");
             } else if (defendedDevice == claimingNumber.get()) {
-                logger.warn("Another device is defending device number " + defendedDevice + ", so we can't use it.");
+                logger.warn("Another device is defending device number {}, so we can't use it.", defendedDevice);
                 claimRejected.set(true);
             } else if (isRunning()) {
                 if (defendedDevice == getDeviceNumber()) {
                     logger.warn("Another device has claimed it owns our device number, shutting down.");
                     stop();
                 } else {
-                    logger.warn("Another device is defending a number we are not using, ignoring: " + defendedDevice);
+                    logger.warn("Another device is defending a number we are not using, ignoring: {}", defendedDevice);
                 }
             } else {
-                logger.warn("Received device number defense message for device number " + defendedDevice +  " when we are not even running!");
+                logger.warn("Received device number defense message for device number {} when we are not even running!", defendedDevice);
             }
         } else {
-            logger.warn("Received unrecognized special announcement packet type: " + kind);
+            logger.warn("Received unrecognized special announcement packet type: {}", kind);
         }
     }
 

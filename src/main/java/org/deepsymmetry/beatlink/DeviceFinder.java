@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -38,7 +37,7 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * The socket used to listen for announcement packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>(null);
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<>(null);
 
     /**
      * Track when we started listening for announcement packets.
@@ -92,15 +91,15 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * Keep track of the announcements we have seen.
      */
-    private final Map<DeviceReference, DeviceAnnouncement> devices = new ConcurrentHashMap<DeviceReference, DeviceAnnouncement>();
+    private final Map<DeviceReference, DeviceAnnouncement> devices = new ConcurrentHashMap<>();
 
     /**
      * Remove any device announcements that are so old that the device seems to have gone away.
      */
      private void expireDevices() {
         long now = System.currentTimeMillis();
-        // Make a copy so we don't have to worry about concurrent modification.
-        Map<DeviceReference, DeviceAnnouncement> copy = new HashMap<DeviceReference, DeviceAnnouncement>(devices);
+        // Make a copy, so we don't have to worry about concurrent modification.
+        Map<DeviceReference, DeviceAnnouncement> copy = new HashMap<>(devices);
         for (Map.Entry<DeviceReference, DeviceAnnouncement> entry : copy.entrySet()) {
             if (now - entry.getValue().getTimestamp() > MAXIMUM_AGE) {
                 devices.remove(entry.getKey());
@@ -138,7 +137,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * its socket to this set when it is active so that it does not show up in the set of devices found on the network.
      */
     private final Set<InetAddress> ignoredAddresses =
-            Collections.newSetFromMap(new ConcurrentHashMap<InetAddress, Boolean>());
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Start ignoring any device updates which are received from the specified address. Intended for use by the
@@ -161,8 +160,8 @@ public class DeviceFinder extends LifecycleParticipant {
     }
 
     /**
-     * Check whether an address is being ignored. (The {@link BeatFinder} will call this so it can filter out the
-     * {@link VirtualCdj}'s beat messages when it is broadcasting them, for example.
+     * Check whether an address is being ignored. (The {@link BeatFinder} will call this, so it can filter out the
+     * {@link VirtualCdj}'s beat messages when it is broadcasting them, for example).
      *
      * @param address the address to be checked as a candidate to be ignored
      *
@@ -222,71 +221,63 @@ public class DeviceFinder extends LifecycleParticipant {
 
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            Thread receiver = new Thread(null, new Runnable() {
-                @Override
-                public void run() {
-                    boolean received;
-                    while (isRunning()) {
-                        try {
-                            if (getCurrentDevices().isEmpty()) {
-                                socket.get().setSoTimeout(60000);  // We have no devices to check for timeout; block for a whole minute to check for shutdown
-                            } else {
-                                socket.get().setSoTimeout(1000);  // Check every second to see if a device has vanished
-                            }
-                            socket.get().receive(packet);
-                            received = !ignoredAddresses.contains(packet.getAddress());
-                        } catch (SocketTimeoutException ste) {
-                            received = false;
-                        } catch (IOException e) {
-                            // Don't log a warning if the exception was due to the socket closing at shutdown.
-                            if (isRunning()) {
-                                // We did not expect to have a problem; log a warning and shut down.
-                                logger.warn("Problem reading from DeviceAnnouncement socket, stopping", e);
-                                stop();
-                            }
-                            received = false;
+            Thread receiver = new Thread(null, () -> {
+                boolean received;
+                while (isRunning()) {
+                    try {
+                        if (getCurrentDevices().isEmpty()) {
+                            socket.get().setSoTimeout(60000);  // We have no devices to check for timeout; block for a whole minute to check for shutdown
+                        } else {
+                            socket.get().setSoTimeout(1000);  // Check every second to see if a device has vanished
                         }
-                        try {
-                            if (received) {
-                                final Util.PacketType kind = Util.validateHeader(packet, ANNOUNCEMENT_PORT);
-                                if (kind == Util.PacketType.DEVICE_KEEP_ALIVE) {
-                                    // Looks like the kind of packet we need
-                                    if (packet.getLength() < 54) {
-                                        logger.warn("Ignoring too-short " + kind.name + " packet; expected 54 bytes, but only got " +
-                                                packet.getLength() + ".");
+                        socket.get().receive(packet);
+                        received = !ignoredAddresses.contains(packet.getAddress());
+                    } catch (SocketTimeoutException ste) {
+                        received = false;
+                    } catch (IOException e) {
+                        // Don't log a warning if the exception was due to the socket closing at shutdown.
+                        if (isRunning()) {
+                            // We did not expect to have a problem; log a warning and shut down.
+                            logger.warn("Problem reading from DeviceAnnouncement socket, stopping", e);
+                            stop();
+                        }
+                        received = false;
+                    }
+                    try {
+                        if (received) {
+                            final Util.PacketType kind = Util.validateHeader(packet, ANNOUNCEMENT_PORT);
+                            if (kind == Util.PacketType.DEVICE_KEEP_ALIVE) {
+                                // Looks like the kind of packet we need
+                                if (packet.getLength() < 54) {
+                                    logger.warn("Ignoring too-short {} packet; expected 54 bytes, but only got {}.", kind.name, packet.getLength());
+                                } else {
+                                    if (packet.getLength() > 54) {
+                                        logger.warn("Processing too-long {} packet; expected 54 bytes, but got {}.", kind.name, packet.getLength());
+                                    }
+
+                                    DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
+
+                                    if (announcement.isOpusQuad()) {
+                                        createAndProcessOpusAnnouncements(packet);
                                     } else {
-                                        if (packet.getLength() > 54) {
-                                            logger.warn("Processing too-long " + kind.name + " packet; expected 54 bytes, but got " +
-                                                    packet.getLength() + ".");
-                                        }
+                                        processAnnouncement(announcement);
 
-                                        DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
-
-                                        if (Util.isOpusQuad(announcement.getDeviceName())) {
-
-                                            createAndProcessOpusAnnouncements(packet);
-                                        } else {
-
-                                            processAnnouncement(announcement);
-
-
-                                            if (VirtualCdj.getInstance().isRunning() &&
-                                                    announcement.getDeviceNumber() == VirtualCdj.getInstance().getDeviceNumber()) {
-                                                // Someone is using the same device number as we are! Try to defend it.
-                                                VirtualCdj.getInstance().defendDeviceNumber(announcement.getAddress());
-                                            }
+                                        if (VirtualCdj.getInstance().isRunning() &&
+                                                announcement.getDeviceNumber() == VirtualCdj.getInstance().getDeviceNumber()) {
+                                            // Someone is using the same device number as we are! Try to defend it.
+                                            VirtualCdj.getInstance().defendDeviceNumber(announcement.getAddress());
                                         }
                                     }
-                                } else if (kind == Util.PacketType.DEVICE_HELLO) {
-                                    logger.debug("Received device hello packet.");
-                                } else if (kind != null) {
-                                    VirtualCdj.getInstance().handleSpecialAnnouncementPacket(kind, packet);
                                 }
+                            } else if (kind == Util.PacketType.DEVICE_HELLO) {
+                                logger.debug("Received device hello packet.");
+                            } else if (kind != null) {
+                                VirtualCdj.getInstance().handleSpecialAnnouncementPacket(kind, packet);
                             }
-                            expireDevices();
-                        } catch (Throwable t) {
-                            logger.warn("Problem processing DeviceAnnouncement packet", t);
                         }
+                        expireDevices();
+                    } catch (Throwable t) {
+                        logger.warn("Problem processing DeviceAnnouncement packet", t);
                     }
                 }
             }, "beat-link DeviceFinder receiver");
@@ -301,17 +292,14 @@ public class DeviceFinder extends LifecycleParticipant {
      * reachable.
      */
     synchronized void flush() {
-        final Set<DeviceAnnouncement> lastDevices = new HashSet<DeviceAnnouncement>(devices.values());
+        final Set<DeviceAnnouncement> lastDevices = new HashSet<>(devices.values());
         devices.clear();
         firstDeviceTime.set(0);
 
         // Report the loss of all our devices, on the proper thread, also outside our lock.
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                for (DeviceAnnouncement announcement : lastDevices) {
-                    deliverLostAnnouncement(announcement);
-                }
+        SwingUtilities.invokeLater(() -> {
+            for (DeviceAnnouncement announcement : lastDevices) {
+                deliverLostAnnouncement(announcement);
             }
         });
     }
@@ -345,7 +333,7 @@ public class DeviceFinder extends LifecycleParticipant {
         }
         expireDevices();  // Get rid of anything past its sell-by date.
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<DeviceAnnouncement>(devices.values()));
+        return Collections.unmodifiableSet(new HashSet<>(devices.values()));
     }
 
     /**
@@ -372,7 +360,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * Keeps track of the registered device announcement listeners.
      */
     private final Set<DeviceAnnouncementListener> deviceListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<DeviceAnnouncementListener, Boolean>());
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
     /**
      * Adds the specified device announcement listener to receive device announcements when DJ Link devices
      * are found on or leave the network. If {@code listener} is {@code null} or already present in the list
@@ -412,7 +400,7 @@ public class DeviceFinder extends LifecycleParticipant {
     @SuppressWarnings("WeakerAccess")
     public Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<DeviceAnnouncementListener>(deviceListeners));
+        return Collections.unmodifiableSet(new HashSet<>(deviceListeners));
     }
 
     /**
@@ -422,14 +410,11 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     private void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
         for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        listener.deviceFound(announcement);
-                    } catch (Throwable t) {
-                        logger.warn("Problem delivering device found announcement to listener", t);
-                    }
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    listener.deviceFound(announcement);
+                } catch (Throwable t) {
+                    logger.warn("Problem delivering device found announcement to listener", t);
                 }
             });
         }
@@ -442,14 +427,11 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     private void deliverLostAnnouncement(final DeviceAnnouncement announcement) {
         for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        listener.deviceLost(announcement);
-                    } catch (Throwable t) {
-                        logger.warn("Problem delivering device lost announcement to listener", t);
-                    }
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    listener.deviceLost(announcement);
+                } catch (Throwable t) {
+                    logger.warn("Problem delivering device lost announcement to listener", t);
                 }
             });
         }
