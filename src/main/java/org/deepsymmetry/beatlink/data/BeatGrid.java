@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
@@ -16,13 +17,14 @@ import java.util.Arrays;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class BeatGrid {
 
     private static final Logger logger = LoggerFactory.getLogger(BeatGrid.class);
     /**
      * The unique identifier that was used to request this beat grid.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final DataReference dataReference;
 
     /**
@@ -37,7 +39,7 @@ public class BeatGrid {
      *
      * @return the bytes that make up the beat grid
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public ByteBuffer getRawData() {
         if (rawData != null) {
             rawData.rewind();
@@ -49,7 +51,7 @@ public class BeatGrid {
     /**
      * The number of beats in the track.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final int beatCount;
 
     /**
@@ -73,6 +75,7 @@ public class BeatGrid {
      * @param reference the unique database reference that was used to request this waveform detail
      * @param message the response that contained the beat grid data
      */
+    @API(status = API.Status.STABLE)
     public BeatGrid(DataReference reference, Message message) {
         this(reference, ((BinaryField) message.arguments.get(3)).getValue());
     }
@@ -83,6 +86,7 @@ public class BeatGrid {
      * @param reference the unique database reference that was used to request this waveform detail
      * @param buffer the raw bytes representing the beat grid
      */
+    @API(status = API.Status.STABLE)
     public BeatGrid(DataReference reference, ByteBuffer buffer) {
         dataReference = reference;
         rawData = buffer;
@@ -123,6 +127,7 @@ public class BeatGrid {
      * @param reference the unique database reference that was used to request this waveform detail
      * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
      */
+    @API(status = API.Status.STABLE)
     public BeatGrid(DataReference reference, RekordboxAnlz anlzFile) {
         dataReference = reference;
         rawData = null;
@@ -147,6 +152,7 @@ public class BeatGrid {
      * @param bpmValues the tempo of the track at each beat, as beats per minute multiplied by 100
      * @param timeWithinTrackValues the time, in milliseconds, at which each beat occurs in the track
      */
+    @API(status = API.Status.STABLE)
     public BeatGrid(DataReference reference, int[] beatWithinBarValues, int[] bpmValues, long[] timeWithinTrackValues) {
         dataReference = reference;
         rawData = null;
@@ -176,12 +182,11 @@ public class BeatGrid {
             throw new IllegalStateException("There are no beats in this beat grid.");
         }
         if (beatNumber < 1 ) {
-            logger.debug("Offset for nonexistent beat, " + beatNumber + " requested; returning offset for beat 1");
+            logger.debug("Offset for nonexistent beat, {} requested; returning offset for beat 1", beatNumber);
             return 0;
         }
         if (beatNumber > beatCount) {
-            logger.debug("Offset for nonexistent beat, " + beatNumber + " requested; returning offset for last beat, " +
-                    beatCount);
+            logger.debug("Offset for nonexistent beat, {} requested; returning offset for last beat, {}", beatNumber, beatCount);
             return beatCount - 1;
         }
         return beatNumber - 1;
@@ -197,6 +202,7 @@ public class BeatGrid {
      *
      * @throws IllegalArgumentException if {@code number} is less than 0 or greater than {@code beatCount}
      */
+    @API(status = API.Status.STABLE)
     public long getTimeWithinTrack(int beatNumber) {
         if (beatNumber == 0) {
             return 0;
@@ -215,6 +221,7 @@ public class BeatGrid {
      *
      * @throws IllegalArgumentException if {@code number} is less than 1 or greater than {@code beatCount}
      */
+    @API(status = API.Status.STABLE)
     public int getBeatWithinBar(int beatNumber) {
         return beatWithinBarValues[beatOffset(beatNumber)];
     }
@@ -227,6 +234,7 @@ public class BeatGrid {
      *
      * @return the track BPM at the specified beat number to two decimal places multiplied by 100
      */
+    @API(status = API.Status.STABLE)
     public int getBpm(int beatNumber) {
         return bpmValues[beatOffset(beatNumber)];
     }
@@ -239,6 +247,7 @@ public class BeatGrid {
      * @param beatNumber the beat number whose bar number is desired
      * @return the bar within which the specified beat falls
      */
+    @API(status = API.Status.STABLE)
     public int getBarNumber(int beatNumber) {
         final int offset = getBeatWithinBar(1) - 1;
         final int bar = ((offset + beatOffset(beatNumber)) / 4);
@@ -258,7 +267,7 @@ public class BeatGrid {
      *
      * @return the beat number represented by that time, or -1 if the time is before the first beat
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int findBeatAtTime(long milliseconds) {
         int found = Arrays.binarySearch(timeWithinTrackValues, milliseconds);
         if (found >= 0) {  // An exact match, just change 0-based array index to 1-based beat number

@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
@@ -27,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class ArtFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(ArtFinder.class);
@@ -36,26 +37,22 @@ public class ArtFinder extends LifecycleParticipant {
      * Keeps track of the current album art cached for each player. We hot cache art for any track which is currently
      * on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
-    private final Map<DeckReference, AlbumArt> hotCache = new ConcurrentHashMap<DeckReference, AlbumArt>();
+    private final Map<DeckReference, AlbumArt> hotCache = new ConcurrentHashMap<>();
 
     /**
      * A queue used to hold metadata updates we receive from the {@link MetadataFinder} so we can process them on a
      * lower priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates =
-            new LinkedBlockingDeque<TrackMetadataUpdate>(100);
+    private final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates = new LinkedBlockingDeque<>(100);
 
     /**
      * Our metadata listener just puts metadata updates on our queue, so we can process them on a lower
      * priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
-        @Override
-        public void metadataChanged(TrackMetadataUpdate update) {
-            logger.debug("Received metadata update {}", update);
-            if (!pendingUpdates.offerLast(update)) {
-                logger.warn("Discarding metadata update because our queue is backed up.");
-            }
+    private final TrackMetadataListener metadataListener = update -> {
+        logger.debug("Received metadata update {}", update);
+        if (!pendingUpdates.offerLast(update)) {
+            logger.warn("Discarding metadata update because our queue is backed up.");
         }
     };
 
@@ -83,7 +80,7 @@ public class ArtFinder extends LifecycleParticipant {
         @Override
         public void mediaUnmounted(SlotReference slot) {
             // Iterate over a copy to avoid concurrent modification issues.
-            final Set<DataReference> keys = new HashSet<DataReference>(artCache.keySet());
+            final Set<DataReference> keys = new HashSet<>(artCache.keySet());
             for (DataReference artReference : keys) {
                 if (SlotReference.getSlotReference(artReference) == slot) {
                     logger.debug("Evicting cached artwork in response to unmount report {}", artReference);
@@ -91,7 +88,7 @@ public class ArtFinder extends LifecycleParticipant {
                 }
             }
             // Again iterate over a copy to avoid concurrent modification issues.
-            final Set<Map.Entry<DeckReference,AlbumArt>> copy = new HashSet<Map.Entry<DeckReference, AlbumArt>>(hotCache.entrySet());
+            final Set<Map.Entry<DeckReference,AlbumArt>> copy = new HashSet<>(hotCache.entrySet());
             for (Map.Entry<DeckReference, AlbumArt> entry : copy) {
                 if (slot == SlotReference.getSlotReference(entry.getValue().artReference)) {
                     logger.debug("Evicting hot cached artwork in response to unmount report {}", entry.getValue());
@@ -132,6 +129,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @see MetadataFinder#isPassive()
      */
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return running.get();
     }
@@ -163,7 +161,7 @@ public class ArtFinder extends LifecycleParticipant {
     private void clearArt(DeviceAnnouncement announcement) {
         final int player = announcement.getDeviceNumber();
         // Iterate over a copy to avoid concurrent modification issues
-        for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
+        for (DeckReference deck : new HashSet<>(hotCache.keySet())) {
             if (deck.player == player) {
                 hotCache.remove(deck);
                 if (deck.hotCue == 0) {
@@ -172,7 +170,7 @@ public class ArtFinder extends LifecycleParticipant {
             }
         }
         // Again iterate over a copy to avoid concurrent modification issues
-        for (DataReference art : new HashSet<DataReference>(artCache.keySet())) {
+        for (DataReference art : new HashSet<>(artCache.keySet())) {
             if (art.player == player) {
                 removeArtFromCache(art);
             }
@@ -204,10 +202,11 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the ArtFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public Map<DeckReference, AlbumArt> getLoadedArt() {
         ensureRunning();
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableMap(new HashMap<DeckReference, AlbumArt>(hotCache));
+        return Map.copyOf(hotCache);
     }
 
     /**
@@ -219,6 +218,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the ArtFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public AlbumArt getLatestArtFor(int player) {
         ensureRunning();
         return hotCache.get(DeckReference.getDeckReference(player, 0));
@@ -233,6 +233,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the ArtFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public AlbumArt getLatestArtFor(DeviceUpdate update) {
         return getLatestArtFor(update.getDeviceNumber());
     }
@@ -240,6 +241,7 @@ public class ArtFinder extends LifecycleParticipant {
     /**
      * The maximum number of artwork images we will retain in our cache.
      */
+    @API(status = API.Status.STABLE)
     public static final int DEFAULT_ART_CACHE_SIZE = 100;
 
     /**
@@ -253,19 +255,19 @@ public class ArtFinder extends LifecycleParticipant {
      * <a href="https://www.graalvm.org/latest/reference-manual/native-image/">native-image</a> environments, without
      * forcing us to abandon Java 6 compatibility which is still useful for afterglow-max.
      */
-    private final ConcurrentHashMap<DataReference, AlbumArt> artCache = new ConcurrentHashMap<DataReference, AlbumArt>();
+    private final ConcurrentHashMap<DataReference, AlbumArt> artCache = new ConcurrentHashMap<>();
 
     /**
      * Keeps track of the order in which art has been added to the cache, so older and unused art is prioritized for
      * eviction.
      */
-    private final LinkedList<DataReference> artCacheEvictionQueue = new LinkedList<DataReference>();
+    private final LinkedList<DataReference> artCacheEvictionQueue = new LinkedList<>();
 
     /**
      * Keeps track of whether artwork has been used since it was added to the cache or previously considered for
      * eviction, so older and unused art is prioritized for eviction.
      */
-    private final HashSet<DataReference> artCacheRecentlyUsed = new HashSet<DataReference>();
+    private final HashSet<DataReference> artCacheRecentlyUsed = new HashSet<>();
 
     /**
      * Establishes how many album art images we retain in our second-level cache.
@@ -278,6 +280,7 @@ public class ArtFinder extends LifecycleParticipant {
      * @return the maximum number of distinct album art images that will automatically be kept for reuse in the
      *         in-memory art cache.
      */
+    @API(status = API.Status.STABLE)
     public long getArtCacheSize() {
         return artCacheSize.get();
     }
@@ -312,6 +315,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws IllegalArgumentException if {@code} size is less than 1
      */
+    @API(status = API.Status.STABLE)
     public synchronized void setArtCacheSize(int size) {
         if (size < 1) {
             throw new IllegalArgumentException("size must be at least 1");
@@ -332,6 +336,7 @@ public class ArtFinder extends LifecycleParticipant {
      * Check whether we are requesting high-resolution artwork when it is available.
      * @return {@code true} if we attempt to obtain high-resolution versions of artwork, falling back to normal resolution when unavailable.
      */
+    @API(status = API.Status.STABLE)
     public boolean getRequestHighResolutionArt() {
         return requestHighResolutionArt.get();
     }
@@ -342,6 +347,7 @@ public class ArtFinder extends LifecycleParticipant {
      * @param shouldRequest if {@code true} we will try to obtain high-resolution art first, falling back to the
      *                      ordinary resolution if it is not available.
      */
+    @API(status = API.Status.STABLE)
     public void setRequestHighResolutionArt(boolean shouldRequest) {
         requestHighResolutionArt.set(shouldRequest);
     }
@@ -388,12 +394,8 @@ public class ArtFinder extends LifecycleParticipant {
         }
 
         // We have to actually request the art using the dbserver protocol.
-        ConnectionManager.ClientTask<AlbumArt> task = new ConnectionManager.ClientTask<AlbumArt>() {
-            @Override
-            public AlbumArt useClient(Client client) throws Exception {
-                return getArtwork(artReference.rekordboxId, SlotReference.getSlotReference(artReference), trackType, client);
-            }
-        };
+        ConnectionManager.ClientTask<AlbumArt> task =
+                client -> getArtwork(artReference.rekordboxId, SlotReference.getSlotReference(artReference), trackType, client);
 
         try {
             AlbumArt artwork = ConnectionManager.getInstance().invokeWithClientSession(artReference.player, task, "requesting artwork");
@@ -418,6 +420,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the ArtFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public AlbumArt requestArtworkFrom(final DataReference artReference, final CdjStatus.TrackType trackType) {
         ensureRunning();
         AlbumArt artwork = findArtInMemoryCaches(artReference);  // First check the in-memory artwork caches.
@@ -463,7 +466,7 @@ public class ArtFinder extends LifecycleParticipant {
     /**
      * Keep track of the devices we are currently trying to get artwork from in response to metadata updates.
      */
-    private final Set<Integer> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private final Set<Integer> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Look for the specified album art in both the hot cache of loaded tracks and the longer-lived LRU cache.
@@ -494,7 +497,7 @@ public class ArtFinder extends LifecycleParticipant {
      * Keeps track of the registered track metadata update listeners.
      */
     private final Set<AlbumArtListener> artListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<AlbumArtListener, Boolean>());
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified album art listener to receive updates when the album art for a player changes.
@@ -512,6 +515,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @param listener the album art update listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addAlbumArtListener(AlbumArtListener listener) {
         if (listener != null) {
             artListeners.add(listener);
@@ -525,6 +529,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @param listener the album art update listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeAlbumArtListener(AlbumArtListener listener) {
         if (listener != null) {
             artListeners.remove(listener);
@@ -536,10 +541,10 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @return the listeners that are currently registered for album art updates
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Set<AlbumArtListener> getAlbumArtListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<AlbumArtListener>(artListeners));
+        return Set.copyOf(artListeners);
     }
 
     /**
@@ -587,19 +592,16 @@ public class ArtFinder extends LifecycleParticipant {
                 if (activeRequests.add(update.player)) {
                     clearDeck(update);  // We won't know what it is until our request completes.
                     // We had to make sure we were not already asking for this track.
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                AlbumArt art = requestArtworkInternal(artReference, update.metadata.trackType, true);
-                                if (art != null) {
-                                    updateArt(update, art);
-                                }
-                            } catch (Exception e) {
-                                logger.warn("Problem requesting album art from update" + update, e);
-                            } finally {
-                                activeRequests.remove(update.player);
+                    new Thread(() -> {
+                        try {
+                            AlbumArt art = requestArtworkInternal(artReference, update.metadata.trackType, true);
+                            if (art != null) {
+                                updateArt(update, art);
                             }
+                        } catch (Exception e) {
+                            logger.warn("Problem requesting album art from update {}", update, e);
+                        } finally {
+                            activeRequests.remove(update.player);
                         }
                     }).start();
                 }
@@ -633,6 +635,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @throws Exception if there is a problem starting the required components
      */
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws Exception {
         if (!isRunning()) {
             ConnectionManager.getInstance().addLifecycleListener(lifecycleListener);
@@ -642,15 +645,12 @@ public class ArtFinder extends LifecycleParticipant {
             MetadataFinder.getInstance().start();
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             MetadataFinder.getInstance().addMountListener(mountListener);
-            queueHandler = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (isRunning()) {
-                        try {
-                            handleUpdate(pendingUpdates.take());
-                        } catch (InterruptedException e) {
-                            // Interrupted due to MetadataFinder shutdown, presumably
-                        }
+            queueHandler = new Thread(() -> {
+                while (isRunning()) {
+                    try {
+                        handleUpdate(pendingUpdates.take());
+                    } catch (InterruptedException e) {
+                        // Interrupted due to MetadataFinder shutdown, presumably
                     }
                 }
             });
@@ -670,6 +670,7 @@ public class ArtFinder extends LifecycleParticipant {
     /**
      * Stop finding album art for all active players.
      */
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
@@ -679,14 +680,11 @@ public class ArtFinder extends LifecycleParticipant {
             queueHandler = null;
 
             // Report the loss of our hot cached art and our shutdown, on the proper thread, and outside our lock
-            final Set<DeckReference> dyingCache = new HashSet<DeckReference>(hotCache.keySet());
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (DeckReference deck : dyingCache) {
-                        if (deck.hotCue == 0) {
-                            deliverAlbumArtUpdate(deck.player, null);
-                        }
+            final Set<DeckReference> dyingCache = new HashSet<>(hotCache.keySet());
+            SwingUtilities.invokeLater(() -> {
+                for (DeckReference deck : dyingCache) {
+                    if (deck.hotCue == 0) {
+                        deliverAlbumArtUpdate(deck.player, null);
                     }
                 }
             });
@@ -708,6 +706,7 @@ public class ArtFinder extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static ArtFinder getInstance() {
         return ourInstance;
     }

@@ -1,15 +1,18 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * Provides notification when the beat grid associated with a player changes.
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class BeatGridUpdate {
     /**
      * The player number for which a beat grid change has occurred.
      */
+    @API(status = API.Status.STABLE)
     public final int player;
 
     /**
@@ -17,6 +20,7 @@ public class BeatGridUpdate {
      * if we don't have any beat grid available (including for a brief period after a new track has been loaded
      * while we are requesting the beat grid).
      */
+    @API(status = API.Status.STABLE)
     public final BeatGrid beatGrid;
 
     BeatGridUpdate(int player, BeatGrid beatGrid) {

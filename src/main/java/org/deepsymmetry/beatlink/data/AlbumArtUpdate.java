@@ -1,16 +1,19 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * Provides notification when the album art associated with a player changes.
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class AlbumArtUpdate {
 
     /**
      * The player number for which an album art change has occurred.
      */
+    @API(status = API.Status.STABLE)
     public final int player;
 
     /**
@@ -18,6 +21,7 @@ public class AlbumArtUpdate {
      * if we don't have any art available (including for a brief period after a new track has been loaded
      * while we are requesting the art).
      */
+    @API(status = API.Status.STABLE)
     public final AlbumArt art;
 
     AlbumArtUpdate(int player, AlbumArt art) {

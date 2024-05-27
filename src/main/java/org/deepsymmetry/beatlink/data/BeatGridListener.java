@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * <p>The listener interface for receiving updates when the beat grid available for a track loaded in any player
  * changes.</p>
@@ -13,12 +15,13 @@ package org.deepsymmetry.beatlink.data;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface BeatGridListener {
     /**
      * Called when the beat grid available for a player has changed.
      *
      * @param update provides information about what has changed
      */
+    @API(status = API.Status.STABLE)
     void beatGridChanged(BeatGridUpdate update);
 }

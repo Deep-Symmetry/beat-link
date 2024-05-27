@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.*;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
@@ -31,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class AnalysisTagFinder extends LifecycleParticipant  {
 
     private static final Logger logger = LoggerFactory.getLogger(AnalysisTagFinder.class);
@@ -39,26 +41,31 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * Wraps values we store in our hot cache, so we can keep track of the player, slot, track, file extension,
      * and type tag the analysis section was associated with.
      */
+    @API(status = API.Status.STABLE)
     public static class CacheEntry {
 
         /**
          * Identifies the track to which the analysis section belongs.
          */
+        @API(status = API.Status.STABLE)
         public final DataReference dataReference;
 
         /**
          * Identifies the specific analysis file from which the cached section was loaded.
          */
+        @API(status = API.Status.STABLE)
         public final String fileExtension;
 
         /**
          * The four-character type code identifying the specific section of the analysis file that was cached.
          */
+        @API(status = API.Status.STABLE)
         public final String typeTag;
 
         /**
          * The parsed analysis file section itself.
          */
+        @API(status = API.Status.STABLE)
         public final RekordboxAnlz.TaggedSection taggedSection;
 
         /**
@@ -82,27 +89,22 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * We hot cache data for any track which is currently on-deck in the player, as well as any that were
      * loaded into a player's hot-cue slot.
      */
-    private final ConcurrentHashMap<DeckReference, ConcurrentHashMap<String, CacheEntry>> hotCache =
-            new ConcurrentHashMap<DeckReference, ConcurrentHashMap<String, CacheEntry>>();
+    private final ConcurrentHashMap<DeckReference, ConcurrentHashMap<String, CacheEntry>> hotCache = new ConcurrentHashMap<>();
 
     /**
      * A queue used to hold metadata updates we receive from the {@link MetadataFinder} so we can process them on a
      * lower priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates =
-            new LinkedBlockingDeque<TrackMetadataUpdate>(100);
+    private final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates = new LinkedBlockingDeque<>(100);
 
     /**
      * Our metadata listener just puts metadata updates on our queue, so we can process them on a lower
      * priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
-        @Override
-        public void metadataChanged(TrackMetadataUpdate update) {
-            logger.debug("Received metadata update {}", update);
-            if (!pendingUpdates.offerLast(update)) {
-                logger.warn("Discarding metadata update because our queue is backed up.");
-            }
+    private final TrackMetadataListener metadataListener = update -> {
+        logger.debug("Received metadata update {}", update);
+        if (!pendingUpdates.offerLast(update)) {
+            logger.warn("Discarding metadata update because our queue is backed up.");
         }
     };
 
@@ -120,7 +122,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
         public void mediaUnmounted(SlotReference slot) {
             // Iterate over a copy to avoid concurrent modification issues
             for (Map.Entry<DeckReference, Map<String, CacheEntry>> deckEntry : new HashMap<DeckReference, Map<String, CacheEntry>>(hotCache).entrySet()) {
-                for (Map.Entry<String, CacheEntry> typeEntry : new HashMap<String, CacheEntry>(deckEntry.getValue()).entrySet()) {
+                for (Map.Entry<String, CacheEntry> typeEntry : new HashMap<>(deckEntry.getValue()).entrySet()) {
                     if (slot == SlotReference.getSlotReference(typeEntry.getValue().dataReference)) {
                         logger.debug("Evicting cached track analysis sections in response to unmount report {}", typeEntry.getValue());
                         final Map<String, CacheEntry> deckCache = hotCache.get(deckEntry.getKey());
@@ -167,6 +169,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      *
      * @see MetadataFinder#isPassive()
      */
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return running.get();
     }
@@ -199,7 +202,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     private void clearTags(DeviceAnnouncement announcement) {
         final int player = announcement.getDeviceNumber();
         // Iterate over a copy to avoid concurrent modification issues
-        for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
+        for (DeckReference deck : new HashSet<>(hotCache.keySet())) {
             if (deck.player == player) {
                 final Map<String, CacheEntry> oldTags = hotCache.remove(deck);
                 if (deck.hotCue == 0) {
@@ -220,14 +223,14 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     private void updateAnalysisTag(final TrackMetadataUpdate update, final String fileExtension, final String typeTag, RekordboxAnlz.TaggedSection analysisTag) {
         final CacheEntry cacheEntry = new CacheEntry(update.metadata.trackReference, fileExtension, typeTag, analysisTag);
         final String tagKey = typeTag + fileExtension;
-        ConcurrentHashMap<String, CacheEntry> newDeckMap = new ConcurrentHashMap<String, CacheEntry>();
+        ConcurrentHashMap<String, CacheEntry> newDeckMap = new ConcurrentHashMap<>();
         ConcurrentHashMap<String, CacheEntry> deckMap = hotCache.putIfAbsent(DeckReference.getDeckReference(update.player, 0), newDeckMap);
         if (deckMap == null) deckMap = newDeckMap;  // We added a new deck reference to the hot cache.
         deckMap.put(tagKey, cacheEntry);
         if (update.metadata.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : update.metadata.getCueList().entries) {
                 if (entry.hotCueNumber != 0) {
-                    newDeckMap = new ConcurrentHashMap<String, CacheEntry>();
+                    newDeckMap = new ConcurrentHashMap<>();
                     deckMap = hotCache.putIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber), newDeckMap);
                     if (deckMap == null) deckMap = newDeckMap;  // We added a new deck reference to the hot cache.
                     deckMap.put(tagKey, cacheEntry);
@@ -245,13 +248,13 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      *
      * @throws IllegalStateException if the AnalysisTagFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Map<DeckReference, Map<String, CacheEntry>> getLoadedAnalysisTags() {
         ensureRunning();
         // Make a copy so callers get an immutable snapshot of the current state.
-        final Map<DeckReference, Map<String, CacheEntry>> result = new HashMap<DeckReference, Map<String, CacheEntry>>();
+        final Map<DeckReference, Map<String, CacheEntry>> result = new HashMap<>();
         for (Map.Entry<DeckReference, Map<String, CacheEntry>> entry: new HashMap<DeckReference, Map<String, CacheEntry>>(hotCache).entrySet()) {
-            result.put(entry.getKey(), Collections.unmodifiableMap(new HashMap<String, CacheEntry>(entry.getValue())));
+            result.put(entry.getKey(), Map.copyOf(entry.getValue()));
         }
         return Collections.unmodifiableMap(result);
     }
@@ -267,6 +270,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      *
      * @throws IllegalStateException if the AnalysisTagFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public RekordboxAnlz.TaggedSection getLatestTrackAnalysisFor(final int player, final String fileExtension, final String typeTag) {
         ensureRunning();
         final Map<String, CacheEntry> deckTags = hotCache.get(DeckReference.getDeckReference(player, 0));
@@ -291,6 +295,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      *
      * @throws IllegalStateException if the AnalysisTagFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public RekordboxAnlz.TaggedSection getLatestTrackAnalysisFor(final DeviceUpdate update, final String fileExtension, final String typeTag) {
         return getLatestTrackAnalysisFor(update.getDeviceNumber(), fileExtension, typeTag);
     }
@@ -331,12 +336,9 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
         }
 
         // We have to actually request the analysis using the dbserver protocol.
-        ConnectionManager.ClientTask<RekordboxAnlz.TaggedSection> task = new ConnectionManager.ClientTask<RekordboxAnlz.TaggedSection>() {
-            @Override
-            public RekordboxAnlz.TaggedSection useClient(Client client) {
-                logger.debug("tag task running");
-                return getTagViaDbServer(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), fileExtension, typeTag, client);
-            }
+        ConnectionManager.ClientTask<RekordboxAnlz.TaggedSection> task = client -> {
+            logger.debug("tag task running");
+            return getTagViaDbServer(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), fileExtension, typeTag, client);
         };
 
         try {
@@ -361,6 +363,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      *
      * @throws IllegalStateException if the AnalysisTagFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public RekordboxAnlz.TaggedSection requestAnalysisTagFrom(final DataReference dataReference,
                                                                 final String fileExtension, final String typeTag) {
         ensureRunning();
@@ -382,6 +385,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * @param s the string to be converted
      * @return the numeric field the protocol uses to represent that string.
      */
+    @API(status = API.Status.STABLE)
     public NumberField stringToProtocolNumber(final String s) {
         long fourcc = 0;  // Convert the type tag to a byte-reversed integer as used in the protocol.
         for (int i = 3; i >= 0; i--) {
@@ -425,7 +429,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
             logger.warn("Did not receive usable tag response from db server: {}", response);
 
         } catch (Exception e) {
-                logger.warn("Problem requesting song structure information for slot " + slot + ", id " + rekordboxId, e);
+            logger.warn("Problem requesting song structure information for slot {}, id {}", slot, rekordboxId, e);
         }
         return null;
     }
@@ -434,12 +438,12 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * Keep track of the devices and specific tags we are currently trying to get analysis sections from in response
      * to metadata updates. Keys are the device number concatenated with a colon, typeTag, and fileExtension.
      */
-    private final Set<String> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+    private final Set<String> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Keeps track of the registered tag listeners, indexed by the type of tag they are listening for.
      */
-    private final Map<String, Set<AnalysisTagListener>> analysisTagListeners = new ConcurrentHashMap<String, Set<AnalysisTagListener>>();
+    private final Map<String, Set<AnalysisTagListener>> analysisTagListeners = new ConcurrentHashMap<>();
 
     /**
      * <p>Adds the specified listener to receive updates when track analysis information of a specific type for a player changes.
@@ -457,6 +461,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * @param fileExtension identifies the specific analysis file for which the listener wants tag updates (such as ".DAT" and ".EXT")
      * @param typeTag the four-character type code identifying the specific section of the analysis file desired
      */
+    @API(status = API.Status.STABLE)
     public synchronized void addAnalysisTagListener(final AnalysisTagListener listener, final String fileExtension, final String typeTag) {
         if (listener != null) {
             final String tagKey = typeTag + fileExtension;
@@ -464,7 +469,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
             Set<AnalysisTagListener> specificTagListeners = analysisTagListeners.get(tagKey);
             if (specificTagListeners == null) {
                 trackingNewTag = true;
-                specificTagListeners = Collections.newSetFromMap(new ConcurrentHashMap<AnalysisTagListener, Boolean>());
+                specificTagListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
                 analysisTagListeners.put(tagKey, specificTagListeners);
             }
             specificTagListeners.add(listener);
@@ -481,6 +486,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * @param fileExtension identifies the specific analysis file for which the listener no longer wants tag updates
      * @param typeTag the four-character type code identifying the specific section of the analysis file no longer desired
      */
+    @API(status = API.Status.STABLE)
     public synchronized void removeAnalysisTagListener(final AnalysisTagListener listener, final String fileExtension, final String typeTag) {
         if (listener != null) {
             final String tagKey = typeTag + fileExtension;
@@ -501,12 +507,12 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      *
      * @return the listeners that are currently registered for track analysis updates, indexed by typeTag + fileExtension
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Map<String, Set<AnalysisTagListener>> getTagListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        final Map<String, Set<AnalysisTagListener>> result = new HashMap<String, Set<AnalysisTagListener>>();
-        for (Map.Entry<String, Set<AnalysisTagListener>> entry : new HashMap<String, Set<AnalysisTagListener>>(analysisTagListeners).entrySet()) {
-            result.put(entry.getKey(), Collections.unmodifiableSet(new HashSet<AnalysisTagListener>(entry.getValue())));
+        final Map<String, Set<AnalysisTagListener>> result = new HashMap<>();
+        for (Map.Entry<String, Set<AnalysisTagListener>> entry : new HashMap<>(analysisTagListeners).entrySet()) {
+            result.put(entry.getKey(), Set.copyOf(entry.getValue()));
         }
 
         return Collections.unmodifiableMap(result);
@@ -524,19 +530,16 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
         final Set<AnalysisTagListener> currentListeners = analysisTagListeners.get(typeTag + fileExtension);
         if (currentListeners != null) {
             // Iterate over a copy to avoid concurrent modification issues.
-            final Set<AnalysisTagListener> listeners = new HashSet<AnalysisTagListener>(currentListeners);
+            final Set<AnalysisTagListener> listeners = new HashSet<>(currentListeners);
             if (!listeners.isEmpty()) {
-                SwingUtilities.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        final AnalysisTagUpdate update = new AnalysisTagUpdate(player, fileExtension, typeTag, taggedSection);
-                        for (final AnalysisTagListener listener : listeners) {
-                            try {
-                                listener.analysisChanged(update);
+                SwingUtilities.invokeLater(() -> {
+                    final AnalysisTagUpdate update = new AnalysisTagUpdate(player, fileExtension, typeTag, taggedSection);
+                    for (final AnalysisTagListener listener : listeners) {
+                        try {
+                            listener.analysisChanged(update);
 
-                            } catch (Throwable t) {
-                                logger.warn("Problem delivering track analysis tag update to listener", t);
-                            }
+                        } catch (Throwable t) {
+                            logger.warn("Problem delivering track analysis tag update to listener", t);
                         }
                     }
                 });
@@ -592,21 +595,17 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
                     final String activeKey = update.player + ":" + trackedTag;
                     if (!foundInCache && activeRequests.add(activeKey))
                         clearDeckTags(update);  // We won't know what it is until our request completes.
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                RekordboxAnlz.TaggedSection structure = requestAnalysisTagInternal(
-                                        update.metadata.trackReference, fileExtension, typeTag, true);
-                                if (structure != null) {
-                                    updateAnalysisTag(update, fileExtension, typeTag, structure);
-                                }
-                            } catch (Exception e) {
-                                logger.warn("Problem requesting analysis tag of type " + typeTag + " in file with extension " +
-                                        fileExtension + " from update" + update, e);
-                            } finally {
-                                activeRequests.remove(activeKey);
+                    new Thread(() -> {
+                        try {
+                            RekordboxAnlz.TaggedSection structure = requestAnalysisTagInternal(
+                                    update.metadata.trackReference, fileExtension, typeTag, true);
+                            if (structure != null) {
+                                updateAnalysisTag(update, fileExtension, typeTag, structure);
                             }
+                        } catch (Exception e) {
+                            logger.warn("Problem requesting analysis tag of type {} in file with extension {} from update{}", typeTag, fileExtension, update, e);
+                        } finally {
+                            activeRequests.remove(activeKey);
                         }
                     }).start();
                 }
@@ -641,13 +640,10 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     private void primeCache() {
         logger.debug("primeCache() running");
         if (isRunning()) {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-                        if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
-                            handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
-                        }
+            SwingUtilities.invokeLater(() -> {
+                for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+                    if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                        handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
                     }
                 }
             });
@@ -662,6 +658,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      *
      * @throws Exception if there is a problem starting the required components
      */
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws Exception {
         if (!isRunning()) {
             ConnectionManager.getInstance().addLifecycleListener(lifecycleListener);
@@ -671,17 +668,14 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
             MetadataFinder.getInstance().start();
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             MetadataFinder.getInstance().addMountListener(mountListener);
-            queueHandler = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (isRunning()) {
-                        try {
-                            handleUpdate(pendingUpdates.take());
-                        } catch (InterruptedException e) {
-                            // Interrupted due to MetadataFinder shutdown, presumably
-                        } catch (Throwable t) {
-                            logger.error("Problem processing metadata update", t);
-                        }
+            queueHandler = new Thread(() -> {
+                while (isRunning()) {
+                    try {
+                        handleUpdate(pendingUpdates.take());
+                    } catch (InterruptedException e) {
+                        // Interrupted due to MetadataFinder shutdown, presumably
+                    } catch (Throwable t) {
+                        logger.error("Problem processing metadata update", t);
                     }
                 }
             });
@@ -695,7 +689,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     /**
      * Stop finding analysis tag information for all active players.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
@@ -705,15 +699,12 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
             queueHandler = null;
 
             // Report the loss of our song structure information, on the proper thread, outside our lock.
-            final Map<DeckReference, Map<String, CacheEntry>> dyingCache = new HashMap<DeckReference, Map<String, CacheEntry>>(hotCache);
+            final Map<DeckReference, Map<String, CacheEntry>> dyingCache = new HashMap<>(hotCache);
             hotCache.clear();
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (Map.Entry<DeckReference, Map<String, CacheEntry>> entry : dyingCache.entrySet()) {  // Report the loss of our tags.
-                        if (entry.getKey().hotCue == 0) {
-                            deliverTagLossUpdate(entry.getKey().player, entry.getValue());
-                        }
+            SwingUtilities.invokeLater(() -> {
+                for (Map.Entry<DeckReference, Map<String, CacheEntry>> entry : dyingCache.entrySet()) {  // Report the loss of our tags.
+                    if (entry.getKey().hotCue == 0) {
+                        deliverTagLossUpdate(entry.getKey().player, entry.getValue());
                     }
                 }
             });
@@ -731,6 +722,7 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static AnalysisTagFinder getInstance() {
         return ourInstance;
     }

@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * <p>The listener interface for receiving updates when requested analysis information available for a track loaded in
  * any player changes.</p>
@@ -14,11 +16,13 @@ package org.deepsymmetry.beatlink.data;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public interface AnalysisTagListener {
     /**
      * Called when requested track analysis information available for a player has changed.
      *
      * @param update provides information about what has changed
      */
+    @API(status = API.Status.STABLE)
     void analysisChanged(AnalysisTagUpdate update);
 }

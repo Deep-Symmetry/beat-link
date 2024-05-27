@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.Client;
 import org.deepsymmetry.beatlink.dbserver.ConnectionManager;
@@ -26,6 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * (see {@link MetadataFinder#setPassive(boolean)}), because beat grids are loaded in response to metadata updates.</p>
  *
  */
+@API(status = API.Status.STABLE)
 public class BeatGridFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(BeatGridFinder.class);
@@ -34,27 +36,22 @@ public class BeatGridFinder extends LifecycleParticipant {
      * Keeps track of the current beat grids cached for each player. We hot cache beat grids for any track which is
      * currently on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
-    private final Map<DeckReference, BeatGrid> hotCache =
-            new ConcurrentHashMap<DeckReference, BeatGrid>();
+    private final Map<DeckReference, BeatGrid> hotCache = new ConcurrentHashMap<>();
 
     /**
      * A queue used to hold metadata updates we receive from the {@link MetadataFinder} so we can process them on a
      * lower priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates =
-            new LinkedBlockingDeque<TrackMetadataUpdate>(100);
+    private final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates = new LinkedBlockingDeque<>(100);
 
     /**
      * Our metadata listener just puts metadata updates on our queue, so we can process them on a lower
      * priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
-        @Override
-        public void metadataChanged(TrackMetadataUpdate update) {
-            logger.debug("Received metadata update {}", update);
-            if (!pendingUpdates.offerLast(update)) {
-                logger.warn("Discarding metadata update because our queue is backed up.");
-            }
+    private final TrackMetadataListener metadataListener = update -> {
+        logger.debug("Received metadata update {}", update);
+        if (!pendingUpdates.offerLast(update)) {
+            logger.warn("Discarding metadata update because our queue is backed up.");
         }
     };
 
@@ -71,7 +68,7 @@ public class BeatGridFinder extends LifecycleParticipant {
         @Override
         public void mediaUnmounted(SlotReference slot) {
             // Iterate over a copy to avoid concurrent modification issues
-            for (Map.Entry<DeckReference, BeatGrid> entry : new HashMap<DeckReference, BeatGrid>(hotCache).entrySet()) {
+            for (Map.Entry<DeckReference, BeatGrid> entry : new HashMap<>(hotCache).entrySet()) {
                 if (slot == SlotReference.getSlotReference(entry.getValue().dataReference)) {
                     logger.debug("Evicting cached beat grid in response to unmount report {}", entry.getValue());
                     hotCache.remove(entry.getKey());
@@ -111,6 +108,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @see MetadataFinder#isPassive()
      */
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return running.get();
     }
@@ -142,7 +140,7 @@ public class BeatGridFinder extends LifecycleParticipant {
     private void clearBeatGrids(DeviceAnnouncement announcement) {
         final int player = announcement.getDeviceNumber();
         // Iterate over a copy to avoid concurrent modification issues
-        for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
+        for (DeckReference deck : new HashSet<>(hotCache.keySet())) {
             if (deck.player == player) {
                 hotCache.remove(deck);
                 if (deck.hotCue == 0) {
@@ -178,11 +176,11 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the BeatGridFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Map<DeckReference, BeatGrid> getLoadedBeatGrids() {
         ensureRunning();
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableMap(new HashMap<DeckReference, BeatGrid>(hotCache));
+        return Map.copyOf(hotCache);
     }
 
     /**
@@ -194,7 +192,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the BeatGridFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public BeatGrid getLatestBeatGridFor(int player) {
         ensureRunning();
         return hotCache.get(DeckReference.getDeckReference(player, 0));
@@ -209,6 +207,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the BeatGridFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public BeatGrid getLatestBeatGridFor(DeviceUpdate update) {
         BeatGrid result = getLatestBeatGridFor(update.getDeviceNumber());
         if (result != null && (update instanceof CdjStatus) &&
@@ -246,12 +245,8 @@ public class BeatGridFinder extends LifecycleParticipant {
         }
 
         // We have to actually request the beat grid using the dbserver protocol.
-        ConnectionManager.ClientTask<BeatGrid> task = new ConnectionManager.ClientTask<BeatGrid>() {
-            @Override
-            public BeatGrid useClient(Client client) throws Exception {
-                return getBeatGrid(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), client);
-            }
-        };
+        ConnectionManager.ClientTask<BeatGrid> task =
+                client -> getBeatGrid(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(trackReference.player, task, "requesting beat grid");
@@ -269,6 +264,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @return the beat grid, if any
      */
+    @API(status = API.Status.STABLE)
     public BeatGrid requestBeatGridFrom(final DataReference track) {
         for (BeatGrid cached : hotCache.values()) {
             if (cached.dataReference.equals(track)) {  // Found a hot cue hit, use it.
@@ -303,13 +299,12 @@ public class BeatGridFinder extends LifecycleParticipant {
     /**
      * Keep track of the devices we are currently trying to get beat grids from in response to metadata updates.
      */
-    private final Set<Integer> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private final Set<Integer> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Keeps track of the registered beat grid listeners.
      */
-    private final Set<BeatGridListener> beatGridListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<BeatGridListener, Boolean>());
+    private final Set<BeatGridListener> beatGridListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified beat grid listener to receive updates when the beat grid information for a player changes.
@@ -319,14 +314,15 @@ public class BeatGridFinder extends LifecycleParticipant {
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in the listener method
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param listener the album art update listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addBeatGridListener(BeatGridListener listener) {
         if (listener != null) {
             beatGridListeners.add(listener);
@@ -340,6 +336,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @param listener the waveform listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeBeatGridListener(BeatGridListener listener) {
         if (listener != null) {
             beatGridListeners.remove(listener);
@@ -351,10 +348,10 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @return the listeners that are currently registered for beat grid updates
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Set<BeatGridListener> getBeatGridListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<BeatGridListener>(beatGridListeners));
+        return Set.copyOf(beatGridListeners);
     }
 
     /**
@@ -403,19 +400,16 @@ public class BeatGridFinder extends LifecycleParticipant {
                 if (activeRequests.add(update.player)) {  // We had to make sure we were not already asking for this track.
                     clearDeck(update);  // We won't know what it is until our request completes.
 
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                BeatGrid grid = requestBeatGridInternal(update.metadata.trackReference, true);
-                                if (grid != null && grid.beatCount > 0) {
-                                    updateBeatGrid(update, grid);
-                                }
-                            } catch (Exception e) {
-                                logger.warn("Problem requesting beat grid from update" + update, e);
-                            } finally {
-                                activeRequests.remove(update.player);
+                    new Thread(() -> {
+                        try {
+                            BeatGrid grid = requestBeatGridInternal(update.metadata.trackReference, true);
+                            if (grid != null && grid.beatCount > 0) {
+                                updateBeatGrid(update, grid);
                             }
+                        } catch (Exception e) {
+                            logger.warn("Problem requesting beat grid from update {}", update, e);
+                        } finally {
+                            activeRequests.remove(update.player);
                         }
                     }, "Beat Grid request").start();
                 }
@@ -449,6 +443,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @throws Exception if there is a problem starting the required components
      */
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws Exception {
         if (!isRunning()) {
             ConnectionManager.getInstance().addLifecycleListener(lifecycleListener);
@@ -458,17 +453,14 @@ public class BeatGridFinder extends LifecycleParticipant {
             MetadataFinder.getInstance().start();
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             MetadataFinder.getInstance().addMountListener(mountListener);
-            queueHandler = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (isRunning()) {
-                        try {
-                            handleUpdate(pendingUpdates.take());
-                        } catch (InterruptedException e) {
-                            // Interrupted due to MetadataFinder shutdown, presumably
-                        } catch (Throwable t) {
-                            logger.error("Problem processing metadata update", t);
-                        }
+            queueHandler = new Thread(() -> {
+                while (isRunning()) {
+                    try {
+                        handleUpdate(pendingUpdates.take());
+                    } catch (InterruptedException e) {
+                        // Interrupted due to MetadataFinder shutdown, presumably
+                    } catch (Throwable t) {
+                        logger.error("Problem processing metadata update", t);
                     }
                 }
             });
@@ -477,13 +469,10 @@ public class BeatGridFinder extends LifecycleParticipant {
             deliverLifecycleAnnouncement(logger, true);
 
             // Send ourselves "updates" about any tracks that were loaded before we started, since we missed those.
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-                        if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
-                            handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
-                        }
+            SwingUtilities.invokeLater(() -> {
+                for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+                    if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                        handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
                     }
                 }
             });
@@ -493,7 +482,7 @@ public class BeatGridFinder extends LifecycleParticipant {
     /**
      * Stop finding beat grids for all active players.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
@@ -503,14 +492,11 @@ public class BeatGridFinder extends LifecycleParticipant {
             queueHandler = null;
 
             // Report the loss of our previews, on the proper thread, and outside our lock.
-            final Set<DeckReference> dyingCache = new HashSet<DeckReference>(hotCache.keySet());
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (DeckReference deck : dyingCache) {
-                        if (deck.hotCue == 0) {
-                            deliverBeatGridUpdate(deck.player, null);
-                        }
+            final Set<DeckReference> dyingCache = new HashSet<>(hotCache.keySet());
+            SwingUtilities.invokeLater(() -> {
+                for (DeckReference deck : dyingCache) {
+                    if (deck.hotCue == 0) {
+                        deliverBeatGridUpdate(deck.player, null);
                     }
                 }
             });
@@ -529,6 +515,7 @@ public class BeatGridFinder extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static BeatGridFinder getInstance() {
         return ourInstance;
     }

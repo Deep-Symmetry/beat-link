@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 
 /**
@@ -7,20 +8,24 @@ import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class AnalysisTagUpdate {
     /**
      * The player number for which a track analysis information change has occurred.
      */
+    @API(status = API.Status.STABLE)
     public final int player;
 
     /**
      * The file extension identifying which specific track analysis file this section came from.
      */
+    @API(status = API.Status.STABLE)
     public final String fileExtension;
 
     /**
      * The four-character tag type code identifying the specific analysis section which has changed.
      */
+    @API(status = API.Status.STABLE)
     public final String typeTag;
 
     /**
@@ -30,6 +35,7 @@ public class AnalysisTagUpdate {
      * which have had phrase analysis performed and which have been exported by rekordbox 6 or later will include a
      * "PSSI" section in their ".EXT" file.
      */
+    @API(status = API.Status.STABLE)
     public final RekordboxAnlz.TaggedSection taggedSection;
 
     AnalysisTagUpdate(final int player, final String fileExtension, final String typeTag, final RekordboxAnlz.TaggedSection taggedSection) {
