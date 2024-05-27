@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 
 import java.net.DatagramPacket;
@@ -12,6 +13,7 @@ import java.net.InetAddress;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class DeviceAnnouncement {
 
     /**
@@ -44,6 +46,7 @@ public class DeviceAnnouncement {
      *
      * @param packet the device announcement packet that was received
      */
+    @API(status = API.Status.STABLE)
     public DeviceAnnouncement(DatagramPacket packet) {
         if (packet.getLength() != 54) {
             throw new IllegalArgumentException("Device announcement packet must be 54 bytes long");
@@ -52,7 +55,8 @@ public class DeviceAnnouncement {
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         timestamp = System.currentTimeMillis();
-        name = new String(packetBytes, 12, 20).trim().intern();
+        name = new String(packetBytes, 12, 20).trim();
+        isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
         number = Util.unsign(packetBytes[36]);
     }
 
@@ -63,6 +67,7 @@ public class DeviceAnnouncement {
      * @param packet the device announcement packet that was received
      * @param deviceNumber the device number you want to emulate
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public DeviceAnnouncement(DatagramPacket packet, int deviceNumber) {
         if (packet.getLength() != 54) {
             throw new IllegalArgumentException("Device announcement packet must be 54 bytes long");
@@ -71,7 +76,8 @@ public class DeviceAnnouncement {
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         timestamp = System.currentTimeMillis();
-        name = new String(packetBytes, 12, 20).trim().intern();
+        name = new String(packetBytes, 12, 20).trim();
+        isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
         number = deviceNumber;
     }
 
@@ -80,6 +86,7 @@ public class DeviceAnnouncement {
      *
      * @return the network address from which the device is communicating
      */
+    @API(status = API.Status.STABLE)
     public InetAddress getAddress() {
         return address;
     }
@@ -89,6 +96,7 @@ public class DeviceAnnouncement {
      *
      * @return the millisecond timestamp at which we last received an announcement from this device
      */
+    @API(status = API.Status.STABLE)
     public long getTimestamp() {
         return timestamp;
     }
@@ -98,6 +106,7 @@ public class DeviceAnnouncement {
      *
      * @return the device name
      */
+    @API(status = API.Status.STABLE)
     public String getDeviceName() {
         return name;
     }
@@ -107,6 +116,7 @@ public class DeviceAnnouncement {
      *
      * @return the player number found in the device announcement packet
      */
+    @API(status = API.Status.STABLE)
     public int getDeviceNumber() {
         return number;
     }
@@ -118,6 +128,7 @@ public class DeviceAnnouncement {
      * @deprecated use {@link #getDeviceName()} instead for consistency with the device update classes
      */
     @Deprecated
+    @API(status = API.Status.DEPRECATED)
     public String getName() {
         return name;
     }
@@ -129,6 +140,7 @@ public class DeviceAnnouncement {
      * @deprecated use {@link #getDeviceNumber()} instead for consistency with the device update classes
      */
     @Deprecated
+    @API(status = API.Status.DEPRECATED)
     public int getNumber() {
         return number;
     }
@@ -138,6 +150,7 @@ public class DeviceAnnouncement {
      *
      * @return the device's Ethernet address
      */
+    @API(status = API.Status.STABLE)
     public byte[] getHardwareAddress() {
         byte[] result = new byte[6];
         System.arraycopy(packetBytes, 38, result, 0, 6);
@@ -149,6 +162,7 @@ public class DeviceAnnouncement {
      *
      * @return the data sent by the device to announce its presence on the network
      */
+    @API(status = API.Status.STABLE)
     public byte[] getPacketBytes() {
         byte[] result = new byte[packetBytes.length];
         System.arraycopy(packetBytes, 0, result, 0, packetBytes.length);
@@ -157,15 +171,9 @@ public class DeviceAnnouncement {
 
     /**
      * Check whether a device update came from an Opus Quad, which behaves very differently from true Pro DJ Link hardware.
-     *
-     * @return {@code true} when the device name reported in this update matches the one reported by the Opus Quad
      */
-    public boolean isOpusQuad() {
-        //noinspection StringEquality
-        return name == OpusProvider.opusName;  // Since strings are interned, can be compared this way.
-    }
-
-
+    @API(status = API.Status.EXPERIMENTAL)
+    public final boolean isOpusQuad;
 
     @Override
     public String toString() {

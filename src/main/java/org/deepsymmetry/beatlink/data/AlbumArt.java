@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +18,7 @@ import java.nio.ByteBuffer;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class AlbumArt {
 
     private static final Logger logger = LoggerFactory.getLogger(AlbumArt.class);
@@ -25,7 +27,6 @@ public class AlbumArt {
      * The unique artwork identifier that was used to request this album art. Even though it is not a track, the
      * same pieces of information are used.
      */
-    @SuppressWarnings("WeakerAccess")
     public final DataReference artReference;
 
     /**
@@ -38,7 +39,7 @@ public class AlbumArt {
      *
      * @return the bytes that make up the album art
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public ByteBuffer getRawBytes() {
         rawBytes.rewind();
         return rawBytes.slice();
@@ -49,6 +50,7 @@ public class AlbumArt {
      *
      * @return the newly-created image, ready to be drawn
      */
+    @API(status = API.Status.STABLE)
     public BufferedImage getImage() {
         ByteBuffer artwork = getRawBytes();
         artwork.rewind();
@@ -70,16 +72,13 @@ public class AlbumArt {
      *
      * @throws IOException if there is a problem reading the file
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public AlbumArt(DataReference artReference, File file) throws IOException {
         this.artReference = artReference;
-        RandomAccessFile raf = new RandomAccessFile(file, "r");
-        try {
-            byte[] bytes = new byte[(int)raf.length()];
+        try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+            byte[] bytes = new byte[(int) raf.length()];
             raf.readFully(bytes);
             rawBytes = ByteBuffer.wrap(bytes);
-        } finally {
-            raf.close();
         }
     }
 
@@ -89,7 +88,7 @@ public class AlbumArt {
      * @param artReference the unique database reference that was used to request this artwork
      * @param rawBytes the bytes of image data as loaded from the player or media export
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public AlbumArt(DataReference artReference, ByteBuffer rawBytes) {
         this.artReference = artReference;
         byte[] bytes = new byte[rawBytes.remaining()];

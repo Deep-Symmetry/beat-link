@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.deepsymmetry.electro.Metronome;
@@ -27,7 +28,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class VirtualCdj extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(VirtualCdj.class);
@@ -35,8 +36,13 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The port to which other devices will send status update messages.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int UPDATE_PORT = 50002;
+
+    /**
+     * The position within a keep-alive packet at which the MAC address is stored.
+     */
+    @API(status = API.Status.STABLE)
     public static final int MAC_ADDRESS_OFFSET = 38;
 
     /**
@@ -56,6 +62,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return an indication that we are in a limited mode to support the Opus Quad.
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public boolean inOpusQuadCompatibilityMode() {
         return proxyingForVirtualRekordbox.get();
     }
@@ -66,6 +73,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return true if our socket is open, sending presence announcements, and receiving status packets,
      *         or if we were started in a mode where we delegate most of our responsibility to {@link VirtualRekordbox}
      */
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return inOpusQuadCompatibilityMode() || (socket.get() != null && claimingNumber.get() == 0);
     }
@@ -76,6 +84,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the local address we present to the DJ Link network
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public InetAddress getLocalAddress() {
         ensureRunning();
         return socket.get().getLocalAddress();
@@ -94,6 +103,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the address on which packets can be broadcast to the other DJ Link devices
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public InetAddress getBroadcastAddress() {
         ensureRunning();
         return broadcastAddress.get();
@@ -119,6 +129,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param attempt true if self-assignment should try to use device numbers below 5 when available
      */
+    @API(status = API.Status.STABLE)
     public void setUseStandardPlayerNumber(boolean attempt) {
         useStandardPlayerNumber.set(attempt);
     }
@@ -133,6 +144,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return true if self-assignment should try to use device numbers below 5 when available
      */
+    @API(status = API.Status.STABLE)
     public boolean getUseStandardPlayerNumber() {
         return useStandardPlayerNumber.get();
     }
@@ -149,6 +161,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the virtual player number
      */
+    @API(status = API.Status.STABLE)
     public synchronized byte getDeviceNumber() {
         return keepAliveBytes[DEVICE_NUMBER_OFFSET];
     }
@@ -170,7 +183,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @param number the virtual player number
      * @throws IllegalStateException if we are currently running
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public synchronized void setDeviceNumber(byte number) {
         if (isRunning()) {
             throw new IllegalStateException("Can't change device number once started.");
@@ -189,6 +202,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the announcement interval
      */
+    @API(status = API.Status.STABLE)
     public int getAnnounceInterval() {
         return announceInterval.get();
     }
@@ -200,6 +214,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @param interval the announcement interval
      * @throws IllegalArgumentException if interval is not between 200 and 2000
      */
+    @API(status = API.Status.STABLE)
     public void setAnnounceInterval(int interval) {
         if (interval < 200 || interval > 2000) {
             throw new IllegalArgumentException("Interval must be between 200 and 2000");
@@ -223,16 +238,19 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * The location of the device name in the announcement packet.
      */
+    @API(status = API.Status.STABLE)
     public static final int DEVICE_NAME_OFFSET = 0x0c;
 
     /**
      * The length of the device name in the announcement packet.
      */
+    @API(status = API.Status.STABLE)
     public static final int DEVICE_NAME_LENGTH = 0x14;
 
     /**
      * The location of the device number in the announcement packet.
      */
+    @API(status = API.Status.STABLE)
     public static final int DEVICE_NUMBER_OFFSET = 0x24;
 
     /**
@@ -240,6 +258,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the device name reported in our presence announcement packets
      */
+    @API(status = API.Status.STABLE)
     public static String getDeviceName() {
         return new String(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).trim();
     }
@@ -250,6 +269,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param name the device name to report in our presence announcement packets.
      */
+    @API(status = API.Status.STABLE)
     public synchronized void setDeviceName(String name) {
         if (name.getBytes().length > DEVICE_NAME_LENGTH) {
             throw new IllegalArgumentException("name cannot be more than " + DEVICE_NAME_LENGTH + " bytes long");
@@ -263,6 +283,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     private final DeviceUpdateListener updateListener = this::processUpdate;
 
+    @API(status = API.Status.STABLE)
     public DeviceUpdateListener getUpdateListener() {
         return updateListener;
     }
@@ -338,6 +359,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the most recent update from a device which reported itself as the master
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public DeviceUpdate getTempoMaster() {
         ensureRunning();
         return tempoMaster.get();
@@ -368,6 +390,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the BPM fraction that will trigger a tempo change update
      */
+    @API(status = API.Status.STABLE)
     public double getTempoEpsilon() {
         return Double.longBitsToDouble(tempoEpsilon.get());
     }
@@ -377,6 +400,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param epsilon the BPM fraction that will trigger a tempo change update
      */
+    @API(status = API.Status.STABLE)
     public void setTempoEpsilon(double epsilon) {
         tempoEpsilon.set(Double.doubleToLongBits(epsilon));
     }
@@ -392,6 +416,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the most recently reported master tempo
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public double getMasterTempo() {
         ensureRunning();
         return Double.longBitsToDouble(masterTempo.get());
@@ -629,6 +654,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the list of network interfaces on which we might receive player packets
      * @throws IllegalStateException if we are not running
      */
+    @API(status = API.Status.STABLE)
     public List<NetworkInterface> getMatchingInterfaces() {
         if (proxyingForVirtualRekordbox.get()) {
             return VirtualRekordbox.getInstance().getMatchingInterfaces();
@@ -988,6 +1014,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the device announcements of any players which are on unreachable networks, or hopefully an empty list
      * @throws IllegalStateException if we are not running
      */
+    @API(status = API.Status.STABLE)
     public Set<DeviceAnnouncement> findUnreachablePlayers() {
         ensureRunning();
         Set<DeviceAnnouncement> result = new HashSet<>();
@@ -1047,7 +1074,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
      * @throws Exception if the socket to listen on port 50002 cannot be created or there is some other problem starting.
      */
-    @SuppressWarnings("UnusedReturnValue")
+    @API(status = API.Status.STABLE)
     public synchronized boolean start() throws Exception {
         if (!isRunning()) {
 
@@ -1073,7 +1100,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
             // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
             for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
-                if (device.isOpusQuad()) {
+                if (device.isOpusQuad) {
                     proxyingForVirtualRekordbox.set(true);
                     VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
                     final boolean success = VirtualRekordbox.getInstance().start();
@@ -1107,6 +1134,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdj}, or it was already running.
      * @throws Exception if the socket to listen on port 50002 cannot be created or there is some other problem starting.
      */
+    @API(status = API.Status.STABLE)
     public synchronized boolean start(byte deviceNumber) throws Exception {
         if (!isRunning()) {
             setDeviceNumber(deviceNumber);
@@ -1118,6 +1146,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Stop announcing ourselves and listening for status updates.
      */
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             broadcastAddress.set(null);
@@ -1172,6 +1201,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the most recent detailed status update received for all active devices
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public Set<DeviceUpdate> getLatestStatus() {
         ensureRunning();
         Set<DeviceUpdate> result = new HashSet<>();
@@ -1198,6 +1228,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the most recent detailed status update received for that device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public DeviceUpdate getLatestStatusFor(DeviceUpdate device) {
         ensureRunning();
         return updates.get(DeviceReference.getDeviceReference(device));
@@ -1216,6 +1247,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the most recent detailed status update received for that device
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public DeviceUpdate getLatestStatusFor(DeviceAnnouncement device) {
         ensureRunning();
         return updates.get(DeviceReference.getDeviceReference(device));
@@ -1234,6 +1266,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return the matching detailed status update or null if none have been received
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public DeviceUpdate getLatestStatusFor(int deviceNumber) {
         ensureRunning();
         for (DeviceUpdate update : updates.values()) {
@@ -1266,6 +1299,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param listener the master listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addMasterListener(MasterListener listener) {
         if (listener != null) {
             masterListeners.add(listener);
@@ -1279,6 +1313,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param listener the master listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeMasterListener(MasterListener listener) {
         if (listener != null) {
             masterListeners.remove(listener);
@@ -1290,10 +1325,10 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the currently registered tempo master listeners
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Set<MasterListener> getMasterListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<>(masterListeners));
+        return Set.copyOf(masterListeners);
     }
 
     /**
@@ -1363,7 +1398,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param listener the device update listener to add
      */
-    @SuppressWarnings("SameParameterValue")
+    @API(status = API.Status.STABLE)
     public void addUpdateListener(DeviceUpdateListener listener) {
         if (listener != null) {
             updateListeners.add(listener);
@@ -1377,6 +1412,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param listener the device update listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeUpdateListener(DeviceUpdateListener listener) {
         if (listener != null) {
             updateListeners.remove(listener);
@@ -1388,9 +1424,10 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the currently registered update listeners
      */
+    @API(status = API.Status.STABLE)
     public Set<DeviceUpdateListener> getUpdateListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<>(updateListeners));
+        return Set.copyOf(updateListeners);
     }
 
     /**
@@ -1430,6 +1467,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param listener the media details listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addMediaDetailsListener(MediaDetailsListener listener) {
         if (listener != null) {
             detailsListeners.add(listener);
@@ -1443,6 +1481,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param listener the media details listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeMediaDetailsListener(MediaDetailsListener listener) {
         if (listener != null) {
             detailsListeners.remove(listener);
@@ -1454,9 +1493,10 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the currently registered details listeners
      */
+    @API(status = API.Status.STABLE)
     public Set<MediaDetailsListener> getMediaDetailsListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<>(detailsListeners));
+        return Set.copyOf(detailsListeners);
     }
 
     /**
@@ -1464,6 +1504,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param details the response that has just arrived
      */
+    @API(status = API.Status.STABLE)
     public void deliverMediaDetailsUpdate(final MediaDetails details) {
         for (MediaDetailsListener listener : getMediaDetailsListeners()) {
             try {
@@ -1484,7 +1525,6 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @throws IOException if there is a problem sending the packet
      */
-    @SuppressWarnings("SameParameterValue")
     private void assembleAndSendPacket(Util.PacketType kind, byte[] payload, InetAddress destination, int port) throws IOException {
         DatagramPacket packet = Util.buildPacket(kind,
                 ByteBuffer.wrap(keepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).asReadOnlyBuffer(),
@@ -1508,6 +1548,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @throws IOException if there is a problem sending the request.
      */
+    @API(status = API.Status.STABLE)
     public void sendMediaQuery(SlotReference slot) throws IOException {
         final DeviceAnnouncement announcement = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
         if (announcement == null) {
@@ -1558,6 +1599,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      * @throws IllegalArgumentException if {@code deviceNumber} is not found on the network
      */
+    @API(status = API.Status.STABLE)
     public void sendSyncModeCommand(int deviceNumber, boolean synced) throws IOException {
         final DeviceUpdate update = getLatestStatusFor(deviceNumber);
         if (update == null) {
@@ -1576,6 +1618,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      * @throws NullPointerException if {@code update} is {@code null}
      */
+    @API(status = API.Status.STABLE)
     public void sendSyncModeCommand(DeviceUpdate target, boolean synced) throws IOException {
         sendSyncControlCommand(target, synced? (byte)0x10 : (byte)0x20);
     }
@@ -1589,6 +1632,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      * @throws IllegalArgumentException if {@code deviceNumber} is not found on the network
      */
+    @API(status = API.Status.STABLE)
     public void appointTempoMaster(int deviceNumber) throws IOException {
         final DeviceUpdate update = getLatestStatusFor(deviceNumber);
         if (update == null) {
@@ -1606,6 +1650,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      * @throws NullPointerException if {@code update} is {@code null}
      */
+    @API(status = API.Status.STABLE)
     public void appointTempoMaster(DeviceUpdate target) throws IOException {
         sendSyncControlCommand(target, (byte)0x01);
     }
@@ -1626,6 +1671,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IOException if there is a problem broadcasting the command to the players
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public void sendFaderStartCommand(Set<Integer> deviceNumbersToStart, Set<Integer> deviceNumbersToStop) throws IOException {
         ensureRunning();
         byte[] payload = new byte[FADER_START_PAYLOAD.length];
@@ -1662,6 +1708,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IOException if there is a problem broadcasting the command to the players
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public void sendOnAirCommand(Set<Integer> deviceNumbersOnAir) throws IOException {
         ensureRunning();
         byte[] payload = new byte[CHANNELS_ON_AIR_PAYLOAD.length];
@@ -1696,6 +1743,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IOException if there is a problem broadcasting the command to the players
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public void sendOnAirExtendedCommand(Set<Integer> deviceNumbersOnAir) throws IOException {
         ensureRunning();
         byte[] payload = new byte[CHANNELS_ON_AIR_EXTENDED_PAYLOAD.length];
@@ -1739,6 +1787,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IOException if there is a problem sending the command
      * @throws IllegalStateException if the {@code VirtualCdj} is not active or the target device cannot be found
      */
+    @API(status = API.Status.STABLE)
     public void sendLoadTrackCommand(int targetPlayer, int rekordboxId,
                                      int sourcePlayer, CdjStatus.TrackSourceSlot sourceSlot, CdjStatus.TrackType sourceType)
             throws IOException {
@@ -1761,6 +1810,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IOException if there is a problem sending the command
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public void sendLoadTrackCommand(DeviceUpdate target, int rekordboxId,
                                      int sourcePlayer, CdjStatus.TrackSourceSlot sourceSlot, CdjStatus.TrackType sourceType)
             throws IOException {
@@ -1829,6 +1879,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IOException if there is a problem sending the command
      * @throws IllegalStateException if the {@code VirtualCdj} is not active or the target device cannot be found
      */
+    @API(status = API.Status.STABLE)
     public void sendLoadSettingsCommand(int targetPlayer, PlayerSettings settings)
             throws IOException {
         final DeviceUpdate update = getLatestStatusFor(targetPlayer);
@@ -1847,6 +1898,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IOException if there is a problem sending the command
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.STABLE)
     public void sendLoadSettingsCommand(DeviceUpdate target, PlayerSettings settings) throws IOException {
         ensureRunning();
         byte[] payload = new byte[LOAD_SETTINGS_PAYLOAD.length];
@@ -1892,6 +1944,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the millisecond interval that will pass between status packets we send
      */
+    @API(status = API.Status.STABLE)
     public synchronized int getStatusInterval() {
         return statusInterval;
     }
@@ -1905,6 +1958,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @throws IllegalArgumentException if {@code interval} is less than 20 or more than 2000
      */
+    @API(status = API.Status.STABLE)
     public synchronized void setStatusInterval(int interval) {
         if (interval < 20 || interval > 2000) {
             throw new IllegalArgumentException("interval must be between 20 and 2000");
@@ -1966,6 +2020,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the beat number that was sent, computed from the current (or stopped) playback position
      */
+    @API(status = API.Status.STABLE)
     public long sendBeat() {
         return sendBeat(getPlaybackPosition());
     }
@@ -1978,6 +2033,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the beat number that was sent
      */
+    @API(status = API.Status.STABLE)
     public long sendBeat(Snapshot snapshot) {
         byte[] payload = new byte[BEAT_PAYLOAD.length];
         System.arraycopy(BEAT_PAYLOAD, 0, payload, 0, BEAT_PAYLOAD.length);
@@ -2026,6 +2082,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *                               range 1 through 4
      * @throws IOException if there is a problem starting the {@link BeatFinder}
      */
+    @API(status = API.Status.STABLE)
     public synchronized void setSendingStatus(boolean send) throws IOException {
         if (isSendingStatus() == send) {
             return;
@@ -2045,20 +2102,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
             final AtomicBoolean stillRunning = new AtomicBoolean(true);
             sendingStatus =  stillRunning;  // Allow other threads to stop us when necessary.
-
-            Thread sender = new Thread(null, () -> {
-                while (stillRunning.get()) {
-                    sendStatus();
-                    try {
-                        //noinspection BusyWait
-                        Thread.sleep(getStatusInterval());
-                    } catch (InterruptedException e) {
-                        logger.warn("beat-link VirtualCDJ status sender thread was interrupted; continuing");
-                    }
-                }
-            }, "beat-link VirtualCdj status sender");
-            sender.setDaemon(true);
-            sender.start();
+            startSenderThread(stillRunning);
 
             if (isSynced()) {  // If we are supposed to be synced, we need to respond to master beats and tempo changes.
                 addMasterListener(ourSyncMasterListener);
@@ -2082,10 +2126,32 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
+     * Creates and starts the thread which sends our status packets as long as {@code stillRunning} remains {@code true}.
+     *
+     * @param stillRunning used to determine when to shut down
+     */
+    private void startSenderThread(AtomicBoolean stillRunning) {
+        Thread sender = new Thread(null, () -> {
+            while (stillRunning.get()) {
+                sendStatus();
+                try {
+                    //noinspection BusyWait
+                    Thread.sleep(getStatusInterval());
+                } catch (InterruptedException e) {
+                    logger.warn("beat-link VirtualCDJ status sender thread was interrupted; continuing");
+                }
+            }
+        }, "beat-link VirtualCdj status sender");
+        sender.setDaemon(true);
+        sender.start();
+    }
+
+    /**
      * Check whether we are currently sending status packets.
      *
      * @return {@code true} if we are sending status packets, and can participate in (and control) tempo and beat sync
      */
+    @API(status = API.Status.STABLE)
     public synchronized boolean isSendingStatus() {
         return (sendingStatus != null);
     }
@@ -2115,6 +2181,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param playing {@code true} if we should seem to be playing
      */
+    @API(status = API.Status.STABLE)
     public void setPlaying(boolean playing) {
 
         if (this.playing.get() == playing) {
@@ -2144,6 +2211,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return {@code true} if we are reporting active playback
      */
+    @API(status = API.Status.STABLE)
     public boolean isPlaying() {
         return playing.get();
     }
@@ -2153,6 +2221,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the current (or last, if we are stopped) playback state
      */
+    @API(status = API.Status.STABLE)
     public Snapshot getPlaybackPosition() {
         if (playing.get()) {
             return metronome.getSnapshot();
@@ -2171,6 +2240,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param ms the number of millisecond to shift the simulated playback position
      */
+    @API(status = API.Status.STABLE)
     public void adjustPlaybackPosition(int ms) {
         if (ms != 0) {
             metronome.adjustStart(-ms);
@@ -2203,6 +2273,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * @throws IllegalStateException if we are not sending status updates
      * @throws IOException if there is a problem sending the master yield request
      */
+    @API(status = API.Status.STABLE)
     public synchronized void becomeTempoMaster() throws IOException {
         logger.debug("Trying to become master.");
         if (!isSendingStatus()) {
@@ -2235,6 +2306,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return {@code true} if we hold the tempo master role
      */
+    @API(status = API.Status.STABLE)
     public boolean isTempoMaster() {
         return master.get();
     }
@@ -2276,6 +2348,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param sync if {@code true}, our status packets will be tempo and beat aligned with the tempo master
      */
+    @API(status = API.Status.STABLE)
     public synchronized void setSynced(boolean sync) {
         if (synced.get() != sync) {
             // We are changing sync state, so add or remove our master listener as appropriate.
@@ -2299,6 +2372,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return {@code true} if our status packets will be tempo and beat aligned with the tempo master
      */
+    @API(status = API.Status.STABLE)
     public boolean isSynced() {
         return synced.get();
     }
@@ -2316,6 +2390,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param audible {@code true} if we should report ourselves as being on the air in our status packets
      */
+    @API(status = API.Status.STABLE)
     public void setOnAir(boolean audible) {
         onAir.set(audible);
     }
@@ -2327,6 +2402,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return audible {@code true} if we should report ourselves as being on the air in our status packets
      */
+    @API(status = API.Status.STABLE)
     public boolean isOnAir() {
         return onAir.get();
     }
@@ -2338,6 +2414,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param bpm the tempo, in beats per minute, that we should report in our status and beat packets
      */
+    @API(status = API.Status.STABLE)
     public void setTempo(double bpm) {
         if (bpm == 0.0) {
             throw new IllegalArgumentException("Tempo cannot be zero.");
@@ -2357,6 +2434,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the tempo, in beats per minute, that we are reporting in our status and beat packets
      */
+    @API(status = API.Status.STABLE)
     public double getTempo() {
         return metronome.getTempo();
     }
@@ -2366,6 +2444,7 @@ public class VirtualCdj extends LifecycleParticipant {
      * one. If we are told to jump to a larger beat than this, we map it back into the range we will play. This would
      * be a little over nine hours at 120 bpm, which seems long enough for any track.
      */
+    @API(status = API.Status.STABLE)
     public final int MAX_BEAT = 65536;
 
     /**
@@ -2386,6 +2465,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @param beat the beat that we should pretend to be playing
      */
+    @API(status = API.Status.STABLE)
     public synchronized void jumpToBeat(int beat) {
 
         if (beat < 1) {
@@ -2528,6 +2608,7 @@ public class VirtualCdj extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists
      */
+    @API(status = API.Status.STABLE)
     public static VirtualCdj getInstance() {
         return ourInstance;
     }

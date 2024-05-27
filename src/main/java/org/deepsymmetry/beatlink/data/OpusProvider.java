@@ -38,7 +38,7 @@ public class OpusProvider {
     /**
      * The device name reported by Opus Quad, so we can recognize when we are dealing with one of these devices.
      */
-    public static final String opusName = "OPUS-QUAD";
+    public static final String OPUS_NAME = "OPUS-QUAD";
 
     /**
      * Keep track of whether we are running.

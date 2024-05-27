@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
@@ -14,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class CdjStatus extends DeviceUpdate {
 
     private static final Logger logger = LoggerFactory.getLogger(CdjStatus.class);
@@ -23,7 +24,7 @@ public class CdjStatus extends DeviceUpdate {
      * The byte within the status packet which contains useful status information, labeled <i>F</i> in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int STATUS_FLAGS = 0x89;
 
     /**
@@ -35,13 +36,14 @@ public class CdjStatus extends DeviceUpdate {
      * the device number of the incoming tempo master, until that device asserts the master state, after which this
      * device will stop doing so.</p>
      */
+    @API(status = API.Status.STABLE)
     public static final int MASTER_HAND_OFF = 0x9f;
 
     /**
      * The bit within the status flag that indicates the player has degraded to BPM Sync mode, as described in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-flag-bits">Packet Analysis document</a>.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int BPM_SYNC_FLAG = 0x02;
 
     /**
@@ -50,27 +52,28 @@ public class CdjStatus extends DeviceUpdate {
      * A player is considered to be on the air when it is connected to a mixer channel that is not faded out.
      * Only Nexus mixers seem to support this capability.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int ON_AIR_FLAG = 0x08;
 
     /**
      * The bit within the status flag that indicates the player is synced, as illustrated in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-flag-bits">Packet Analysis document</a>.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int SYNCED_FLAG = 0x10;
 
     /**
      * The bit within the status flag that indicates the player is the tempo master, as illustrated in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-flag-bits">Packet Analysis document</a>.
      */
+    @API(status = API.Status.STABLE)
     public static final int MASTER_FLAG = 0x20;
 
     /**
      * The bit within the status flag that indicates the player is playing, as illustrated in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-flag-bits">Packet Analysis document</a>.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int PLAYING_FLAG = 0x40;
 
     /**
@@ -85,12 +88,14 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the device number from which the current track was loaded
      */
+    @API(status = API.Status.STABLE)
     public int getTrackSourcePlayer() { return trackSourcePlayer; }
 
     /**
      * The possible values describing from where the track was loaded, labeled <i>S<sub>r</sub></i> in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      */
+    @API(status = API.Status.STABLE)
     public enum TrackSourceSlot {
         /**
          * Nothing has been loaded.
@@ -130,7 +135,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known track source slot value to be looked up based on the byte that was seen in a status update.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Map<Byte,TrackSourceSlot> TRACK_SOURCE_SLOT_MAP;
 
     static {
@@ -159,6 +164,7 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values describing the track type, labeled <i>t<sub>r</sub></i> in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      */
+    @API(status = API.Status.STABLE)
     public enum TrackType {
         /**
          * No track has been loaded.
@@ -185,7 +191,7 @@ public class CdjStatus extends DeviceUpdate {
         /**
          * The value that represents this track type in a status update.
          */
-        @SuppressWarnings("WeakerAccess")
+        @API(status = API.Status.STABLE)
         public final byte protocolValue;
 
         TrackType(int value) {
@@ -196,7 +202,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known track source type value to be looked up based on the byte that was seen in a status update.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Map<Byte,TrackType> TRACK_TYPE_MAP;
 
     static {
@@ -219,6 +225,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the type of track that is currently loaded
      */
+    @API(status = API.Status.STABLE)
     public TrackType getTrackType() { return trackType; }
 
     /**
@@ -235,13 +242,14 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the rekordbox database ID of the current track
      */
+    @API(status = API.Status.STABLE)
     public int getRekordboxId() { return rekordboxId; }
 
     /**
      * The possible values of the first play state found in the packet, labeled <i>P<sub>1</sub></i> in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public enum PlayState1 {
         /**
          * No track has been loaded.
@@ -291,6 +299,7 @@ public class CdjStatus extends DeviceUpdate {
         /**
          * The value that represents this play state in a status update.
          */
+        @API(status = API.Status.STABLE)
         public final byte protocolValue;
 
         /**
@@ -306,7 +315,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known <i>P<sub>1</sub></i> value to be looked up based on the byte that was seen in a status update.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Map<Byte,PlayState1> PLAY_STATE_1_MAP;
 
     static {
@@ -329,7 +338,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the first play state element
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public PlayState1 getPlayState1() {
         return playState1;
     }
@@ -338,6 +347,7 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values of the second play state found in the packet, labeled <i>P<sub>2</sub></i> in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      */
+    @API(status = API.Status.STABLE)
     public enum PlayState2 {
         /**
          * The player is moving through a track.
@@ -359,7 +369,7 @@ public class CdjStatus extends DeviceUpdate {
         /**
          * The value that represents this play state in a status update.
          */
-        @SuppressWarnings("WeakerAccess")
+        @API(status = API.Status.STABLE)
         public final byte protocolValue;
 
         /**
@@ -375,7 +385,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known <i>P<sub>2</sub></i> value to be looked up based on the byte that was seen in a status update.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Map<Byte,PlayState2> PLAY_STATE_2_MAP;
 
     static {
@@ -398,7 +408,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the second play state element
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public PlayState2 getPlayState2() {
         return playState2;
     }
@@ -407,6 +417,7 @@ public class CdjStatus extends DeviceUpdate {
      * The possible values of the third play state found in the packet, labeled <i>P<sub>3</sub></i> in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      */
+    @API(status = API.Status.STABLE)
     public enum PlayState3 {
         /**
          * No track has been loaded.
@@ -447,7 +458,7 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Allows a known <i>P<sub>3</sub></i> value to be looked up based on the byte that was seen in a status update.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Map<Byte,PlayState3> PLAY_STATE_3_MAP;
 
     static {
@@ -470,6 +481,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the third play state element
      */
+    @API(status = API.Status.STABLE)
     public PlayState3 getPlayState3() {
         return playState3;
     }
@@ -590,6 +602,7 @@ public class CdjStatus extends DeviceUpdate {
      * The smallest packet size from which we can be constructed. Anything less than this and we are missing
      * crucial information.
      */
+    @API(status = API.Status.STABLE)
     public static final int MINIMUM_PACKET_SIZE = 0xcc;
 
     /**
@@ -597,6 +610,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @param packet the CDJ status packet that was received
      */
+    @API(status = API.Status.STABLE)
     public CdjStatus(DatagramPacket packet) {
         super(packet, "CDJ status", packet.getLength());
 
@@ -629,7 +643,7 @@ public class CdjStatus extends DeviceUpdate {
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
 
         final byte trackSourceByte = packetBytes[40];
-        if (isFromOpusQuad() && (trackSourceByte < 16)) {
+        if (isFromOpusQuad && (trackSourceByte < 16)) {
             int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
             if (sourcePlayer != 0) {
                 final SlotReference matchedSourceSlot = VirtualRekordbox.getInstance().findMatchedTrackSourceSlotForPlayer(deviceNumber);
@@ -682,6 +696,7 @@ public class CdjStatus extends DeviceUpdate {
      * @param number the subscript identifying the copy of the pitch information you are interested in
      * @return the specified raw device pitch information copy found in the update
      */
+    @API(status = API.Status.STABLE)
     public int getPitch(int number) {
         switch (number) {
             case 1: return pitch;
@@ -700,6 +715,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the track BPM to two decimal places multiplied by 100
      */
+    @API(status = API.Status.STABLE)
     public int getBpm() {
         return bpm;
     }
@@ -714,6 +730,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the beat number within the current measure of music
      */
+    @API(status = API.Status.STABLE)
     public int getBeatWithinBar() {
         return packetBytes[166];
     }
@@ -761,11 +778,11 @@ public class CdjStatus extends DeviceUpdate {
      * @return true if the play flag was set, or, if this seems to be a non-nexus player, if <em>P<sub>1</sub></em>
      *         and <em>P<sub>2</sub></em> have values corresponding to a playing state.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isPlaying() {
         if (packetBytes.length >= 212) {
             final boolean simpleResult = (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
-            if (!simpleResult && isFromOpusQuad()) {
+            if (!simpleResult && isFromOpusQuad) {
                 // Sometimes the Opus Quad lies and reports that it is not playing in this flag, even though it actually is.
                 // Try to recover from that.
                 return playState1 == PlayState1.PLAYING || playState1 == PlayState1.LOOPING ||
@@ -787,7 +804,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the bpm-sync flag was set
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isBpmOnlySynced() {
         return (packetBytes[STATUS_FLAGS] & BPM_SYNC_FLAG) > 0;
     }
@@ -797,7 +814,6 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the sync flag was set
      */
-    @SuppressWarnings("WeakerAccess")
     @Override
     public boolean isSynced() {
         return (packetBytes[STATUS_FLAGS] & SYNCED_FLAG) > 0;
@@ -810,7 +826,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the on-air flag was set
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isOnAir() {
         return (packetBytes[STATUS_FLAGS] & ON_AIR_FLAG) > 0;
     }
@@ -820,6 +836,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if there is a USB drive mounted locally
      */
+    @API(status = API.Status.STABLE)
     public boolean isLocalUsbLoaded() {
         return (packetBytes[111] == 0);
     }
@@ -829,6 +846,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if there is a local USB drive currently being unmounted
      */
+    @API(status = API.Status.STABLE)
     public boolean isLocalUsbUnloading() {
         return (packetBytes[111] == 2);
     }
@@ -838,6 +856,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if there is no local USB drive mounted
      */
+    @API(status = API.Status.STABLE)
     public boolean isLocalUsbEmpty() {
         return (packetBytes[111] == 4);
     }
@@ -847,6 +866,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if there is a Secure Digital card mounted locally
      */
+    @API(status = API.Status.STABLE)
     public boolean isLocalSdLoaded() {
         return (packetBytes[115] == 0);
     }
@@ -856,6 +876,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if there is a local Secure Digital card currently being unmounted
      */
+    @API(status = API.Status.STABLE)
     public boolean isLocalSdUnloading() {
         return (packetBytes[115] == 2);
     }
@@ -865,6 +886,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if there is no local Secure Digital card mounted
      */
+    @API(status = API.Status.STABLE)
     public boolean isLocalSdEmpty() {
         return (packetBytes[115] == 4);
     }
@@ -877,6 +899,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if there is no disc mounted or the disc drive has powered off
      */
+    @API(status = API.Status.STABLE)
     public boolean isDiscSlotEmpty() {
         return (packetBytes[0x37] != 0x1e) && (packetBytes[0x37] != 0x11);
     }
@@ -887,6 +910,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the disc drive has powered off
      */
+    @API(status = API.Status.STABLE)
     public boolean isDiscSlotAsleep() {
         return (packetBytes[0x37] == 1);
     }
@@ -900,6 +924,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the number of tracks found on the mounted disc or loaded playlist/player menu, or zero if no disc is mounted nor is a playlist/menu in use
      */
+    @API(status = API.Status.STABLE)
     public int getDiscTrackCount() {
         return (int)Util.bytesToNumber(packetBytes, 0x46, 2);
     }
@@ -909,6 +934,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if a track has been loaded
      */
+    @API(status = API.Status.STABLE)
     public boolean isTrackLoaded() {
         return  playState1 != PlayState1.NO_TRACK;
     }
@@ -918,6 +944,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if a loop is being played
      */
+    @API(status = API.Status.STABLE)
     public boolean isLooping() {
         return playState1 == PlayState1.LOOPING;
     }
@@ -925,8 +952,9 @@ public class CdjStatus extends DeviceUpdate {
     /**
      * Is the player currently paused?
      *
-     * @return true if the player is paused, whether or not at the cue point
+     * @return true if the player is paused, regardless of whether at the cue point
      */
+    @API(status = API.Status.STABLE)
     public boolean isPaused() {
         return (playState1 == PlayState1.PAUSED) || (playState1 == PlayState1.CUED);
     }
@@ -936,6 +964,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the player is paused at the cue point
      */
+    @API(status = API.Status.STABLE)
     public boolean isCued() {
         return playState1 == PlayState1.CUED;
     }
@@ -945,6 +974,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the player is searching forwards or backwards
      */
+    @API(status = API.Status.STABLE)
     public boolean isSearching() {
         return playState1 == PlayState1.SEARCHING;
     }
@@ -954,6 +984,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if playback stopped because a track ended
      */
+    @API(status = API.Status.STABLE)
     public boolean isAtEnd() {
         return playState1 == PlayState1.ENDED;
     }
@@ -963,6 +994,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if forward playback is underway
      */
+    @API(status = API.Status.STABLE)
     public boolean isPlayingForwards() {
         return (playState1 == PlayState1.PLAYING) && (playState3 != PlayState3.PAUSED_OR_REVERSE);
     }
@@ -972,6 +1004,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if reverse playback is underway
      */
+    @API(status = API.Status.STABLE)
     public boolean isPlayingBackwards() {
         return (playState1 == PlayState1.PLAYING) && (playState3 == PlayState3.PAUSED_OR_REVERSE);
     }
@@ -981,6 +1014,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if forward playback in vinyl mode is underway
      */
+    @API(status = API.Status.STABLE)
     public boolean isPlayingVinylMode() {
         return playState3 == PlayState3.FORWARD_VINYL;
     }
@@ -990,6 +1024,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if forward playback in CDJ mode is underway
      */
+    @API(status = API.Status.STABLE)
     public boolean isPlayingCdjMode() {
         return playState3 == PlayState3.FORWARD_CDJ;
     }
@@ -999,6 +1034,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if some player has USB, SD, or other media that can be linked to
      */
+    @API(status = API.Status.STABLE)
     public boolean isLinkMediaAvailable() {
         return (packetBytes[117] != 0);
     }
@@ -1008,7 +1044,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return true if the player is playing, searching, or loading a track
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isBusy() {
         return packetBytes[39] != 0;
     }
@@ -1019,7 +1055,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the index of the current track
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int getTrackNumber() {
         return (int)Util.bytesToNumber(packetBytes, 50, 2);
     }
@@ -1030,6 +1066,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return a number that becomes one greater than the value reported by any other player when a player gives up
      * its role as the tempo master.
      */
+    @API(status = API.Status.STABLE)
     public int getSyncNumber() {
         return (int)Util.bytesToNumber(packetBytes, 0x84, 4);
     }
@@ -1044,7 +1081,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the number of the beat within the track that is currently being played, or -1 if unknown
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int getBeatNumber() {
         long result = Util.bytesToNumber(packetBytes, 160, 4);
         if (result != 0xffffffffL) {
@@ -1065,7 +1102,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the cue beat countdown, or 511 if no countdown is in effect
      * @see #formatCueCountdown()
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int getCueCountdown() {
         return (int)Util.bytesToNumber(packetBytes, 164, 2);
     }
@@ -1076,7 +1113,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the value that the CDJ would display to indicate the distance to the next cue
      * @see #getCueCountdown()
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public String formatCueCountdown() {
         int count = getCueCountdown();
 
@@ -1102,6 +1139,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the version of the firmware in the player
      */
+    @API(status = API.Status.STABLE)
     public String getFirmwareVersion() {
         return firmwareVersion;
     }
@@ -1111,6 +1149,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return the number of this packet
      */
+    @API(status = API.Status.STABLE)
     public long getPacketNumber() {
         return Util.bytesToNumber(packetBytes, 200, 4);
     }
@@ -1121,6 +1160,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return {@code true} if the loop-related methods can ever return nonzero values
      */
+    @API(status = API.Status.STABLE)
     public boolean canReportLooping() {
         return packetBytes.length >= 0x1ca;
     }
@@ -1131,6 +1171,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return 0 if no loop is active (or can be reported), or the number of beats being looped over
      */
+    @API(status = API.Status.STABLE)
     public int getActiveLoopBeats() {
         if (canReportLooping()) {
             return (int)Util.bytesToNumber(packetBytes, 0x1c8, 2);
@@ -1145,6 +1186,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return 0 if no loop is active (or can be reported), or the millisecond time at which the loop starts
      */
+    @API(status = API.Status.STABLE)
     public long getLoopStart() {
         if (canReportLooping()) {
             return Util.bytesToNumber(packetBytes, 0x1b6, 4) * 65536 / 1000;
@@ -1158,6 +1200,7 @@ public class CdjStatus extends DeviceUpdate {
      *
      * @return 0 if no loop is active (or can be reported), or the millisecond time at which the loop ends
      */
+    @API(status = API.Status.STABLE)
     public long getLoopEnd() {
         if (canReportLooping()) {
             return Util.bytesToNumber(packetBytes, 0x1be, 4) * 65536 / 1000;

@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 
 import java.net.DatagramPacket;
@@ -10,6 +11,7 @@ import java.net.InetAddress;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public abstract class DeviceUpdate {
 
     /**
@@ -20,7 +22,6 @@ public abstract class DeviceUpdate {
     /**
      * When this update was received.
      */
-    @SuppressWarnings("WeakerAccess")
     final long timestamp;
 
     /**
@@ -50,7 +51,7 @@ public abstract class DeviceUpdate {
      * @param name the type of packet that is being processed, in case a problem needs to be reported
      * @param length the expected length of the packet
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public DeviceUpdate(DatagramPacket packet, String name, int length) {
         timestamp = System.nanoTime();
         if (packet.getLength() != length) {
@@ -59,10 +60,11 @@ public abstract class DeviceUpdate {
         address = packet.getAddress();
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
-        deviceName = new String(packetBytes, 11, 20).trim().intern();
+        deviceName = new String(packetBytes, 11, 20).trim();
+        isFromOpusQuad = deviceName.equals(OpusProvider.OPUS_NAME);
         preNexusCdj = deviceName.startsWith("CDJ") && (deviceName.endsWith("900") || deviceName.endsWith("2000"));
 
-        if (isFromOpusQuad()) {
+        if (isFromOpusQuad) {
             deviceNumber = Util.translateOpusPlayerNumbers(packetBytes[40]);
         } else {
             deviceNumber = Util.unsign(packetBytes[33]);
@@ -74,6 +76,7 @@ public abstract class DeviceUpdate {
      *
      * @return the network address from which the update was sent
      */
+    @API(status = API.Status.STABLE)
     public InetAddress getAddress() {
         return address;
     }
@@ -83,6 +86,7 @@ public abstract class DeviceUpdate {
      *
      * @return the nanosecond timestamp at which we received this update
      */
+    @API(status = API.Status.STABLE)
     public long getTimestamp() {
         return timestamp;
     }
@@ -92,6 +96,7 @@ public abstract class DeviceUpdate {
      *
      * @return the device name
      */
+    @API(status = API.Status.STABLE)
     public String getDeviceName() {
         return deviceName;
     }
@@ -104,6 +109,7 @@ public abstract class DeviceUpdate {
      *
      * @return {@code true} if the device name starts with "CDJ" and ends with "0".
      */
+    @API(status = API.Status.STABLE)
     public boolean isPreNexusCdj() {
         return preNexusCdj;
     }
@@ -113,25 +119,23 @@ public abstract class DeviceUpdate {
      *
      * @return the player number found in the update packet
      */
+    @API(status = API.Status.STABLE)
     public int getDeviceNumber() {
         return deviceNumber;
     }
 
     /**
-     * Check whether a device update came from an Opus Quad, which behaves very differently from true Pro DJ Link hardware.
-     *
-     * @return {@code true} when the device name reported in this update matches the one reported by the Opus Quad
+     * Indicates whether this device update came from an Opus Quad, which behaves very differently from true Pro DJ Link hardware.
      */
-    public boolean isFromOpusQuad() {
-        //noinspection StringEquality
-        return deviceName == OpusProvider.opusName;  // Since strings are interned, can be compared this way.
-    }
+    @API(status = API.Status.EXPERIMENTAL)
+    public final boolean isFromOpusQuad;
 
     /**
      * Get the raw data bytes of the device update packet.
      *
      * @return the data sent by the device to update its status
      */
+    @API(status = API.Status.STABLE)
     public byte[] getPacketBytes() {
         byte[] result = new byte[packetBytes.length];
         System.arraycopy(packetBytes, 0, result, 0, packetBytes.length);
@@ -210,7 +214,6 @@ public abstract class DeviceUpdate {
      *
      * @return true for status packets from players, false for status packets from mixers
      */
-    @SuppressWarnings("WeakerAccess")
     public abstract boolean isBeatWithinBarMeaningful();
 
     @Override
