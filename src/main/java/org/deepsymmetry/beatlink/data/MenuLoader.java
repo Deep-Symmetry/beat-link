@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.CdjStatus;
 import org.deepsymmetry.beatlink.MediaDetails;
 import org.deepsymmetry.beatlink.dbserver.*;
@@ -22,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class MenuLoader {
 
     private static final Logger logger = LoggerFactory.getLogger(MenuLoader.class);
@@ -40,26 +42,24 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestRootMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        final MediaDetails details = MetadataFinder.getInstance().getMediaDetailsFor(slotReference);
-                        final CdjStatus.TrackType mediaType = details == null? CdjStatus.TrackType.REKORDBOX : details.mediaType;
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    final MediaDetails details = MetadataFinder.getInstance().getMediaDetailsFor(slotReference);
+                    final CdjStatus.TrackType mediaType = details == null? CdjStatus.TrackType.REKORDBOX : details.mediaType;
 
-                        final Message response = client.menuRequestTyped(Message.KnownType.ROOT_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                mediaType, new NumberField(sortOrder), new NumberField(0xffffff));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, mediaType, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+                    final Message response = client.menuRequestTyped(Message.KnownType.ROOT_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            mediaType, new NumberField(sortOrder), new NumberField(0xffffff));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, mediaType, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -84,6 +84,7 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestPlaylistMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
@@ -103,24 +104,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestHistoryMenuFrom(final SlotReference slotReference, final int sortOrder)
         throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting History menu.");
-                        Message response = client.menuRequest(Message.KnownType.HISTORY_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting History menu.");
+                    Message response = client.menuRequest(Message.KnownType.HISTORY_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -140,24 +139,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the playlist
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestHistoryPlaylistFrom(final SlotReference slotReference, final int sortOrder, final int historyId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting History playlist.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_HISTORY_REQ, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(historyId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting History playlist.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_HISTORY_REQ, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(historyId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -176,15 +173,11 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestTrackMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                return MetadataFinder.getInstance().getFullTrackList(slotReference.slot, client, sortOrder);
-            }
-        };
+        ConnectionManager.ClientTask<List<Message>> task = client -> MetadataFinder.getInstance().getFullTrackList(slotReference.slot, client, sortOrder);
 
         return ConnectionManager.getInstance().invokeWithClientSession(slotReference.player, task, "requesting track menu");
     }
@@ -201,24 +194,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestArtistMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Artist menu.");
-                        Message response = client.menuRequest(Message.KnownType.ARTIST_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Artist menu.");
+                    Message response = client.menuRequest(Message.KnownType.ARTIST_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -238,24 +229,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestArtistAlbumMenuFrom(final SlotReference slotReference, final int sortOrder, final int artistId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Artist Album menu.");
-                        Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_ARTIST_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder), new NumberField(artistId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Artist Album menu.");
+                    Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_ARTIST_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder), new NumberField(artistId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -276,24 +265,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestArtistAlbumTrackMenuFrom(final SlotReference slotReference, final int sortOrder, final int artistId, final int albumId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Artist Album Track menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(artistId), new NumberField(albumId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Artist Album Track menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(artistId), new NumberField(albumId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -312,24 +299,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestOriginalArtistMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Original Artist menu.");
-                        Message response = client.menuRequest(Message.KnownType.ORIGINAL_ARTIST_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Original Artist menu.");
+                    Message response = client.menuRequest(Message.KnownType.ORIGINAL_ARTIST_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -349,24 +334,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestOriginalArtistAlbumMenuFrom(final SlotReference slotReference, final int sortOrder, final int artistId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Original Artist Album menu.");
-                        Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_ORIGINAL_ARTIST_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder), new NumberField(artistId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Original Artist Album menu.");
+                    Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_ORIGINAL_ARTIST_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder), new NumberField(artistId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -387,24 +370,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestOriginalArtistAlbumTrackMenuFrom(final SlotReference slotReference, final int sortOrder, final int artistId, final int albumId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Original Artist Album Track menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_ORIGINAL_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(artistId), new NumberField(albumId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Original Artist Album Track menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_ORIGINAL_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(artistId), new NumberField(albumId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -423,24 +404,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestRemixerMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Remixer menu.");
-                        Message response = client.menuRequest(Message.KnownType.REMIXER_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Remixer menu.");
+                    Message response = client.menuRequest(Message.KnownType.REMIXER_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -460,24 +439,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestRemixerAlbumMenuFrom(final SlotReference slotReference, final int sortOrder, final int artistId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Remixer Album menu.");
-                        Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_REMIXER_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder), new NumberField(artistId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Remixer Album menu.");
+                    Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_REMIXER_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder), new NumberField(artistId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -498,24 +475,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestRemixerAlbumTrackMenuFrom(final SlotReference slotReference, final int sortOrder, final int artistId, final int albumId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Remixer Album Track menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_REMIXER_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(artistId), new NumberField(albumId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Remixer Album Track menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_REMIXER_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(artistId), new NumberField(albumId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -535,24 +510,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestAlbumTrackMenuFrom(final SlotReference slotReference, final int sortOrder, final int albumId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Album Track menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_ALBUM_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder), new NumberField(albumId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Album Track menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_ALBUM_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder), new NumberField(albumId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -571,24 +544,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestGenreMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Genre menu.");
-                        Message response = client.menuRequest(Message.KnownType.GENRE_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Genre menu.");
+                    Message response = client.menuRequest(Message.KnownType.GENRE_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -608,24 +579,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestGenreArtistMenuFrom(final SlotReference slotReference, final int sortOrder, final int genreId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Genre Artist menu.");
-                        Message response = client.menuRequest(Message.KnownType.ARTIST_MENU_FOR_GENRE_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder), new NumberField(genreId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Genre Artist menu.");
+                    Message response = client.menuRequest(Message.KnownType.ARTIST_MENU_FOR_GENRE_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder), new NumberField(genreId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -646,24 +615,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestGenreArtistAlbumMenuFrom(final SlotReference slotReference, final int sortOrder, final int genreId, final int artistId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Genre Artist Album menu.");
-                        Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_GENRE_AND_ARTIST, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(genreId), new NumberField(artistId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Genre Artist Album menu.");
+                    Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_GENRE_AND_ARTIST, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(genreId), new NumberField(artistId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -685,25 +652,23 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestGenreArtistAlbumTrackMenuFrom(final SlotReference slotReference, final int sortOrder, final int genreId,
                                                               final int artistId, final int albumId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Genre Artist Album Track menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_GENRE_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(genreId), new NumberField(artistId), new NumberField(albumId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Genre Artist Album Track menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_GENRE_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(genreId), new NumberField(artistId), new NumberField(albumId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -722,24 +687,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestLabelMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Label menu.");
-                        Message response = client.menuRequest(Message.KnownType.LABEL_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Label menu.");
+                    Message response = client.menuRequest(Message.KnownType.LABEL_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -759,24 +722,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestLabelArtistMenuFrom(final SlotReference slotReference, final int sortOrder, final int labelId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Genre Artist menu.");
-                        Message response = client.menuRequest(Message.KnownType.ARTIST_MENU_FOR_LABEL_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder), new NumberField(labelId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Label Artist menu.");
+                    Message response = client.menuRequest(Message.KnownType.ARTIST_MENU_FOR_LABEL_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder), new NumberField(labelId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -797,24 +758,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestLabelArtistAlbumMenuFrom(final SlotReference slotReference, final int sortOrder, final int labelId, final int artistId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Genre Artist Album menu.");
-                        Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_LABEL_AND_ARTIST, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(labelId), new NumberField(artistId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Label Artist Album menu.");
+                    Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_FOR_LABEL_AND_ARTIST, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(labelId), new NumberField(artistId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -836,25 +795,23 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestLabelArtistAlbumTrackMenuFrom(final SlotReference slotReference, final int sortOrder, final int labelId,
                                                               final int artistId, final int albumId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Genre Artist Album Track menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_LABEL_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(labelId), new NumberField(artistId), new NumberField(albumId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Label Artist Album Track menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_LABEL_ARTIST_AND_ALBUM, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(labelId), new NumberField(artistId), new NumberField(albumId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -873,24 +830,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestAlbumMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Album menu.");
-                        Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Album menu.");
+                    Message response = client.menuRequest(Message.KnownType.ALBUM_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -909,24 +864,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestKeyMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Key menu.");
-                        Message response = client.menuRequest(Message.KnownType.KEY_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Key menu.");
+                    Message response = client.menuRequest(Message.KnownType.KEY_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -946,24 +899,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestKeyNeighborMenuFrom(final SlotReference slotReference, final int sortOrder, final int keyId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting key neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.NEIGHBOR_MENU_FOR_KEY, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(keyId));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting key neighbor menu.");
+                    Message response = client.menuRequest(Message.KnownType.NEIGHBOR_MENU_FOR_KEY, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(keyId));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -975,7 +926,7 @@ public class MenuLoader {
      *
      * @param slotReference the player and slot for which the menu is desired
      * @param keyId the key whose compatible tracks are desired
-     * @param distance how far along the circle of fifths are the tracks allowed to be from the specified key
+     * @param distance how far along the circle of fifths the tracks are allowed to be from the specified key
      * @param sortOrder the order in which responses should be sorted, 0 for default, see the
      *                  <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/track_metadata.html#alternate-track-sort-orders">Packet Analysis
      *                  document</a> for details
@@ -984,24 +935,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestTracksByKeyAndDistanceFrom(final SlotReference slotReference, final int sortOrder, final int keyId, final int distance)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting key neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_KEY_AND_DISTANCE, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(keyId), new NumberField(distance));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting tracks by key and distance menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_KEY_AND_DISTANCE, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(keyId), new NumberField(distance));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1020,24 +969,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestBpmMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting BPM menu.");
-                        Message response = client.menuRequest(Message.KnownType.BPM_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting BPM menu.");
+                    Message response = client.menuRequest(Message.KnownType.BPM_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1057,24 +1004,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestBpmRangeMenuFrom(final SlotReference slotReference, final int sortOrder, final int bpm)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting tempo neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.BPM_RANGE_REQ, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(bpm));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting tempo neighbor menu.");
+                    Message response = client.menuRequest(Message.KnownType.BPM_RANGE_REQ, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(bpm));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1095,24 +1040,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestTracksByBpmRangeFrom(final SlotReference slotReference, final int sortOrder, final int bpm, final int range)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting tempo neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_BPM_AND_DISTANCE, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(bpm), new NumberField(range));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting tracks by bpm range menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_BPM_AND_DISTANCE, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(bpm), new NumberField(range));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1131,24 +1074,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestRatingMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Rating menu.");
-                        Message response = client.menuRequest(Message.KnownType.RATING_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Rating menu.");
+                    Message response = client.menuRequest(Message.KnownType.RATING_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1168,24 +1109,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestTracksByRatingFrom(final SlotReference slotReference, final int sortOrder, final int rating)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting key neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_RATING_REQ, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(rating));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting tracks by rating menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_RATING_REQ, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(rating));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1204,24 +1143,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestColorMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Rating menu.");
-                        Message response = client.menuRequest(Message.KnownType.COLOR_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Color menu.");
+                    Message response = client.menuRequest(Message.KnownType.COLOR_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1241,24 +1178,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestTracksByColorFrom(final SlotReference slotReference, final int sortOrder, final int color)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting key neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_COLOR_REQ, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(color));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting tracks by color menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_COLOR_REQ, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(color));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1277,24 +1212,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestTimeMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Rating menu.");
-                        Message response = client.menuRequest(Message.KnownType.TIME_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Time menu.");
+                    Message response = client.menuRequest(Message.KnownType.TIME_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1314,24 +1247,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestTracksByTimeFrom(final SlotReference slotReference, final int sortOrder, final int time)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting key neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_TIME_REQ, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(time));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting tracks by time menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_TIME_REQ, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(time));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1350,24 +1281,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestBitRateMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Label menu.");
-                        Message response = client.menuRequest(Message.KnownType.BIT_RATE_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Bit Rate menu.");
+                    Message response = client.menuRequest(Message.KnownType.BIT_RATE_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1387,24 +1316,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestTracksByBitRateFrom(final SlotReference slotReference, final int sortOrder, final int bitRate)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting key neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_BIT_RATE_REQ, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(bitRate));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting tracks by bit rate menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_BIT_RATE_REQ, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(bitRate));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1423,24 +1350,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestYearMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Rating menu.");
-                        Message response = client.menuRequest(Message.KnownType.YEAR_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Year menu.");
+                    Message response = client.menuRequest(Message.KnownType.YEAR_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1460,24 +1385,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestYearsByDecadeFrom(final SlotReference slotReference, final int sortOrder, final int decade)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting key neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.YEAR_MENU_FOR_DECADE_REQ, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(decade));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting years by decade menu.");
+                    Message response = client.menuRequest(Message.KnownType.YEAR_MENU_FOR_DECADE_REQ, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(decade));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1498,24 +1421,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestTracksByDecadeAndYear(final SlotReference slotReference, final int sortOrder, final int decade, final int year)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting key neighbor menu.");
-                        Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_DECADE_YEAR_REQ, Message.MenuIdentifier.MAIN_MENU,
-                                slotReference.slot, new NumberField(sortOrder), new NumberField(decade), new NumberField(year));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting tracks by decade and year menu.");
+                    Message response = client.menuRequest(Message.KnownType.TRACK_MENU_FOR_DECADE_YEAR_REQ, Message.MenuIdentifier.MAIN_MENU,
+                            slotReference.slot, new NumberField(sortOrder), new NumberField(decade), new NumberField(year));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1534,24 +1455,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestFilenameMenuFrom(final SlotReference slotReference, final int sortOrder)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Rating menu.");
-                        Message response = client.menuRequest(Message.KnownType.FILENAME_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                new NumberField(sortOrder));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Filename menu.");
+                    Message response = client.menuRequest(Message.KnownType.FILENAME_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            new NumberField(sortOrder));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.REKORDBOX, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1572,24 +1491,22 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem obtaining the menu
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestFolderMenuFrom(final SlotReference slotReference, final int sortOrder, final int folderId)
             throws Exception {
 
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
-                    try {
-                        logger.debug("Requesting Key menu.");
-                        Message response = client.menuRequestTyped(Message.KnownType.FOLDER_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
-                                CdjStatus.TrackType.UNANALYZED, new NumberField(sortOrder), new NumberField(folderId), new NumberField(0xffffff));
-                        return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.UNANALYZED, response);
-                    } finally {
-                        client.unlockForMenuOperations();
-                    }
-                } else {
-                    throw new TimeoutException("Unable to lock player for menu operations.");
+        ConnectionManager.ClientTask<List<Message>> task = client -> {
+            if (client.tryLockingForMenuOperations(MetadataFinder.MENU_TIMEOUT, TimeUnit.SECONDS)) {
+                try {
+                    logger.debug("Requesting Folder menu.");
+                    Message response = client.menuRequestTyped(Message.KnownType.FOLDER_MENU_REQ, Message.MenuIdentifier.MAIN_MENU, slotReference.slot,
+                            CdjStatus.TrackType.UNANALYZED, new NumberField(sortOrder), new NumberField(folderId), new NumberField(0xffffff));
+                    return client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, slotReference.slot, CdjStatus.TrackType.UNANALYZED, response);
+                } finally {
+                    client.unlockForMenuOperations();
                 }
+            } else {
+                throw new TimeoutException("Unable to lock player for menu operations.");
             }
         };
 
@@ -1599,7 +1516,7 @@ public class MenuLoader {
     /**
      * Ask the connected dbserver about database records whose names contain {@code text}. If {@code count} is not
      * {@code null}, no more than that many results will be returned, and the value will be set to the total number
-     * of results that were available. Otherwise all results will be returned.
+     * of results that were available. Otherwise, all results will be returned.
      *
      * @param slot the slot in which the database can be found
      * @param sortOrder the order in which responses should be sorted, 0 for default, see the
@@ -1615,6 +1532,7 @@ public class MenuLoader {
      * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
      * @throws TimeoutException if we are unable to lock the client for menu operations
      */
+    @API(status = API.Status.STABLE)
     private List<Message> getSearchItems(CdjStatus.TrackSourceSlot slot, int sortOrder, String text,
                                          AtomicInteger count, Client client)
             throws IOException, InterruptedException, TimeoutException {
@@ -1624,7 +1542,7 @@ public class MenuLoader {
                 Message response = client.menuRequest(Message.KnownType.SEARCH_MENU, Message.MenuIdentifier.MAIN_MENU, slot,
                         new NumberField(sortOrder), new NumberField(textField.getSize()), textField, NumberField.WORD_0);
                 final int actualCount = (int)response.getMenuResultsCount();
-                if (actualCount == Message.NO_MENU_RESULTS_AVAILABLE || actualCount == 0) {
+                if (actualCount == 0) {
                     if (count != null) {
                         count.set(0);
                     }
@@ -1654,7 +1572,7 @@ public class MenuLoader {
     /**
      * Ask the specified player for database records whose names contain {@code text}. If {@code count} is not
      * {@code null}, no more than that many results will be returned, and the value will be set to the total number
-     * of results that were available. Otherwise all results will be returned.
+     * of results that were available. Otherwise, all results will be returned.
      *
      * @param player the player number whose database is to be searched
      * @param slot the slot in which the database can be found
@@ -1669,16 +1587,12 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem performing the search
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestSearchResultsFrom(final int player, final CdjStatus.TrackSourceSlot slot,
                                                   final int sortOrder, final String text,
                                                   final AtomicInteger count)
             throws Exception {
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                return getSearchItems(slot, sortOrder, text.toUpperCase(), count, client);
-            }
-        };
+        ConnectionManager.ClientTask<List<Message>> task = client -> getSearchItems(slot, sortOrder, text.toUpperCase(), count, client);
 
         return ConnectionManager.getInstance().invokeWithClientSession(player, task, "performing search");
     }
@@ -1687,7 +1601,7 @@ public class MenuLoader {
     /**
      * Ask the connected dbserver about database records whose names contain {@code text}. If {@code count} is not
      * {@code null}, no more than that many results will be returned, and the value will be set to the total number
-     * of results that were available. Otherwise all results will be returned.
+     * of results that were available. Otherwise, all results will be returned.
      *
      * @param slot the slot in which the database can be found
      * @param sortOrder the order in which responses should be sorted, 0 for default, see the
@@ -1745,16 +1659,12 @@ public class MenuLoader {
      *
      * @throws Exception if there is a problem performing the search
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestMoreSearchResultsFrom(final int player, final CdjStatus.TrackSourceSlot slot,
                                                       final int sortOrder, final String text,
                                                       final int offset, final int count)
             throws Exception {
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-                return getMoreSearchItems(slot, sortOrder, text.toUpperCase(), offset, count, client);
-            }
-        };
+        ConnectionManager.ClientTask<List<Message>> task = client -> getMoreSearchItems(slot, sortOrder, text.toUpperCase(), offset, count, client);
 
         return ConnectionManager.getInstance().invokeWithClientSession(player, task, "performing search");
     }
@@ -1770,6 +1680,7 @@ public class MenuLoader {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static MenuLoader getInstance() {
         return ourInstance;
     }

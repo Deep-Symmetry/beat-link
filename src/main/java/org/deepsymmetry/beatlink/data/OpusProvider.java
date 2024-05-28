@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author James Elliott
  * @since 8.0.0 */
-@API(status = API.Status.STABLE)  // TODO get rid of all IntelliJ code pattern entry points and @SuppressWarnings annotations, use this instead.
+@API(status = API.Status.EXPERIMENTAL)  // TODO get rid of all IntelliJ code pattern entry points and @SuppressWarnings annotations, use this instead.
 public class OpusProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(OpusProvider.class);
@@ -58,6 +58,7 @@ public class OpusProvider {
     /**
      * Container for the USB slot number, database and filesystem of any particular Rekordbox USB archive.
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public static class RekordboxUsbArchive {
         private final int usbSlot;
         private final Database database;
@@ -81,6 +82,7 @@ public class OpusProvider {
          *
          * @return the USB slot on the Opus Quad to which the user has reported this metadata belongs
          */
+        @API(status = API.Status.EXPERIMENTAL)
         public int getUsbSlot() {
             return usbSlot;
         }
@@ -90,6 +92,7 @@ public class OpusProvider {
          *
          * @return the parsed database which contains information about tracks, artwork, etc.
          */
+        @API(status = API.Status.EXPERIMENTAL)
         public Database getDatabase() {
             return database;
         }
@@ -99,6 +102,7 @@ public class OpusProvider {
          *
          * @return the filesystem which contains the database and other metadata
          */
+        @API(status = API.Status.EXPERIMENTAL)
         public FileSystem getFileSystem() {
             return fileSystem;
         }
@@ -122,7 +126,7 @@ public class OpusProvider {
      * @throws java.io.IOException if there is a problem attaching the archive
      * @throws IllegalArgumentException if a slot other than the SD or USB slot is specified
      */
-    @API(status = API.Status.STABLE)
+    @API(status = API.Status.EXPERIMENTAL)
     public synchronized void attachMetadataArchive(File archiveFile, int usbSlotNumber) throws IOException {
         if (usbSlotNumber < 1 || usbSlotNumber > 3) {
             throw new IllegalArgumentException("Unsupported usbSlotNumber, can only use 1, 2 or 3.");
@@ -197,7 +201,7 @@ public class OpusProvider {
      *
      * @throws IllegalArgumentException if a slot reference other than the SD or USB slot is specified
      */
-    @API(status = API.Status.STABLE)
+    @API(status = API.Status.EXPERIMENTAL)
     public RekordboxUsbArchive findArchive(int usbSlotNumber) {
         return usbArchiveMap.get(usbSlotNumber);
     }
@@ -314,7 +318,7 @@ public class OpusProvider {
      * This is the mechanism by which we offer metadata to the {@link MetadataProvider} while we are running.
      * Exposed as public so that it can be used for testing and as a utility if desired.
      */
-    @API(status = API.Status.STABLE)
+    @API(status = API.Status.EXPERIMENTAL)
     public final MetadataProvider metadataProvider = new MetadataProvider() {
         @Override
         public List<MediaDetails> supportedMedia() {
@@ -563,6 +567,7 @@ public class OpusProvider {
      * @param songStructureBytes the PSSI data we have received for the player
      * @return the USB slot number in which a match was found, or zero if none was found
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public int findMatchingUsbSlotForTrack(int rekordboxId, int player, ByteBuffer songStructureBytes){
         SlotReference slotRef = SlotReference.getSlotReference(player, CdjStatus.TrackSourceSlot.USB_SLOT);
         DataReference dataRef = new DataReference(slotRef, rekordboxId);
@@ -615,7 +620,7 @@ public class OpusProvider {
     /**
      * The folder into which database exports and track analysis files will be extracted.
      */
-    @API(status = API.Status.STABLE)
+    @API(status = API.Status.EXPERIMENTAL)
     public final File extractDirectory;
 
     /**

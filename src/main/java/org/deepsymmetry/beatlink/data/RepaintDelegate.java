@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * Supports delegation of Swing repaint calls to a host component. This is currently used by the
  * {@link WaveformPreviewComponent} to operate in a soft-loaded manner in user interfaces which display
@@ -9,7 +11,7 @@ package org.deepsymmetry.beatlink.data;
  * used along with {@link WaveformPreviewComponent#setRepaintDelegate(RepaintDelegate)} to enable those
  * changes to be communicated to the lighter component which is hosting it.
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface RepaintDelegate {
 
     /**
@@ -22,6 +24,7 @@ public interface RepaintDelegate {
      * @param width the width of the region that we want to have redrawn
      * @param height the height of the region that we want to have redrawn
      */
+    @API(status = API.Status.STABLE)
     void repaint(int x, int y, int width, int height);
 
 }

@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * <p>The listener interface for receiving updates when there are significant changes to the movement through
  * a track on a player (for example, to send time code that represents the progress of playing the track).</p>
@@ -14,7 +16,7 @@ package org.deepsymmetry.beatlink.data;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface TrackPositionListener {
     /**
      * <p>Called when there has been a significant change in movement since the last reported change.</p>
@@ -22,14 +24,15 @@ public interface TrackPositionListener {
      * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in this method, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in this method
+     * <p>Even if you are not interacting with user interface objects, any code in this method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param update the latest information about the current track position and playback state and speed, or
      *               {@code null} if we can no longer determine that information
      */
+    @API(status = API.Status.STABLE)
     void movementChanged(TrackPositionUpdate update);
 }

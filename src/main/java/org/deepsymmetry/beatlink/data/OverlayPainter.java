@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 import java.awt.*;
 
 /**
@@ -7,7 +9,7 @@ import java.awt.*;
  * components offered by Beat Link, they allow an overlay painter to be registered with them, and it will then
  * be invoked after the component has done its own painting.
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface OverlayPainter {
     /**
      * Paint the overlay on top of the component, which has finished doing its own painting.
@@ -15,5 +17,6 @@ public interface OverlayPainter {
      * @param c the component that has just painted itself
      * @param g the graphics content in which painting is taking place
      */
+    @API(status = API.Status.STABLE)
     void paintOverlay(Component c, Graphics g);
 }

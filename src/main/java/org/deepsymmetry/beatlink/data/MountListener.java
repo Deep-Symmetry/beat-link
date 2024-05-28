@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * <p>The listener interface for receiving updates when the set of mounted media slots on the network changes.</p>
  *
@@ -12,7 +14,7 @@ package org.deepsymmetry.beatlink.data;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface MountListener {
 
     /**
@@ -20,7 +22,7 @@ public interface MountListener {
      *
      * @param slot uniquely identifies a media slot on the network.
      */
-    @SuppressWarnings("EmptyMethod")
+    @API(status = API.Status.STABLE)
     void mediaMounted(SlotReference slot);
 
     /**
@@ -28,5 +30,6 @@ public interface MountListener {
      *
      * @param slot uniquely identifies a media slot on the network.
      */
+    @API(status = API.Status.STABLE)
     void mediaUnmounted(SlotReference slot);
 }

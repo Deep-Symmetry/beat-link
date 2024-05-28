@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.Client;
 import org.deepsymmetry.beatlink.dbserver.ConnectionManager;
@@ -27,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author James Elliott
  */
-@SuppressWarnings({"WeakerAccess", "unused"})
+@API(status = API.Status.STABLE)
 public class MetadataFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(MetadataFinder.class);
@@ -41,7 +42,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the metadata that was obtained, if any
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public TrackMetadata requestMetadataFrom(final CdjStatus status) {
         if (status.getTrackSourceSlot() == CdjStatus.TrackSourceSlot.NO_TRACK || status.getRekordboxId() == 0) {
             return null;
@@ -63,7 +64,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the metadata, if any
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public TrackMetadata requestMetadataFrom(final DataReference track, final CdjStatus.TrackType trackType) {
         return requestMetadataInternal(track, trackType, false);
     }
@@ -98,12 +99,7 @@ public class MetadataFinder extends LifecycleParticipant {
         }
 
         // Use the dbserver protocol implementation to request the metadata.
-        ConnectionManager.ClientTask<TrackMetadata> task = new ConnectionManager.ClientTask<TrackMetadata>() {
-            @Override
-            public TrackMetadata useClient(Client client) throws Exception {
-                return queryMetadata(track, trackType, client);
-            }
-        };
+        ConnectionManager.ClientTask<TrackMetadata> task = client -> queryMetadata(track, trackType, client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(track.player, task, "requesting metadata");
@@ -116,6 +112,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * How many seconds are we willing to wait to lock the database client for menu operations.
      */
+    @API(status = API.Status.STABLE)
     public static final int MENU_TIMEOUT = 20;
 
     /**
@@ -285,16 +282,12 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @throws Exception if there is a problem obtaining the playlist information
      */
+    @API(status = API.Status.STABLE)
     public List<Message> requestPlaylistItemsFrom(final int player, final CdjStatus.TrackSourceSlot slot,
                                                   final int sortOrder, final int playlistOrFolderId,
                                                   final boolean folder)
             throws Exception {
-        ConnectionManager.ClientTask<List<Message>> task = new ConnectionManager.ClientTask<List<Message>>() {
-            @Override
-            public List<Message> useClient(Client client) throws Exception {
-               return getPlaylistItems(slot, sortOrder, playlistOrFolderId, folder, client);
-            }
-        };
+        ConnectionManager.ClientTask<List<Message>> task = client -> getPlaylistItems(slot, sortOrder, playlistOrFolderId, folder, client);
 
         return ConnectionManager.getInstance().invokeWithClientSession(player, task, "requesting playlist information");
     }
@@ -303,26 +296,23 @@ public class MetadataFinder extends LifecycleParticipant {
      * Keeps track of the current metadata cached for each player. We cache metadata for any track which is currently
      * on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
-    private final Map<DeckReference, TrackMetadata> hotCache = new ConcurrentHashMap<DeckReference, TrackMetadata>();
+    private final Map<DeckReference, TrackMetadata> hotCache = new ConcurrentHashMap<>();
 
     /**
      * A queue used to hold CDJ status updates we receive from the {@link VirtualCdj} so we can process them on a
      * lower priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final LinkedBlockingDeque<CdjStatus> pendingUpdates = new LinkedBlockingDeque<CdjStatus>(100);
+    private final LinkedBlockingDeque<CdjStatus> pendingUpdates = new LinkedBlockingDeque<>(100);
 
     /**
      * Our update listener just puts appropriate device updates on our queue, so we can process them on a lower
      * priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
-        @Override
-        public void received(DeviceUpdate update) {
-            logger.debug("Received device update {}", update);
-            if (update instanceof CdjStatus) {
-                if (!pendingUpdates.offerLast((CdjStatus)update)) {
-                    logger.warn("Discarding CDJ update because our queue is backed up.");
-                }
+    private final DeviceUpdateListener updateListener = update -> {
+        logger.debug("Received device update {}", update);
+        if (update instanceof CdjStatus) {
+            if (!pendingUpdates.offerLast((CdjStatus)update)) {
+                logger.warn("Discarding CDJ update because our queue is backed up.");
             }
         }
     };
@@ -335,7 +325,7 @@ public class MetadataFinder extends LifecycleParticipant {
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
-            logger.info("Processing device found, number:" + announcement.getDeviceNumber() + ", name:\"" + announcement.getDeviceName() + "\".");
+            logger.info("Processing device found, number:{}, name:\"{}\".", announcement.getDeviceNumber(), announcement.getDeviceName());
             if ((((announcement.getDeviceNumber() > 0x0f) && announcement.getDeviceNumber() < 0x20) || announcement.getDeviceNumber() > 40) &&
                     (announcement.getDeviceName().startsWith("rekordbox"))) {  // Looks like rekordbox.
                 logger.info("Recording rekordbox collection mount.");
@@ -371,7 +361,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @see #isPassive()
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return running.get();
     }
@@ -391,6 +381,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return {@code true} if only cached metadata will be used, or {@code false} if metadata will be requested from
      *         a player if a track is loaded from a media slot for which no metadata has been downloaded
      */
+    @API(status = API.Status.STABLE)
     public boolean isPassive() {
         return passive.get();
     }
@@ -405,6 +396,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param passive {@code true} if only cached metadata will be used, or {@code false} if metadata will be requested
      *                from a player if a track is loaded from a media slot for which no metadata has been downloaded
      */
+    @API(status = API.Status.STABLE)
     public void setPassive(boolean passive) {
         this.passive.set(passive);
     }
@@ -436,7 +428,7 @@ public class MetadataFinder extends LifecycleParticipant {
     private void clearMetadata(DeviceAnnouncement announcement) {
         final int player = announcement.getDeviceNumber();
         // Iterate over a copy to avoid concurrent modification issues
-        for (DeckReference deck : new HashSet<DeckReference>(hotCache.keySet())) {
+        for (DeckReference deck : new HashSet<>(hotCache.keySet())) {
             if (deck.player == player) {
                 hotCache.remove(deck);
                 if (deck.hotCue == 0) {
@@ -471,10 +463,11 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the MetadataFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public Map<DeckReference, TrackMetadata> getLoadedTracks() {
         ensureRunning();
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableMap(new HashMap<DeckReference, TrackMetadata>(hotCache));
+        return Map.copyOf(hotCache);
     }
 
     /**
@@ -486,7 +479,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the MetadataFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public TrackMetadata getLatestMetadataFor(int player) {
         ensureRunning();
         return hotCache.get(DeckReference.getDeckReference(player, 0));
@@ -501,6 +494,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the MetadataFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public TrackMetadata getLatestMetadataFor(DeviceUpdate update) {
         return getLatestMetadataFor(update.getDeviceNumber());
     }
@@ -508,7 +502,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Keep track of the devices we are currently trying to get metadata from in response to status updates.
      */
-    private final Set<Integer> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private final Set<Integer> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
 
     /**
@@ -517,7 +511,7 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     private void flushHotCacheSlot(SlotReference slot) {
         // Iterate over a copy to avoid concurrent modification issues
-        for (Map.Entry<DeckReference, TrackMetadata> entry : new HashMap<DeckReference,TrackMetadata>(hotCache).entrySet()) {
+        for (Map.Entry<DeckReference, TrackMetadata> entry : new HashMap<>(hotCache).entrySet()) {
             if (slot == SlotReference.getSlotReference(entry.getValue().trackReference)) {
                 logger.debug("Evicting cached metadata in response to unmount report {}", entry.getValue());
                 hotCache.remove(entry.getKey());
@@ -528,7 +522,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Keeps track of any players with mounted media.
      */
-    private final Set<SlotReference> mediaMounts = Collections.newSetFromMap(new ConcurrentHashMap<SlotReference, Boolean>());
+    private final Set<SlotReference> mediaMounts = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Records that there is media mounted in a particular media player slot, updating listeners if this is a change.
@@ -545,7 +539,7 @@ public class MetadataFinder extends LifecycleParticipant {
             try {
                 VirtualCdj.getInstance().sendMediaQuery(slot);
             } catch (Exception e) {
-                logger.warn("Problem trying to request media details for " + slot, e);
+                logger.warn("Problem trying to request media details for {}", slot, e);
             }
         }
     }
@@ -571,21 +565,23 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the slots with media currently available on the network, including rekordbox instances
      */
+    @API(status = API.Status.STABLE)
     public Set<SlotReference> getMountedMediaSlots() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<SlotReference>(mediaMounts));
+        return Set.copyOf(mediaMounts);
     }
 
     /**
      * Keeps track of the media details the Virtual CDJ has been able to find for us about the mounted slots.
      */
-    private final Map<SlotReference,MediaDetails> mediaDetails = new ConcurrentHashMap<SlotReference, MediaDetails>();
+    private final Map<SlotReference,MediaDetails> mediaDetails = new ConcurrentHashMap<>();
 
     /**
      * Get the details we know about all mounted media.
      *
      * @return the media details the Virtual CDJ has been able to find for us about the mounted slots.
      */
+    @API(status = API.Status.STABLE)
     public Collection<MediaDetails> getMountedMediaDetails() {
         return Collections.unmodifiableCollection(mediaDetails.values());
     }
@@ -596,6 +592,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param slot the slot whose media is of interest
      * @return the details, or {@code null} if we don't have any
      */
+    @API(status = API.Status.STABLE)
     public MediaDetails getMediaDetailsFor(SlotReference slot) {
         return mediaDetails.get(slot);
     }
@@ -603,8 +600,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered mount update listeners.
      */
-    private final Set<MountListener> mountListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<MountListener, Boolean>());
+    private final Set<MountListener> mountListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Adds the specified mount update listener to receive updates when media is mounted or unmounted by any player.
@@ -627,7 +623,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param listener the mount update listener to add
      */
-    @SuppressWarnings("SameParameterValue")
+    @API(status = API.Status.STABLE)
     public void addMountListener(MountListener listener) {
         if (listener != null) {
             mountListeners.add(listener);
@@ -641,6 +637,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param listener the mount update listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeMountListener(MountListener listener) {
         if (listener != null) {
             mountListeners.remove(listener);
@@ -652,10 +649,10 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the listeners that are currently registered for mount updates
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Set<MountListener> getMountListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<MountListener>(mountListeners));
+        return Set.copyOf(mountListeners);
     }
 
     /**
@@ -666,10 +663,10 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     private void deliverMountUpdate(SlotReference slot, boolean mounted) {
         if (mounted) {
-            logger.info("Reporting media mounted in " + slot);
+            logger.info("Reporting media mounted in {}", slot);
 
         } else {
-            logger.info("Reporting media removed from " + slot);
+            logger.info("Reporting media removed from {}", slot);
         }
         for (final MountListener listener : getMountListeners()) {
             try {
@@ -689,8 +686,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered track metadata update listeners.
      */
-    private final Set<TrackMetadataListener> trackListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<TrackMetadataListener, Boolean>());
+    private final Set<TrackMetadataListener> trackListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Adds the specified track metadata listener to receive updates when the track metadata for a player changes.
@@ -708,7 +704,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param listener the track metadata update listener to add
      */
-    @SuppressWarnings("SameParameterValue")
+    @API(status = API.Status.STABLE)
     public void addTrackMetadataListener(TrackMetadataListener listener) {
         if (listener != null) {
             trackListeners.add(listener);
@@ -722,7 +718,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param listener the track metadata update listener to remove
      */
-    @SuppressWarnings("SameParameterValue")
+   @API(status = API.Status.STABLE)
     public void removeTrackMetadataListener(TrackMetadataListener listener) {
         if (listener != null) {
             trackListeners.remove(listener);
@@ -734,10 +730,10 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the listeners that are currently registered for track metadata updates
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Set<TrackMetadataListener> getTrackMetadataListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<TrackMetadataListener>(trackListeners));
+        return Set.copyOf(trackListeners);
     }
 
     /**
@@ -762,7 +758,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * values of the media that they reported providing metadata for. Providers that offer metadata for all media are
      * stored with a key of an empty string.
      */
-    private final Map<String, Set<MetadataProvider>> metadataProviders = new ConcurrentHashMap<String, Set<MetadataProvider>>();
+    private final Map<String, Set<MetadataProvider>> metadataProviders = new ConcurrentHashMap<>();
 
 
 
@@ -778,6 +774,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param provider the object that can supply metadata about tracks
      */
+    @API(status = API.Status.STABLE)
     public void addMetadataProvider(MetadataProvider provider) {
         List<MediaDetails> supportedMedia = provider.supportedMedia();
         if (supportedMedia == null || supportedMedia.isEmpty()) {
@@ -799,7 +796,7 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     private void addMetadataProviderForMedia(String key, MetadataProvider provider) {
         if (!metadataProviders.containsKey(key)) {
-            metadataProviders.put(key, Collections.newSetFromMap(new ConcurrentHashMap<MetadataProvider, Boolean>()));
+            metadataProviders.put(key, Collections.newSetFromMap(new ConcurrentHashMap<>()));
         }
         Set<MetadataProvider> providers = metadataProviders.get(key);
         providers.add(provider);
@@ -811,6 +808,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @param provider the metadata provider to remove.
      */
+    @API(status = API.Status.STABLE)
     public void removeMetadataProvider(MetadataProvider provider) {
         for (Set<MetadataProvider> providers : metadataProviders.values()) {
             providers.remove(provider);
@@ -825,13 +823,14 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return any registered metadata providers that reported themselves as supporting tracks from that media
      */
+    @API(status = API.Status.STABLE)
     public Set<MetadataProvider> getMetadataProviders(MediaDetails sourceMedia) {
         String key = (sourceMedia == null)? "" : sourceMedia.hashKey();
         Set<MetadataProvider> result = metadataProviders.get(key);
         if (result == null) {
             return Collections.emptySet();
         }
-        return Collections.unmodifiableSet(new HashSet<MetadataProvider>(result));
+        return Set.copyOf(result);
     }
 
     /**
@@ -1026,19 +1025,16 @@ public class MetadataFinder extends LifecycleParticipant {
                     if (activeRequests.add(update.getTrackSourcePlayer())) {
                         // We had to make sure we were not already asking for this track.
                         clearDeck(update);  // We won't know what it is until our request completes.
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    TrackMetadata data = requestMetadataInternal(trackReference, update.getTrackType(), true);
-                                    if (data != null) {
-                                        updateMetadata(update, data);
-                                    }
-                                } catch (Exception e) {
-                                    logger.warn("Problem requesting track metadata from update" + update, e);
-                                } finally {
-                                    activeRequests.remove(update.getTrackSourcePlayer());
+                        new Thread(() -> {
+                            try {
+                                TrackMetadata data = requestMetadataInternal(trackReference, update.getTrackType(), true);
+                                if (data != null) {
+                                    updateMetadata(update, data);
                                 }
+                            } catch (Exception e) {
+                                logger.warn("Problem requesting track metadata from update {}", update, e);
+                            } finally {
+                                activeRequests.remove(update.getTrackSourcePlayer());
                             }
                         }, "MetadataFinder metadata request").start();
                     }
@@ -1074,6 +1070,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @throws Exception if there is a problem starting the required components
      */
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws Exception {
         if (!isRunning()) {
             ConnectionManager.getInstance().addLifecycleListener(lifecycleListener);
@@ -1083,17 +1080,14 @@ public class MetadataFinder extends LifecycleParticipant {
             VirtualCdj.getInstance().addLifecycleListener(lifecycleListener);
             VirtualCdj.getInstance().start();
             VirtualCdj.getInstance().addUpdateListener(updateListener);
-            queueHandler = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (isRunning()) {
-                        try {
-                            handleUpdate(pendingUpdates.take());
-                        } catch (InterruptedException e) {
-                            logger.debug("Interrupted, presumably due to MetadataFinder shutdown.", e);
-                        } catch (Exception e) {
-                            logger.error("Problem handling CDJ status update.", e);
-                        }
+            queueHandler = new Thread(() -> {
+                while (isRunning()) {
+                    try {
+                        handleUpdate(pendingUpdates.take());
+                    } catch (InterruptedException e) {
+                        logger.debug("Interrupted, presumably due to MetadataFinder shutdown.", e);
+                    } catch (Exception e) {
+                        logger.error("Problem handling CDJ status update.", e);
                     }
                 }
             });
@@ -1111,6 +1105,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Stop finding track metadata for all active players.
      */
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
@@ -1120,17 +1115,14 @@ public class MetadataFinder extends LifecycleParticipant {
             queueHandler = null;
 
             // Report the loss of our hot cached metadata on the proper thread, outside our lock
-            final Set<DeckReference> dyingCache = new HashSet<DeckReference>(hotCache.keySet());
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (DeckReference deck : dyingCache) {
-                        if (deck.hotCue == 0) {
-                            deliverTrackMetadataUpdate(deck.player, null);
-                        }
+            final Set<DeckReference> dyingCache = new HashSet<>(hotCache.keySet());
+            SwingUtilities.invokeLater(() -> {
+                for (DeckReference deck : dyingCache) {
+                    if (deck.hotCue == 0) {
+                        deliverTrackMetadataUpdate(deck.player, null);
                     }
-
                 }
+
             });
             hotCache.clear();
             deliverLifecycleAnnouncement(logger, false);
@@ -1147,6 +1139,7 @@ public class MetadataFinder extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static MetadataFinder getInstance() {
         return ourInstance;
     }
@@ -1157,24 +1150,21 @@ public class MetadataFinder extends LifecycleParticipant {
      * {@link MediaDetailsListener}.
      */
     private MetadataFinder() {
-        VirtualCdj.getInstance().addMediaDetailsListener(new MediaDetailsListener() {
-            @Override
-            public void detailsAvailable(MediaDetails details) {
-                mediaDetails.put(details.slotReference, details);
-                if (!mediaMounts.contains(details.slotReference)) {
-                    // We do this after the fact in case the slot was being unmounted at the same time as we were
-                    // responding to the event, so we end up in the correct final state.
-                    logger.warn("Discarding media details reported for an unmounted media slot:" + details);
-                    mediaDetails.remove(details.slotReference);
-                } else {
-                    for (final MountListener listener : getMountListeners()) {
-                        try {
-                            if (listener instanceof MediaDetailsListener) {
-                                ((MediaDetailsListener) listener).detailsAvailable(details);
-                            }
-                        } catch (Throwable t) {
-                            logger.warn("Problem delivering media details update to mount listener", t);
+        VirtualCdj.getInstance().addMediaDetailsListener(details -> {
+            mediaDetails.put(details.slotReference, details);
+            if (!mediaMounts.contains(details.slotReference)) {
+                // We do this after the fact in case the slot was being unmounted at the same time as we were
+                // responding to the event, so we end up in the correct final state.
+                logger.warn("Discarding media details reported for an unmounted media slot: {}", details);
+                mediaDetails.remove(details.slotReference);
+            } else {
+                for (final MountListener listener : getMountListeners()) {
+                    try {
+                        if (listener instanceof MediaDetailsListener) {
+                            ((MediaDetailsListener) listener).detailsAvailable(details);
                         }
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering media details update to mount listener", t);
                     }
                 }
             }

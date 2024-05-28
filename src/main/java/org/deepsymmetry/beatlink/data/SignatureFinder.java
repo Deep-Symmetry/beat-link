@@ -1,11 +1,12 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
@@ -22,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class SignatureFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(SignatureFinder.class);
@@ -31,13 +32,12 @@ public class SignatureFinder extends LifecycleParticipant {
      * A queue used to hold players whose tracks now have enough information to calculate a signature, so we can
      * process them on a lower priority thready, and not hold up delivery to more time-sensitive listeners.
      */
-    private final LinkedBlockingDeque<Integer> pendingUpdates =
-            new LinkedBlockingDeque<Integer>(20);
+    private final LinkedBlockingDeque<Integer> pendingUpdates = new LinkedBlockingDeque<>(20);
 
     /**
      * Holds the currently-recognized track signatures for each track loaded in a player.
      */
-    private final Map<Integer, String> signatures = new ConcurrentHashMap<Integer, String>();
+    private final Map<Integer, String> signatures = new ConcurrentHashMap<>();
 
     /**
      * Called whenever we have lost some piece of information that determines a loaded track signature. If we were
@@ -65,14 +65,11 @@ public class SignatureFinder extends LifecycleParticipant {
     /**
      * Our metadata listener updates our signature state as track metadata comes and goes.
      */
-    private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
-        @Override
-        public void metadataChanged(TrackMetadataUpdate update) {
-            if (update.metadata == null) {
-                clearSignature(update.player);
-            } else {
-                checkIfSignatureReady(update.player);
-            }
+    private final TrackMetadataListener metadataListener = update -> {
+        if (update.metadata == null) {
+            clearSignature(update.player);
+        } else {
+            checkIfSignatureReady(update.player);
         }
     };
 
@@ -98,14 +95,11 @@ public class SignatureFinder extends LifecycleParticipant {
     /**
      * Our beat grid listener updates our signature state as track beat grids come and go.
      */
-    private final BeatGridListener beatGridListener = new BeatGridListener() {
-        @Override
-        public void beatGridChanged(BeatGridUpdate update) {
-            if (update.beatGrid == null) {
-                clearSignature(update.player);
-            } else {
-                checkIfSignatureReady(update.player);
-            }
+    private final BeatGridListener beatGridListener = update -> {
+        if (update.beatGrid == null) {
+            clearSignature(update.player);
+        } else {
+            checkIfSignatureReady(update.player);
         }
     };
 
@@ -121,7 +115,7 @@ public class SignatureFinder extends LifecycleParticipant {
      *
      * @see MetadataFinder#isPassive()
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return running.get();
     }
@@ -140,10 +134,11 @@ public class SignatureFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the SignatureFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public Map<Integer, String> getSignatures() {
         ensureRunning();
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableMap(new HashMap<Integer, String>(signatures));
+        return Map.copyOf(signatures);
     }
 
     /**
@@ -155,6 +150,7 @@ public class SignatureFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the SignatureFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public String getLatestSignatureFor(int player) {
         ensureRunning();
         return signatures.get(player);
@@ -170,6 +166,7 @@ public class SignatureFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the SignatureFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public String getLatestSignatureFor(DeviceUpdate update) {
         return getLatestSignatureFor(update.getDeviceNumber());
     }
@@ -177,8 +174,7 @@ public class SignatureFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered signature listeners.
      */
-    private final Set<SignatureListener> signatureListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<SignatureListener, Boolean>());
+    private final Set<SignatureListener> signatureListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified signature listener to receive updates when the track signature for a player changes.
@@ -186,14 +182,15 @@ public class SignatureFinder extends LifecycleParticipant {
      * thrown and no action is performed.</p>
      *
      * <p>Updates are delivered to listeners on the Swing Event Dispatch thread, so it is safe to interact with
-     * user interface elements within the event handler.
+     * user interface elements within the event handler.</p>
      *
-     * Even so, any code in the listener method <em>must</em> finish quickly, or it will freeze the user interface,
+     * <p>Even so, any code in the listener method <em>must</em> finish quickly, or it will freeze the user interface,
      * add latency for other listeners, and updates will back up. If you want to perform lengthy processing of any sort,
      * do so on another thread.</p>
      *
      * @param listener the track signature update listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addSignatureListener(SignatureListener listener) {
         if (listener != null) {
             signatureListeners.add(listener);
@@ -207,6 +204,7 @@ public class SignatureFinder extends LifecycleParticipant {
      *
      * @param listener the track signature update listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeSignatureListener(SignatureListener listener) {
         if (listener != null) {
             signatureListeners.remove(listener);
@@ -218,25 +216,22 @@ public class SignatureFinder extends LifecycleParticipant {
      *
      * @return the listeners that are currently registered for track signature updates
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Set<SignatureListener> getSignatureListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<SignatureListener>(signatureListeners));
+        return Set.copyOf(signatureListeners);
     }
 
     private void deliverSignatureUpdate(final int player, final String signature) {
         final Set<SignatureListener> listeners = getSignatureListeners();
         if (!listeners.isEmpty()) {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    final SignatureUpdate update = new SignatureUpdate(player, signature);
-                    for (final SignatureListener listener : listeners) {
-                        try {
-                            listener.signatureChanged(update);
-                        } catch (Throwable t) {
-                            logger.warn("Problem delivering track signature update to listener", t);
-                        }
+            SwingUtilities.invokeLater(() -> {
+                final SignatureUpdate update = new SignatureUpdate(player, signature);
+                for (final SignatureListener listener : listeners) {
+                    try {
+                        listener.signatureChanged(update);
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering track signature update to listener", t);
                     }
                 }
             });
@@ -265,13 +260,10 @@ public class SignatureFinder extends LifecycleParticipant {
      * Send ourselves "updates" about any tracks that were loaded before we started, since we missed them.
      */
     private void checkExistingTracks() {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-                    if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
-                        checkIfSignatureReady(entry.getKey().player);
-                    }
+        SwingUtilities.invokeLater(() -> {
+            for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+                if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                    checkIfSignatureReady(entry.getKey().player);
                 }
             }
         });
@@ -300,6 +292,7 @@ public class SignatureFinder extends LifecycleParticipant {
      *
      * @return the SHA-1 hash of all the arguments supplied, or {@code null} if any either {@code waveFormDetail} or {@code beatGrid} were {@code null}
      */
+    @API(status = API.Status.STABLE)
     public String computeTrackSignature(final String title, final SearchableItem artist, final int duration,
                                         final WaveformDetail waveformDetail, final BeatGrid beatGrid) {
         final String safeTitle = (title == null)? "" : title;
@@ -307,9 +300,9 @@ public class SignatureFinder extends LifecycleParticipant {
         try {
             // Compute the SHA-1 hash of our fields
             MessageDigest digest = MessageDigest.getInstance("SHA1");
-            digest.update(safeTitle.getBytes("UTF-8"));
+            digest.update(safeTitle.getBytes(StandardCharsets.UTF_8));
             digest.update((byte) 0);
-            digest.update(artistName.getBytes("UTF-8"));
+            digest.update(artistName.getBytes(StandardCharsets.UTF_8));
             digest.update((byte) 0);
             digestInteger(digest, duration);
             digest.update(waveformDetail.getData());
@@ -332,8 +325,6 @@ public class SignatureFinder extends LifecycleParticipant {
             logger.info("Returning null track signature because an input element was null.", e);
         } catch (NoSuchAlgorithmException e) {
             logger.error("Unable to obtain SHA-1 MessageDigest instance for computing track signatures.", e);
-        } catch (UnsupportedEncodingException e) {
-            logger.error("Unable to work with UTF-8 string encoding for computing track signatures.", e);
         }
         return null;  // We were unable to compute a signature
     }
@@ -365,6 +356,7 @@ public class SignatureFinder extends LifecycleParticipant {
      *
      * @throws Exception if there is a problem starting the required components
      */
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws Exception {
         if (!isRunning()) {
             MetadataFinder.getInstance().addLifecycleListener(lifecycleListener);
@@ -380,17 +372,14 @@ public class SignatureFinder extends LifecycleParticipant {
             BeatGridFinder.getInstance().start();
             BeatGridFinder.getInstance().addBeatGridListener(beatGridListener);
 
-            queueHandler = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (isRunning()) {
-                        try {
-                            handleUpdate(pendingUpdates.take());
-                        } catch (InterruptedException e) {
-                            // Interrupted due to one of our finders shutting down, presumably.
-                        } catch (Throwable t) {
-                            logger.error("Problem processing track signature update", t);
-                        }
+            queueHandler = new Thread(() -> {
+                while (isRunning()) {
+                    try {
+                        handleUpdate(pendingUpdates.take());
+                    } catch (InterruptedException e) {
+                        // Interrupted due to one of our finders shutting down, presumably.
+                    } catch (Throwable t) {
+                        logger.error("Problem processing track signature update", t);
                     }
                 }
             });
@@ -404,6 +393,7 @@ public class SignatureFinder extends LifecycleParticipant {
     /**
      * Stop finding signatures for all active players.
      */
+    @API(status = API.Status.STABLE)
     public synchronized void stop () {
         if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
@@ -415,14 +405,11 @@ public class SignatureFinder extends LifecycleParticipant {
             queueHandler = null;
 
             // Report the loss of our signatures, on the proper thread, outside our lock
-            final Set<Integer> dyingSignatures = new HashSet<Integer>(signatures.keySet());
+            final Set<Integer> dyingSignatures = new HashSet<>(signatures.keySet());
             signatures.clear();
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (Integer player : dyingSignatures) {
-                        deliverSignatureUpdate(player, null);
-                    }
+            SwingUtilities.invokeLater(() -> {
+                for (Integer player : dyingSignatures) {
+                    deliverSignatureUpdate(player, null);
                 }
             });
         }
@@ -439,6 +426,7 @@ public class SignatureFinder extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static SignatureFinder getInstance() {
         return ourInstance;
     }

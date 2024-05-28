@@ -1,23 +1,29 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * Captures the playback state of a single player that has the track loaded, as an immutable value class.
  */
+@API(status = API.Status.STABLE)
 public class PlaybackState {
 
     /**
      * The player number whose playback state this represents.
      */
+    @API(status = API.Status.STABLE)
     public final int player;
 
     /**
      * The current playback position of the player in milliseconds.
      */
+    @API(status = API.Status.STABLE)
     public final long position;
 
     /**
      * Whether the player is actively playing the track.
      */
+    @API(status = API.Status.STABLE)
     public final boolean playing;
 
     /**
@@ -27,7 +33,7 @@ public class PlaybackState {
      * @param position the current playback position in milliseconds
      * @param playing whether the player is actively playing the track
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public PlaybackState(int player, long position, boolean playing) {
         this.player = player;
         this.position = position;

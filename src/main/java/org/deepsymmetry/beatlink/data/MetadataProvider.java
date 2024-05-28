@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.MediaDetails;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 
@@ -12,7 +13,7 @@ import java.util.List;
  *
  * @since 0.5.0
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface MetadataProvider {
     /**
      * Get the list of media devices for which metadata can be offered by this provider. If the provider can
@@ -34,6 +35,7 @@ public interface MetadataProvider {
      *
      * @return the metadata corresponding to that track, or {@code null} if it is not a track for which we have metadata
      */
+    @API(status = API.Status.STABLE)
     TrackMetadata getTrackMetadata(MediaDetails sourceMedia, DataReference track);
 
     /**
@@ -46,6 +48,7 @@ public interface MetadataProvider {
      *
      * @return the art with the specified id, or {@code null} if we don't have it to offer
      */
+    @API(status = API.Status.STABLE)
     AlbumArt getAlbumArt(MediaDetails sourceMedia, DataReference art);
 
     /**
@@ -58,6 +61,7 @@ public interface MetadataProvider {
      *
      * @return the beat grid corresponding to that track, or {@code null} if we don't have one to offer
      */
+    @API(status = API.Status.STABLE)
     BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track);
 
 
@@ -70,6 +74,7 @@ public interface MetadataProvider {
      *
      * @return the cue list corresponding to that track, or {@code null} if we don't have one to offer
      */
+    @API(status = API.Status.STABLE)
     CueList getCueList(MediaDetails sourceMedia, DataReference track);
 
     /**
@@ -82,6 +87,7 @@ public interface MetadataProvider {
      *
      * @return the waveform preview corresponding to that track, or {@code null} if we don't have one to offer
      */
+    @API(status = API.Status.STABLE)
     WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track);
 
     /**
@@ -94,6 +100,7 @@ public interface MetadataProvider {
      *
      * @return the waveform detail corresponding to that track, or {@code null} if we don't have one to offer
      */
+    @API(status = API.Status.STABLE)
     WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track);
 
     /**
@@ -109,5 +116,6 @@ public interface MetadataProvider {
      *
      * @return the Kaitai Struct object representing the parsed matching section of the file, if one is found.
      */
+    @API(status = API.Status.STABLE)
     RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag);
 }

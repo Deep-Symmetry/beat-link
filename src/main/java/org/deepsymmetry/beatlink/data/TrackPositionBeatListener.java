@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Beat;
 
 /**
@@ -15,7 +16,7 @@ import org.deepsymmetry.beatlink.Beat;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface TrackPositionBeatListener extends TrackPositionListener {
 
     /**
@@ -26,14 +27,15 @@ public interface TrackPositionBeatListener extends TrackPositionListener {
      * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in this method, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in this method
+     * <p>Even if you are not interacting with user interface objects, any code in this method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param beat the message which announced the start of the new beat
      * @param update the latest information about the current track position and playback state and speed
      */
+    @API(status = API.Status.STABLE)
     void newBeat(Beat beat, TrackPositionUpdate update);
 }

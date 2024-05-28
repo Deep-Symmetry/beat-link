@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.CdjStatus;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.beatlink.dbserver.NumberField;
@@ -9,16 +10,14 @@ import org.deepsymmetry.cratedigger.pdb.RekordboxPdb;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 /**
  * Represents rekordbox metadata (title, artist, etc.) about tracks loaded into players on a DJ Link network.
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class TrackMetadata {
 
     private static final Logger logger = LoggerFactory.getLogger(TrackMetadata.class.getName());
@@ -26,13 +25,13 @@ public class TrackMetadata {
     /**
      * The unique track identifier that was used to request this track metadata.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final DataReference trackReference;
 
     /**
      * The type of track described by this metadata.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final CdjStatus.TrackType trackType;
 
     /**
@@ -43,7 +42,7 @@ public class TrackMetadata {
      *
      * @see #rawRow
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final List<Message> rawItems;
 
     /**
@@ -52,7 +51,7 @@ public class TrackMetadata {
      *
      * @see #rawItems
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final RekordboxPdb.TrackRow rawRow;
 
     /**
@@ -159,7 +158,7 @@ public class TrackMetadata {
 
     /**
      * Constructor for when reading from a rekordbox export file. Finds the desired track in the exported
-     * database, along with all of the related records, and sets all the interpreted fields based on the parsed
+     * database, along with all the related records, and sets all the interpreted fields based on the parsed
      * database structures.
      *
      * @param reference the unique track reference for which track metadata is desired
@@ -168,6 +167,7 @@ public class TrackMetadata {
      *
      * @throws NoSuchElementException if the specified track is not found in the database
      */
+    @API(status = API.Status.STABLE)
     public TrackMetadata(DataReference reference, Database database, CueList cueList) {
         rawItems = null;  // We did not create this from a dbserver response.
         rawRow = database.trackIndex.get((long) reference.rekordboxId);
@@ -256,7 +256,7 @@ public class TrackMetadata {
         trackReference = reference;
         this.trackType = trackType;
         this.cueList = cueList;
-        rawItems = Collections.unmodifiableList(new LinkedList<Message>(items));
+        rawItems = Collections.unmodifiableList(new LinkedList<>(items));
         for (Message item : items) {
             parseMetadataItem(item);
         }
@@ -364,6 +364,7 @@ public class TrackMetadata {
      *
      * @return the track album
      */
+    @API(status = API.Status.STABLE)
     public SearchableItem getAlbum() {
         return album;
     }
@@ -373,6 +374,7 @@ public class TrackMetadata {
      *
      * @return the track artist
      */
+    @API(status = API.Status.STABLE)
     public SearchableItem getArtist() {
         return artist;
     }
@@ -382,7 +384,7 @@ public class TrackMetadata {
      *
      * @return the value that can be used to request the artwork image, if any, associated with the track
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int getArtworkId() {
         return artworkId;
     }
@@ -392,6 +394,7 @@ public class TrackMetadata {
      *
      * @return the track color
      */
+    @API(status = API.Status.STABLE)
     public ColorItem getColor() {
         return color;
     }
@@ -401,6 +404,7 @@ public class TrackMetadata {
      *
      * @return the track comment
      */
+    @API(status = API.Status.STABLE)
     public String getComment() {
         return comment;
     }
@@ -418,19 +422,18 @@ public class TrackMetadata {
         if (rating != metadata.rating) return false;
         if (tempo != metadata.tempo) return false;
         if (artworkId != metadata.artworkId) return false;
-        if (album != null ? !album.equals(metadata.album) : metadata.album != null) return false;
-        if (artist != null ? !artist.equals(metadata.artist) : metadata.artist != null) return false;
-        if (color != null ? !color.equals(metadata.color) : metadata.color != null) return false;
-        if (comment != null ? !comment.equals(metadata.comment) : metadata.comment != null) return false;
-        if (dateAdded != null ? !dateAdded.equals(metadata.dateAdded) : metadata.dateAdded != null) return false;
-        if (genre != null ? !genre.equals(metadata.genre) : metadata.genre != null) return false;
-        if (key != null ? !key.equals(metadata.key) : metadata.key != null) return false;
-        if (label != null ? !label.equals(metadata.label) : metadata.label != null) return false;
-        if (originalArtist != null ? !originalArtist.equals(metadata.originalArtist) : metadata.originalArtist != null)
-            return false;
-        if (remixer != null ? !remixer.equals(metadata.remixer) : metadata.remixer != null) return false;
-        if (title != null ? !title.equals(metadata.title) : metadata.title != null) return false;
-        return cueList != null ? cueList.equals(metadata.cueList) : metadata.cueList == null;
+        if (!Objects.equals(album, metadata.album)) return false;
+        if (!Objects.equals(artist, metadata.artist)) return false;
+        if (!Objects.equals(color, metadata.color)) return false;
+        if (!Objects.equals(comment, metadata.comment)) return false;
+        if (!Objects.equals(dateAdded, metadata.dateAdded)) return false;
+        if (!Objects.equals(genre, metadata.genre)) return false;
+        if (!Objects.equals(key, metadata.key)) return false;
+        if (!Objects.equals(label, metadata.label)) return false;
+        if (!Objects.equals(originalArtist, metadata.originalArtist)) return false;
+        if (!Objects.equals(remixer, metadata.remixer)) return false;
+        if (!Objects.equals(title, metadata.title)) return false;
+        return Objects.equals(cueList, metadata.cueList);
     }
 
     @Override
@@ -463,6 +466,7 @@ public class TrackMetadata {
      *
      * @return the audio bit rate of the track, in kilobits per second , or 0 if unknown or variable.
      */
+    @API(status = API.Status.STABLE)
     public int getBitRate() {
         return bitRate;
     }
@@ -473,6 +477,7 @@ public class TrackMetadata {
      *
      * @return the hot cues, loops and memory points stored for the track, if any
      */
+    @API(status = API.Status.STABLE)
     public CueList getCueList() {
         return cueList;
     }
@@ -482,6 +487,7 @@ public class TrackMetadata {
      *
      * @return the date the track was added to the collection, in the form "YYYY-MM-DD"
      */
+    @API(status = API.Status.STABLE)
     public String getDateAdded() {
         return dateAdded;
     }
@@ -491,7 +497,7 @@ public class TrackMetadata {
      *
      * @return the track length in seconds, when played at 100% pitch
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int getDuration() {
         return duration;
     }
@@ -501,6 +507,7 @@ public class TrackMetadata {
      *
      * @return the track genre
      */
+    @API(status = API.Status.STABLE)
     public SearchableItem getGenre() {
         return genre;
     }
@@ -510,6 +517,7 @@ public class TrackMetadata {
      *
      * @return the track key
      */
+    @API(status = API.Status.STABLE)
     public SearchableItem getKey() {
         return key;
     }
@@ -519,6 +527,7 @@ public class TrackMetadata {
      *
      * @return the track recording label
      */
+    @API(status = API.Status.STABLE)
     public SearchableItem getLabel() {
         return label;
     }
@@ -528,6 +537,7 @@ public class TrackMetadata {
      *
      * @return the artist that originally released the track
      */
+    @API(status = API.Status.STABLE)
     public SearchableItem getOriginalArtist() {
         return originalArtist;
     }
@@ -537,6 +547,7 @@ public class TrackMetadata {
      *
      * @return the track rating
      */
+    @API(status = API.Status.STABLE)
     public int getRating() {
         return rating;
     }
@@ -546,6 +557,7 @@ public class TrackMetadata {
      *
      * @return the track remixer
      */
+    @API(status = API.Status.STABLE)
     public SearchableItem getRemixer() {
         return remixer;
     }
@@ -555,6 +567,7 @@ public class TrackMetadata {
      *
      * @return the initial track tempo, BPM times 100.
      */
+    @API(status = API.Status.STABLE)
     public int getTempo() {
         return tempo;
     }
@@ -564,6 +577,7 @@ public class TrackMetadata {
      *
      * @return the track title
      */
+    @API(status = API.Status.STABLE)
     public String getTitle() {
         return title;
     }
@@ -573,6 +587,7 @@ public class TrackMetadata {
      *
      * @return the year the track was created, or 0 if rekordbox is not indexing by year.
      */
+    @API(status = API.Status.STABLE)
     public int getYear() {
         return year;
     }

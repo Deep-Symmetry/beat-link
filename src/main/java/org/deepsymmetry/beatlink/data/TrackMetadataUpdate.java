@@ -1,16 +1,19 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * Provides notification when the track metadata associated with a player changes.
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class TrackMetadataUpdate {
 
     /**
      * The player number for which a metadata change has occurred.
      */
+    @API(status = API.Status.STABLE)
     public final int player;
 
     /**
@@ -18,6 +21,7 @@ public class TrackMetadataUpdate {
      * if we don't have any information available (including for a brief period after a new track has been loaded
      * while we are requesting the metadata).
      */
+    @API(status = API.Status.STABLE)
     public final TrackMetadata metadata;
 
     TrackMetadataUpdate(int player, TrackMetadata metadata) {
