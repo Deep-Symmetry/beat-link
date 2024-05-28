@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.cratedigger.Database;
 
 /**
@@ -16,7 +17,7 @@ import org.deepsymmetry.cratedigger.Database;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface DatabaseListener {
     /**
      * <p>Invoked whenever a rekordbox database has been successfully retrieved and parsed from a slot, so it can be
@@ -34,6 +35,7 @@ public interface DatabaseListener {
      * @param slot uniquely identifies a media slot on the network which might host a rekordbox database
      * @param database the database that has been retrieved and parsed from that slot
      */
+    @API(status = API.Status.STABLE)
     void databaseMounted(SlotReference slot, Database database);
 
     /**
@@ -52,5 +54,6 @@ public interface DatabaseListener {
      * @param slot uniquely identifies a media slot on the network which might host a rekordbox database
      * @param database the database that had previously provided information about tracks in that slot
      */
+    @API(status = API.Status.STABLE)
     void databaseUnmounted(SlotReference slot, Database database);
 }

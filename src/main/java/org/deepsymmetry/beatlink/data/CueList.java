@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
@@ -10,8 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.List;
 
@@ -20,7 +21,7 @@ import java.util.List;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class CueList {
 
     private static final Logger logger = LoggerFactory.getLogger(CueList.class);
@@ -30,12 +31,14 @@ public class CueList {
      * that have not yet been reliably understood, and is also used for storing the cue list in a file. This will
      * be {@code null} if the cue list was not obtained from a dbserver query.
      */
+    @API(status = API.Status.STABLE)
     public final Message rawMessage;
 
     /**
      * The bytes from which the Kaitai Struct tags holding cue list information were parsed from an ANLZ file.
      * Will be {@code null} if the cue list was obtained from a dbserver query.
      */
+    @API(status = API.Status.STABLE)
     public final List<ByteBuffer> rawTags;
 
     /**
@@ -43,6 +46,7 @@ public class CueList {
      * comment text for each cue) were parsed from an extended ANLZ file. Will be {@code null} if the cue list was
      * obtained from a dbserver query, and empty if there were no nxs2 cue tags available in the analysis data.
      */
+    @API(status = API.Status.STABLE)
     public final List<ByteBuffer> rawExtendedTags;
 
     /**
@@ -50,6 +54,7 @@ public class CueList {
      *
      * @return the number of cue list entries that are hot cues
      */
+    @API(status = API.Status.STABLE)
     public int getHotCueCount() {
         if (rawMessage != null) {
             return (int) ((NumberField) rawMessage.arguments.get(5)).getValue();
@@ -69,6 +74,7 @@ public class CueList {
      *
      * @return the number of cue list entries other than hot cues
      */
+    @API(status = API.Status.STABLE)
     public int getMemoryPointCount() {
         if (rawMessage != null) {
             return (int) ((NumberField) rawMessage.arguments.get(6)).getValue();
@@ -83,16 +89,17 @@ public class CueList {
     }
 
     /**
-     * Returns the entry whose track position comes most closely before the specified number of milliseconds, if any.
+     * <p>Returns the entry whose track position comes most closely before the specified number of milliseconds, if any.
      * If there is a cue which falls exactly at the specified time, it will be returned (and it will also be returned
      * by {@link #findEntryAfter(long)}). If there is more than one entry at the exact time as the one that is returned,
-     * the one chosen will be unpredictable.
+     * the one chosen will be unpredictable.</p>
      *
-     * All times are rounded to half frame units, because that is the resolution at which cues are stored.
+     * <p>All times are rounded to half frame units, because that is the resolution at which cues are stored.</p>
      *
      * @param milliseconds the time of interest within the track
      * @return the cue whose start time is closest to the specified time but not after it
      */
+    @API(status = API.Status.STABLE)
     public Entry findEntryBefore(long milliseconds) {
         final Entry target = new Entry(Util.timeToHalfFrameRounded(milliseconds), "", 0);
         int index = Collections.binarySearch(entries, target, TIME_ONLY_COMPARATOR);
@@ -111,16 +118,17 @@ public class CueList {
     }
 
     /**
-     * Returns the entry whose track position comes most closely after the specified number of milliseconds, if any.
+     * <p>Returns the entry whose track position comes most closely after the specified number of milliseconds, if any.
      * If there is a cue which falls exactly at the specified time, it will be returned (and it will also be returned
      * by {@link #findEntryBefore(long)}). If there is more than one entry at the exact time as the one that is returned,
-     * the one chosen will be unpredictable.
+     * the one chosen will be unpredictable.</p>
      *
-     * All times are rounded to half frame units, because that is the resolution at which cues are stored.
+     * <p>All times are rounded to half frame units, because that is the resolution at which cues are stored.</p>
      *
      * @param milliseconds the time of interest within the track
      * @return the cue whose start time is closest to the specified time but not before it
      */
+    @API(status = API.Status.STABLE)
     public Entry findEntryAfter(long milliseconds) {
         final Entry target = new Entry(Util.timeToHalfFrameRounded(milliseconds), "", 0);
         int index = Collections.binarySearch(entries, target, TIME_ONLY_COMPARATOR);
@@ -141,6 +149,7 @@ public class CueList {
     /**
      * Breaks out information about each entry in the cue list.
      */
+    @API(status = API.Status.STABLE)
     public static class Entry {
 
         @Override
@@ -162,67 +171,76 @@ public class CueList {
         public int hashCode() {
             int result = hotCueNumber;
             result = 31 * result + (isLoop ? 1 : 0);
-            result = 31 * result + (int) (cuePosition ^ (cuePosition >>> 32));
-            result = 31 * result + (int) (cueTime ^ (cueTime >>> 32));
-            result = 31 * result + (int) (loopPosition ^ (loopPosition >>> 32));
-            result = 31 * result + (int) (loopTime ^ (loopTime >>> 32));
+            result = 31 * result + Long.hashCode(cuePosition);
+            result = 31 * result + Long.hashCode(cueTime);
+            result = 31 * result + Long.hashCode(loopPosition);
+            result = 31 * result + Long.hashCode(loopTime);
             return result;
         }
 
         /**
          * If this has a non-zero value, this entry is a hot cue with that identifier.
          */
-
+        @API(status = API.Status.STABLE)
         public final int hotCueNumber;
 
         /**
          * Indicates whether this entry represents a loop, as opposed to a simple cue point.
          */
+        @API(status = API.Status.STABLE)
         public final boolean isLoop;
 
         /**
          * Indicates the location of the cue in half-frame units, which are 1/150 of a second. If the cue is a loop,
          * this is the start of the loop.
          */
+        @API(status = API.Status.STABLE)
         public final long cuePosition;
 
         /**
          * Indicates the location of the cue in milliseconds. If the cue is a loop, this is the start of the loop.
          */
+        @API(status = API.Status.STABLE)
         public final long cueTime;
 
         /**
          * If the entry represents a loop, indicates the loop point in half-frame units, which are 1/150 of a second.
          * The loop point is the end of the loop, at which point playback jumps back to {@link #cuePosition}.
          */
+        @API(status = API.Status.STABLE)
         public final long loopPosition;
 
         /**
          * If the entry represents a loop, indicates the loop point in milliseconds. The loop point is the end of the
          * loop, at which point playback jumps back to {@link #cueTime}.
          */
+        @API(status = API.Status.STABLE)
         public final long loopTime;
 
         /**
          * If the entry was constructed from an extended nxs2-style commented cue tag, and the DJ assigned a comment
-         * to the cue, this will contain the comment text. Otherwise it will be an empty string.
+         * to the cue, this will contain the comment text. Otherwise, it will be an empty string.
          */
+        @API(status = API.Status.STABLE)
         public final String comment;
 
         /**
          * The color table ID identifying the color assigned to a memory point or loop.
          */
+        @API(status = API.Status.STABLE)
         public final int colorId;
 
         /**
          * The explicit color embedded into the hot cue, or {@code null} if there was none.
          */
+        @API(status = API.Status.STABLE)
         public final Color embeddedColor;
 
         /**
          * The color with which this hot cue will be displayed in rekordbox, if it is a hot cue with a recognized
          * color code, or {@code null} if that does not apply.
          */
+        @API(status = API.Status.STABLE)
         public final Color rekordboxColor;
 
         /**
@@ -232,6 +250,7 @@ public class CueList {
          * @param comment the DJ-assigned comment, or an empty string if none was assigned
          * @param colorId the row in the color table representing the color assigned this cue, or zero if none
          */
+        @API(status = API.Status.STABLE)
         public Entry(long position, String comment, int colorId) {
             if (comment == null) throw new NullPointerException("comment must not be null");
             hotCueNumber = 0;
@@ -254,6 +273,7 @@ public class CueList {
          * @param comment the DJ-assigned comment, or an empty string if none was assigned
          * @param colorId the row in the color table representing the color assigned this loop, or zero if none
          */
+        @API(status = API.Status.STABLE)
         public Entry(long startPosition, long endPosition, String comment, int colorId) {
             if (comment == null) throw new NullPointerException("comment must not be null");
             hotCueNumber = 0;
@@ -277,6 +297,7 @@ public class CueList {
          * @param embeddedColor the explicit color embedded in the hot cue, if any
          * @param rekordboxColor the color that rekordbox will display for this hot cue, if available
          */
+        @API(status = API.Status.STABLE)
         public Entry(int number, long position, String comment, Color embeddedColor, Color rekordboxColor) {
             if (number == 0) throw new IllegalArgumentException("Hot cues must have non-zero numbers");
             if (comment == null) throw new NullPointerException("comment must not be null");
@@ -302,6 +323,7 @@ public class CueList {
          * @param embeddedColor the explicit color embedded in the cue, if any
          * @param rekordboxColor the color that rekordbox will display for this cue, if available
          */
+        @API(status = API.Status.STABLE)
         public Entry(int number, long startPosition, long endPosition, String comment, Color embeddedColor, Color rekordboxColor) {
             if (number == 0) throw new IllegalArgumentException("Hot cues must have non-zero numbers");
             if (comment == null) throw new NullPointerException("comment must not be null");
@@ -323,6 +345,7 @@ public class CueList {
          *
          * @return the color that represents this cue on players that don't support nxs2 colored cues.
          */
+        @API(status = API.Status.STABLE)
         public Color getNexusColor() {
             if (hotCueNumber > 0) {
                 return Color.GREEN;
@@ -343,6 +366,7 @@ public class CueList {
          *
          * @return the most suitable available display color for the cue
          */
+        @API(status = API.Status.STABLE)
         public Color getColor() {
             // This is an ordinary memory point or loop.
             if (hotCueNumber == 0) {
@@ -369,6 +393,7 @@ public class CueList {
          *
          * @return a terse label summarizing the cue's nature
          */
+        @API(status = API.Status.STABLE)
         public String getDescription() {
             String kind;
             if (hotCueNumber > 0) {
@@ -411,18 +436,15 @@ public class CueList {
      * The entries present in the cue list, sorted into order by increasing position, with hot cues coming after
      * ordinary memory points if both are at the same position (as often seems to happen).
      */
+    @API(status = API.Status.STABLE)
     public final List<Entry> entries;
 
     /**
      * A comparator for sorting or searching entries that considers only their position within the track, and
      * not whether they are a hot cue.
      */
-    public static final Comparator<Entry> TIME_ONLY_COMPARATOR = new Comparator<Entry>() {
-        @Override
-        public int compare(Entry entry1, Entry entry2) {
-            return (int) (entry1.cuePosition - entry2.cuePosition);
-        }
-    };
+    @API(status = API.Status.STABLE)
+    public static final Comparator<Entry> TIME_ONLY_COMPARATOR = (entry1, entry2) -> (int) (entry1.cuePosition - entry2.cuePosition);
 
     /**
      * The comparator used for sorting the cue list entries during construction, which orders them by position
@@ -430,17 +452,15 @@ public class CueList {
      * This often happens, and moving hot cues to the end ensures the waveform display components identify that
      * position as a hot cue, which is important information.
      */
-    public static final Comparator<Entry> SORT_COMPARATOR = new Comparator<Entry>() {
-        @Override
-        public int compare(Entry entry1, Entry entry2) {
-            int result = (int) (entry1.cuePosition - entry2.cuePosition);
-            if (result == 0) {
-                int h1 = (entry1.hotCueNumber != 0) ? 1 : 0;
-                int h2 = (entry2.hotCueNumber != 0) ? 1 : 0;
-                result = h1 - h2;
-            }
-            return result;
+    @API(status = API.Status.STABLE)
+    public static final Comparator<Entry> SORT_COMPARATOR = (entry1, entry2) -> {
+        int result = (int) (entry1.cuePosition - entry2.cuePosition);
+        if (result == 0) {
+            int h1 = (entry1.hotCueNumber != 0) ? 1 : 0;
+            int h2 = (entry2.hotCueNumber != 0) ? 1 : 0;
+            result = h1 - h2;
         }
+        return result;
     };
 
     /**
@@ -452,7 +472,7 @@ public class CueList {
      * @return an immutable list of the collections in the proper order
      */
     private List<Entry> sortEntries(List<Entry> loadedEntries) {
-        Collections.sort(loadedEntries, SORT_COMPARATOR);
+        loadedEntries.sort(SORT_COMPARATOR);
         return Collections.unmodifiableList(loadedEntries);
     }
 
@@ -517,6 +537,7 @@ public class CueList {
      * @param colorCode the color index found in the cue
      * @return the corresponding color or {@code null} if the index is not recognized
      */
+    @API(status = API.Status.STABLE)
     public static Color findRekordboxColor(int colorCode) {
         switch (colorCode) {
             case 0x01: return new Color(0x30, 0x5a, 0xff);
@@ -586,7 +607,7 @@ public class CueList {
                 return null;
 
             default:
-                logger.warn("Unrecognized rekordbox color code, " + colorCode + ", returning null.");
+                logger.warn("Unrecognized rekordbox color code, {}, returning null.", colorCode);
                 return null;
         }
     }
@@ -615,8 +636,7 @@ public class CueList {
                 if (((embeddedColor == null && expectedColor != null) ||
                         (embeddedColor != null && !embeddedColor.equals(expectedColor))) &&
                         (colorCode != 0 || embeddedColor != null)) {
-                    logger.warn("Was expecting embedded color " + expectedColor +
-                            " for rekordbox color code " + colorCode + ", but found color " + embeddedColor);
+                    logger.warn("Was expecting embedded color {} for rekordbox color code {}, but found color {}", expectedColor, colorCode, embeddedColor);
                 }
                 final String comment = (cueEntry.comment() != null)? cueEntry.comment() : "";  // Normalize missing comments to empty strings.
                 if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
@@ -635,11 +655,12 @@ public class CueList {
      *
      * @param anlzFile the recordbox analysis file corresponding to that track
      */
+    @API(status = API.Status.STABLE)
     public CueList(RekordboxAnlz anlzFile) {
         rawMessage = null;  // We did not create this from a dbserver response.
-        List<ByteBuffer> tagBuffers = new ArrayList<ByteBuffer>(2);
-        List<ByteBuffer> extendedTagBuffers = new ArrayList<ByteBuffer>(2);
-        List<Entry> mutableEntries = new ArrayList<Entry>();
+        List<ByteBuffer> tagBuffers = new ArrayList<>(2);
+        List<ByteBuffer> extendedTagBuffers = new ArrayList<>(2);
+        List<Entry> mutableEntries = new ArrayList<>();
 
         // First see if there are any nxs2-style cue comment tags available.
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
@@ -671,8 +692,9 @@ public class CueList {
 
      * @param rawTags the un-parsed ANLZ file tags holding the cue list entries
      */
+    @API(status = API.Status.STABLE)
     public CueList(List<ByteBuffer> rawTags) {
-        this (rawTags, Collections.<ByteBuffer>emptyList());
+        this (rawTags, Collections.emptyList());
     }
 
     /**
@@ -682,11 +704,12 @@ public class CueList {
      * @param rawTags the un-parsed ANLZ file tags holding the cue list entries
      * @param rawExtendedTags the un-parsed extended ANLZ file tags holding the nxs2-style commented cue list entries
      */
+    @API(status = API.Status.STABLE)
     public CueList(List<ByteBuffer> rawTags, List<ByteBuffer> rawExtendedTags) {
         rawMessage = null;
         this.rawTags = Collections.unmodifiableList(rawTags);
         this.rawExtendedTags = Collections.unmodifiableList(rawExtendedTags);
-        List<Entry> mutableEntries = new ArrayList<Entry>();
+        List<Entry> mutableEntries = new ArrayList<>();
         if (rawExtendedTags.isEmpty()) {
             for (ByteBuffer buffer : rawTags) {
                 RekordboxAnlz.CueTag tag = new RekordboxAnlz.CueTag(new ByteBufferKaitaiStream(buffer));
@@ -706,6 +729,7 @@ public class CueList {
      *
      * @param message the response holding the cue list information, in either original nexus or extended nxs2 format
      */
+    @API(status = API.Status.STABLE)
     public CueList(Message message) {
         rawMessage = message;
         rawTags = null;
@@ -727,7 +751,7 @@ public class CueList {
     private List<Entry> parseNexusEntries(Message message) {
         byte[] entryBytes = ((BinaryField) message.arguments.get(3)).getValueAsArray();
         final int entryCount = entryBytes.length / 36;
-        ArrayList<Entry> mutableEntries = new ArrayList<Entry>(entryCount);
+        ArrayList<Entry> mutableEntries = new ArrayList<>(entryCount);
         for (int i = 0; i < entryCount; i++) {
             final int offset = i * 36;
             final int cueFlag = entryBytes[offset + 1];
@@ -771,7 +795,7 @@ public class CueList {
     private List<Entry> parseNxs2Entries(Message message) {
         byte[] entryBytes = ((BinaryField) message.arguments.get(3)).getValueAsArray();
         final int entryCount = (int) ((NumberField) message.arguments.get(4)).getValue();
-        ArrayList<Entry> mutableEntries = new ArrayList<Entry>(entryCount);
+        ArrayList<Entry> mutableEntries = new ArrayList<>(entryCount);
         int offset = 0;
         for (int i = 0; i < entryCount; i++) {
             final int entrySize = (int) Util.bytesToNumberLittleEndian(entryBytes, offset, 4);
@@ -788,11 +812,7 @@ public class CueList {
                     commentSize = (int) Util.bytesToNumberLittleEndian(entryBytes, offset + 0x48, 2);
                 }
                 if (commentSize > 0) {
-                    try {
-                        comment = new String(entryBytes, offset + 0x4a, commentSize - 2, "UTF-16LE");
-                    } catch (UnsupportedEncodingException e) {
-                        throw new IllegalStateException("Java no longer supports UTF-16LE encoding?!", e);
-                    }
+                    comment = new String(entryBytes, offset + 0x4a, commentSize - 2, StandardCharsets.UTF_16LE);
                 }
 
                 if (hotCueNumber == 0) {  // This is an ordinary memory point or loop.
@@ -815,8 +835,7 @@ public class CueList {
                     if (((embeddedColor == null && expectedColor != null) ||
                             (embeddedColor != null && !embeddedColor.equals(expectedColor))) &&
                             (colorCode != 0 || embeddedColor != null)) {
-                        logger.warn("Was expecting embedded color " + expectedColor +
-                                " for rekordbox color code " + colorCode + ", but found color " + embeddedColor);
+                        logger.warn("Was expecting embedded color {} for rekordbox color code {}, but found color {}", expectedColor, colorCode, embeddedColor);
                     }
 
                     if (cueFlag == 2) {  // This is a loop
@@ -839,7 +858,7 @@ public class CueList {
 
         CueList cueList = (CueList) o;
 
-        return entries != null ? entries.equals(cueList.entries) : cueList.entries == null;
+        return Objects.equals(entries, cueList.entries);
     }
 
     @Override

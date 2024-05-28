@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
 import io.kaitai.struct.RandomAccessFileKaitaiStream;
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.cratedigger.Database;
 import org.deepsymmetry.cratedigger.FileFetcher;
@@ -29,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author James Elliott
  * @since 0.5.0
  */
-@SuppressWarnings("SameReturnValue")
+@API(status = API.Status.STABLE)
 public class CrateDigger {
 
     private final Logger logger = LoggerFactory.getLogger(CrateDigger.class);
@@ -44,7 +45,7 @@ public class CrateDigger {
      *
      * @return the maximum number of attempts we will make when a file download fails
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int getRetryLimit() {
         return retryLimit.get();
     }
@@ -54,6 +55,7 @@ public class CrateDigger {
      *
      * @param limit the maximum number of attempts we will make when a file download fails
      */
+    @API(status = API.Status.STABLE)
     public void setRetryLimit(int limit) {
         if (limit < 1 || limit > 10) {
             throw new IllegalArgumentException("limit must be between 1 and 10");
@@ -71,38 +73,11 @@ public class CrateDigger {
      *
      * @return true if track metadata is being fetched using NFS for all active players
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return running.get();
     }
 
-
-    /**
-     * Allows us to automatically shut down when the {@link MetadataFinder}, which we depend on, does, and start
-     * back up once it resumes.
-     */
-    @SuppressWarnings("FieldCanBeLocal")
-    private final LifecycleListener lifecycleListener = new LifecycleListener() {
-        @Override
-        public void started(final LifecycleParticipant sender) {
-            new Thread(() -> {
-                try {
-                    logger.info("CrateDigger starting because {} has.", sender);
-                    start();
-                } catch (Throwable t) {
-                    logger.error("Problem starting the CrateDigger in response to a lifecycle event.", t);
-                }
-            }).start();
-        }
-
-        @Override
-        public void stopped(final LifecycleParticipant sender) {
-            if (isRunning()) {
-                logger.info("CrateDigger stopping because {} has.", sender);
-                stop();
-            }
-        }
-    };
 
     /**
      * Keeps tracks of the media that we have discovered name their database folder ".PIONEER" rather than "PIONEER".
@@ -115,73 +90,6 @@ public class CrateDigger {
      * we can still know what address it used to have, in order to properly clean up the {@link FileFetcher} cache.
      */
     private final Map<Integer, DeviceAnnouncement> addressBackup = new ConcurrentHashMap<>();
-
-    /**
-     * Clear the {@link org.deepsymmetry.cratedigger.FileFetcher} cache when media is unmounted, so it does not try
-     * to use stale filesystem handles. Also clear up our own caches for the vanished media, and close the files
-     * associated with the parsed database structures.
-     */
-    private final MountListener mountListener = new MountListener() {
-        @Override
-        public void mediaMounted(SlotReference slot) {
-            // Record information about the device owning the slot, in case it disappears before we learn we need to
-            // unmount its media.
-            final DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
-            addressBackup.put(slot.player, player);
-
-            // Nothing else to do here yet, we need to wait until the media details are available.
-            logger.debug("Media mounted, waiting for details.");
-        }
-
-        @Override
-        public void mediaUnmounted(SlotReference slot) {
-            mediaWithHiddenPioneerFolder.remove(slot);
-            DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
-            if (player == null) {
-                logger.info("Received an unmount for a player we can't find, it must have left network.");
-                player = addressBackup.get(slot.player);
-            }
-            if (player != null) {
-                FileFetcher.getInstance().removePlayer(player.getAddress());
-            } else {
-                logger.warn("Unable to clear FileFetcher connections for player that we can't find backup address for!");
-            }
-
-            final Database database = databases.remove(slot);
-            if (database != null) {
-                deliverDatabaseUpdate(slot, database, false);
-                try {
-                    database.close();
-                } catch (IOException e) {
-                    logger.error("Problem closing parsed rekordbox database export.", e);
-                }
-                //noinspection ResultOfMethodCallIgnored
-                database.sourceFile.delete();
-            }
-            final String prefix = slotPrefix(slot);
-            File[] files = downloadDirectory.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (file.getName().startsWith(prefix)) {
-                        //noinspection ResultOfMethodCallIgnored
-                        file.delete();
-                    }
-                }
-            }
-        }
-    };
-
-    /**
-     * Clear the {@link org.deepsymmetry.cratedigger.FileFetcher} cache when players disappear, so it does not try
-     * to use stale filesystem handles. Our own caches will be cleaned up by {@link #mountListener}.
-     */
-    @SuppressWarnings("FieldCanBeLocal")
-    private final DeviceAnnouncementListener deviceListener = new DeviceAnnouncementAdapter() {
-        @Override
-        public void deviceLost(DeviceAnnouncement announcement) {
-            FileFetcher.getInstance().removePlayer(announcement.getAddress());
-        }
-    };
 
     /**
      * Keep track of the slots we are currently trying to fetch local databases for, so we only do it once even if
@@ -303,10 +211,10 @@ public class CrateDigger {
      * From <a href="https://stackoverflow.com/a/3758880/802383">Stack Overflow</a>
      *
      * @param bytes the number of bytes
-     * @param si {code @true} if should use SI interpretation where k=1000
+     * @param si {code @true} if we should use SI interpretation where k=1000
      * @return the nicely readable summary string
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static String humanReadableByteCount(long bytes, boolean si) {
         int unit = si ? 1000 : 1024;
         if (bytes < unit) return bytes + " B";
@@ -317,7 +225,7 @@ public class CrateDigger {
 
     /**
      * Whenever we learn media details about a newly-mounted media slot, if it is rekordbox media, start the process
-     * of fetching and parsing the database so we can offer metadata for that slot.
+     * of fetching and parsing the database, so we can offer metadata for that slot.
      */
     private final MediaDetailsListener mediaDetailsListener = new MediaDetailsListener() {
         @Override
@@ -331,15 +239,15 @@ public class CrateDigger {
                     File file = null;
                     try {
                         file = new File(downloadDirectory, slotPrefix(details.slotReference) + "export.pdb");
-                        logger.info("Fetching rekordbox export.pdb from player " + details.slotReference.player +
-                                ", slot " + details.slotReference.slot);
+                        logger.info("Fetching rekordbox export.pdb from player {}, slot {}",
+                                details.slotReference.player, details.slotReference.slot);
                         long started = System.nanoTime();
                         fetchFile(details.slotReference, "PIONEER/rekordbox/export.pdb", file);
                         long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
-                        logger.info("Finished fetching export.pdb from player " + details.slotReference.player +
-                                ", slot " + details.slotReference.slot + "; received " +
-                                humanReadableByteCount(file.length(), true) + " in " + duration + "ms, " +
-                                humanReadableByteCount(file.length() * 1000 / duration, true) + "/s.");
+                        logger.info("Finished fetching export.pdb from player {}, slot {}; received {} in {}ms, {}/s.",
+                                details.slotReference.player, details.slotReference.slot,
+                                humanReadableByteCount(file.length(), true), duration,
+                                humanReadableByteCount(file.length() * 1000 / duration, true));
                         started = System.nanoTime();
                         final Database database = new Database(file);
                         duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
@@ -347,8 +255,7 @@ public class CrateDigger {
                         databases.put(details.slotReference, database);
                         deliverDatabaseUpdate(details.slotReference, database, true);
                     } catch (Throwable t) {
-                        logger.error("Problem fetching rekordbox database for media " + details +
-                                ", will not offer metadata for it.", t);
+                        logger.error("Problem fetching rekordbox database for media {}, will not offer metadata for it.", details, t);
                         if (file != null) {
                             //noinspection ResultOfMethodCallIgnored
                             file.delete();
@@ -369,7 +276,7 @@ public class CrateDigger {
      *
      * @return the appropriate rekordbox extract to start from in finding that data, if we have one
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Database findDatabase(DataReference reference) {
         return databases.get(reference.getSlotReference());
     }
@@ -382,6 +289,7 @@ public class CrateDigger {
      *
      * @return the appropriate rekordbox extract to start from in finding that data, if we have one
      */
+    @API(status = API.Status.STABLE)
     public Database findDatabase(SlotReference slot) {
         return databases.get(slot);
     }
@@ -669,7 +577,7 @@ public class CrateDigger {
      *
      * @throws Exception if there is a problem starting the required components
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws Exception {
         if (!isRunning()) {
             MetadataFinder.getInstance().start();
@@ -685,7 +593,7 @@ public class CrateDigger {
     /**
      * Stop finding track metadata for all active players.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             running.set(false);
@@ -708,6 +616,7 @@ public class CrateDigger {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static CrateDigger getInstance() {
         return instance;
     }
@@ -715,7 +624,7 @@ public class CrateDigger {
     /**
      * The folder into which database exports and track analysis files will be downloaded.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final File downloadDirectory;
 
     /**
@@ -749,7 +658,7 @@ public class CrateDigger {
 
     /**
      * Adds the specified database listener to receive updates when a rekordbox database has been obtained for a
-     * media slot, or when the underlying media for a database has been unmounted so it is no longer relevant.
+     * media slot, or when the underlying media for a database has been unmounted, so it is no longer relevant.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
      * thrown and no action is performed.
      *
@@ -764,6 +673,7 @@ public class CrateDigger {
      *
      * @param listener the database update listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addDatabaseListener(DatabaseListener listener) {
         if (listener != null) {
             dbListeners.add(listener);
@@ -777,16 +687,17 @@ public class CrateDigger {
      *
      * @param listener the database update listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeDatabaseListener(DatabaseListener listener) {
         if (listener != null) {
             dbListeners.remove(listener);
         }
     }
 
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Set<DatabaseListener> getDatabaseListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<>(dbListeners));
+        return Set.copyOf(dbListeners);
     }
 
     /**
@@ -816,8 +727,90 @@ public class CrateDigger {
      * and register the listeners that hook us into the streams of information we need.
      */
     private CrateDigger() {
+        final LifecycleListener lifecycleListener = new LifecycleListener() {
+            // Allows us to automatically shut down when the MetadataFinder, which we depend on, does, and start back up once it resumes.
+            @Override
+            public void started(final LifecycleParticipant sender) {
+                new Thread(() -> {
+                    try {
+                        logger.info("CrateDigger starting because {} has.", sender);
+                        start();
+                    } catch (Throwable t) {
+                        logger.error("Problem starting the CrateDigger in response to a lifecycle event.", t);
+                    }
+                }).start();
+            }
+
+            @Override
+            public void stopped(final LifecycleParticipant sender) {
+                if (isRunning()) {
+                    logger.info("CrateDigger stopping because {} has.", sender);
+                    stop();
+                }
+            }
+        };
         MetadataFinder.getInstance().addLifecycleListener(lifecycleListener);
+        final MountListener mountListener = new MountListener() {
+            @Override
+            public void mediaMounted(SlotReference slot) {
+                // Record information about the device owning the slot, in case it disappears before we learn we need to
+                // unmount its media.
+                final DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
+                addressBackup.put(slot.player, player);
+
+                // Nothing else to do here yet, we need to wait until the media details are available.
+                logger.debug("Media mounted, waiting for details.");
+            }
+
+            @Override
+            public void mediaUnmounted(SlotReference slot) {
+                // Clear the FileFetcher cache when media is unmounted, so it does not try to use
+                // stale filesystem handles. Also clear up our own caches for the vanished media,
+                // and close the files associated with the parsed database structures.
+                mediaWithHiddenPioneerFolder.remove(slot);
+                DeviceAnnouncement player = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
+                if (player == null) {
+                    logger.info("Received an unmount for a player we can't find, it must have left network.");
+                    player = addressBackup.get(slot.player);
+                }
+                if (player != null) {
+                    FileFetcher.getInstance().removePlayer(player.getAddress());
+                } else {
+                    logger.warn("Unable to clear FileFetcher connections for player that we can't find backup address for!");
+                }
+
+                final Database database = databases.remove(slot);
+                if (database != null) {
+                    deliverDatabaseUpdate(slot, database, false);
+                    try {
+                        database.close();
+                    } catch (IOException e) {
+                        logger.error("Problem closing parsed rekordbox database export.", e);
+                    }
+                    //noinspection ResultOfMethodCallIgnored
+                    database.sourceFile.delete();
+                }
+                final String prefix = slotPrefix(slot);
+                File[] files = downloadDirectory.listFiles();
+                if (files != null) {
+                    for (File file : files) {
+                        if (file.getName().startsWith(prefix)) {
+                            //noinspection ResultOfMethodCallIgnored
+                            file.delete();
+                        }
+                    }
+                }
+            }
+        };
         MetadataFinder.getInstance().addMountListener(mountListener);
+        final DeviceAnnouncementListener deviceListener = new DeviceAnnouncementAdapter() {
+            @Override
+            public void deviceLost(DeviceAnnouncement announcement) {
+                // Clear the FileFetcher cache when players disappear, so it does not try
+                // to use stale filesystem handles. Our own caches will be cleaned up by mountListener.
+                FileFetcher.getInstance().removePlayer(announcement.getAddress());
+            }
+        };
         DeviceFinder.getInstance().addDeviceAnnouncementListener(deviceListener);
         VirtualCdj.getInstance().addMediaDetailsListener(mediaDetailsListener);
         downloadDirectory = createDownloadDirectory();

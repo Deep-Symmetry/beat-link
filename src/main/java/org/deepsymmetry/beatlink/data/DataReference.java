@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.CdjStatus;
 
 /**
@@ -8,25 +9,30 @@ import org.deepsymmetry.beatlink.CdjStatus;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class DataReference {
     /**
      * The player in which this track, album art, beat grid, or waveform is mounted.
      */
+    @API(status = API.Status.STABLE)
     public final int player;
 
     /**
      * The slot in which the track, album art, beat grid, or waveform is mounted.
      */
+    @API(status = API.Status.STABLE)
     public final CdjStatus.TrackSourceSlot slot;
 
     /**
      * The unique ID of the track, album art, beat grid, or waveform within that media database.
      */
+    @API(status = API.Status.STABLE)
     public final int rekordboxId;
 
     /**
      * Caches the hash code for performance.
      */
+    @API(status = API.Status.STABLE)
     private final int hash;
 
     /**
@@ -39,6 +45,7 @@ public class DataReference {
      *
      * @throws NullPointerException if {@code slot} is {@code null}
      */
+    @API(status = API.Status.STABLE)
     public DataReference(int player, CdjStatus.TrackSourceSlot slot, int rekordboxId) {
         this.player = player;
         this.slot = slot;
@@ -59,6 +66,7 @@ public class DataReference {
      * @param slot the slot in which the item is mounted
      * @param rekordboxId the unique ID of the item within that media database
      */
+    @API(status = API.Status.STABLE)
     public DataReference(SlotReference slot, int rekordboxId) {
         this(slot.player, slot.slot, rekordboxId);
     }
@@ -68,6 +76,7 @@ public class DataReference {
      *
      * @return the player and slot from which this data can to be loaded
      */
+    @API(status = API.Status.STABLE)
     public SlotReference getSlotReference() {
         return SlotReference.getSlotReference(this);
     }

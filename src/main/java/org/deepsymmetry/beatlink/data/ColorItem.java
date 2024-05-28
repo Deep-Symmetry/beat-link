@@ -1,26 +1,31 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 import java.awt.*;
 
 /**
- * Represents a track color label. This is a specialized {@link SearchableItem}, since in addition to a specific color,
+ * <p>Represents a track color label. This is a specialized {@link SearchableItem}, since in addition to a specific color,
  * it has an ID and label that can be used as a way to select tracks in a dynamic playlist request,
- * and on which playlists can be sorted.
+ * and on which playlists can be sorted.</p>
  *
- * A simple immutable value class.
+ * <p>A simple immutable value class.</p>
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class ColorItem extends SearchableItem {
 
     /**
      * The color that is represented by this item.
      */
+    @API(status = API.Status.STABLE)
     public final Color color;
 
     /**
      * The name of the color represented by this item, for textual display.
      */
+    @API(status = API.Status.STABLE)
     public final String colorName;
 
     /**
@@ -30,6 +35,7 @@ public class ColorItem extends SearchableItem {
      * @param id the database ID associated with this item, for searches
      * @param label the text label used to show this item to the user
      */
+    @API(status = API.Status.STABLE)
     public ColorItem(int id, String label) {
         super(id, label);
         color = colorForId(id);
@@ -69,6 +75,7 @@ public class ColorItem extends SearchableItem {
      * @param color a color to be examined
      * @return {@code true} if the color represents the lack of a color assignment
      */
+    @API(status = API.Status.STABLE)
     public static boolean isNoColor(Color color) {
         return color.getAlpha() == 0;
     }
@@ -83,6 +90,7 @@ public class ColorItem extends SearchableItem {
      *
      * @return the color that should be displayed (or which the UI should be tinted with)
      */
+    @API(status = API.Status.STABLE)
     public static Color colorForId(int colorId) {
         switch (colorId) {
 
@@ -125,6 +133,7 @@ public class ColorItem extends SearchableItem {
      *
      * @return the color that should be displayed (or which the UI should be tinted with)
      */
+    @API(status = API.Status.STABLE)
     public static String colorNameForId(int colorId) {
         switch (colorId) {
             case 0:
