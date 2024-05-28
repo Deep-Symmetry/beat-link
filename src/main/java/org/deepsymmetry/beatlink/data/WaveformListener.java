@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * <p>The listener interface for receiving updates when the waveforms available for a track loaded in any player
  * change.</p>
@@ -14,13 +16,14 @@ package org.deepsymmetry.beatlink.data;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface WaveformListener {
     /**
      * Called when the waveform preview available for a player has changed.
      *
      * @param update provides information about what has changed
      */
+    @API(status = API.Status.STABLE)
     void previewChanged(WaveformPreviewUpdate update);
 
     /**
@@ -28,5 +31,6 @@ public interface WaveformListener {
      *
      * @param update provides information about what has changed
      */
+    @API(status = API.Status.STABLE)
     void detailChanged(WaveformDetailUpdate update);
 }

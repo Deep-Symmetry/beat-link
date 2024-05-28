@@ -1,15 +1,18 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
+
 /**
  * Provides notification when the waveform preview associated with a player changes.
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class WaveformPreviewUpdate {
     /**
      * The player number for which a waveform preview change has occurred.
      */
+    @API(status = API.Status.STABLE)
     public final int player;
 
     /**
@@ -17,6 +20,7 @@ public class WaveformPreviewUpdate {
      * {@code null} if we don't have any preview available (including for a brief period after a new track has been
      * loaded while we are requesting the waveform preview).
      */
+    @API(status = API.Status.STABLE)
     public final WaveformPreview preview;
 
     WaveformPreviewUpdate(int player, WaveformPreview preview) {

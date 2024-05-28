@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
@@ -18,6 +19,7 @@ import java.nio.ByteBuffer;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class WaveformDetail {
 
     @SuppressWarnings({"unused"})
@@ -27,7 +29,7 @@ public class WaveformDetail {
      * The number of bytes at the start of the waveform data which do not seem to be valid or used when it is served
      * by the dbserver protocol. They are not present when the ANLZ.EXT file is loaded directly by Crate Digger.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int LEADING_DBSERVER_JUNK_BYTES = 19;
 
     /**
@@ -35,13 +37,13 @@ public class WaveformDetail {
      * nxs2 ANLZ tag request. We actually know what these mean, now that we know how to parse EXT files, but we
      * can simply skip them anyway.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int LEADING_DBSERVER_COLOR_JUNK_BYTES = 28;
 
     /**
      * The unique identifier that was used to request this waveform detail.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final DataReference dataReference;
 
     /**
@@ -49,7 +51,7 @@ public class WaveformDetail {
      * that have not yet been reliably understood, and is also used for storing the cue list in a file.
      * This will be {@code null} if the data was obtained from Crate Digger.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final Message rawMessage;
 
     /**
@@ -61,7 +63,7 @@ public class WaveformDetail {
     /**
      * Indicates whether this is an NXS2-style color waveform, or a monochrome (blue) waveform.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final boolean isColor;
 
     /**
@@ -70,6 +72,7 @@ public class WaveformDetail {
      * @return the bytes from which the detail can be drawn, as described in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/track_metadata.html#_detailed_waveforms">Packet Analysis document</a>.
      */
+    @API(status = API.Status.STABLE)
     public ByteBuffer getData() {
         detailBuffer.rewind();
         return detailBuffer.slice();
@@ -80,6 +83,7 @@ public class WaveformDetail {
      *
      * @return the number of half-frames (pixel columns) that make up the track
      */
+    @API(status = API.Status.STABLE)
     public int getFrameCount() {
         final int bytes = getData().remaining();
         if (isColor) {
@@ -95,6 +99,7 @@ public class WaveformDetail {
      *
      * @return the number of milliseconds it will take to play all half-frames that make up the track
      */
+    @API(status = API.Status.STABLE)
     public long getTotalTime() {
         return Util.halfFrameToTime(getFrameCount());
     }
@@ -111,6 +116,7 @@ public class WaveformDetail {
      *
      * @return the component which will draw the annotated waveform preview
      */
+    @API(status = API.Status.STABLE)
     public JComponent createViewComponent(TrackMetadata metadata, BeatGrid beatGrid) {
         return new WaveformDetailComponent(this, metadata, beatGrid);
     }
@@ -121,9 +127,9 @@ public class WaveformDetail {
      * @param reference the unique database reference that was used to request this waveform detail
      * @param message the response that contains the preview
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public WaveformDetail(DataReference reference, Message message) {
-        isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, its an NXS2 color wave.
+        isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, it's an NXS2 color wave.
         dataReference = reference;
         rawMessage = message;
         // Load the bytes we were sent, and skip over the proper number of leading junk bytes
@@ -138,7 +144,7 @@ public class WaveformDetail {
      * @param reference the unique database reference that was used to request this waveform preview
      * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public WaveformDetail(DataReference reference, RekordboxAnlz anlzFile) {
         dataReference = reference;
         rawMessage = null;
@@ -172,6 +178,7 @@ public class WaveformDetail {
      * @param data the waveform data as will be returned by {@link #getData()}
      * @param isColor indicates whether the data represents a color waveform
      */
+    @API(status = API.Status.STABLE)
     public WaveformDetail(DataReference reference, ByteBuffer data, boolean isColor) {
         dataReference = reference;
         rawMessage = null;
@@ -184,7 +191,7 @@ public class WaveformDetail {
     /**
      * The different colors the monochrome (blue) waveform can be based on its intensity.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Color[] COLOR_MAP = {
             new Color(0, 104, 144),
             new Color(0, 136, 176),
@@ -222,7 +229,7 @@ public class WaveformDetail {
      * @return a value from 0 to 31 representing the height of the waveform at that segment, which may be an average
      *         of a number of values starting there, determined by the scale
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int segmentHeight(final int segment, final int scale) {
         final ByteBuffer waveBytes = getData();
         final int limit = getFrameCount();
@@ -247,7 +254,7 @@ public class WaveformDetail {
      * @return the color of the waveform at that segment, which may be based on an average
      *         of a number of values starting there, determined by the scale
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Color segmentColor(final int segment, final int scale) {
         final ByteBuffer waveBytes = getData();
         final int limit = getFrameCount();

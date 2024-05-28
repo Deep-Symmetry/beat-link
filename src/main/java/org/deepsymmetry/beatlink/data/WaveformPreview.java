@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
@@ -16,6 +17,7 @@ import java.nio.ByteBuffer;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class WaveformPreview {
 
     /**
@@ -23,13 +25,13 @@ public class WaveformPreview {
      * nxs2 ANLZ tag request. We actually know what these mean, now that we know how to parse EXT files, but we
      * can simply skip them anyway.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int LEADING_DBSERVER_COLOR_JUNK_BYTES = 28;
 
     /**
      * The unique identifier that was used to request this waveform preview.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final DataReference dataReference;
 
     /**
@@ -37,7 +39,7 @@ public class WaveformPreview {
      * This can be used to analyze fields that have not yet been reliably understood, and is also used for storing
      * the cue list in a file.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final Message rawMessage;
 
     /**
@@ -50,7 +52,7 @@ public class WaveformPreview {
     /**
      * Indicates whether this is an NXS2-style color waveform, or a monochrome (blue) waveform.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final boolean isColor;
 
     /**
@@ -59,7 +61,7 @@ public class WaveformPreview {
      * @return the bytes from which the preview can be drawn, as described in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/track_metadata.html#_waveform_previews">Packet Analysis document</a>.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public ByteBuffer getData() {
         expandedData.rewind();
         return expandedData.slice();
@@ -68,14 +70,14 @@ public class WaveformPreview {
     /**
      * The pixel width (number of waveform preview columns) available.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final int segmentCount;
 
     /**
      * Holds the maximum height of any point along the waveform, so that it can be drawn in a normalized manner to fit
      * its display area.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final int maxHeight;
 
     /**
@@ -89,6 +91,7 @@ public class WaveformPreview {
      *
      * @return the component which will draw the annotated waveform preview
      */
+    @API(status = API.Status.STABLE)
     public JComponent createViewComponent(TrackMetadata metadata) {
         return new WaveformPreviewComponent(this, metadata);
     }
@@ -138,6 +141,7 @@ public class WaveformPreview {
      * @param reference the unique database reference that was used to request this waveform preview
      * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
      */
+    @API(status = API.Status.STABLE)
     public WaveformPreview(DataReference reference, RekordboxAnlz anlzFile) {
         dataReference = reference;
         rawMessage = null;
@@ -182,6 +186,7 @@ public class WaveformPreview {
      * @param data the expanded data as will be returned by {@link #getData()}
      * @param isColor indicates whether the data represents a color preview
      */
+    @API(status = API.Status.STABLE)
     public WaveformPreview(DataReference reference, ByteBuffer data, boolean isColor) {
         dataReference = reference;
         rawMessage = null;
@@ -196,13 +201,13 @@ public class WaveformPreview {
     /**
      * The color at which segments of the blue waveform marked most intense are drawn.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Color INTENSE_COLOR = new Color(116, 246, 244);
 
     /**
      * The color at which non-intense blue waveform segments are drawn.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Color NORMAL_COLOR = new Color(43, 89, 255);
 
     /**
@@ -215,7 +220,7 @@ public class WaveformPreview {
      * @return a value from 0 to 31 representing the height of the waveform at that segment, which may be an average
      *         of a number of values starting there, determined by the scale
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int segmentHeight(final int segment, final boolean front) {
         final ByteBuffer bytes = getData();
         if (isColor) {
@@ -241,7 +246,7 @@ public class WaveformPreview {
      * @return the color of the waveform at that segment, which may be based on an average
      *         of a number of values starting there, determined by the scale
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Color segmentColor(final int segment, final boolean front) {
         final ByteBuffer bytes = getData();
         if (isColor) {

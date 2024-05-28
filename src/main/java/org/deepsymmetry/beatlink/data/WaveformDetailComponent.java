@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
 
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
@@ -30,7 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * player, if that player is a CDJ-3000, dynamic loops (set up on the fly by the DJ) are also displayed, and
  * inactive loops from the track metadata are drawn in gray rather than orange.
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class WaveformDetailComponent extends JComponent {
 
     private static final Logger logger = LoggerFactory.getLogger(WaveformDetailComponent.class);
@@ -103,36 +104,36 @@ public class WaveformDetailComponent extends JComponent {
      * The color to which the background is cleared before drawing the waveform. The default is black,
      * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
      */
-    private final AtomicReference<Color> backgroundColor = new AtomicReference<Color>(Color.BLACK);
+    private final AtomicReference<Color> backgroundColor = new AtomicReference<>(Color.BLACK);
 
     /**
      * The color with which the playback position and tick markers are drawn. The default is white,
      * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
      */
-    private final AtomicReference<Color> indicatorColor = new AtomicReference<Color>(Color.WHITE);
+    private final AtomicReference<Color> indicatorColor = new AtomicReference<>(Color.WHITE);
 
     /**
      * The color with which the playback position is drawn while playback is active. The default is red,
      * but can be changed (including to a transparent color) for use in other contexts, like the OBS overlay.
      */
-    private final AtomicReference<Color> emphasisColor = new AtomicReference<Color>(Color.RED);
+    private final AtomicReference<Color> emphasisColor = new AtomicReference<>(Color.RED);
 
     /**
      * Determines the font to use when drawing hot cue, memory point, and loop labels. If {@code null}, they are
      * not drawn at all.
      */
     private final AtomicReference<Font> labelFont =
-            new AtomicReference<Font>(javax.swing.UIManager.getDefaults().getFont("Label.font"));
+            new AtomicReference<>(javax.swing.UIManager.getDefaults().getFont("Label.font"));
 
     /**
      * The waveform preview that we are drawing.
      */
-    private final AtomicReference<WaveformDetail> waveform = new AtomicReference<WaveformDetail>();
+    private final AtomicReference<WaveformDetail> waveform = new AtomicReference<>();
 
     /**
      * Track the playback state for the players that have the track loaded.
      */
-    private final Map<Integer, PlaybackState> playbackStateMap = new ConcurrentHashMap<Integer, PlaybackState>(4);
+    private final Map<Integer, PlaybackState> playbackStateMap = new ConcurrentHashMap<>(6);
 
     /**
      * Track how many segments we average into a column of pixels; larger values zoom out, 1 is full scale.
@@ -142,12 +143,12 @@ public class WaveformDetailComponent extends JComponent {
     /**
      * Information about the cues, memory points, and loops in the track.
      */
-    private final AtomicReference<CueList> cueList = new AtomicReference<CueList>();
+    private final AtomicReference<CueList> cueList = new AtomicReference<>();
 
     /**
      * Information about where all the beats in the track fall, so we can draw them.
      */
-    private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<BeatGrid>();
+    private final AtomicReference<BeatGrid> beatGrid = new AtomicReference<>();
 
     /**
      * Controls whether we should obtain and display song structure information (phrases) at the bottom of the
@@ -158,12 +159,12 @@ public class WaveformDetailComponent extends JComponent {
     /**
      * Information about the musical phrases that make up the current track, if we have it, so we can draw them.
      */
-    private final AtomicReference<RekordboxAnlz.SongStructureTag> songStructure = new AtomicReference<RekordboxAnlz.SongStructureTag>();
+    private final AtomicReference<RekordboxAnlz.SongStructureTag> songStructure = new AtomicReference<>();
 
     /**
      * The overlay painter that has been registered, if any.
      */
-    private final AtomicReference<OverlayPainter> overlayPainter = new AtomicReference<OverlayPainter>();
+    private final AtomicReference<OverlayPainter> overlayPainter = new AtomicReference<>();
 
     /**
      * Control whether the component should automatically center itself on the playback position of the player
@@ -173,6 +174,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param auto should the waveform be centered on the playback position
      */
+    @API(status = API.Status.STABLE)
     public void setAutoScroll(boolean auto) {
         if (autoScroll.getAndSet(auto) != auto) {
             setSize(getPreferredSize());
@@ -188,6 +190,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return {@code true} if the waveform will be centered on the playback position
      */
+    @API(status = API.Status.STABLE)
     public boolean getAutoScroll() {
         return autoScroll.get();
     }
@@ -198,6 +201,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return the color used to draw the component background
      */
+    @API(status = API.Status.STABLE)
     public Color getBackgroundColor() {
         return backgroundColor.get();
     }
@@ -208,6 +212,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param color the color used to draw the component background
      */
+    @API(status = API.Status.STABLE)
     public void setBackgroundColor(Color color) {
         backgroundColor.set(color);
     }
@@ -218,6 +223,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return the color used to draw the playback and tick markers
      */
+    @API(status = API.Status.STABLE)
     public Color getIndicatorColor() {
         return indicatorColor.get();
     }
@@ -228,6 +234,7 @@ public class WaveformDetailComponent extends JComponent {
 
      * @param color the color used to draw the playback marker when actively playing
      */
+    @API(status = API.Status.STABLE)
     public void setIndicatorColor(Color color) {
         indicatorColor.set(color);
     }
@@ -238,6 +245,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return the color used to draw the playback and tick markers
      */
+    @API(status = API.Status.STABLE)
     public Color getEmphasisColor() {
         return emphasisColor.get();
     }
@@ -248,6 +256,7 @@ public class WaveformDetailComponent extends JComponent {
 
      * @param color the color used to draw the playback marker when actively playing
      */
+    @API(status = API.Status.STABLE)
     public void setEmphasisColor(Color color) {
         emphasisColor.set(color);
     }
@@ -258,6 +267,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param font if not {@code null}, draw labels for hot cues and named memory points and loops, and use this font
      */
+    @API(status = API.Status.STABLE)
     public void setLabelFont(Font font) {
         labelFont.set(font);
         repaint();
@@ -269,6 +279,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return if not {@code null}, labels are being drawn for hot cues and named memory points and loops, in this font
      */
+    @API(status = API.Status.STABLE)
     public Font getLabelFont() {
         return labelFont.get();
     }
@@ -279,6 +290,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param songStructure the phrase information to be painted at the bottom of the waveform, or {@code null} to display none
      */
+    @API(status = API.Status.STABLE)
     public void setSongStructure(RekordboxAnlz.SongStructureTag songStructure) {
         this.songStructure.set(songStructure);
         repaint();
@@ -296,7 +308,7 @@ public class WaveformDetailComponent extends JComponent {
         } else if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
             setSongStructure((RekordboxAnlz.SongStructureTag) taggedSection.body());
         } else {
-            logger.warn("Received unexpected analysis tag type:" + taggedSection);
+            logger.warn("Received unexpected analysis tag type: {}", taggedSection);
         }
     }
 
@@ -306,6 +318,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param fetchSongStructures {@code true} if we should try to obtain and display phrase analysis information
      */
+    @API(status = API.Status.STABLE)
     public synchronized void setFetchSongStructures(boolean fetchSongStructures) {
         this.fetchSongStructures.set(fetchSongStructures);
         if (fetchSongStructures && monitoredPlayer.get() > 0) {
@@ -324,6 +337,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return {@code true} if we should try to obtain and display phrase analysis information
      */
+    @API(status = API.Status.STABLE)
     public boolean getFetchSongStructures() {
         return fetchSongStructures.get();
     }
@@ -334,6 +348,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param painter if not {@code null}, its {@link OverlayPainter#paintOverlay(Component, Graphics)} method will
      *                be called once this component has done its own painting
      */
+    @API(status = API.Status.STABLE)
     public void setOverlayPainter(OverlayPainter painter) {
         overlayPainter.set(painter);
     }
@@ -394,6 +409,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @since 0.5.0
      */
+    @API(status = API.Status.STABLE)
     public synchronized void setPlaybackState(int player, long position, boolean playing) {
         if (getMonitoredPlayer() != 0 && player != getMonitoredPlayer()) {
             throw new IllegalStateException("Cannot setPlaybackState for another player when monitoring player " + getMonitoredPlayer());
@@ -415,6 +431,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param player the player number whose playback state is no longer valid
      * @since 0.5.0
      */
+    @API(status = API.Status.STABLE)
     public synchronized void clearPlaybackState(int player) {
         PlaybackState oldFurthestState = getFurthestPlaybackState();
         PlaybackState oldState = playbackStateMap.remove(player);
@@ -425,6 +442,7 @@ public class WaveformDetailComponent extends JComponent {
      * Removes all stored playback state.
      * @since 0.5.0
      */
+    @API(status = API.Status.STABLE)
     public synchronized void clearPlaybackState() {
         for (PlaybackState state : playbackStateMap.values()) {
             clearPlaybackState(state.player);
@@ -438,6 +456,7 @@ public class WaveformDetailComponent extends JComponent {
      * @return the corresponding playback state, if any has been stored
      * @since 0.5.0
      */
+    @API(status = API.Status.STABLE)
     public PlaybackState getPlaybackState(int player) {
         return playbackStateMap.get(player);
     }
@@ -448,8 +467,9 @@ public class WaveformDetailComponent extends JComponent {
      * @return the playback state recorded for any player
      * @since 0.5.0
      */
+    @API(status = API.Status.STABLE)
     public Set<PlaybackState> getPlaybackState() {
-        Set<PlaybackState> result = new HashSet<PlaybackState>(playbackStateMap.values());
+        Set<PlaybackState> result = new HashSet<>(playbackStateMap.values());
         return Collections.unmodifiableSet(result);
     }
 
@@ -492,6 +512,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @throws IllegalArgumentException if scale is less than 1 or greater than 256
      */
+    @API(status = API.Status.STABLE)
     public void setScale(int scale) {
         if ((scale < 1) || (scale > 256)) {
             throw new IllegalArgumentException("Scale must be between 1 and 256");
@@ -511,6 +532,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return the current zoom scale.
      */
+    @API(status = API.Status.STABLE)
     public int getScale() {
         return scale.get();
     }
@@ -539,6 +561,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param metadata information about the track whose waveform we are drawing, so we can draw cue and memory points
      * @param beatGrid the locations of the beats, so they can be drawn
      */
+    @API(status = API.Status.STABLE)
     public void setWaveform(WaveformDetail waveform, TrackMetadata metadata, BeatGrid beatGrid) {
         this.waveform.set(waveform);
         if (metadata != null) {
@@ -562,6 +585,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param cueList used to draw cue and memory points
      * @param beatGrid the locations of the beats, so they can be drawn
      */
+    @API(status = API.Status.STABLE)
     public void setWaveform(WaveformDetail waveform, CueList cueList, BeatGrid beatGrid) {
         this.waveform.set(waveform);
         this.cueList.set(cueList);
@@ -578,6 +602,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return the waveform detail being displayed by this component.
      */
+    @API(status = API.Status.STABLE)
     public WaveformDetail getWaveform() {
         return this.waveform.get();
     }
@@ -594,6 +619,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param player the player number to monitor, or zero if monitoring should stop
      */
+    @API(status = API.Status.STABLE)
     public synchronized void setMonitoredPlayer(final int player) {
         if (player < 0) {
             throw new IllegalArgumentException("player cannot be negative");
@@ -633,19 +659,16 @@ public class WaveformDetailComponent extends JComponent {
                 TimeFinder.getInstance().start();
                 if (!animating.getAndSet(true)) {
                     // Create the thread to update our position smoothly as the track plays
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            while (animating.get()) {
-                                try {
-                                    //noinspection BusyWait
-                                    Thread.sleep(33);  // Animate at 30 fps
-                                } catch (InterruptedException e) {
-                                    logger.warn("Waveform animation thread interrupted; ending");
-                                    animating.set(false);
-                                }
-                                setPlaybackPosition(TimeFinder.getInstance().getTimeFor(getMonitoredPlayer()));
+                    new Thread(() -> {
+                        while (animating.get()) {
+                            try {
+                                //noinspection BusyWait
+                                Thread.sleep(33);  // Animate at 30 fps
+                            } catch (InterruptedException e) {
+                                logger.warn("Waveform animation thread interrupted; ending");
+                                animating.set(false);
                             }
+                            setPlaybackPosition(TimeFinder.getInstance().getTimeFor(getMonitoredPlayer()));
                         }
                     }).start();
                 }
@@ -675,6 +698,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return the player number being monitored, or zero if none
      */
+    @API(status = API.Status.STABLE)
     public int getMonitoredPlayer() {
         return monitoredPlayer.get();
     }
@@ -682,17 +706,14 @@ public class WaveformDetailComponent extends JComponent {
     /**
      * Reacts to changes in the track metadata associated with the player we are monitoring.
      */
-    private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
-        @Override
-        public void metadataChanged(TrackMetadataUpdate update) {
-            if (update.player == getMonitoredPlayer()) {
-                if (update.metadata != null) {
-                    cueList.set(update.metadata.getCueList());
-                } else {
-                    cueList.set(null);
-                }
-                repaint();
+    private final TrackMetadataListener metadataListener = update -> {
+        if (update.player == getMonitoredPlayer()) {
+            if (update.metadata != null) {
+                cueList.set(update.metadata.getCueList());
+            } else {
+                cueList.set(null);
             }
+            repaint();
         }
     };
 
@@ -721,36 +742,27 @@ public class WaveformDetailComponent extends JComponent {
     /**
      * Reacts to changes in the beat grid associated with the player we are monitoring.
      */
-    private final BeatGridListener beatGridListener = new BeatGridListener() {
-        @Override
-        public void beatGridChanged(BeatGridUpdate update) {
-            if (update.player == getMonitoredPlayer()) {
-                beatGrid.set(update.beatGrid);
-                repaint();
-            }
+    private final BeatGridListener beatGridListener = update -> {
+        if (update.player == getMonitoredPlayer()) {
+            beatGrid.set(update.beatGrid);
+            repaint();
         }
     };
 
     /**
      * Reacts to player status updates to reflect the current playback state.
      */
-    private final DeviceUpdateListener updateListener = new DeviceUpdateListener() {
-        @Override
-        public void received(DeviceUpdate update) {
-            if ((update instanceof CdjStatus) && (update.getDeviceNumber() == getMonitoredPlayer()) &&
-                    (cueList.get() != null) && (beatGrid.get() != null)) {
-                CdjStatus status = (CdjStatus) update;
-                setPlaying(status.isPlaying());
-            }
+    private final DeviceUpdateListener updateListener = update -> {
+        if ((update instanceof CdjStatus) && (update.getDeviceNumber() == getMonitoredPlayer()) &&
+                (cueList.get() != null) && (beatGrid.get() != null)) {
+            CdjStatus status = (CdjStatus) update;
+            setPlaying(status.isPlaying());
         }
     };
 
-    private final AnalysisTagListener analysisTagListener = new AnalysisTagListener() {
-        @Override
-        public void analysisChanged(AnalysisTagUpdate update) {
-            if (update.player == getMonitoredPlayer()) {
-                setSongStructureWrapper(update.taggedSection);
-            }
+    private final AnalysisTagListener analysisTagListener = update -> {
+        if (update.player == getMonitoredPlayer()) {
+            setSongStructureWrapper(update.taggedSection);
         }
     };
 
@@ -760,6 +772,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @param player the player number to monitor, or zero if it should start out monitoring no player
      */
+    @API(status = API.Status.STABLE)
     public WaveformDetailComponent(int player) {
         setMonitoredPlayer(player);
     }
@@ -771,6 +784,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param metadata information about the track whose waveform we are drawing, so we can draw cues and memory points
      * @param beatGrid the locations of the beats, so they can be drawn
      */
+    @API(status = API.Status.STABLE)
     public WaveformDetailComponent(WaveformDetail waveform, TrackMetadata metadata, BeatGrid beatGrid) {
         this.waveform.set(waveform);
         if (metadata != null) {
@@ -786,6 +800,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param cueList used to draw cues and memory points
      * @param beatGrid the locations of the beats, so they can be drawn
      */
+    @API(status = API.Status.STABLE)
     public WaveformDetailComponent(WaveformDetail waveform, CueList cueList, BeatGrid beatGrid) {
         this.waveform.set(waveform);
         this.cueList.set(cueList);
@@ -812,6 +827,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return the playback state, if any, with the highest playing {@link PlaybackState#position} value
      */
+    @API(status = API.Status.STABLE)
     public PlaybackState getFurthestPlaybackState() {
         PlaybackState result = null;
         for (PlaybackState state : playbackStateMap.values()) {
@@ -829,6 +845,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return The position in milliseconds of the furthest playback state reached, or 0 if there are no playback states
      */
+    @API(status = API.Status.STABLE)
     public long getFurthestPlaybackPosition() {
         PlaybackState state = getFurthestPlaybackState();
         if (state != null) {
@@ -859,6 +876,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param x the horizontal position within the component coordinate space
      * @return the number of milliseconds into the track this would correspond to (may fall outside the actual track)
      */
+    @API(status = API.Status.STABLE)
     public long getTimeForX(int x) {
         return Util.halfFrameToTime(getSegmentForX(x));
     }
@@ -871,6 +889,7 @@ public class WaveformDetailComponent extends JComponent {
      * @param x the horizontal position within the component coordinate space
      * @return the beat number being played at that point, or -1 if the point is before the first beat
      */
+    @API(status = API.Status.STABLE)
     public int getBeatForX(int x) {
         BeatGrid grid = beatGrid.get();
         if (grid != null) {
@@ -886,6 +905,7 @@ public class WaveformDetailComponent extends JComponent {
      * @return the horizontal position within the component coordinate space where that beat begins
      * @throws IllegalArgumentException if the beat number exceeds the number of beats in the track.
      */
+    @API(status = API.Status.STABLE)
     public int getXForBeat(int beat) {
         BeatGrid grid = beatGrid.get();
         if (grid != null) {
@@ -901,6 +921,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return the component x coordinate at which it should be drawn
      */
+    @API(status = API.Status.STABLE)
     public int millisecondsToX(long milliseconds) {
         if (autoScroll.get()) {
             int playHead = (getWidth() / 2) + 2;
@@ -926,6 +947,7 @@ public class WaveformDetailComponent extends JComponent {
      * @deprecated use {@link CueList.Entry#getColor()} instead
      */
     @Deprecated
+    @API(status = API.Status.DEPRECATED)
     public static Color cueColor(CueList.Entry entry) {
        return entry.getColor();
     }
@@ -936,6 +958,7 @@ public class WaveformDetailComponent extends JComponent {
      *
      * @return whether we have seen a status packet from a tracked player that is a CDJ-3000 or equivalent
      */
+    @API(status = API.Status.STABLE)
     public boolean isDynamicLoopDataAvailable() {
         if (!VirtualCdj.getInstance().isRunning()) return false;
         for (final PlaybackState state : playbackStateMap.values()) {
@@ -1130,16 +1153,7 @@ public class WaveformDetailComponent extends JComponent {
 
         // Have the phrase labels stick to the left edge of the viewable area as they scroll by.
         // Start by finding our parent scroll pane, if there is one, so we can figure out its horizontal scroll position.
-        int scrolledX = 0;
-        Container parent = getParent();
-        while (parent != null) {
-            if (parent instanceof JScrollPane) {
-                scrolledX = ((JScrollPane) parent).getViewport().getViewPosition().x;
-                parent = null;  // We are done searching for our scroll pane.
-            } else {
-                parent = parent.getParent();
-            }
-        }
+        final int scrolledX = getScrolledX();
 
         for (int i = 0; i < songStructure.lenEntries(); i++) {
             final RekordboxAnlz.SongStructureEntry entry = songStructure.body().entries().get(i);
@@ -1185,6 +1199,25 @@ public class WaveformDetailComponent extends JComponent {
                 }
             }
         }
+    }
+
+    /**
+     * Find how far the waveform has been scrolled.
+     *
+     * @return the X position of our scroll pane
+     */
+    private int getScrolledX() {
+        int scrolledX = 0;
+        Container parent = getParent();
+        while (parent != null) {
+            if (parent instanceof JScrollPane) {
+                scrolledX = ((JScrollPane) parent).getViewport().getViewPosition().x;
+                parent = null;  // We are done searching for our scroll pane.
+            } else {
+                parent = parent.getParent();
+            }
+        }
+        return scrolledX;
     }
 
 

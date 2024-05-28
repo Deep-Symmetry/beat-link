@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.data;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
 import org.deepsymmetry.beatlink.dbserver.*;
 import org.slf4j.Logger;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class WaveformFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(WaveformFinder.class);
@@ -33,20 +35,18 @@ public class WaveformFinder extends LifecycleParticipant {
      * Keeps track of the current waveform previews cached for each player. We hot cache data for any track which is
      * currently on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
-    private final Map<DeckReference, WaveformPreview> previewHotCache =
-            new ConcurrentHashMap<DeckReference, WaveformPreview>();
+    private final Map<DeckReference, WaveformPreview> previewHotCache = new ConcurrentHashMap<>();
 
     /**
      * Keeps track of the current waveform details cached for each player. We hot cache data for any track which is
      * currently on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
-    private final Map<DeckReference, WaveformDetail> detailHotCache =
-            new ConcurrentHashMap<DeckReference, WaveformDetail>();
+    private final Map<DeckReference, WaveformDetail> detailHotCache = new ConcurrentHashMap<>();
 
     /**
      * Should we ask for details as well as the previews?
      */
-    final private AtomicBoolean findDetails = new AtomicBoolean(true);
+    private final AtomicBoolean findDetails = new AtomicBoolean(true);
 
     /**
      * Set whether we should retrieve the waveform details in addition to the waveform previews.
@@ -54,20 +54,18 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param findDetails if {@code true}, both types of waveform will be retrieved, if {@code false} only previews
      *                    will be retrieved
      */
+    @API(status = API.Status.STABLE)
     public final void setFindDetails(boolean findDetails) {
         this.findDetails.set(findDetails);
         if (findDetails) {
             primeCache();  // Get details for any tracks that were already loaded on players.
         } else {
             // Inform our listeners, on the proper thread, that the detailed waveforms are no longer available
-            final Set<DeckReference> dyingCache = new HashSet<DeckReference>(detailHotCache.keySet());
+            final Set<DeckReference> dyingCache = new HashSet<>(detailHotCache.keySet());
             detailHotCache.clear();
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (DeckReference deck : dyingCache) {
-                        deliverWaveformDetailUpdate(deck.player, null);
-                    }
+            SwingUtilities.invokeLater(() -> {
+                for (DeckReference deck : dyingCache) {
+                    deliverWaveformDetailUpdate(deck.player, null);
                 }
             });
         }
@@ -79,7 +77,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * @return {@code true} if both types of waveform are being retrieved, {@code false} if only previews
      *         are being retrieved
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final boolean isFindingDetails() {
         return findDetails.get();
     }
@@ -87,7 +85,7 @@ public class WaveformFinder extends LifecycleParticipant {
     /**
      * Should we ask for color versions of the waveforms and previews if they are available?
      */
-    final private AtomicBoolean preferColor = new AtomicBoolean(true);
+    private final AtomicBoolean preferColor = new AtomicBoolean(true);
 
     /**
      * Set whether we should obtain color versions of waveforms and previews when they are available. This will only
@@ -97,6 +95,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param preferColor if {@code true}, the full-color versions of waveforms will be requested, if {@code false}
      *                   only the older blue versions will be retrieved
      */
+    @API(status = API.Status.STABLE)
     public final void setColorPreferred(boolean preferColor) {
         if (this.preferColor.compareAndSet(!preferColor, preferColor) && isRunning()) {
             stop();
@@ -114,6 +113,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * @return {@code true} if full-color of waveform are being retrieved, {@code false} if the older blue versions
      *         are being retrieved
      */
+    @API(status = API.Status.STABLE)
     public final boolean isColorPreferred() {
         return preferColor.get();
     }
@@ -122,20 +122,16 @@ public class WaveformFinder extends LifecycleParticipant {
      * A queue used to hold metadata updates we receive from the {@link MetadataFinder} so we can process them on a
      * lower priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates =
-            new LinkedBlockingDeque<TrackMetadataUpdate>(100);
+    private final LinkedBlockingDeque<TrackMetadataUpdate> pendingUpdates = new LinkedBlockingDeque<>(100);
 
     /**
      * Our metadata listener just puts metadata updates on our queue, so we can process them on a lower
      * priority thread, and not hold up delivery to more time-sensitive listeners.
      */
-    private final TrackMetadataListener metadataListener = new TrackMetadataListener() {
-        @Override
-        public void metadataChanged(TrackMetadataUpdate update) {
-            logger.debug("Received metadata update {}", update);
-            if (!pendingUpdates.offerLast(update)) {
-                logger.warn("Discarding metadata update because our queue is backed up.");
-            }
+    private final TrackMetadataListener metadataListener = update -> {
+        logger.debug("Received metadata update {}", update);
+        if (!pendingUpdates.offerLast(update)) {
+            logger.warn("Discarding metadata update because our queue is backed up.");
         }
     };
 
@@ -152,14 +148,14 @@ public class WaveformFinder extends LifecycleParticipant {
         @Override
         public void mediaUnmounted(SlotReference slot) {
             // Iterate over a copy to avoid concurrent modification issues
-            for (Map.Entry<DeckReference, WaveformPreview> entry : new HashMap<DeckReference, WaveformPreview>(previewHotCache).entrySet()) {
+            for (Map.Entry<DeckReference, WaveformPreview> entry : new HashMap<>(previewHotCache).entrySet()) {
                 if (slot == SlotReference.getSlotReference(entry.getValue().dataReference)) {
                     logger.debug("Evicting cached waveform preview in response to unmount report {}", entry.getValue());
                     previewHotCache.remove(entry.getKey());
                 }
             }
             // Again iterate over a copy to avoid concurrent modification issues
-            for (Map.Entry<DeckReference, WaveformDetail> entry : new HashMap<DeckReference, WaveformDetail>(detailHotCache).entrySet()) {
+            for (Map.Entry<DeckReference, WaveformDetail> entry : new HashMap<>(detailHotCache).entrySet()) {
                 if (slot == SlotReference.getSlotReference(entry.getValue().dataReference)) {
                     logger.debug("Evicting cached waveform detail in response to unmount report {}", entry.getValue());
                     detailHotCache.remove(entry.getKey());
@@ -199,6 +195,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @see MetadataFinder#isPassive()
      */
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return running.get();
     }
@@ -255,7 +252,7 @@ public class WaveformFinder extends LifecycleParticipant {
     private void clearWaveforms(DeviceAnnouncement announcement) {
         final int player = announcement.getDeviceNumber();
         // Iterate over a copy to avoid concurrent modification issues
-        for (DeckReference deck : new HashSet<DeckReference>(previewHotCache.keySet())) {
+        for (DeckReference deck : new HashSet<>(previewHotCache.keySet())) {
             if (deck.player == player) {
                 previewHotCache.remove(deck);
                 if (deck.hotCue == 0) {
@@ -264,7 +261,7 @@ public class WaveformFinder extends LifecycleParticipant {
             }
         }
         // Again iterate over a copy to avoid concurrent modification issues
-        for (DeckReference deck : new HashSet<DeckReference>(detailHotCache.keySet())) {
+        for (DeckReference deck : new HashSet<>(detailHotCache.keySet())) {
             if (deck.player == player) {
                 detailHotCache.remove(deck);
                 if (deck.hotCue == 0) {
@@ -318,11 +315,11 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Map<DeckReference, WaveformPreview> getLoadedPreviews() {
         ensureRunning();
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableMap(new HashMap<DeckReference, WaveformPreview>(previewHotCache));
+        return Map.copyOf(previewHotCache);
     }
 
     /**
@@ -333,14 +330,14 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running or requesting waveform details
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Map<DeckReference, WaveformDetail> getLoadedDetails() {
         ensureRunning();
         if (!isFindingDetails()) {
             throw new IllegalStateException("WaveformFinder is not configured to find waveform details.");
         }
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableMap(new HashMap<DeckReference, WaveformDetail>(detailHotCache));
+        return Map.copyOf(detailHotCache);
     }
 
     /**
@@ -352,6 +349,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public WaveformPreview getLatestPreviewFor(int player) {
         ensureRunning();
         return previewHotCache.get(DeckReference.getDeckReference(player, 0));
@@ -366,6 +364,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public WaveformPreview getLatestPreviewFor(DeviceUpdate update) {
         return getLatestPreviewFor(update.getDeviceNumber());
     }
@@ -379,6 +378,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public WaveformDetail getLatestDetailFor(int player) {
         ensureRunning();
         return detailHotCache.get(DeckReference.getDeckReference(player, 0));
@@ -393,6 +393,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public WaveformDetail getLatestDetailFor(DeviceUpdate update) {
         return getLatestDetailFor(update.getDeviceNumber());
     }
@@ -425,12 +426,8 @@ public class WaveformFinder extends LifecycleParticipant {
         }
 
         // We have to actually request the preview using the dbserver protocol.
-        ConnectionManager.ClientTask<WaveformPreview> task = new ConnectionManager.ClientTask<WaveformPreview>() {
-            @Override
-            public WaveformPreview useClient(Client client) throws Exception {
-                return getWaveformPreview(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), client);
-            }
-        };
+        ConnectionManager.ClientTask<WaveformPreview> task =
+                client -> getWaveformPreview(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(trackReference.player, task, "requesting waveform preview");
@@ -450,6 +447,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public WaveformPreview requestWaveformPreviewFrom(final DataReference dataReference) {
         ensureRunning();
         for (WaveformPreview cached : previewHotCache.values()) {
@@ -485,10 +483,10 @@ public class WaveformFinder extends LifecycleParticipant {
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformPreview(new DataReference(slot, rekordboxId), response);
                 } else {
-                    logger.info("No color waveform preview available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.");
+                    logger.info("No color waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
-                logger.info("No color waveform preview available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.", e);
+                logger.info("No color waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
             }
         }
 
@@ -526,12 +524,8 @@ public class WaveformFinder extends LifecycleParticipant {
         }
 
         // We have to actually request the detail using the dbserver protocol.
-        ConnectionManager.ClientTask<WaveformDetail> task = new ConnectionManager.ClientTask<WaveformDetail>() {
-            @Override
-            public WaveformDetail useClient(Client client) throws Exception {
-                return getWaveformDetail(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), client);
-            }
-        };
+        ConnectionManager.ClientTask<WaveformDetail> task =
+                client -> getWaveformDetail(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(trackReference.player, task, "requesting waveform detail");
@@ -551,6 +545,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the WaveformFinder is not running
      */
+    @API(status = API.Status.STABLE)
     public WaveformDetail requestWaveformDetailFrom(final DataReference dataReference) {
         ensureRunning();
         for (WaveformDetail cached : detailHotCache.values()) {
@@ -585,10 +580,10 @@ public class WaveformFinder extends LifecycleParticipant {
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformDetail(new DataReference(slot, rekordboxId), response);
                 } else {
-                    logger.info("No color waveform available for slot " + slot + ", id " + rekordboxId + "; requesting blue version.");
+                    logger.info("No color waveform available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
-                logger.info("Problem requesting color waveform for slot " + slot + ", id " + rekordboxId + "; requesting blue version.", e);
+                logger.info("Problem requesting color waveform for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
             }
         }
 
@@ -600,18 +595,17 @@ public class WaveformFinder extends LifecycleParticipant {
     /**
      * Keep track of the devices we are currently trying to get previews from in response to metadata updates.
      */
-    private final Set<Integer> activePreviewRequests = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private final Set<Integer> activePreviewRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Keep track of the devices we are currently trying to get details from in response to metadata updates.
      */
-    private final Set<Integer> activeDetailRequests = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+    private final Set<Integer> activeDetailRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Keeps track of the registered waveform listeners.
      */
-    private final Set<WaveformListener> waveformListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<WaveformListener, Boolean>());
+    private final Set<WaveformListener> waveformListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified waveform listener to receive updates when the waveform information for a player changes.
@@ -619,14 +613,15 @@ public class WaveformFinder extends LifecycleParticipant {
      * thrown and no action is performed.</p>
      *
      * <p>Updates are delivered to listeners on the Swing Event Dispatch thread, so it is safe to interact with
-     * user interface elements within the event handler.
+     * user interface elements within the event handler.</p>
      *
-     * Even so, any code in the listener method <em>must</em> finish quickly, or it will freeze the user interface,
+     * <p>Even so, any code in the listener method <em>must</em> finish quickly, or it will freeze the user interface,
      * add latency for other listeners, and updates will back up. If you want to perform lengthy processing of any sort,
      * do so on another thread.</p>
      *
      * @param listener the waveform update listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addWaveformListener(WaveformListener listener) {
         if (listener != null) {
             waveformListeners.add(listener);
@@ -640,6 +635,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @param listener the waveform update listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeWaveformListener(WaveformListener listener) {
         if (listener != null) {
             waveformListeners.remove(listener);
@@ -651,10 +647,10 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @return the listeners that are currently registered for waveform updates
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Set<WaveformListener> getWaveformListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<WaveformListener>(waveformListeners));
+        return Set.copyOf(waveformListeners);
     }
 
     /**
@@ -666,17 +662,14 @@ public class WaveformFinder extends LifecycleParticipant {
     private void deliverWaveformPreviewUpdate(final int player, final WaveformPreview preview) {
         final Set<WaveformListener> listeners = getWaveformListeners();
         if (!listeners.isEmpty()) {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    final WaveformPreviewUpdate update = new WaveformPreviewUpdate(player, preview);
-                    for (final WaveformListener listener : listeners) {
-                        try {
-                            listener.previewChanged(update);
+            SwingUtilities.invokeLater(() -> {
+                final WaveformPreviewUpdate update = new WaveformPreviewUpdate(player, preview);
+                for (final WaveformListener listener : listeners) {
+                    try {
+                        listener.previewChanged(update);
 
-                        } catch (Throwable t) {
-                            logger.warn("Problem delivering waveform preview update to listener", t);
-                        }
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering waveform preview update to listener", t);
                     }
                 }
             });
@@ -691,17 +684,14 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     private void deliverWaveformDetailUpdate(final int player, final WaveformDetail detail) {
         if (!getWaveformListeners().isEmpty()) {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    final WaveformDetailUpdate update = new WaveformDetailUpdate(player, detail);
-                    for (final WaveformListener listener : getWaveformListeners()) {
-                        try {
-                            listener.detailChanged(update);
+            SwingUtilities.invokeLater(() -> {
+                final WaveformDetailUpdate update = new WaveformDetailUpdate(player, detail);
+                for (final WaveformListener listener : getWaveformListeners()) {
+                    try {
+                        listener.detailChanged(update);
 
-                        } catch (Throwable t) {
-                            logger.warn("Problem delivering waveform detail update to listener", t);
-                        }
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering waveform detail update to listener", t);
                     }
                 }
             });
@@ -737,19 +727,16 @@ public class WaveformFinder extends LifecycleParticipant {
                 if (!foundInCache && activePreviewRequests.add(update.player)) {
                     clearDeckPreview(update);  // We won't know what it is until our request completes.
                     // We had to make sure we were not already asking for this track.
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                WaveformPreview preview = requestPreviewInternal(update.metadata.trackReference, true);
-                                if (preview != null) {
-                                    updatePreview(update, preview);
-                                }
-                            } catch (Exception e) {
-                                logger.warn("Problem requesting waveform preview from update" + update, e);
-                            } finally {
-                                activePreviewRequests.remove(update.player);
+                    new Thread(() -> {
+                        try {
+                            WaveformPreview preview = requestPreviewInternal(update.metadata.trackReference, true);
+                            if (preview != null) {
+                                updatePreview(update, preview);
                             }
+                        } catch (Exception e) {
+                            logger.warn("Problem requesting waveform preview from update {}", update, e);
+                        } finally {
+                            activePreviewRequests.remove(update.player);
                         }
                     }).start();
                 }
@@ -773,19 +760,16 @@ public class WaveformFinder extends LifecycleParticipant {
                 if (!foundInCache && activeDetailRequests.add(update.player)) {
                     clearDeckDetail(update);  // We won't know what it is until our request completes.
                     // We had to make sure we were not already asking for this track.
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                WaveformDetail detail = requestDetailInternal(update.metadata.trackReference, true);
-                                if (detail != null) {
-                                    updateDetail(update, detail);
-                                }
-                            } catch (Exception e) {
-                                logger.warn("Problem requesting waveform detail from update" + update, e);
-                            } finally {
-                                activeDetailRequests.remove(update.player);
+                    new Thread(() -> {
+                        try {
+                            WaveformDetail detail = requestDetailInternal(update.metadata.trackReference, true);
+                            if (detail != null) {
+                                updateDetail(update, detail);
                             }
+                        } catch (Exception e) {
+                            logger.warn("Problem requesting waveform detail from update {}", update, e);
+                        } finally {
+                            activeDetailRequests.remove(update.player);
                         }
                     }).start();
                 }
@@ -816,13 +800,10 @@ public class WaveformFinder extends LifecycleParticipant {
      * details, since we missed them.
      */
     private void primeCache() {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-                    if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
-                        handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
-                    }
+        SwingUtilities.invokeLater(() -> {
+            for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+                if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                    handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
                 }
             }
         });
@@ -836,6 +817,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @throws Exception if there is a problem starting the required components
      */
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws Exception {
         if (!isRunning()) {
             ConnectionManager.getInstance().addLifecycleListener(lifecycleListener);
@@ -845,17 +827,14 @@ public class WaveformFinder extends LifecycleParticipant {
             MetadataFinder.getInstance().start();
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
             MetadataFinder.getInstance().addMountListener(mountListener);
-            queueHandler = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    while (isRunning()) {
-                        try {
-                            handleUpdate(pendingUpdates.take());
-                        } catch (InterruptedException e) {
-                            // Interrupted due to MetadataFinder shutdown, presumably
-                        } catch (Throwable t) {
-                            logger.error("Problem processing metadata update", t);
-                        }
+            queueHandler = new Thread(() -> {
+                while (isRunning()) {
+                    try {
+                        handleUpdate(pendingUpdates.take());
+                    } catch (InterruptedException e) {
+                        // Interrupted due to MetadataFinder shutdown, presumably
+                    } catch (Throwable t) {
+                        logger.error("Problem processing metadata update", t);
                     }
                 }
             });
@@ -869,7 +848,7 @@ public class WaveformFinder extends LifecycleParticipant {
     /**
      * Stop finding waveforms for all active players.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
@@ -879,22 +858,19 @@ public class WaveformFinder extends LifecycleParticipant {
             queueHandler = null;
 
             // Report the loss of our waveforms, on the proper thread, outside our lock.
-            final Set<DeckReference> dyingPreviewCache = new HashSet<DeckReference>(previewHotCache.keySet());
+            final Set<DeckReference> dyingPreviewCache = new HashSet<>(previewHotCache.keySet());
             previewHotCache.clear();
-            final Set<DeckReference> dyingDetailCache = new HashSet<DeckReference>(detailHotCache.keySet());
+            final Set<DeckReference> dyingDetailCache = new HashSet<>(detailHotCache.keySet());
             detailHotCache.clear();
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    for (DeckReference deck : dyingPreviewCache) {  // Report the loss of our previews.
-                        if (deck.hotCue == 0) {
-                            deliverWaveformPreviewUpdate(deck.player, null);
-                        }
+            SwingUtilities.invokeLater(() -> {
+                for (DeckReference deck : dyingPreviewCache) {  // Report the loss of our previews.
+                    if (deck.hotCue == 0) {
+                        deliverWaveformPreviewUpdate(deck.player, null);
                     }
-                    for (DeckReference deck : dyingDetailCache) {  // Report the loss of our details.
-                        if (deck.hotCue == 0) {
-                            deliverWaveformDetailUpdate(deck.player, null);
-                        }
+                }
+                for (DeckReference deck : dyingDetailCache) {  // Report the loss of our details.
+                    if (deck.hotCue == 0) {
+                        deliverWaveformDetailUpdate(deck.player, null);
                     }
                 }
             });
@@ -912,6 +888,7 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static WaveformFinder getInstance() {
         return ourInstance;
     }
