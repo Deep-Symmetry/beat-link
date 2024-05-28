@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,36 +16,36 @@ import java.util.Map;
  * @author James Elliott
  * @since 0.6.0
  */
+@API(status = API.Status.STABLE)
 public class DeviceReference {
 
     /**
      * The device number reported by the device.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final int deviceNumber;
 
     /**
      * The IP address at which the device can be found.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final InetAddress address;
 
     /**
      * Create a unique device identifier.
      *
      * @param number the device number reported by the device
-     * @param addr the IP address at which the device can be found
+     * @param address the IP address at which the device can be found
      */
-    private DeviceReference(int number, InetAddress addr) {
+    private DeviceReference(int number, InetAddress address) {
         deviceNumber = number;
-        address = addr;
+        this.address = address;
     }
 
     /**
      * Holds all the instances of this class as they get created by the static factory method.
      */
-    private static final Map<InetAddress, Map<Integer, DeviceReference>> instances =
-            new HashMap<InetAddress, Map<Integer, DeviceReference>>();
+    private static final Map<InetAddress, Map<Integer, DeviceReference>> instances = new HashMap<>();
 
     /**
      * Get a unique device identifier by device number and address.
@@ -52,19 +54,10 @@ public class DeviceReference {
      * @param address the IP address at which the device can be found
      * @return the reference uniquely identifying the device with that number and address
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static synchronized DeviceReference getDeviceReference(int number, InetAddress address) {
-        Map<Integer, DeviceReference> playerMap = instances.get(address);
-        if (playerMap == null) {
-            playerMap = new HashMap<Integer, DeviceReference>();
-            instances.put(address, playerMap);
-        }
-        DeviceReference result = playerMap.get(number);
-        if (result == null) {
-            result = new DeviceReference(number, address);
-            playerMap.put(number, result);
-        }
-        return result;
+        final Map<Integer, DeviceReference> playerMap = instances.computeIfAbsent(address, k -> new HashMap<>());
+        return playerMap.computeIfAbsent(number, n -> new DeviceReference(n, address));
     }
 
     /**
@@ -73,7 +66,7 @@ public class DeviceReference {
      * @param announcement the device announcement received
      * @return the reference uniquely identifying the device which sent the announcement
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static DeviceReference getDeviceReference(DeviceAnnouncement announcement) {
         return getDeviceReference(announcement.getDeviceNumber(), announcement.getAddress());
     }
@@ -84,7 +77,7 @@ public class DeviceReference {
      * @param update the device update received
      * @return the reference uniquely identifying the device which sent the update
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static DeviceReference getDeviceReference(DeviceUpdate update) {
         return getDeviceReference(update.deviceNumber, update.address);
     }

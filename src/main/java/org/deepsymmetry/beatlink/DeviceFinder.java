@@ -1,5 +1,10 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.swing.*;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
@@ -7,18 +12,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.swing.*;
-
 /**
  * Watches for devices to report their presence by broadcasting announcement packets on port 50000,
  * and keeps a list of the devices that have been seen, and the network address on which they were seen.
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class DeviceFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(DeviceFinder.class);
@@ -26,12 +26,14 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * The port to which devices broadcast announcement messages to report their presence on the network.
      */
+    @API(status = API.Status.STABLE)
     public static final int ANNOUNCEMENT_PORT = 50000;
 
     /**
      * The number of milliseconds after which we will consider a device to have disappeared if
      * we have not received an announcement from it.
      */
+    @API(status = API.Status.STABLE)
     public static final int MAXIMUM_AGE = 10000;
 
     /**
@@ -57,6 +59,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * @return {@code true} if our socket is open and monitoring for DJ Link device announcements on the network,
      *         or if we were started in a mode where we delegate most of our responsibility to VirtualRekordbox
      */
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return socket.get() != null;
     }
@@ -67,6 +70,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * @return the system millisecond timestamp when {@link #start()} was called.
      * @throws IllegalStateException if we are not listening for announcements.
      */
+    @API(status = API.Status.STABLE)
     public long getStartTime() {
         ensureRunning();
         return startTime.get();
@@ -79,6 +83,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * @return the system millisecond timestamp when the first device announcement was received.
      * @throws IllegalStateException if we are not listening for announcements, or if none have been seen.
      */
+    @API(status = API.Status.STABLE)
     public long getFirstDeviceTime() {
         ensureRunning();
         final long result = firstDeviceTime.get();
@@ -145,6 +150,7 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @param address the address from which any device updates should be ignored.
      */
+    @API(status = API.Status.STABLE)
     public void addIgnoredAddress(InetAddress address) {
         ignoredAddresses.add(address);
     }
@@ -155,6 +161,7 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @param address the address from which any device updates should be ignored.
      */
+    @API(status = API.Status.STABLE)
     public void removeIgnoredAddress(InetAddress address) {
         ignoredAddresses.remove(address);
     }
@@ -167,7 +174,7 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @return {@code true} if packets from the address should be ignored
      */
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    @API(status = API.Status.STABLE)
     public boolean isAddressIgnored(InetAddress address) {
         return ignoredAddresses.contains(address);
     }
@@ -211,6 +218,7 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @throws SocketException if the socket to listen on port 50000 cannot be created
      */
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws SocketException {
 
         if (!isRunning()) {
@@ -308,7 +316,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * Stop listening for device announcements. Also discard any announcements which had been received, and
      * notify any registered listeners that those devices have been lost.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             socket.get().close();
@@ -327,13 +335,14 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
+    @API(status = API.Status.STABLE)
     public Set<DeviceAnnouncement> getCurrentDevices() {
         if (!isRunning()) {
             throw new IllegalStateException("DeviceFinder is not active");
         }
         expireDevices();  // Get rid of anything past its sell-by date.
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<>(devices.values()));
+        return Set.copyOf(devices.values());
     }
 
     /**
@@ -346,6 +355,7 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @throws IllegalStateException if the {@code DeviceFinder} is not active
      */
+    @API(status = API.Status.STABLE)
     public DeviceAnnouncement getLatestAnnouncementFrom(int deviceNumber) {
         ensureRunning();
         for (DeviceAnnouncement announcement : getCurrentDevices()) {
@@ -373,6 +383,7 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @param listener the device announcement listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
         if (listener != null) {
             deviceListeners.add(listener);
@@ -397,10 +408,10 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @return the currently registered device announcement listeners
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<>(deviceListeners));
+        return Set.copyOf(deviceListeners);
     }
 
     /**
@@ -447,6 +458,7 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static DeviceFinder getInstance() {
         return ourInstance;
     }

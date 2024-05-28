@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+
 /**
  * <p>The listener interface for receiving updates when a Beat Link component is started or stopped.</p>
  *
@@ -9,21 +11,24 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public interface LifecycleListener {
 
     /**
      * Called when the subsystem has started up.
      *
-     * @param sender the subsystem reporting this event, in case you want to use a single listener to hear from all of
+     * @param sender the subsystem reporting this event, in case you want to use a single listener to hear from all
      *               the components you depend on
      */
+    @API(status = API.Status.STABLE)
     void started(LifecycleParticipant sender);
 
     /**
      * Called when the subsystem has shut down.
      *
-     * @param sender the subsystem reporting this event, in case you want to use a single listener to hear from all of
+     * @param sender the subsystem reporting this event, in case you want to use a single listener to hear from all
      *               the components you depend on
      */
+    @API(status = API.Status.STABLE)
     void stopped(LifecycleParticipant sender);
 }

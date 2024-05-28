@@ -1,25 +1,29 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
+import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz.SongStructureEntry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.awt.*;
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 
-import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
-import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz.SongStructureEntry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * Provides utility functions.
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class Util {
 
     private static final Logger logger = LoggerFactory.getLogger(Util.class);
@@ -35,6 +39,7 @@ public class Util {
      *
      * @return a read-only {@link ByteBuffer} containing the header with which all protocol packets begin.
      */
+    @API(status = API.Status.STABLE)
     public static ByteBuffer getMagicHeader() {
         return ByteBuffer.wrap(MAGIC_HEADER).asReadOnlyBuffer();
     }
@@ -42,6 +47,7 @@ public class Util {
     /**
      * The offset into protocol packets which identify the content of the packet.
      */
+    @API(status = API.Status.STABLE)
     public static final int PACKET_TYPE_OFFSET = 0x0a;
 
     /**
@@ -49,6 +55,7 @@ public class Util {
      * which identify them, and the names by which we describe them, and the port
      * on which they are received.
      */
+    @API(status = API.Status.STABLE)
     public enum PacketType {
 
         /**
@@ -194,16 +201,19 @@ public class Util {
         /**
          * The value that appears in the type byte which identifies this type of packet.
          */
+        @API(status = API.Status.STABLE)
         public final byte protocolValue;
 
         /**
          * The name by which we describe this kind of packet.
          */
+        @API(status = API.Status.STABLE)
         public final String name;
 
         /**
          * The port on which this kind of packet is received.
          */
+        @API(status = API.Status.STABLE)
         public final int port;
 
         /**
@@ -223,6 +233,7 @@ public class Util {
     /**
      * Allows a known packet type to be looked up given the port number it was received on and the packet type byte.
      */
+    @API(status = API.Status.STABLE)
     public static final Map<Integer, Map<Byte, PacketType>> PACKET_TYPE_MAP;
     static {
         Map<Integer, Map<Byte, PacketType>> scratch = new HashMap<>();
@@ -242,6 +253,7 @@ public class Util {
      * @param payload the remaining bytes which come after the device name.
      * @return the packet to send.
      */
+    @API(status = API.Status.STABLE)
     public static DatagramPacket buildPacket(PacketType type, ByteBuffer deviceName, ByteBuffer payload) {
         ByteBuffer content = ByteBuffer.allocate(0x1f + payload.remaining());
         content.put(getMagicHeader());
@@ -261,6 +273,7 @@ public class Util {
      * @param address the overall packet address (taking account the header) of the byte to be set
      * @param value the byte value to store at that packet address
      */
+    @API(status = API.Status.STABLE)
     public static void setPayloadByte(byte[] payload, int address, byte value) {
         payload[address - 0x1f] = value;
     }
@@ -284,6 +297,7 @@ public class Util {
      *
      * @return the type of packet that was recognized, or {@code null} if the packet was not recognized
      */
+    @API(status = API.Status.STABLE)
     public static PacketType validateHeader(DatagramPacket packet, int port) {
         byte[] data = packet.getData();
 
@@ -326,6 +340,7 @@ public class Util {
      *
      * @return the unsigned version of the byte
      */
+    @API(status = API.Status.STABLE)
     public static int unsign(byte b) {
         return b & 0xff;
     }
@@ -338,6 +353,7 @@ public class Util {
      * @param length the number of bytes making up the value
      * @return the reconstructed number
      */
+    @API(status = API.Status.STABLE)
     public static long bytesToNumber(byte[] buffer, int start, int length) {
         long result = 0;
         for (int index = start; index < start + length; index++) {
@@ -353,6 +369,7 @@ public class Util {
      * @param bytes the byte array containing the packet data
      * @return -1 if not found or bytes are empty, otherwise return the index found.
      */
+    @API(status = API.Status.STABLE)
     public static int indexOfByteBuffer(ByteBuffer buf, byte[] bytes) {
         if (bytes.length == 0) {
             return -1;
@@ -378,7 +395,7 @@ public class Util {
      * @param length the number of bytes making up the value
      * @return the reconstructed number
      */
-    @SuppressWarnings("SameParameterValue")
+    @API(status = API.Status.STABLE)
     public static long bytesToNumberLittleEndian(byte[] buffer, int start, int length) {
         long result = 0;
         for (int index = start + length - 1; index >= start; index--) {
@@ -396,6 +413,7 @@ public class Util {
      * @param start where the high-order byte should be written
      * @param length how many bytes of the number should be written
      */
+    @API(status = API.Status.STABLE)
     public static void numberToBytes(int number, byte[] buffer, int start, int length) {
         for (int index = start + length - 1; index >= start; index--) {
             buffer[index] = (byte)(number & 0xff);
@@ -411,6 +429,7 @@ public class Util {
      *
      * @return the integer corresponding to that address
      */
+    @API(status = API.Status.STABLE)
     public static long addressToLong(InetAddress address) {
         long result = 0;
         for (byte element : address.getAddress()) {
@@ -428,6 +447,7 @@ public class Util {
      *
      * @return true if both addresses share the same network bits
      */
+    @API(status = API.Status.STABLE)
     public static boolean sameNetwork(int prefixLength, InetAddress address1, InetAddress address2) {
         if (logger.isDebugEnabled()) {
             logger.debug("Comparing address {} with {}, prefixLength={}", address1.getHostAddress(), address2.getHostAddress(), prefixLength);
@@ -439,6 +459,7 @@ public class Util {
     /**
      * The value sent in beat and status packets to represent playback at normal speed.
      */
+    @API(status = API.Status.STABLE)
     public static final long NEUTRAL_PITCH = 1048576;
 
     /**
@@ -448,6 +469,7 @@ public class Util {
      * @param pitch the reported device pitch
      * @return the pitch as a percentage
      */
+    @API(status = API.Status.STABLE)
     public static double pitchToPercentage(long pitch) {
         return (pitch - NEUTRAL_PITCH) / (NEUTRAL_PITCH / 100.0);
     }
@@ -459,6 +481,7 @@ public class Util {
      * @param percentage the pitch as a percentage
      * @return the value that would represent that pitch in a beat or CDJ status packet
      */
+    @API(status = API.Status.STABLE)
     public static long percentageToPitch(double percentage) {
         return (Math.round(percentage * NEUTRAL_PITCH / 100.0) + NEUTRAL_PITCH);
     }
@@ -470,6 +493,7 @@ public class Util {
      * @param pitch the reported device pitch
      * @return the implied pitch multiplier
      */
+    @API(status = API.Status.STABLE)
     public static double pitchToMultiplier(long pitch) {
         return pitch / (double) NEUTRAL_PITCH;
     }
@@ -483,6 +507,7 @@ public class Util {
      *
      * @throws IOException if there is a problem writing to the channel
      */
+    @API(status = API.Status.STABLE)
     public static void writeFully(ByteBuffer buffer, WritableByteChannel channel) throws IOException {
         while (buffer.hasRemaining()) {
             channel.write(buffer);
@@ -496,6 +521,7 @@ public class Util {
      *
      * @return the number of milliseconds into a track that the specified half-frame begins
      */
+    @API(status = API.Status.STABLE)
     public static long halfFrameToTime(long halfFrame) {
         return halfFrame * 100 / 15;
     }
@@ -507,6 +533,7 @@ public class Util {
      *
      * @return the half-frame that contains that part of the track
      */
+    @API(status = API.Status.STABLE)
     public static int timeToHalfFrame(long milliseconds) {
         return (int) (milliseconds * 15 / 100);
     }
@@ -518,6 +545,7 @@ public class Util {
      *
      * @return the nearest half-frame that contains that part of the track
      */
+    @API(status = API.Status.STABLE)
     public static int timeToHalfFrameRounded(long milliseconds) {
         return Math.round(milliseconds * 0.15f);
     }
@@ -548,6 +576,7 @@ public class Util {
      * @param name uniquely identifies some resource to which exclusive access is needed
      * @return an object that can be used with a {@code synchronized} block to guarantee exclusive access to the resource
      */
+    @API(status = API.Status.STABLE)
     public synchronized static Object allocateNamedLock(String name) {
         Object result = namedLocks.get(name);
         if (result != null) {
@@ -566,6 +595,7 @@ public class Util {
      *
      * @param name uniquely identifies some resource to which exclusive access was previously needed
      */
+    @API(status = API.Status.STABLE)
     public synchronized static void freeNamedLock(String name) {
         int count = namedLockUseCounts.get(name);
         if (count > 1) {
@@ -584,6 +614,7 @@ public class Util {
      *
      * @return a color with hue components from hueColor and alpha from alphaColor
      */
+    @API(status = API.Status.STABLE)
     public static Color buildColor(Color hueColor, Color alphaColor) {
         return new Color(hueColor.getRed(), hueColor.getGreen(), hueColor.getBlue(), alphaColor.getAlpha());
     }
@@ -591,133 +622,159 @@ public class Util {
     /**
      * The color of an intro phrase in a track with a low mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color LOW_INTRO_COLOR = new Color(255, 170, 180);
 
     /**
      * The color of a verse 1 phrase in a track with a low mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color LOW_VERSE_1_COLOR = new Color(165, 160, 255);
 
     /**
      * The color of a verse 2 phrase in a track with a low mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color LOW_VERSE_2_COLOR = new Color(190, 160, 255);
 
     /**
      * The color of a bridge phrase in a track with a low mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color LOW_BRIDGE_COLOR = new Color(255, 250, 165);
 
     /**
      * The color of a chorus phrase in a track with a low mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color LOW_CHORUS_COLOR = new Color(185, 225, 185);
 
     /**
      * The color of an outro phrase in a track with a low mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color LOW_OUTRO_COLOR = new Color(145, 160, 180);
 
 
     /**
      * The color of an intro phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_INTRO_COLOR = new Color(225, 70, 70);
 
     /**
      * The color of a verse 1 phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_VERSE_1_COLOR = new Color(80, 110, 255);
 
     /**
      * The color of a verse 2 phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_VERSE_2_COLOR = new Color(80, 85, 255);
 
     /**
      * The color of a verse 3 phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_VERSE_3_COLOR = new Color(100, 80, 255);
 
     /**
      * The color of a verse 4 phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_VERSE_4_COLOR = new Color(120, 80, 255);
 
     /**
      * The color of a verse 5 phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_VERSE_5_COLOR = new Color(140, 80, 255);
 
     /**
      * The color of a verse 6 phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_VERSE_6_COLOR = new Color(160, 80, 255);
 
     /**
      * The color of a bridge phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_BRIDGE_COLOR = new Color(225, 215, 65);
 
     /**
      * The color of a chorus phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_CHORUS_COLOR = new Color(120, 195, 125);
 
     /**
      * The color of an outro phrase in a track with a mid mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color MID_OUTRO_COLOR = new Color(115, 130, 150);
 
 
     /**
      * The color of an intro 1 phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_INTRO_1_COLOR = new Color(200, 0, 0);
 
     /**
      * The color of an intro 2 phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_INTRO_2_COLOR = new Color(200, 50, 0);
 
     /**
      * The color of an up 1 phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_UP_1_COLOR = new Color(140, 50, 255);
 
     /**
      * The color of an up 2 phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_UP_2_COLOR = new Color(105, 50, 255);
 
     /**
      * The color of an up 3 phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_UP_3_COLOR = new Color(90, 50, 255);
 
     /**
      * The color of a down phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_DOWN_COLOR = new Color(155, 115, 45);
 
     /**
      * The color of a chorus 1 phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_CHORUS_1_COLOR = new Color(15, 170, 0);
 
     /**
      * The color of a chorus 2 phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_CHORUS_2_COLOR = new Color(15, 170, 0);
 
     /**
      * The color of an outro 1 phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_OUTRO_1_COLOR = new Color(80, 135, 195);
 
     /**
      * The color of an outro 2 phrase in a track with a high mood.
      */
+    @API(status = API.Status.STABLE)
     public static final Color HIGH_OUTRO_2_COLOR = new Color(95, 135, 175);
 
 
@@ -728,6 +785,7 @@ public class Util {
      *
      * @return the color with which to paint the box that identifies the phrase
      */
+    @API(status = API.Status.STABLE)
     public static Color phraseColor(final SongStructureEntry phrase) {
 
         switch (phrase._parent().mood()) {
@@ -844,6 +902,7 @@ public class Util {
      *
      * @return the color that should be used for painting the label
      */
+    @API(status = API.Status.STABLE)
     public static Color phraseTextColor(final SongStructureEntry phrase) {
         if (phrase._parent().mood() == RekordboxAnlz.TrackMood.HIGH) {
             return Color.white;
@@ -858,6 +917,7 @@ public class Util {
      *
      * @return the color with which to paint the box that identifies the phrase
      */
+    @API(status = API.Status.STABLE)
     public static String phraseLabel(final SongStructureEntry phrase) {
 
         switch (phrase._parent().mood()) {
@@ -975,6 +1035,7 @@ public class Util {
      * @param networkInterface the network interface we are testing
      * @return the address which can be used to communicate with the device on the interface, or null
      */
+    @API(status = API.Status.STABLE)
     public static InterfaceAddress findMatchingAddress(DeviceAnnouncement announcement, NetworkInterface networkInterface) {
         for (InterfaceAddress address : networkInterface.getInterfaceAddresses()) {
             if (address == null) {
@@ -996,6 +1057,7 @@ public class Util {
      * @param artPath standard resolution album art path
      * @return path at which high resolution art might be found
      */
+    @API(status = API.Status.STABLE)
     public static String highResolutionPath(String artPath) {
         return artPath.replaceFirst("(\\.\\w+$)", "_m$1");
     }
@@ -1007,6 +1069,7 @@ public class Util {
      * @param reportedPlayerNumber the device number actually reported by the Opus Quad in the range 9-12
      * @return the logical value in the range 1-4 corresponding to the deck label
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public static int translateOpusPlayerNumbers(int reportedPlayerNumber) {
         return reportedPlayerNumber & 7;
     }

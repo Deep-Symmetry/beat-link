@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+
 /**
  * The listener interface for receiving beat announcements. Classes that are interested in knowing when DJ Link
  * devices report beats can implement this interface. The listener object created from that class is
@@ -8,6 +10,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public interface BeatListener {
 
     /**
@@ -15,22 +18,21 @@ public interface BeatListener {
      * far less detailed information than status updates, they can be passed to
      * {@link VirtualCdj#getLatestStatusFor(DeviceUpdate)} to find the current detailed status for that device,
      * as long as the Virtual CDJ is active. Also, if the {@link org.deepsymmetry.beatlink.data.TimeFinder} is
-     * running, it will have been informed of the beat before any other beat lsteners, so you can use its
+     * running, it will have been informed of the beat before any other beat listeners, so you can use its
      * {@link org.deepsymmetry.beatlink.data.TimeFinder#getTimeFor(DeviceUpdate)} method to find out the
      * actual beat number even though it is not part of the packet itself.</p>
      *
      * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in this method, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in this method
+     * <p>Even if you are not interacting with user interface objects, any code in this method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and beat announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param beat the message which announced the start of the new beat
      */
-    @SuppressWarnings("EmptyMethod")
+    @API(status = API.Status.STABLE)
     void newBeat(Beat beat);
-
 }

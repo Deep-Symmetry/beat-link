@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+
 /**
  * The listener interface for receiving device announcements. Classes that are interested in knowing when DJ Link
  * devices are discovered or drop off the network can either implement this interface (and all the methods it contains)
@@ -11,7 +13,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface DeviceAnnouncementListener {
 
     /**
@@ -24,7 +26,7 @@ public interface DeviceAnnouncementListener {
      *
      * @param announcement the message which announced the device's presence
      */
-    @SuppressWarnings("UnusedReturnValue")
+    @API(status = API.Status.STABLE)
     void deviceFound(DeviceAnnouncement announcement);
 
     /**
@@ -37,6 +39,6 @@ public interface DeviceAnnouncementListener {
      *
      * @param announcement the last message which was sent by the device before it disappeared
      */
-    @SuppressWarnings("UnusedReturnValue")
+    @API(status = API.Status.STABLE)
     void deviceLost(DeviceAnnouncement announcement);
 }

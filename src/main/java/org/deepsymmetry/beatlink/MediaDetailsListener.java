@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.deepsymmetry.beatlink.data.SlotReference;
 
@@ -15,6 +16,7 @@ import org.deepsymmetry.beatlink.data.SlotReference;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public interface MediaDetailsListener {
 
     /**
@@ -23,14 +25,15 @@ public interface MediaDetailsListener {
      * <p>To reduce latency, detail announcements are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in this method, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
-     * to do so on the Event Dispatch Thread.
+     * to do so on the Event Dispatch Thread.</p>
      *
-     * Even if you are not interacting with user interface objects, any code in this method
+     * <p>Even if you are not interacting with user interface objects, any code in this method
      * <em>must</em> finish quickly, or it will add latency for other listeners, and detail announcements will back up.
      * If you want to perform lengthy processing of any sort, do so on another thread.</p>
      *
      * @param details the information describing the media mounted in a player slot
      */
+    @API(status = API.Status.STABLE)
     void detailsAvailable(MediaDetails details);
 
 }

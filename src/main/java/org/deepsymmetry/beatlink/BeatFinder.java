@@ -1,5 +1,10 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+import org.deepsymmetry.beatlink.data.TimeFinder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -7,10 +12,6 @@ import java.net.SocketException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.deepsymmetry.beatlink.data.TimeFinder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * <p>Watches for devices to report new beats by broadcasting beat packets on port 50001,
@@ -34,7 +35,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class BeatFinder extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(BeatFinder.class);
@@ -42,18 +43,20 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * The port to which devices broadcast beat messages.
      */
+    @API(status = API.Status.STABLE)
     public static final int BEAT_PORT = 50001;
 
     /**
      * The socket used to listen for beat packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>(null);
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<>(null);
 
     /**
      * Check whether we are presently listening for beat packets.
      *
      * @return {@code true} if our socket is open and monitoring for DJ Link beat packets on the network
      */
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return socket.get() != null;
     }
@@ -62,7 +65,7 @@ public class BeatFinder extends LifecycleParticipant {
      * Keeps track of the warnings we have already issued for packets of a given type with a given unexpected size,
      * so we only issue them once.
      */
-    private static final Map<String, Set<Integer>> sizeWarningsIssued = new HashMap<String, Set<Integer>>();
+    private static final Map<String, Set<Integer>> sizeWarningsIssued = new HashMap<>();
 
     /**
      * Checks whether this is the first time we have seen a particular bad size for a given packet type, and returns
@@ -77,7 +80,7 @@ public class BeatFinder extends LifecycleParticipant {
     private static synchronized boolean shouldWarn(String packetName, int unexpectedLength) {
         Set<Integer> sizeSet = sizeWarningsIssued.get(packetName);
         if (sizeSet == null) { // This is the first time we have seen this packet at all.
-            sizeSet = new HashSet<Integer>();
+            sizeSet = new HashSet<>();
             sizeSet.add(unexpectedLength);
             sizeWarningsIssued.put(packetName, sizeSet);
             return true;
@@ -101,14 +104,12 @@ public class BeatFinder extends LifecycleParticipant {
     private boolean isPacketLongEnough(DatagramPacket packet, int expectedLength, String name) {
         final int length = packet.getLength();
         if (length < expectedLength && shouldWarn(name, length)) {
-            logger.warn("Ignoring too-short " + name + " packet; expecting " + expectedLength + " bytes and got " +
-                    length + ".");
+            logger.warn("Ignoring too-short {} packet; expecting {} bytes and got {}.", name, expectedLength, length);
             return false;
         }
 
         if (length > expectedLength && shouldWarn(name, length)) {
-            logger.warn("Processing too-long " + name + " packet; expecting " + expectedLength +
-                    " bytes and got " + length + ".");
+            logger.warn("Processing too-long {} packet; expecting {} bytes and got {}.", name, expectedLength, length);
         }
 
         return true;
@@ -119,127 +120,110 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @throws SocketException if the socket to listen on port 50001 cannot be created
      */
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws SocketException {
         if (!isRunning()) {
             socket.set(new DatagramSocket(BEAT_PORT));
             deliverLifecycleAnnouncement(logger, true);
             final byte[] buffer = new byte[512];
             final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            Thread receiver = new Thread(null, new Runnable() {
-                @Override
-                public void run() {
-                    boolean received;
-                    while (isRunning()) {
-                        try {
-                            socket.get().receive(packet);
-                            received = !DeviceFinder.getInstance().isAddressIgnored(packet.getAddress());
-                        } catch (IOException e) {
-                            // Don't log a warning if the exception was due to the socket closing at shutdown.
-                            if (isRunning()) {
-                                // We did not expect to have a problem; log a warning and shut down.
-                                logger.warn("Problem reading from beat/sync socket, stopping", e);
-                                stop();
-                            }
-                            received = false;
+            Thread receiver = new Thread(null, () -> {
+                boolean received;
+                while (isRunning()) {
+                    try {
+                        socket.get().receive(packet);
+                        received = !DeviceFinder.getInstance().isAddressIgnored(packet.getAddress());
+                    } catch (IOException e) {
+                        // Don't log a warning if the exception was due to the socket closing at shutdown.
+                        if (isRunning()) {
+                            // We did not expect to have a problem; log a warning and shut down.
+                            logger.warn("Problem reading from beat/sync socket, stopping", e);
+                            stop();
                         }
-                        try {
-                            if (received) {
-                                final Util.PacketType kind = Util.validateHeader(packet,  BEAT_PORT);
-                                if (kind != null) {
-                                    switch (kind) {
+                        received = false;
+                    }
+                    try {
+                        if (received) {
+                            final Util.PacketType kind = Util.validateHeader(packet,  BEAT_PORT);
+                            if (kind != null) {
+                                switch (kind) {
 
-                                        case BEAT:
-                                            if (isPacketLongEnough(packet, 96, "beat")) {
-                                                deliverBeat(new Beat(packet));
-                                            }
-                                            break;
+                                    case BEAT:
+                                        if (isPacketLongEnough(packet, 96, "beat")) {
+                                            deliverBeat(new Beat(packet));
+                                        }
+                                        break;
 
-                                        case PRECISE_POSITION:
-                                            if (isPacketLongEnough(packet, 60, "precise position")) {
-                                                deliverPrecisePosition(new PrecisePosition(packet));
-                                            }
-                                            break;
+                                    case PRECISE_POSITION:
+                                        if (isPacketLongEnough(packet, 60, "precise position")) {
+                                            deliverPrecisePosition(new PrecisePosition(packet));
+                                        }
+                                        break;
 
-                                        case CHANNELS_ON_AIR:
-                                            if (packet.getLength() == 0x35 ||  // New DJM-V10 packet with six channels
-                                                    isPacketLongEnough(packet, 0x2d, "channels on-air")) {
-                                                byte[] data = packet.getData();
-                                                Set<Integer> audibleChannels = new TreeSet<Integer>();
-                                                for (int channel = 1; channel <= 4; channel++) {
-                                                    if (data[0x23 + channel] != 0) {
-                                                        audibleChannels.add(channel);
-                                                    }
+                                    case CHANNELS_ON_AIR:
+                                        if (packet.getLength() == 0x35 ||  // New DJM-V10 packet with six channels
+                                                isPacketLongEnough(packet, 0x2d, "channels on-air")) {
+                                            final Set<Integer> audibleChannels = getAudibleChannels(packet);
+                                            deliverOnAirUpdate(audibleChannels);
+                                        }
+                                        break;
+
+                                    case SYNC_CONTROL:
+                                        if (isPacketLongEnough(packet, 0x2c, "sync control command")) {
+                                            deliverSyncCommand(packet.getData()[0x2b]);
+                                        }
+                                        break;
+
+                                    case MASTER_HANDOFF_REQUEST:
+                                        if (isPacketLongEnough(packet, 0x28, "tempo master handoff request")) {
+                                            deliverMasterYieldCommand(packet.getData()[0x21]);
+                                        }
+                                        break;
+
+                                    case MASTER_HANDOFF_RESPONSE:
+                                        if (isPacketLongEnough(packet, 0x2c, "tempo master handoff response")) {
+                                            byte[] data = packet.getData();
+                                            deliverMasterYieldResponse(data[0x21], data[0x2b] == 1);
+                                        }
+                                        break;
+
+                                    case FADER_START_COMMAND:
+                                        if (isPacketLongEnough(packet, 0x28, "fader start command")) {
+                                            byte[] data = packet.getData();
+                                            Set<Integer> playersToStart = new TreeSet<>();
+                                            Set<Integer> playersToStop = new TreeSet<>();
+                                            for (int channel = 1; channel <= 4; channel++) {
+                                                switch (data[0x23 + channel]) {
+
+                                                    case 0:
+                                                        playersToStart.add(channel);
+                                                        break;
+
+                                                    case 1:
+                                                        playersToStop.add(channel);
+                                                        break;
+
+                                                    case 2:
+                                                        // Leave this player alone
+                                                        break;
+
+                                                    default:
+                                                        logger.warn("Ignoring unrecognized fader start command, {}, for channel {}", data[0x23 + channel], channel);
                                                 }
-                                                if (packet.getLength() >= 0x35) {
-                                                    for (int channel = 5; channel <= 6; channel++) {
-                                                        if (data[0x28 + channel] != 0) {
-                                                            audibleChannels.add(channel);
-                                                        }
-                                                    }
-                                                }
-                                                audibleChannels = Collections.unmodifiableSet(audibleChannels);
-                                                deliverOnAirUpdate(audibleChannels);
                                             }
-                                            break;
+                                            playersToStart = Collections.unmodifiableSet(playersToStart);
+                                            playersToStop = Collections.unmodifiableSet(playersToStop);
+                                            deliverFaderStartCommand(playersToStart, playersToStop);
+                                        }
+                                        break;
 
-                                        case SYNC_CONTROL:
-                                            if (isPacketLongEnough(packet, 0x2c, "sync control command")) {
-                                                deliverSyncCommand(packet.getData()[0x2b]);
-                                            }
-                                            break;
-
-                                        case MASTER_HANDOFF_REQUEST:
-                                            if (isPacketLongEnough(packet, 0x28, "tempo master handoff request")) {
-                                                deliverMasterYieldCommand(packet.getData()[0x21]);
-                                            }
-                                            break;
-
-                                        case MASTER_HANDOFF_RESPONSE:
-                                            if (isPacketLongEnough(packet, 0x2c, "tempo master handoff response")) {
-                                                byte[] data = packet.getData();
-                                                deliverMasterYieldResponse(data[0x21], data[0x2b] == 1);
-                                            }
-                                            break;
-
-                                        case FADER_START_COMMAND:
-                                            if (isPacketLongEnough(packet, 0x28, "fader start command")) {
-                                                byte[] data = packet.getData();
-                                                Set<Integer> playersToStart = new TreeSet<Integer>();
-                                                Set<Integer> playersToStop = new TreeSet<Integer>();
-                                                for (int channel = 1; channel <= 4; channel++) {
-                                                    switch (data[0x23 + channel]) {
-
-                                                        case 0:
-                                                            playersToStart.add(channel);
-                                                            break;
-
-                                                        case 1:
-                                                            playersToStop.add(channel);
-                                                            break;
-
-                                                        case 2:
-                                                            // Leave this player alone
-                                                            break;
-
-                                                        default:
-                                                            logger.warn("Ignoring unrecognized fader start command, " +
-                                                                    data[0x23 + channel] + ", for channel " + channel);
-                                                    }
-                                                }
-                                                playersToStart = Collections.unmodifiableSet(playersToStart);
-                                                playersToStop = Collections.unmodifiableSet(playersToStop);
-                                                deliverFaderStartCommand(playersToStart, playersToStop);
-                                            }
-                                            break;
-
-                                        default:
-                                            logger.warn("Ignoring packet received on beat port with unexpected type: " + kind);
-                                    }
+                                    default:
+                                        logger.warn("Ignoring packet received on beat port with unexpected type: {}", kind);
                                 }
                             }
-                        } catch (Throwable t) {
-                            logger.warn("Problem processing beat packet", t);
                         }
+                    } catch (Throwable t) {
+                        logger.warn("Problem processing beat packet", t);
                     }
                 }
             }, "beat-link BeatFinder receiver");
@@ -250,8 +234,34 @@ public class BeatFinder extends LifecycleParticipant {
     }
 
     /**
+     * Finds the channel numbers that are marked as being on-air in a Channels On-Air packet.
+     *
+     * @param packet the packet we received
+     * @return the channels it reports as being on-air
+     */
+    private static Set<Integer> getAudibleChannels(DatagramPacket packet) {
+        byte[] data = packet.getData();
+        Set<Integer> audibleChannels = new TreeSet<>();
+        for (int channel = 1; channel <= 4; channel++) {
+            if (data[0x23 + channel] != 0) {
+                audibleChannels.add(channel);
+            }
+        }
+        if (packet.getLength() >= 0x35) {
+            for (int channel = 5; channel <= 6; channel++) {
+                if (data[0x28 + channel] != 0) {
+                    audibleChannels.add(channel);
+                }
+            }
+        }
+        audibleChannels = Collections.unmodifiableSet(audibleChannels);
+        return audibleChannels;
+    }
+
+    /**
      * Stop listening for beats.
      */
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             socket.get().close();
@@ -263,14 +273,14 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the TimeFinder's beat listener when it is registered, so we can call it first.
      */
-    private final AtomicReference<BeatListener> timeFinderBeatListener = new AtomicReference<BeatListener>();
+    private final AtomicReference<BeatListener> timeFinderBeatListener = new AtomicReference<>();
 
 
     /**
      * Keeps track of the registered beat listeners, except the TimeFinder's.
      */
     private final Set<BeatListener> beatListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<BeatListener, Boolean>());
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified beat listener to receive beat announcements when DJ Link devices broadcast
@@ -288,6 +298,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the beat listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addBeatListener(BeatListener listener) {
         if (TimeFinder.getInstance().isOwnBeatListener(listener)) {
             timeFinderBeatListener.set(listener);
@@ -303,6 +314,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the beat listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeBeatListener(BeatListener listener) {
         if (TimeFinder.getInstance().isOwnBeatListener(listener)) {
             timeFinderBeatListener.set(null);
@@ -316,9 +328,10 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @return the currently registered beat listeners
      */
+    @API(status = API.Status.STABLE)
     public Set<BeatListener> getBeatListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        final Set<BeatListener> result = new HashSet<BeatListener>(beatListeners);
+        final Set<BeatListener> result = new HashSet<>(beatListeners);
         final BeatListener timeFinderListener = timeFinderBeatListener.get();
         if (timeFinderListener != null) {
             result.add(timeFinderListener);
@@ -342,7 +355,7 @@ public class BeatFinder extends LifecycleParticipant {
                 logger.warn("Problem delivering beat announcement to TimeFinder listener", t);
             }
         }
-        for (final BeatListener listener : new LinkedList<BeatListener>(beatListeners)) {
+        for (final BeatListener listener : new LinkedList<>(beatListeners)) {
             try {
                 listener.newBeat(beat);
             } catch (Throwable t) {
@@ -354,8 +367,7 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered precise position listeners.
      */
-    private final Set<PrecisePositionListener> precisePositionListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<PrecisePositionListener, Boolean>());
+    private final Set<PrecisePositionListener> precisePositionListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified precise position listener to receive precise position updates when DJ Link devices send
@@ -374,6 +386,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the precise position listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addPrecisePositionListener(PrecisePositionListener listener) {
         if (listener != null) {
             precisePositionListeners.add(listener);
@@ -387,6 +400,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the precise position listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removePrecisePositionListener(PrecisePositionListener listener) {
         if (listener != null) {
             precisePositionListeners.remove(listener);
@@ -398,9 +412,10 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @return the currently registered precise position listeners
      */
+    @API(status = API.Status.STABLE)
     public Set<PrecisePositionListener> getPrecisePositionListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<PrecisePositionListener>(precisePositionListeners));
+        return Set.copyOf(precisePositionListeners);
     }
 
     /**
@@ -421,8 +436,7 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered sync command listeners.
      */
-    private final Set<SyncListener> syncListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<SyncListener, Boolean>());
+    private final Set<SyncListener> syncListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified sync command listener to receive sync commands when DJ Link devices send
@@ -440,6 +454,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the sync listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addSyncListener(SyncListener listener) {
         if (listener != null) {
             syncListeners.add(listener);
@@ -453,6 +468,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the sync listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeSyncListener(SyncListener listener) {
         if (listener != null) {
             syncListeners.remove(listener);
@@ -464,9 +480,10 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @return the currently registered sync listeners
      */
+    @API(status = API.Status.STABLE)
     public Set<SyncListener> getSyncListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<SyncListener>(syncListeners));
+        return Set.copyOf(syncListeners);
     }
 
     /**
@@ -500,8 +517,7 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered master  handoff command listeners.
      */
-    private final Set<MasterHandoffListener> masterHandoffListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<MasterHandoffListener, Boolean>());
+    private final Set<MasterHandoffListener> masterHandoffListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified master handoff listener to receive tempo master handoff commands when DJ Link devices send
@@ -519,6 +535,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the tempo master handoff listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addMasterHandoffListener(MasterHandoffListener listener) {
         if (listener != null) {
             masterHandoffListeners.add(listener);
@@ -532,6 +549,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the tempo master handoff listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeMasterHandoffListener(MasterHandoffListener listener) {
         if (listener != null) {
             masterHandoffListeners.remove(listener);
@@ -543,9 +561,10 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @return the currently registered tempo master handoff command listeners
      */
+    @API(status = API.Status.STABLE)
     public Set<MasterHandoffListener> getMasterHandoffListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<MasterHandoffListener>(masterHandoffListeners));
+        return Set.copyOf(masterHandoffListeners);
     }
 
     /**
@@ -582,8 +601,7 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered on-air listeners.
      */
-    private final Set<OnAirListener> onAirListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<OnAirListener, Boolean>());
+    private final Set<OnAirListener> onAirListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified on-air listener to receive channel on-air updates when the mixer broadcasts
@@ -601,6 +619,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the on-air listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addOnAirListener(OnAirListener listener) {
         if (listener != null) {
             onAirListeners.add(listener);
@@ -614,6 +633,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the on-air listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeOnAirListener(OnAirListener listener) {
         if (listener != null) {
             onAirListeners.remove(listener);
@@ -625,9 +645,10 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @return the currently registered on-air listeners
      */
+    @API(status = API.Status.STABLE)
     public Set<OnAirListener> getOnAirListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<OnAirListener>(onAirListeners));
+        return Set.copyOf(onAirListeners);
     }
 
     /**
@@ -648,8 +669,7 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered fader start listeners.
      */
-    private final Set<FaderStartListener> faderStartListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<FaderStartListener, Boolean>());
+    private final Set<FaderStartListener> faderStartListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified fader start listener to receive fader start commands when the mixer broadcasts
@@ -667,6 +687,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the fader start listener to add
      */
+    @API(status = API.Status.STABLE)
     public void addFaderStartListener(FaderStartListener listener) {
         if (listener != null) {
             faderStartListeners.add(listener);
@@ -680,6 +701,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @param listener the fader start listener to remove
      */
+    @API(status = API.Status.STABLE)
     public void removeFaderStartListener(FaderStartListener listener) {
         if (listener != null) {
             faderStartListeners.remove(listener);
@@ -691,9 +713,10 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @return the currently registered fader start listeners
      */
+    @API(status = API.Status.STABLE)
     public Set<FaderStartListener> getFaderStartListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<FaderStartListener>(faderStartListeners));
+        return Set.copyOf(faderStartListeners);
     }
 
     /**
@@ -722,6 +745,7 @@ public class BeatFinder extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static BeatFinder getInstance() {
         return ourInstance;
     }

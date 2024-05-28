@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+
 /**
  * The listener interface for receiving precise position announcements. Classes that are interested in knowing
  * when DJ Link devices (at the time of writing, only CDJ-3000s) report their precise position can implement this
@@ -9,6 +11,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public interface PrecisePositionListener {
 
     /**
@@ -27,5 +30,6 @@ public interface PrecisePositionListener {
      *
      * @param position the message containing precise position information for a player
      */
+    @API(status = API.Status.STABLE)
     void positionReported(PrecisePosition position);
 }

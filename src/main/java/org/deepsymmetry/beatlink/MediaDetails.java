@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.ColorItem;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
@@ -15,7 +16,7 @@ import java.util.*;
 /**
  * Represents information about the media mounted in a player's slot; returned in response to a media query packet.
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public class MediaDetails {
 
     private static final Logger logger = LoggerFactory.getLogger(MediaDetails.class);
@@ -23,52 +24,62 @@ public class MediaDetails {
     /**
      * The player and slot in which this media resides.
      */
+    @API(status = API.Status.STABLE)
     public final SlotReference slotReference;
 
     /**
      * The type of tracks stored in this media.
      */
+    @API(status = API.Status.STABLE)
     public final CdjStatus.TrackType mediaType;
 
     /**
      * The name assigned to the media within rekordbox.
      */
+    @API(status = API.Status.STABLE)
     public final String name;
 
     /**
      * The creation date of the media.
      */
+    @API(status = API.Status.STABLE)
     public final String creationDate;
 
     /**
      * The number of rekordbox tracks in the media database. Will be zero if {@link #mediaType} is not rekordbox.
      */
+    @API(status = API.Status.STABLE)
     public final int trackCount;
 
     /**
      * The number of rekordbox playlists in the media database. Will be zero if {@link #mediaType} is not rekordbox.
      */
+    @API(status = API.Status.STABLE)
     public final int playlistCount;
 
     /**
      * The color tint that should be applied to the user interface when a player mounts this media.
      */
+    @API(status = API.Status.STABLE)
     public final Color color;
 
     /**
      * Indicates that the DJ has stored device setting preferences on the media, so the player should display
      * an alert showing how to apply them when at the root menu.
      */
+    @API(status = API.Status.STABLE)
     public final boolean hasMySettings;
 
     /**
      * The size of the storage space, in bytes.
      */
+    @API(status = API.Status.STABLE)
     public final long totalSize;
 
     /**
      * The amount of storage remaining, in bytes.
      */
+    @API(status = API.Status.STABLE)
     public final long freeSpace;
 
     /**
@@ -81,14 +92,15 @@ public class MediaDetails {
      *
      * @return the bytes that make up the media details
      */
+    @API(status = API.Status.STABLE)
     public ByteBuffer getRawBytes() {
         rawBytes.rewind();
         return rawBytes.slice();
     }
 
     /**
-     * Contains the sizes we expect Media response packets to have so we can log a warning if we get an unusual
-     * one. We will then add the new size to the list so it only gets logged once per run.
+     * Contains the sizes we expect Media response packets to have, so we can log a warning if we get an unusual
+     * one. We will then add the new size to the list, so it only gets logged once per run.
      */
     private static final Set<Integer> expectedMediaPacketSizes = new HashSet<>(Collections.singletonList(0xc0));
 
@@ -96,6 +108,7 @@ public class MediaDetails {
      * The smallest packet size from which we can be constructed. Anything less than this and we are missing
      * crucial information.
      */
+    @API(status = API.Status.STABLE)
     public static final int MINIMUM_PACKET_SIZE = 0xc0;
 
     /**
@@ -131,6 +144,7 @@ public class MediaDetails {
      * @param playlistCount How many playlists are present in the media
      * @param lastModified  When the media was last changed
      */
+    @API(status = API.Status.STABLE)
     public MediaDetails(SlotReference slotReference, CdjStatus.TrackType mediaType, String name,
                  int trackCount, int playlistCount, long lastModified) {
         if (!OpusProvider.getInstance().isRunning()) {
@@ -164,6 +178,7 @@ public class MediaDetails {
      * @param packet       the media response packet that was received or cached
      * @param packetLength the number of bytes within the packet which were actually received
      */
+    @API(status = API.Status.STABLE)
     public MediaDetails(byte[] packet, int packetLength) {
         byte[] packetCopy = new byte[packetLength];  // Make a defensive copy
         System.arraycopy(packet, 0, packetCopy, 0, packetLength);
@@ -176,12 +191,12 @@ public class MediaDetails {
 
         final int payloadLength = (int) Util.bytesToNumber(packetCopy, 0x22, 2);
         if (packetCopy.length != payloadLength + 0x24) {
-            logger.warn("Received Media response packet with reported payload length of " + payloadLength + " and actual payload length of " +
-                    (packetCopy.length - 0x24));
+            logger.warn("Received Media response packet with reported payload length of {} and actual payload length of {}",
+                    payloadLength, packetCopy.length - 0x24);
         }
 
         if (!expectedMediaPacketSizes.contains(packetCopy.length)) {
-            logger.warn("Processing Media response packets with unexpected lengths " + packetCopy.length + ".");
+            logger.warn("Processing Media response packets with unexpected lengths {}.", packetCopy.length);
             expectedMediaPacketSizes.add(packetCopy.length);
         }
 
@@ -230,6 +245,7 @@ public class MediaDetails {
      *
      * @return a colon-delimited string made up of the creation date, media type, total size, and name
      */
+    @API(status = API.Status.STABLE)
     public String hashKey() {
         return creationDate + ":" + mediaType + ":" + totalSize + ":" + name;
     }
@@ -242,6 +258,7 @@ public class MediaDetails {
      * @return true if there have been detectable significant  changes to the media since it was saved
      * @throws IllegalArgumentException if the {@link #hashKey()} values of the media detail objects differ
      */
+    @API(status = API.Status.STABLE)
     public boolean hasChanged(MediaDetails originalMedia) {
         if (!hashKey().equals(originalMedia.hashKey())) {
             throw new IllegalArgumentException("Can't compare media details with different hashKey values");

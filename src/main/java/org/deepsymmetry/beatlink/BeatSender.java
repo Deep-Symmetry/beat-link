@@ -28,15 +28,10 @@ class BeatSender {
     private final Thread thread;
 
     /**
-     * Holds the metronome that allows us to determine when beat packets are due.
-     */
-    private final Metronome metronome;
-
-    /**
      * Holds the beat, if any, that we just sent, so we know not to send it again if for some reason the thread
      * gets awakened near the start of the same beat.
      */
-    private final AtomicReference<Long> lastBeatSent = new AtomicReference<Long>();
+    private final AtomicReference<Long> lastBeatSent = new AtomicReference<>();
 
     /**
      * How far into a beat can we find ourselves, in milliseconds, and still consider it timely to send the beat packet
@@ -45,58 +40,11 @@ class BeatSender {
     public static final long BEAT_THRESHOLD = 10;
 
     /**
-     * If we are this close to the next beat, we will busy-wait rather than sleeping so we can send it at a more
+     * If we are this close to the next beat, we will busy-wait rather than sleeping, so we can send it at a more
      * accurate time. We will also aim our sleep to land this far before the next beat, to try and absorb threading
      * jitter.
      */
     public static final int SLEEP_THRESHOLD = 5;
-
-    /**
-     * The loop that is run by the beat sender thread, sending beats at appropriate intervals.
-     */
-    @SuppressWarnings("FieldCanBeLocal")
-    private final Runnable beatLoop = new Runnable() {
-        @Override
-        public void run() {
-
-            while (running.get()) {
-                Snapshot snapshot = metronome.getSnapshot();
-
-                if (lastBeatSent.get() != null &&
-                        ((snapshot.getBeatPhase() > 0.5) || (snapshot.getBeat() != lastBeatSent.get()))) {
-                    lastBeatSent.set(null);  // We are no longer at the start of the same beat, so are armed to send.
-                }
-
-                // Determine when the current and next beats belong
-                final long currentBeatDue = snapshot.getTimeOfBeat(snapshot.getBeat());
-                final long nextBeatDue = snapshot.getTimeOfBeat(snapshot.getBeat() + 1);
-
-                // Is it time to send a beat?
-                final long distanceIntoCurrentBeat = snapshot.getInstant() - currentBeatDue;
-                if (distanceIntoCurrentBeat < BEAT_THRESHOLD &&
-                        (lastBeatSent.get() == null || lastBeatSent.get() != snapshot.getBeat())) {
-                    //logger.info("Sending beat " + snapshot.getBeat() + ", " + distanceIntoCurrentBeat + " ms into beat.");
-                    lastBeatSent.set(VirtualCdj.getInstance().sendBeat(snapshot));
-                }
-
-                final long sleepMilliseconds = nextBeatDue - System.currentTimeMillis();
-                if (sleepMilliseconds > SLEEP_THRESHOLD) {  // Long enough to try actually sleeping until we are closer to due
-                    try {
-                        //noinspection BusyWait
-                        Thread.sleep(sleepMilliseconds - SLEEP_THRESHOLD);
-                    } catch (InterruptedException e) {
-                        logger.debug("BeatSender thread interrupted, re-evaluating time until next beat.");
-                    }
-                } else {  // Close enough to busy-wait until it is time to send the beat.
-                    final long targetTime = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(sleepMilliseconds);
-                    //noinspection StatementWithEmptyBody
-                    while (!Thread.interrupted() && (System.nanoTime() < targetTime)) {
-                        // Busy-waiting, woo hoo, hope you didn't need this core!
-                    }
-                }
-            }
-        }
-    };
 
     /**
      * Must be called whenever the tempo changes or our position on the timeline is nudged so the loop can recompute
@@ -125,7 +73,44 @@ class BeatSender {
      *
      */
     BeatSender(Metronome metronome) {
-        this.metronome = metronome;
+        final Runnable beatLoop = () -> {
+            while (running.get()) {
+                Snapshot snapshot = metronome.getSnapshot();
+
+                if (lastBeatSent.get() != null &&
+                        ((snapshot.getBeatPhase() > 0.5) || (snapshot.getBeat() != lastBeatSent.get()))) {
+                    lastBeatSent.set(null);  // We are no longer at the start of the same beat, so are armed to send.
+                }
+
+                // Determine when the current and next beats belong
+                final long currentBeatDue = snapshot.getTimeOfBeat(snapshot.getBeat());
+                final long nextBeatDue = snapshot.getTimeOfBeat(snapshot.getBeat() + 1);
+
+                // Is it time to send a beat?
+                final long distanceIntoCurrentBeat = snapshot.getInstant() - currentBeatDue;
+                if (distanceIntoCurrentBeat < BEAT_THRESHOLD &&
+                        (lastBeatSent.get() == null || lastBeatSent.get() != snapshot.getBeat())) {
+                    //logger.info("Sending beat " + snapshot.getBeat() + ", " + distanceIntoCurrentBeat + " ms into beat.");
+                    lastBeatSent.set(VirtualCdj.getInstance().sendBeat(snapshot));
+                }
+
+                final long sleepMilliseconds = nextBeatDue - System.currentTimeMillis();
+                if (sleepMilliseconds > SLEEP_THRESHOLD) {  // Long enough to try actually sleeping until we are closer to being due
+                    try {
+                        //noinspection BusyWait
+                        Thread.sleep(sleepMilliseconds - SLEEP_THRESHOLD);
+                    } catch (InterruptedException e) {
+                        logger.debug("BeatSender thread interrupted, re-evaluating time until next beat.");
+                    }
+                } else {  // Close enough to busy-wait until it is time to send the beat.
+                    final long targetTime = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(sleepMilliseconds);
+                    //noinspection StatementWithEmptyBody
+                    while (!Thread.interrupted() && (System.nanoTime() < targetTime)) {
+                        // Busy-waiting, woo-hoo, hope you didn't need this core!
+                    }
+                }
+            }
+        };
         thread = new Thread(beatLoop, "beat-link VirtualCdj beat sender");
         thread.setPriority(Thread.NORM_PRIORITY + 1);
         thread.setDaemon(true);

@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+
 /**
  * <p>An abstract adapter class for receiving device announcements. The methods in this class are empty; it exists as a
  * convenience for creating listener objects.</p>
@@ -15,16 +17,14 @@ package org.deepsymmetry.beatlink;
  *
  * @author  James Elliott
  */
-@SuppressWarnings({"WeakerAccess", "EmptyMethod", "unused"})
+@API(status = API.Status.STABLE)
 public abstract class DeviceAnnouncementAdapter implements DeviceAnnouncementListener {
 
-    @SuppressWarnings("EmptyMethod")
     @Override
     public void deviceFound(DeviceAnnouncement announcement) {
 
     }
 
-    @SuppressWarnings({"EmptyMethod", "unused"})
     @Override
     public void deviceLost(DeviceAnnouncement announcement) {
 

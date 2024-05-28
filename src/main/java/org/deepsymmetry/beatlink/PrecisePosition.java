@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+
 import java.net.DatagramPacket;
 
 /**
@@ -8,7 +10,9 @@ import java.net.DatagramPacket;
  * track loaded.
  *
  * @author James Elliott
- */public class PrecisePosition extends DeviceUpdate {
+ */
+@API(status = API.Status.STABLE)
+public class PrecisePosition extends DeviceUpdate {
 
     /**
      * The track length information found in the packet.
@@ -35,6 +39,7 @@ import java.net.DatagramPacket;
      *
      * @param packet the beat announcement packet that was received
      */
+    @API(status = API.Status.STABLE)
     public PrecisePosition(DatagramPacket packet) {
         super(packet, "Precise position", 0x3c);
         trackLength = (int)Util.bytesToNumber(packetBytes, 0x24, 4);
@@ -52,6 +57,7 @@ import java.net.DatagramPacket;
      *
      * @return the track length
      */
+    @API(status = API.Status.STABLE)
     public int getTrackLength() {
         return trackLength;
     }
@@ -61,6 +67,7 @@ import java.net.DatagramPacket;
      *
      * @return the playback position
      */
+    @API(status = API.Status.STABLE)
     public int getPlaybackPosition() {
         return playbackPosition;
     }
@@ -114,7 +121,6 @@ import java.net.DatagramPacket;
         return VirtualCdj.getInstance().getLatestStatusFor(this).isSynced();
     }
 
-    @SuppressWarnings("SameReturnValue")
     @Override
     public Integer getDeviceMasterIsBeingYieldedTo() {
         return null;  // Beats never yield the master role

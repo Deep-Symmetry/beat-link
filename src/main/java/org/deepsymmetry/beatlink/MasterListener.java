@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+
 /**
  * <p>The listener interface for receiving updates about changes to tempo master state. Classes that are interested in
  * knowing when a different device becomes tempo master, the tempo master starts a new beat, or the master tempo itself
@@ -13,7 +15,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface MasterListener extends BeatListener {
 
     /**
@@ -30,7 +32,7 @@ public interface MasterListener extends BeatListener {
      *
      * @param update the message identifying the new master, or {@code null} if there is now none
      */
-    @SuppressWarnings("EmptyMethod")
+    @API(status = API.Status.STABLE)
     void masterChanged(DeviceUpdate update);
 
     /**
@@ -47,7 +49,7 @@ public interface MasterListener extends BeatListener {
      *
      * @param tempo the new master tempo
      */
-    @SuppressWarnings("EmptyMethod")
+    @API(status = API.Status.STABLE)
     void tempoChanged(double tempo);
 
 }

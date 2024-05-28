@@ -1,5 +1,7 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
+
 /**
  * The listener interface for receiving detailed updates from all devices.
  * Classes that are interested in knowing when DJ Link devices report detailed status can implement this interface.
@@ -9,7 +11,7 @@ package org.deepsymmetry.beatlink;
  *
  * @author James Elliott
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.STABLE)
 public interface DeviceUpdateListener {
 
     /**
@@ -28,7 +30,7 @@ public interface DeviceUpdateListener {
      *
      * @param update the status update which has just arrived
      */
-    @SuppressWarnings("UnusedReturnValue")
+    @API(status = API.Status.STABLE)
     void received(DeviceUpdate update);
 
 }

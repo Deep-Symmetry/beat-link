@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
@@ -21,27 +22,33 @@ import static org.deepsymmetry.beatlink.CdjStatus.TrackSourceSlot.USB_SLOT;
  *
  * @author Kris Prep
  */
-@SuppressWarnings("WeakerAccess")
+@API(status = API.Status.EXPERIMENTAL)
 public class VirtualRekordbox extends LifecycleParticipant {
     private static final Logger logger = LoggerFactory.getLogger(VirtualRekordbox.class);
 
     /**
      * The port to which other devices will send status update messages.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.EXPERIMENTAL)
     public static final int UPDATE_PORT = 50002;
+
+    /**
+     * The position within a keep-alive packet at which the MAC address is stored.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
     public static final int MAC_ADDRESS_OFFSET = 38;
 
     /**
      * The socket used to receive device status packets while we are active.
      */
-    private final AtomicReference<DatagramSocket> socket = new AtomicReference<DatagramSocket>();
+    private final AtomicReference<DatagramSocket> socket = new AtomicReference<>();
 
     /**
      * Check whether we are presently posing as a virtual Rekordbox and receiving device status updates.
      *
      * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public boolean isRunning() {
         return socket.get() != null && claimingNumber.get() == 0;
     }
@@ -52,6 +59,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return the local address we present to the DJ Link network
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public InetAddress getLocalAddress() {
         ensureRunning();
         return socket.get().getLocalAddress();
@@ -62,7 +70,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * up by finding the network interface address on which we are receiving the other devices'
      * announcement broadcasts.
      */
-    private final AtomicReference<InetAddress> broadcastAddress = new AtomicReference<InetAddress>();
+    private final AtomicReference<InetAddress> broadcastAddress = new AtomicReference<>();
 
     /**
      * Return the broadcast address used to reach the DJ Link network.
@@ -70,6 +78,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return the address on which packets can be broadcast to the other DJ Link devices
      * @throws IllegalStateException if the {@code VirtualRekordbox} is not active
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public InetAddress getBroadcastAddress() {
         ensureRunning();
         return broadcastAddress.get();
@@ -78,7 +87,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * Keep track of the most recent updates we have seen, indexed by the address they came from.
      */
-    private final Map<DeviceReference, DeviceUpdate> updates = new ConcurrentHashMap<DeviceReference, DeviceUpdate>();
+    private final Map<DeviceReference, DeviceUpdate> updates = new ConcurrentHashMap<>();
 
     /**
      * Should we try to use a device number in the range 1 to 4 if we find one is available?
@@ -95,6 +104,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @param attempt true if self-assignment should try to use device numbers below 5 when available
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public void setUseStandardPlayerNumber(boolean attempt) {
         useStandardPlayerNumber.set(attempt);
     }
@@ -109,6 +119,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @return true if self-assignment should try to use device numbers below 5 when available
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public boolean getUseStandardPlayerNumber() {
         return useStandardPlayerNumber.get();
     }
@@ -121,6 +132,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @return the virtual player number
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public synchronized byte getDeviceNumber() {
         return rekordboxKeepAliveBytes[DEVICE_NUMBER_OFFSET];
     }
@@ -134,7 +146,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @param number the virtual player number
      * @throws IllegalStateException if we are currently running
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.EXPERIMENTAL)
     public synchronized void setDeviceNumber(byte number) {
         if (isRunning()) {
             throw new IllegalStateException("Can't change device number once started.");
@@ -153,6 +165,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @return the announcement interval
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public int getAnnounceInterval() {
         return announceInterval.get();
     }
@@ -164,6 +177,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @param interval the announcement interval
      * @throws IllegalArgumentException if interval is not between 200 and 2000
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public void setAnnounceInterval(int interval) {
         if (interval < 200 || interval > 2000) {
             throw new IllegalArgumentException("Interval must be between 200 and 2000");
@@ -209,16 +223,19 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * The location of the device name in the announcement packet.
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public static final int DEVICE_NAME_OFFSET = 0x0c;
 
     /**
      * The length of the device name in the announcement packet.
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public static final int DEVICE_NAME_LENGTH = 0x14;
 
     /**
      * The location of the device number in the announcement packet.
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public static final int DEVICE_NUMBER_OFFSET = 0x24;
 
     /**
@@ -226,6 +243,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @return the device name reported in our presence announcement packets
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public static String getDeviceName() {
         return new String(rekordboxKeepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).trim();
     }
@@ -295,6 +313,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     private static final byte[] deviceName = "rekordbox".getBytes();
 
     // TODO this (and the arrays above) need JavaDoc.
+    @API(status = API.Status.EXPERIMENTAL)
     public void requestPSSI() throws IOException{
         if (DeviceFinder.getInstance().isRunning() && !DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
             InetAddress address = DeviceFinder.getInstance().getCurrentDevices().iterator().next().getAddress();
@@ -343,7 +362,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         switch (kind) {
             case MIXER_STATUS:
                 if (length != 56) {
-                    logger.warn("Processing a Mixer Status packet with unexpected length " + length + ", expected 56 bytes.");
+                    logger.warn("Processing a Mixer Status packet with unexpected length {}, expected 56 bytes.", length);
                 }
                 if (length >= 56) {
                     return new MixerStatus(packet);
@@ -397,7 +416,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 return null;
 
             default:
-                logger.warn("Ignoring " + kind.name + " packet sent to update port.");
+                logger.warn("Ignoring {} packet sent to update port.", kind.name);
                 return null;
         }
     }
@@ -406,6 +425,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * This will send the bytes Rekordbox Lighting sends to a player to acknowledge its existence on the network and
      * trigger it to begin sending CDJStatus packets.
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public void sendRekordboxLightingPacket() {
         DatagramPacket updatesAnnouncement = new DatagramPacket(rekordboxLightingRequestStatusBytes, rekordboxLightingRequestStatusBytes.length,
                 broadcastAddress.get(), UPDATE_PORT);
@@ -433,8 +453,10 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * The number of milliseconds for which the {@link DeviceFinder} needs to have been watching the network in order
      * for us to be confident we can choose a device number that will not conflict.
      */
+    @API(status = API.Status.EXPERIMENTAL)
     private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 4000;
 
+    // TODO: Is any of this stuff needed? If so it needs to be modified to work in the device number range used by rekordbox
     /**
      * <p>Try to choose a device number, which we have not seen on the network. If we have already tried one, it must
      * have been defended, so increment to the next one we can try (we stop at 15). If we have not yet tried one,
@@ -463,14 +485,14 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
         if (claimingNumber.get() == 0) {
             // We have not yet tried a number. If we are not supposed to use standard player numbers, make sure
-            // the first one we try is 7 (to accommodate the CDJ-3000, which can use channels 5 and 6.
+            // the first one we try is 7 (to accommodate the CDJ-3000, which can use channels 5 and 6).
             if (!getUseStandardPlayerNumber()) {
                 claimingNumber.set(6);
             }
         }
 
         // Record what numbers we have already seen, since there is no point trying one of them.
-        Set<Integer> numbersUsed = new HashSet<Integer>();
+        Set<Integer> numbersUsed = new HashSet<>();
         for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
             numbersUsed.add(device.getDeviceNumber());
         }
@@ -481,13 +503,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
             if (!numbersUsed.contains(result)) {  // We found one that is not used, so we can use it
                 claimingNumber.set(result);
                 if (getUseStandardPlayerNumber() && (result > 4)) {
-                    logger.warn("Unable to self-assign a standard player number, all are in use. Trying number " +
-                            result + ".");
+                    logger.warn("Unable to self-assign a standard player number, all are in use. Trying number {}.", result);
                 }
                 return true;
             }
         }
-        logger.warn("Found no unused device numbers between " + startingNumber + " and 15, giving up.");
+        logger.warn("Found no unused device numbers between {} and 15, giving up.", startingNumber);
         return false;
     }
 
@@ -509,6 +530,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @return InterfaceAddress of the first device we find.
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public InterfaceAddress getMatchedAddress() {
         return matchedAddress;
     }
@@ -521,6 +543,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return the list of network interfaces on which we might receive player packets
      * @throws IllegalStateException if we are not running
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public List<NetworkInterface> getMatchingInterfaces() {
         ensureRunning();
         return Collections.unmodifiableList(matchingInterfaces);
@@ -528,7 +551,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
     /**
      * If we are in the process of trying to establish a device number, this will hold the number we are
-     * currently trying to claim. Otherwise it will hold the value 0.
+     * currently trying to claim. Otherwise, it will hold the value 0.
      */
     private final AtomicInteger claimingNumber = new AtomicInteger(0);
 
@@ -568,8 +591,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         try {
             DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
                     mixerAddress, DeviceFinder.ANNOUNCEMENT_PORT);
-            logger.debug("Sending device number request to mixer at address " + announcement.getAddress().getHostAddress() +
-                    ", port " + announcement.getPort());
+            logger.debug("Sending device number request to mixer at address {}, port {}", announcement.getAddress().getHostAddress(), announcement.getPort());
             currentSocket.send(announcement);
         } catch (Exception e) {
             logger.warn("Unable to send device number request to mixer.", e);
@@ -597,8 +619,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
         try {
             DatagramPacket defense = new DatagramPacket(deviceNumberDefenseBytes, deviceNumberDefenseBytes.length,
                     invaderAddress, DeviceFinder.ANNOUNCEMENT_PORT);
-            logger.info("Sending device number defense packet to invader at address " + defense.getAddress().getHostAddress() +
-                    ", port " + defense.getPort());
+            logger.info("Sending device number defense packet to invader at address {}, port {}",
+                    defense.getAddress().getHostAddress(), defense.getPort());
             currentSocket.send(defense);
         } catch (Exception e) {
             logger.error("Unable to send device defense packet.", e);
@@ -621,7 +643,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         System.arraycopy(getDeviceName().getBytes(), 0, helloBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
         for (int i = 1; i <= 3; i++) {
             try {
-                logger.debug("Sending hello packet " + i);
+                logger.debug("Sending hello packet {}", i);
                 DatagramPacket announcement = new DatagramPacket(helloBytes, helloBytes.length,
                         broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                 socket.get().send(announcement);
@@ -653,7 +675,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage1bytes[0x24] = (byte) i;  // The packet counter.
                 try {
-                    logger.debug("Sending claim stage 1 packet " + i);
+                    logger.debug("Sending claim stage 1 packet {}", i);
                     DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -668,7 +690,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     if (getDeviceNumber() == 0) {  // We are trying to pick a number.
                         continue selfAssignLoop;  // Try the next available number, if any.
                     }
-                    logger.warn("Unable to use device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
+                    logger.warn("Unable to use device number {}, another device has it. Failing to go online.", getDeviceNumber());
                     claimingNumber.set(0);
                     return false;
                 }
@@ -685,7 +707,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage2bytes[0x2f] = (byte) i;  // The packet counter.
                 try {
-                    logger.debug("Sending claim stage 2 packet " + i + " for device " + claimStage2bytes[0x2e]);
+                    logger.debug("Sending claim stage 2 packet {} for device {}", i, claimStage2bytes[0x2e]);
                     DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -700,7 +722,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     if (getDeviceNumber() == 0) {  // We are trying to pick a number.
                         continue selfAssignLoop;  // Try the next available number, if any.
                     }
-                    logger.warn("Unable to use device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
+                    logger.warn("Unable to use device number {}, another device has it. Failing to go online.", getDeviceNumber());
                     claimingNumber.set(0);
                     return false;
                 }
@@ -720,7 +742,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
             for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
                 claimStage3bytes[0x25] = (byte) i;  // The packet counter.
                 try {
-                    logger.debug("Sending claim stage 3 packet " + i + " for device " + claimStage3bytes[0x24]);
+                    logger.debug("Sending claim stage 3 packet {} for device {}", i, claimStage3bytes[0x24]);
                     DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
                             broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
                     socket.get().send(announcement);
@@ -735,7 +757,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     if (getDeviceNumber() == 0) {  // We are trying to pick a number.
                         continue selfAssignLoop;  // Try the next available number, if any.
                     }
-                    logger.warn("Unable to use device number " + getDeviceNumber() + ", another device has it. Failing to go online.");
+                    logger.warn("Unable to use device number {}, another device has it. Failing to go online.", getDeviceNumber());
                     claimingNumber.set(0);
                     return false;
                 }
@@ -749,6 +771,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
         return true;  // Huzzah, we found the right device number to use!
     }
 
+    // TODO JavaDoc needed
+    @API(status = API.Status.EXPERIMENTAL)
     public void sendRekordboxAnnouncement() {
         if (isRunning()) {
             DatagramPacket announcement = new DatagramPacket(rekordboxKeepAliveBytes, rekordboxKeepAliveBytes.length,
@@ -762,6 +786,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
+     * TODO top-level description needed.
+     *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}.
      * @throws Exception if there is a problem opening a socket on the right network
      */
@@ -772,7 +798,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         addUpdateListener(VirtualCdj.getInstance().getUpdateListener());
 
         // Find the network interface and address to use to communicate with the first device we found.
-        matchingInterfaces = new ArrayList<NetworkInterface>();
+        matchingInterfaces = new ArrayList<>();
         matchedAddress = null;
         DeviceAnnouncement announcement = DeviceFinder.getInstance().getCurrentDevices().iterator().next();
         for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
@@ -786,18 +812,17 @@ public class VirtualRekordbox extends LifecycleParticipant {
         }
 
         if (matchedAddress == null) {
-            logger.warn("Unable to find network interface to communicate with " + announcement +
-                    ", giving up.");
+            logger.warn("Unable to find network interface to communicate with {}, giving up.", announcement);
             return false;
         }
 
-        logger.info("Found matching network interface " + matchingInterfaces.get(0).getDisplayName() + " (" +
-                matchingInterfaces.get(0).getName() + "), will use address " + matchedAddress);
+        logger.info("Found matching network interface {} ({}), will use address {}",
+                matchingInterfaces.get(0).getDisplayName(), matchingInterfaces.get(0).getName(), matchedAddress);
         if (matchingInterfaces.size() > 1) {
             for (ListIterator<NetworkInterface> it = matchingInterfaces.listIterator(1); it.hasNext(); ) {
                 NetworkInterface extra = it.next();
-                logger.warn("Network interface " + extra.getDisplayName() + " (" + extra.getName() +
-                        ") sees same network: we will likely get duplicate DJ Link packets, causing severe problems.");
+                logger.warn("Network interface {} ({}) sees same network: we will likely get duplicate DJ Link packets, causing severe problems.",
+                        extra.getDisplayName(), extra.getName());
             }
         }
 
@@ -836,34 +861,31 @@ public class VirtualRekordbox extends LifecycleParticipant {
         final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
         // Create the update reception thread
-        Thread receiver = new Thread(null, new Runnable() {
-            @Override
-            public void run() {
-                boolean received;
-                while (isRunning()) {
-                    try {
-                        socket.get().receive(packet);
-                        received = true;
-                    } catch (IOException e) {
-                        // Don't log a warning if the exception was due to the socket closing at shutdown.
-                        if (isRunning()) {
-                            // We did not expect to have a problem; log a warning and shut down.
-                            logger.warn("Problem reading from DeviceStatus socket, flushing DeviceFinder due to likely network change and shutting down.", e);
-                            DeviceFinder.getInstance().flush();
-                            stop();
-                        }
-                        received = false;
+        Thread receiver = new Thread(null, () -> {
+            boolean received;
+            while (isRunning()) {
+                try {
+                    socket.get().receive(packet);
+                    received = true;
+                } catch (IOException e) {
+                    // Don't log a warning if the exception was due to the socket closing at shutdown.
+                    if (isRunning()) {
+                        // We did not expect to have a problem; log a warning and shut down.
+                        logger.warn("Problem reading from DeviceStatus socket, flushing DeviceFinder due to likely network change and shutting down.", e);
+                        DeviceFinder.getInstance().flush();
+                        stop();
                     }
-                    try {
-                        if (received && (packet.getAddress() != socket.get().getLocalAddress())) {
-                            DeviceUpdate update = buildUpdate(packet);
-                            if (update != null) {
-                                processUpdate(update);
-                            }
+                    received = false;
+                }
+                try {
+                    if (received && (packet.getAddress() != socket.get().getLocalAddress())) {
+                        DeviceUpdate update = buildUpdate(packet);
+                        if (update != null) {
+                            processUpdate(update);
                         }
-                    } catch (Throwable t) {
-                        logger.warn("Problem processing device update packet", t);
                     }
+                } catch (Throwable t) {
+                    logger.warn("Problem processing device update packet", t);
                 }
             }
         }, "beat-link VirtualRekordbox status receiver");
@@ -873,12 +895,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
 
         // Create the thread which announces our participation in the DJ Link network, to request update packets
-        Thread announcer = new Thread(null, new Runnable() {
-            @Override
-            public void run() {
-                while (isRunning()) {
-                    sendAnnouncements();
-                }
+        Thread announcer = new Thread(null, () -> {
+            while (isRunning()) {
+                sendAnnouncements();
             }
         }, "beat-link VirtualRekordbox announcement/updates sender");
         announcer.setDaemon(true);
@@ -938,14 +957,14 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}, or it was already running.
      * @throws Exception if the socket to listen on port 50002 cannot be created
      */
-    @SuppressWarnings("UnusedReturnValue")
+    @API(status = API.Status.EXPERIMENTAL)
     synchronized boolean start() throws Exception {
         if (!isRunning()) {
 
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
             DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);
 
-            // Find some DJ Link devices so we can figure out the interface and address to use to talk to them
+            // Find some DJ Link devices, so we can figure out the interface and address to use to talk to them
             DeviceFinder.getInstance().start();
             for (int i = 0; DeviceFinder.getInstance().getCurrentDevices().isEmpty() && i < 20; i++) {
                 try {
@@ -1019,6 +1038,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return the matching detailed status update or null if none have been received
      * @throws IllegalStateException if the {@code VirtualRekordbox} is not active
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public DeviceUpdate getLatestStatusFor(int deviceNumber) {
         ensureRunning();
         for (DeviceUpdate update : updates.values()) {
@@ -1032,8 +1052,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * Keeps track of the registered device update listeners.
      */
-    private final Set<DeviceUpdateListener> updateListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<DeviceUpdateListener, Boolean>());
+    private final Set<DeviceUpdateListener> updateListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified device update listener to receive device updates whenever they come in.
@@ -1051,7 +1070,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @param listener the device update listener to add
      */
-    @SuppressWarnings("SameParameterValue")
+    @API(status = API.Status.EXPERIMENTAL)
     public void addUpdateListener(DeviceUpdateListener listener) {
         if (listener != null) {
             updateListeners.add(listener);
@@ -1065,6 +1084,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @param listener the device update listener to remove
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public void removeUpdateListener(DeviceUpdateListener listener) {
         if (listener != null) {
             updateListeners.remove(listener);
@@ -1076,9 +1096,10 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @return the currently registered update listeners
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public Set<DeviceUpdateListener> getUpdateListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(new HashSet<DeviceUpdateListener>(updateListeners));
+        return Set.copyOf(updateListeners);
     }
 
     /**
@@ -1106,6 +1127,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists
      */
+    @API(status = API.Status.EXPERIMENTAL)
     public static VirtualRekordbox getInstance() {
         return ourInstance;
     }
@@ -1147,7 +1169,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         } else if (kind == Util.PacketType.DEVICE_NUMBER_STAGE_3) {
             handleDeviceClaimPacket(packet, 0x24);
         } else if (kind == Util.PacketType.DEVICE_NUMBER_WILL_ASSIGN) {
-            logger.debug("The mixer at address " + packet.getAddress().getHostAddress() + " wants to assign us a specific device number.");
+            logger.debug("The mixer at address {} wants to assign us a specific device number.", packet.getAddress().getHostAddress());
             if (claimingNumber.get() != 0) {
                 requestNumberFromMixer(packet.getAddress());
             } else {
@@ -1156,9 +1178,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
         } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGN) {
             mixerAssigned.set(packet.getData()[0x24]);
             if (mixerAssigned.get() == 0) {
-                logger.debug("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use any device.");
+                logger.debug("Mixer at address {} told us to use any device.", packet.getAddress().getHostAddress());
             } else {
-                logger.info("Mixer at address " + packet.getAddress().getHostAddress() + " told us to use device number " + mixerAssigned.get());
+                logger.info("Mixer at address {} told us to use device number {}", packet.getAddress().getHostAddress(), mixerAssigned.get());
             }
         } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGNMENT_FINISHED) {
             mixerAssigned.set(claimingNumber.get());
@@ -1168,20 +1190,20 @@ public class VirtualRekordbox extends LifecycleParticipant {
             if (defendedDevice == 0) {
                 logger.warn("Ignoring unexplained attempt to defend device 0.");
             } else if (defendedDevice == claimingNumber.get()) {
-                logger.warn("Another device is defending device number " + defendedDevice + ", so we can't use it.");
+                logger.warn("Another device is defending device number {}, so we can't use it.", defendedDevice);
                 claimRejected.set(true);
             } else if (isRunning()) {
                 if (defendedDevice == getDeviceNumber()) {
                     logger.warn("Another device has claimed it owns our device number, shutting down.");
                     stop();
                 } else {
-                    logger.warn("Another device is defending a number we are not using, ignoring: " + defendedDevice);
+                    logger.warn("Another device is defending a number we are not using, ignoring: {}", defendedDevice);
                 }
             } else {
-                logger.warn("Received device number defense message for device number " + defendedDevice + " when we are not even running!");
+                logger.warn("Received device number defense message for device number {} when we are not even running!", defendedDevice);
             }
         } else {
-            logger.warn("Received unrecognized special announcement packet type: " + kind);
+            logger.warn("Received unrecognized special announcement packet type: {}", kind);
         }
     }
 
