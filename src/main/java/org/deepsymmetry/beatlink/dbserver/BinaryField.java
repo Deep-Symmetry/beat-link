@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
 
 import java.io.DataInputStream;
@@ -12,6 +13,7 @@ import java.nio.ByteBuffer;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class BinaryField extends Field {
 
     /**
@@ -55,6 +57,7 @@ public class BinaryField extends Field {
      *
      * @return the bytes whose purpose this field exists to convey.
      */
+    @API(status = API.Status.STABLE)
     public ByteBuffer getValue() {
         value.rewind();
         return value.slice();
@@ -66,6 +69,7 @@ public class BinaryField extends Field {
      *
      * @return a new byte array containing a copy of the bytes this field contains
      */
+    @API(status = API.Status.STABLE)
     public byte[] getValueAsArray() {
         ByteBuffer buffer = getValue();
         byte[] result = new byte[buffer.remaining()];
@@ -81,6 +85,7 @@ public class BinaryField extends Field {
      * @throws IllegalArgumentException if tag is not a valid number field tag.
      * @throws IOException if there is a problem reading the value.
      */
+    @API(status = API.Status.STABLE)
     public BinaryField(final DataInputStream is) throws IOException {
         byte[] sizeBytes = new byte[4];
         is.readFully(sizeBytes);
@@ -98,6 +103,7 @@ public class BinaryField extends Field {
      *
      * @param bytes the value that this field will convey.
      */
+    @API(status = API.Status.STABLE)
     public BinaryField(final byte[] bytes) {
         final ByteBuffer scratch;
         size = bytes.length;

@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.apiguardian.api.API;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +20,7 @@ import java.util.*;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class Message {
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class.getName());
@@ -26,12 +28,13 @@ public class Message {
     /**
      * The special field that marks the start of a new message.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final NumberField MESSAGE_START = new NumberField(0x872349aeL, 4);
 
     /**
      * Defines all the message types we know about, with any information we know about their arguments.
      */
+    @API(status = API.Status.STABLE)
     public enum KnownType {
         /**
          * The special initial request that is sent as the second action after opening a new connection, to enable
@@ -351,12 +354,13 @@ public class Message {
          * The numeric value that identifies this message type, by its presence in a 4-byte number field immediately
          * following the message start indicator.
          */
+        @API(status = API.Status.STABLE)
         public final long protocolValue;
 
         /**
          * The descriptive name of the message type.
          */
-        @SuppressWarnings("WeakerAccess")
+        @API(status = API.Status.STABLE)
         public final String description;
 
         /**
@@ -377,7 +381,7 @@ public class Message {
          *
          * @return either the description found, or "unknown" if none was found.
          */
-        @SuppressWarnings("WeakerAccess")
+        @API(status = API.Status.STABLE)
         public String describeArgument(int index) {
             if (index < 0 || index >= arguments.length) {
                 return "unknown";
@@ -390,7 +394,7 @@ public class Message {
          *
          * @return a list of the descriptions of the arguments that are expected for this message type.
          */
-        @SuppressWarnings("unused")
+        @API(status = API.Status.STABLE)
         public List<String> arguments() {
             return Collections.unmodifiableList(Arrays.asList(arguments));
         }
@@ -399,11 +403,11 @@ public class Message {
     /**
      * Allows a known message type to be looked up by the message type number.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Map<Long, KnownType> KNOWN_TYPE_MAP;
 
     static {
-        Map<Long, KnownType> scratch = new HashMap<Long, KnownType>();
+        Map<Long, KnownType> scratch = new HashMap<>();
         for (KnownType type : KnownType.values()) {
             scratch.put(type.protocolValue, type);
         }
@@ -414,41 +418,48 @@ public class Message {
      * The value to pass for the file type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
      * an element of an ANLZnnnn.DAT file. (The characters "DAT" and NUL as a byte-swapped integer.)
      */
+    @API(status = API.Status.STABLE)
     public static final int ALNZ_FILE_TYPE_DAT = 0x00544144;
 
     /**
      * The value to pass for the file type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
      * an element of an ANLZnnnn.EXT file. (The characters "EXT" and NUL as a byte-swapped integer.)
      */
+    @API(status = API.Status.STABLE)
     public static final int ALNZ_FILE_TYPE_EXT = 0x00545845;
 
     /**
      * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
      * the color waveform preview data. (The characters "PWV4" as a byte-swapped integer.)
      */
+    @API(status = API.Status.STABLE)
     public static final int ANLZ_FILE_TAG_COLOR_WAVEFORM_PREVIEW = 0x34565750;
 
     /**
      * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
      * the scrollable color waveform data. (The characters "PWV5" as a byte-swapped integer.)
      */
+    @API(status = API.Status.STABLE)
     public static final int ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL = 0x35565750;
 
     /**
      * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
      * the song structure information data. (The characters "PSSI" as a byte-swapped integer.)
      */
+    @API(status = API.Status.STABLE)
     public static final int ANLZ_FILE_TAG_SONG_STRUCTURE = 0x49535350;
 
     /**
      * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
      * the enhanced cue and loop data, but does not seem to work. (The characters "PCO2" as a byte-swapped integer.)
      */
+    @API(status = API.Status.STABLE)
     public static final int ANLZ_FILE_TAG_CUE_COMMENT = 0x324f4350;
 
     /**
      * Defines all the known types of entries that can be returned for a menu request.
      */
+    @API(status = API.Status.STABLE)
     public enum MenuItemType {
         /**
          * A potentially-nested grouping of other objects, such as a group of playlists in the playlists menu.
@@ -741,7 +752,7 @@ public class Message {
          * The value which identifies this type of menu item by appearing in the seventh argument of a
          * {@link KnownType#MENU_ITEM} response.
          */
-        @SuppressWarnings("WeakerAccess")
+        @API(status = API.Status.STABLE)
         public final long protocolValue;
 
         MenuItemType(long value) {
@@ -753,11 +764,11 @@ public class Message {
      * Allows a menu item type to be looked up by the value seen in the seventh argument of a
      * {@link KnownType#MENU_ITEM} response.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Map<Long, MenuItemType> MENU_ITEM_TYPE_MAP;
 
     static {
-        Map<Long, MenuItemType> scratch = new HashMap<Long, MenuItemType>();
+        Map<Long, MenuItemType> scratch = new HashMap<>();
         for (MenuItemType type : MenuItemType.values()) {
             scratch.put(type.protocolValue, type);
         }
@@ -768,34 +779,38 @@ public class Message {
      * The 4-byte number field that provides the sequence number tying a query to its response messages, immediately
      * following the message start field.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final NumberField transaction;
 
     /**
      * The 2-byte number field that identifies what type of message this is, immediately following the transaction
      * sequence number.
      */
+    @API(status = API.Status.STABLE)
     public final NumberField messageType;
 
     /**
      * The recognized type, if any, of this message.
      */
+    @API(status = API.Status.STABLE)
     public final KnownType knownType;
 
     /**
      * The 1-byte number field that specifies how many arguments the message has.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final NumberField argumentCount;
 
     /**
      * The arguments being sent as part of this message.
      */
+    @API(status = API.Status.STABLE)
     public final List<Field> arguments;
 
     /**
      * The entire list of fields that make up the message.
      */
+    @API(status = API.Status.STABLE)
     public final List<Field> fields;
 
     /**
@@ -805,7 +820,7 @@ public class Message {
      * @param messageType identifies the purpose and structure of the message
      * @param arguments the arguments to send with the message
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public Message(long transaction, long messageType, Field... arguments) {
         this(new NumberField(transaction, 4), new NumberField(messageType, 2), arguments);
     }
@@ -817,7 +832,7 @@ public class Message {
      * @param messageType identifies the purpose and structure of the message
      * @param arguments the arguments to send with the message
      */
-    @SuppressWarnings("SameParameterValue")
+    @API(status = API.Status.STABLE)
     public Message(long transaction, KnownType messageType, Field... arguments) {
         this(transaction, messageType.protocolValue, arguments);
     }
@@ -829,6 +844,7 @@ public class Message {
      * @param messageType identifies the purpose and structure of the message
      * @param arguments the arguments to send with the message
      */
+    @API(status = API.Status.STABLE)
     public Message(NumberField transaction, NumberField messageType, Field... arguments) {
         if (transaction.getSize() != 4) {
             throw new IllegalArgumentException("Message transaction sequence number must be 4 bytes long");
@@ -859,7 +875,7 @@ public class Message {
         allFields[3] = argumentCount;
         allFields[4] = new BinaryField(argTags);
         System.arraycopy(arguments, 0, allFields, 5, arguments.length);
-        fields = Collections.unmodifiableList(Arrays.asList(allFields));
+        fields = List.of(allFields);
     }
 
     /**
@@ -871,6 +887,7 @@ public class Message {
      *
      * @throws IOException if there is a problem reading the message.
      */
+    @API(status = API.Status.STABLE)
     public static Message read(DataInputStream is) throws IOException {
         final Field start = Field.read(is);
         if (!(start instanceof NumberField)) {
@@ -996,6 +1013,7 @@ public class Message {
      * track being worked with (for most requests this is 1, meaning rekordbox). This enumeration lists
      * the known values for the second, menu, byte.
      */
+    @API(status = API.Status.STABLE)
     public enum MenuIdentifier {
         /**
          * The primary menu which appears on the left half of the player display.
@@ -1034,11 +1052,11 @@ public class Message {
      * Allows a menu/destination to be looked up by the value seen in the second byte of the first argument of many
      * request messages.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final Map<Byte, MenuIdentifier> MENU_IDENTIFIER_MAP;
 
     static {
-        Map<Byte, MenuIdentifier> scratch = new HashMap<Byte, MenuIdentifier>();
+        Map<Byte, MenuIdentifier> scratch = new HashMap<>();
         for (MenuIdentifier identifier : MenuIdentifier.values()) {
             scratch.put(identifier.protocolValue, identifier);
         }
@@ -1049,6 +1067,7 @@ public class Message {
      * The value returned by {@link #getMenuResultsCount()} when there is no data available for the request
      * that was made.
      */
+    @API(status = API.Status.STABLE)
     public static final long NO_MENU_RESULTS_AVAILABLE = 0xffffffffL;
 
     /**
@@ -1058,6 +1077,7 @@ public class Message {
      *
      * @throws IllegalArgumentException if this is not a {@link KnownType#MENU_AVAILABLE} response.
      */
+    @API(status = API.Status.STABLE)
     public long getMenuResultsCount() {
         if (knownType != Message.KnownType.MENU_AVAILABLE) {
             throw new IllegalArgumentException("getMenuResultsCount() can only be used with MENU_AVAILABLE responses.");
@@ -1073,6 +1093,7 @@ public class Message {
      *
      * @throws IllegalArgumentException if this is not a {@link KnownType#MENU_ITEM} response.
      */
+    @API(status = API.Status.STABLE)
     public MenuItemType getMenuItemType() {
         if (knownType != KnownType.MENU_ITEM) {
             throw new IllegalArgumentException("getMenuItemType() can only be used with MENU_ITEM responses.");
@@ -1092,6 +1113,7 @@ public class Message {
      *
      * @throws IOException if there is a problem writing to the channel
      */
+    @API(status = API.Status.STABLE)
     public void write(WritableByteChannel channel) throws IOException {
         logger.debug("Writing> {}", this);
         for (Field field : fields) {

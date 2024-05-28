@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
 
 import java.io.DataInputStream;
@@ -12,6 +13,7 @@ import java.nio.ByteBuffer;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class NumberField extends Field {
 
     /**
@@ -25,7 +27,7 @@ public class NumberField extends Field {
     private final int size;
 
     /**
-     * Holds the value represented by this field. We use a long so we don't have to worry about sign issues
+     * Holds the value represented by this field. We use a long, so we don't have to worry about sign issues
      * when the full four byte version is used.
      */
     private final long value;
@@ -39,12 +41,14 @@ public class NumberField extends Field {
      * A four-byte field representing the number zero, used in many requests, so they can save the time and garbage
      * of constructing throwaway versions.
      */
+    @API(status = API.Status.STABLE)
     public final static NumberField WORD_0 = new NumberField(0);
 
     /**
      * A four-byte field representing the number one, used in some requests, so they can save the time and garbage
      * of constructing throwaway versions.
      */
+    @API(status = API.Status.STABLE)
     public final static NumberField WORD_1 = new NumberField(1);
 
     /**
@@ -57,6 +61,7 @@ public class NumberField extends Field {
      * @throws IllegalArgumentException if tag is not a valid number field tag.
      * @throws IOException if there is a problem reading the value.
      */
+    @API(status = API.Status.STABLE)
     public NumberField(final byte typeTag, final DataInputStream is) throws IOException {
         this.typeTag = typeTag;
         switch (typeTag) {
@@ -87,6 +92,7 @@ public class NumberField extends Field {
      *
      * @throws IllegalArgumentException if the specified size is not a supported number field size.
      */
+    @API(status = API.Status.STABLE)
     public NumberField(final long value, final int size) {
         this.value = value & 0xffffffffL;
         this.size = size;
@@ -103,7 +109,7 @@ public class NumberField extends Field {
                 break;
             case 4:
                 typeTag = (byte)0x11;
-                bufBytes[1] = (byte)((value & 0xff000000) >> 24);
+                bufBytes[1] = (byte)((value & 0xff000000L) >> 24);
                 bufBytes[2] = (byte)((value & 0xff0000) >> 16);
                 bufBytes[3] = (byte)((value & 0xff00) >> 8);
                 bufBytes[4] = (byte)(value & 0xff);
@@ -120,6 +126,7 @@ public class NumberField extends Field {
      *
      * @param value the desired value to be represented by this field.
      */
+    @API(status = API.Status.STABLE)
     public NumberField(final long value) {
         this(value, 4);
     }
@@ -129,6 +136,7 @@ public class NumberField extends Field {
      *
      * @return the number which this field contains.
      */
+    @API(status = API.Status.STABLE)
     public long getValue() {
         return value;
     }

@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class ConnectionManager extends LifecycleParticipant {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionManager.class);
@@ -34,6 +36,7 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @param <T> the type returned by the activity
      */
+    @API(status = API.Status.STABLE)
     public interface ClientTask<T> {
         T useClient(Client client) throws Exception;
     }
@@ -68,6 +71,7 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @throws IllegalArgumentException if a negative value is supplied
      */
+    @API(status = API.Status.STABLE)
     public void setIdleLimit(int seconds) {
         if (seconds < 0) {
             throw new IllegalArgumentException("seconds cannot be negative");
@@ -83,6 +87,7 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @return how many seconds a connection will be kept open while not being used
      */
+    @API(status = API.Status.STABLE)
     public int getIdleLimit() {
         return idleLimit.get();
     }
@@ -126,7 +131,7 @@ public class ConnectionManager extends LifecycleParticipant {
                 try {
                     socket.close();
                 } catch (IOException e2) {
-                    logger.error("Problem closing socket for failed client creation attempt " + description);
+                    logger.error("Problem closing socket for failed client creation attempt {}", description);
                 }
                 throw e;
             }
@@ -183,6 +188,7 @@ public class ConnectionManager extends LifecycleParticipant {
      * @throws IOException if there is a problem communicating
      * @throws Exception from the underlying {@code task}, if any
      */
+    @API(status = API.Status.STABLE)
     public <T> T invokeWithClientSession(int targetPlayer, ClientTask<T> task, String description)
             throws Exception {
         if (!isRunning()) {
@@ -212,7 +218,7 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @throws IllegalStateException if not running
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public int getPlayerDBServerPort(int player) {
         ensureRunning();
         Integer result = dbServerPorts.get(player);
@@ -289,20 +295,18 @@ public class ConnectionManager extends LifecycleParticipant {
                 OutputStream os = socket.getOutputStream();
                 socket.setSoTimeout(socketTimeout.get());
                 os.write(DB_SERVER_QUERY_PACKET);
-                byte[] response = readResponseWithExpectedSize(is, 2, "database server port query packet");
+                byte[] response = readResponseWithExpectedSize(is);
                 if (response.length == 2) {
                     final int portReturned = (int)Util.bytesToNumber(response, 0, 2);
                     if (portReturned == 65535) {
-                        logger.info("Player " + announcement.getDeviceNumber() + " reported dbserver port of " + portReturned +
-                                ", not yet ready?");
+                        logger.info("Player {} reported dbserver port of {}, not yet ready?", announcement.getDeviceNumber(), portReturned);
                     } else {
                         setPlayerDBServerPort(announcement.getDeviceNumber(), portReturned);
                         return;  // Success!
                     }
                 }
             } catch (java.net.ConnectException ce) {
-                logger.info("Player " + announcement.getDeviceNumber() +
-                        " doesn't answer rekordbox port queries, connection refused, not yet ready?");
+                logger.info("Player {} doesn't answer rekordbox port queries, connection refused, not yet ready?", announcement.getDeviceNumber());
             } catch (Throwable t) {
                 logger.warn("Problem requesting database server port number", t);
             } finally {
@@ -316,14 +320,14 @@ public class ConnectionManager extends LifecycleParticipant {
             }
         }
 
-        logger.info("Player " + announcement.getDeviceNumber() +
-                " never responded with a valid rekordbox dbserver port. Won't attempt to request metadata.");
+        logger.info("Player {} never responded with a valid rekordbox dbserver port. Won't attempt to request metadata.",
+                announcement.getDeviceNumber());
     }
 
     /**
      * The default value we will use for timeouts on opening and reading from sockets.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final int DEFAULT_SOCKET_TIMEOUT = 10000;
 
     /**
@@ -337,6 +341,7 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @param timeout after how many milliseconds will an attempt to open or read from a socket fail
      */
+    @API(status = API.Status.STABLE)
     public void setSocketTimeout(int timeout) {
         socketTimeout.set(timeout);
     }
@@ -347,6 +352,7 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @return the number of milliseconds after which an attempt to open or read from a socket will fail
      */
+    @API(status = API.Status.STABLE)
     public int getSocketTimeout() {
         return socketTimeout.get();
     }
@@ -372,17 +378,13 @@ public class ConnectionManager extends LifecycleParticipant {
      * Receive an expected number of bytes from the player, logging a warning if we get a different number of them.
      *
      * @param is the input stream associated with the player metadata socket.
-     * @param size the number of bytes we expect to receive.
-     * @param description the type of response being processed, for use in the warning message.
      * @return the bytes read.
-     *
      * @throws IOException if there is a problem reading the response.
      */
-    @SuppressWarnings("SameParameterValue")
-    private byte[] readResponseWithExpectedSize(InputStream is, int size, String description) throws IOException {
+    private byte[] readResponseWithExpectedSize(InputStream is) throws IOException {
         byte[] result = receiveBytes(is);
-        if (result.length != size) {
-            logger.warn("Expected " + size + " bytes while reading " + description + " response, received " + result.length);
+        if (result.length != 2) {
+            logger.warn("Expected " + 2 + " bytes while reading database server port query packet response, received {}", result.length);
         }
         return result;
     }
@@ -432,7 +434,7 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @return true if we are offering shared dbserver sessions
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isRunning() {
         return running.get();
     }
@@ -458,7 +460,7 @@ public class ConnectionManager extends LifecycleParticipant {
      */
     private synchronized void closeIdleClients() {
         List<Client> candidates = new LinkedList<>(openClients.values());
-        logger.debug("Scanning for idle clients; " + candidates.size() + " candidates.");
+        logger.debug("Scanning for idle clients; {} candidates.", candidates.size());
         for (Client client : candidates) {
             if ((useCounts.get(client) < 1) &&
                     ((timestamps.get(client) + idleLimit.get() * 1000L) <= System.currentTimeMillis())) {
@@ -473,6 +475,7 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @throws SocketException if there is a problem opening connections
      */
+    @API(status = API.Status.STABLE)
     public synchronized void start() throws SocketException {
         if (!isRunning()) {
             DeviceFinder.getInstance().addLifecycleListener(lifecycleListener);
@@ -503,6 +506,7 @@ public class ConnectionManager extends LifecycleParticipant {
     /**
      * Stop offering shared dbserver sessions.
      */
+    @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
             running.set(false);
@@ -512,7 +516,7 @@ public class ConnectionManager extends LifecycleParticipant {
                 try {
                     client.close();
                 } catch (Exception e) {
-                    logger.warn("Problem closing " + client + " when stopping", e);
+                    logger.warn("Problem closing {} when stopping", client, e);
                 }
             }
             openClients.clear();
@@ -531,6 +535,7 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @return the only instance of this class which exists.
      */
+    @API(status = API.Status.STABLE)
     public static ConnectionManager getInstance() {
         return ourInstance;
     }

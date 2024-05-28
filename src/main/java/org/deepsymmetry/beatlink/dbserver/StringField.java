@@ -1,11 +1,12 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
 
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 /**
  * A string field holds a UTF8-BE encoded string whose length is determined by the 4-byte big-endian
@@ -13,6 +14,7 @@ import java.nio.ByteBuffer;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class StringField extends Field {
 
     /**
@@ -35,6 +37,7 @@ public class StringField extends Field {
      *
      * @return the text that this field contains.
      */
+    @API(status = API.Status.STABLE)
     public String getValue() {
         return value;
     }
@@ -51,6 +54,7 @@ public class StringField extends Field {
      *
      * @throws IOException if there is a problem reading the value.
      */
+    @API(status = API.Status.STABLE)
     public StringField(DataInputStream is) throws IOException {
         final byte[] sizeBytes = new byte[4];
         is.readFully(sizeBytes);
@@ -60,7 +64,7 @@ public class StringField extends Field {
         System.arraycopy(sizeBytes, 0, bufBytes, 1, 4);
         is.readFully(bufBytes, 5, size);
         buffer = ByteBuffer.wrap(bufBytes).asReadOnlyBuffer();
-        value = new String(bufBytes, 5, (size -   2), "UTF-16BE");  // Strip off trailing NUL.
+        value = new String(bufBytes, 5, (size -   2), StandardCharsets.UTF_16BE);  // Strip off trailing NUL.
     }
 
     /**
@@ -68,14 +72,11 @@ public class StringField extends Field {
      *
      * @param text the value that this field will convey.
      */
+    @API(status = API.Status.STABLE)
     public StringField(String text) {
         final byte[] bytes;
         final String delimited = text + '\0';  // Add the trailing NUL the protocol expects.
-        try {
-            bytes = delimited.getBytes("UTF-16BE");
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("Java no longer supports UTF-16BE encoding?!", e);
-        }
+        bytes = delimited.getBytes(StandardCharsets.UTF_16BE);
         size = bytes.length;
         ByteBuffer scratch = ByteBuffer.allocate(size + 5);
         scratch.put(typeTag);

@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import java.nio.channels.WritableByteChannel;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public abstract class Field {
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class.getName());
@@ -23,7 +25,7 @@ public abstract class Field {
      *
      * @return a freshly rewound buffer containing the full set of bytes which should be transmitted for this field.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public abstract ByteBuffer getBytes();
 
     /**
@@ -33,6 +35,7 @@ public abstract class Field {
      * @return the number of bytes which will be written after the type tag (and length indicator, if present) when
      * sending this field.
      */
+    @API(status = API.Status.STABLE)
     public abstract long getSize();
 
     /**
@@ -40,6 +43,7 @@ public abstract class Field {
      *
      * @return the tag which tells the recipient that this particular type of field is coming.
      */
+    @API(status = API.Status.STABLE)
     public abstract byte getTypeTag();
 
     /**
@@ -48,6 +52,7 @@ public abstract class Field {
      * @return the tag which is used instead of the type tag for some reason when putting together the argument
      *         type list for a dbserver message.
      */
+    @API(status = API.Status.STABLE)
     public abstract byte getArgumentTag();
 
     /**
@@ -60,6 +65,7 @@ public abstract class Field {
      *
      * @throws IOException if there is a problem reading the field.
      */
+    @API(status = API.Status.STABLE)
     public static Field read(DataInputStream is) throws IOException {
         final byte tag = is.readByte();
         final Field result;
@@ -110,6 +116,7 @@ public abstract class Field {
      *
      * @throws IOException if there is a problem writing to the channel
      */
+    @API(status = API.Status.STABLE)
     public void write(WritableByteChannel channel) throws IOException {
         logger.debug("..writing> {}", this);
         Util.writeFully(getBytes(), channel);

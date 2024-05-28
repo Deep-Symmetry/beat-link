@@ -1,5 +1,6 @@
 package org.deepsymmetry.beatlink.dbserver;
 
+import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.CdjStatus;
 import org.deepsymmetry.beatlink.Util;
 import org.slf4j.Logger;
@@ -16,7 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -26,6 +27,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author James Elliott
  */
+@API(status = API.Status.STABLE)
 public class Client {
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
@@ -53,19 +55,19 @@ public class Client {
     /**
      * The player number we are communicating with.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final int targetPlayer;
 
     /**
      * The player we are pretending to be.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public final int posingAsPlayer;
 
     /**
      * The greeting message exchanged over a new connection consists of a 4-byte number field containing the value 1.
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static final NumberField GREETING_FIELD = new NumberField(1, 4);
 
     /**
@@ -140,7 +142,7 @@ public class Client {
     private void performTeardownExchange() throws IOException {
         Message teardownRequest = new Message(0xfffffffeL, Message.KnownType.TEARDOWN_REQ);
         sendMessage(teardownRequest);
-        // At this point, the server closes the connection from its end, so we can’t read any more.
+        // At this point, the server closes the connection from its end, so we can’t read anymore.
     }
 
     /**
@@ -149,7 +151,7 @@ public class Client {
      *
      * @return {@code true} if this instance can still be used to query the connected dbserver
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public boolean isConnected() {
         return socket.isConnected();
     }
@@ -196,7 +198,7 @@ public class Client {
      *
      * @throws IOException if the field cannot be sent
      */
-    @SuppressWarnings("SameParameterValue")
+    @API(status = API.Status.STABLE)
     private void sendField(Field field) throws IOException {
         if (isConnected()) {
             try {
@@ -259,7 +261,7 @@ public class Client {
      *
      * @return the first argument to send with the query in order to obtain the desired information
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static NumberField buildRMST(int requestingPlayer, Message.MenuIdentifier targetMenu,
                                         CdjStatus.TrackSourceSlot slot) {
         return buildRMST(requestingPlayer, targetMenu, slot, CdjStatus.TrackType.REKORDBOX);
@@ -282,14 +284,15 @@ public class Client {
      *
      * @return the first argument to send with the query in order to obtain the desired information
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public static NumberField buildRMST(int requestingPlayer, Message.MenuIdentifier targetMenu,
                                         CdjStatus.TrackSourceSlot slot, CdjStatus.TrackType trackType) {
-        return new NumberField(((requestingPlayer & 0x0ff) << 24) |
+        return new NumberField(((long) (requestingPlayer & 0x0ff) << 24) |
                 ((targetMenu.protocolValue & 0xff) << 16) |
                 ((slot.protocolValue & 0xff) << 8) |
                 (trackType.protocolValue & 0xff));
     }
+
     /**
      * <p>Build the <em>R:M:S:T</em> parameter that begins many queries.</p>
      *
@@ -305,6 +308,7 @@ public class Client {
      *
      * @return the first argument to send with the query in order to obtain the desired information
      */
+    @API(status = API.Status.STABLE)
     public NumberField buildRMST(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot) {
         return buildRMST(posingAsPlayer, targetMenu, slot, CdjStatus.TrackType.REKORDBOX);
     }
@@ -325,7 +329,7 @@ public class Client {
      *
      * @return the first argument to send with the query in order to obtain the desired information
      */
-    @SuppressWarnings("WeakerAccess")
+    @API(status = API.Status.STABLE)
     public NumberField buildRMST(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot,
                                  CdjStatus.TrackType trackType) {
         return buildRMST(posingAsPlayer, targetMenu, slot, trackType);
@@ -342,6 +346,7 @@ public class Client {
      * @throws IOException if there is a communication problem, or if the response does not have the same transaction
      *                     ID as the request.
      */
+    @API(status = API.Status.STABLE)
     public synchronized Message simpleRequest(Message.KnownType requestType, Message.KnownType responseType,
                                               Field... arguments)
             throws IOException {
@@ -377,7 +382,7 @@ public class Client {
      * @throws IllegalStateException if {@link #tryLockingForMenuOperations(long, TimeUnit)} was not called successfully
      *         before attempting this call
      */
-    @SuppressWarnings("SameParameterValue")
+    @API(status = API.Status.STABLE)
     public Message menuRequest(Message.KnownType requestType, Message.MenuIdentifier targetMenu,
                                             CdjStatus.TrackSourceSlot slot, Field... arguments)
         throws IOException {
@@ -400,6 +405,7 @@ public class Client {
      * @throws IllegalStateException if {@link #tryLockingForMenuOperations(long, TimeUnit)} was not called successfully
      *         before attempting this call
      */
+    @API(status = API.Status.STABLE)
     public synchronized Message menuRequestTyped(Message.KnownType requestType, Message.MenuIdentifier targetMenu,
                                                  CdjStatus.TrackSourceSlot slot, CdjStatus.TrackType trackType, Field... arguments)
             throws IOException {
@@ -425,8 +431,8 @@ public class Client {
      * The default maximum number of menu items we will request at a single time. We are not sure what the largest safe
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players.
      */
-    @SuppressWarnings("WeakerAccess")
-    public static final long DEFAULT_MENU_BATCH_SIZE = 64;
+    @API(status = API.Status.STABLE)
+    public static final int DEFAULT_MENU_BATCH_SIZE = 64;
 
     /**
      * Ghe maximum number of menu items we will request at a single time. We are not sure what the largest safe
@@ -436,6 +442,7 @@ public class Client {
      * @return the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType, Message)}
      *         will request at once
      */
+    @API(status = API.Status.STABLE)
     public static long getMenuBatchSize() {
         return menuBatchSize.get();
     }
@@ -448,7 +455,8 @@ public class Client {
      * @param batchSize the maximum number of items {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType, Message)}
      *                      will request at once
      */
-    public static void setMenuBatchSize(long batchSize) {
+    @API(status = API.Status.STABLE)
+    public static void setMenuBatchSize(int batchSize) {
         menuBatchSize.set(batchSize);
     }
 
@@ -457,7 +465,7 @@ public class Client {
      * value to use is, but 64 seems to work well for CDJ-2000 nexus players. Changing this will affect future calls
      * to {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType trackType, Message)}.
      */
-    private static final AtomicLong menuBatchSize = new AtomicLong(DEFAULT_MENU_BATCH_SIZE);
+    private static final AtomicInteger menuBatchSize = new AtomicInteger(DEFAULT_MENU_BATCH_SIZE);
 
     /**
      * Used to ensure that only one thread at a time is attempting to perform menu operations, which require more than
@@ -478,6 +486,7 @@ public class Client {
      *
      * @throws InterruptedException if the thread is interrupted while waiting for the lock
      */
+    @API(status = API.Status.STABLE)
     public boolean tryLockingForMenuOperations(long timeout, TimeUnit unit) throws InterruptedException {
         return menuLock.tryLock(timeout, unit);
     }
@@ -486,13 +495,14 @@ public class Client {
      * Allow other threads to perform menu operations. This <em>must</em> be called promptly, once for each time that
      * {@link #tryLockingForMenuOperations(long, TimeUnit)} was called with a {@code true} return value.
      */
+    @API(status = API.Status.STABLE)
     public void unlockForMenuOperations() {
         menuLock.unlock();
     }
 
     /**
-     * Gather up all the responses that are available for a menu request. Will involve multiple requests if
-     * the number of responses available is larger than our maximum batch size (see {@link #getMenuBatchSize()}.
+     * Gather all the responses that are available for a menu request. Will involve multiple requests if
+     * the number of responses available is larger than our maximum batch size (see {@link #getMenuBatchSize()}).
      *
      * @param targetMenu the destination for the response to this query
      * @param slot the media library of interest for this query
@@ -507,7 +517,7 @@ public class Client {
      * @throws IllegalStateException if {@link #tryLockingForMenuOperations(long, TimeUnit)} was not called successfully
      *         before attempting this call
      */
-    @SuppressWarnings("SameParameterValue")
+    @API(status = API.Status.STABLE)
     public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot,
                                                       CdjStatus.TrackType trackType, Message availableResponse)
             throws IOException {
@@ -519,8 +529,8 @@ public class Client {
     }
 
     /**
-     * Gather up the specified range of responses for a menu request. Will involve multiple requests if
-     * the number of responses requested is larger than our maximum batch size (see {@link #getMenuBatchSize()}.
+     * Gather the specified range of responses for a menu request. Will involve multiple requests if
+     * the number of responses requested is larger than our maximum batch size (see {@link #getMenuBatchSize()}).
      * It is the caller's responsibility to make sure that {@code offset} and {@code count} remain within the
      * legal, available menu items based on the initial menu setup request. Most use cases will be best served
      * by the simpler {@link #renderMenuItems(Message.MenuIdentifier, CdjStatus.TrackSourceSlot, CdjStatus.TrackType, Message)}.
@@ -538,6 +548,7 @@ public class Client {
      * @throws IllegalStateException if {@link #tryLockingForMenuOperations(long, TimeUnit)} was not called successfully
      *         before attempting this call
      */
+    @API(status = API.Status.STABLE)
     public synchronized List<Message> renderMenuItems(Message.MenuIdentifier targetMenu, CdjStatus.TrackSourceSlot slot,
                                                       CdjStatus.TrackType trackType, int offset, int count)
             throws IOException {
@@ -552,10 +563,10 @@ public class Client {
             throw new IllegalArgumentException("count must be positive");
         }
 
-        final ArrayList<Message> results = new ArrayList<Message>(count);
+        final ArrayList<Message> results = new ArrayList<>(count);
         int gathered = 0;
         while (gathered < count) {
-            final long batchSize = (Math.min(count - gathered, menuBatchSize.get()));
+            final int batchSize = (Math.min(count - gathered, menuBatchSize.get()));
             final NumberField transaction = assignTransactionNumber();
             final NumberField limit = new NumberField(batchSize);
             final NumberField total = new NumberField(count);
