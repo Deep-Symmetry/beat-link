@@ -435,7 +435,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     try {
                         requestPSSI();
                     } catch (IOException e) {
-                        logger.warn("Cannot send PSSI request",data[0x25]);
+                        logger.warn("Cannot send PSSI request");
                         return null;
                     }
                 }
