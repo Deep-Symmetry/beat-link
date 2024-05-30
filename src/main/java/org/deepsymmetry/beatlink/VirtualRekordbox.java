@@ -186,6 +186,16 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
+     * The value that comes in update packet 0x25 for PSSI data.
+     */
+    private static int METADATA_TYPE_IDENTIFIER_PSSI = 10;
+
+    /**
+     * The value that comes in update packet 0x25 once per song change
+     */
+    private static int METADATA_TYPE_IDENTIFIER_SONG_CHANGE = 1;
+
+    /**
      * Used to construct the keep-alive packet we broadcast in order to participate in the DJ Link network.
      * Some of these bytes are fixed, some get replaced by things like our device name and number, MAC address,
      * and IP address, as described in the
@@ -397,7 +407,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
             case OPUS_METADATA:
                 byte[] data = packet.getData();
                 // PSSI Data
-                if (data[0x25] == 10) {  // TODO should this be a named constant?
+                if (data[0x25] == METADATA_TYPE_IDENTIFIER_PSSI) {
 
                     final int rekordboxId = (int) Util.bytesToNumber(data, 0x28, 4);
                     // Record this song structure so that we can use it for matching tracks in CdjStatus packets.
@@ -412,6 +422,14 @@ public class VirtualRekordbox extends LifecycleParticipant {
                             playerTrackSourceSlots.put(player, SlotReference.getSlotReference(sourceSlot, USB_SLOT));
                         }
                     }
+                } else if (data[0x25] == METADATA_TYPE_IDENTIFIER_SONG_CHANGE) {
+                    try {
+                        requestPSSI();
+                    } catch (IOException e) {
+                        logger.warn("Cannot send PSSI request",data[0x25]);
+                        return null;
+                    }
+                    logger.info("data {}",data[0x25]);
                 }
                 return null;
 
@@ -920,9 +938,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
             sendRekordboxLightingPacket();
 
             Thread.sleep(getAnnounceInterval());
-
-            requestPSSI();  // TODO Shouldn't we only do this when we detect a new track has been loaded?
-
         } catch (Throwable t) {
             logger.warn("Unable to send announcement packets, flushing DeviceFinder due to likely network change and shutting down.", t);
             DeviceFinder.getInstance().flush();

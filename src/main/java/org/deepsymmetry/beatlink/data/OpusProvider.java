@@ -184,6 +184,10 @@ public class OpusProvider {
             }
 
             VirtualCdj.getInstance().deliverMediaDetailsUpdate(newDetails);
+
+            // Request initial PSSI for matching just in case there are songs already loaded on startup.
+            // After this we will request PSSI data on song change.
+            VirtualRekordbox.getInstance().requestPSSI();
         } catch (Exception e) {
             filesystem.close();
             throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
