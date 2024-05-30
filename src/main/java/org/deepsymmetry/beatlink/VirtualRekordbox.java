@@ -343,6 +343,11 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     private final Map<Integer, SlotReference> playerTrackSourceSlots = new ConcurrentHashMap<>();
 
+    public void clearPlayerCaches(){
+        playerSongStructures.clear();
+        playerTrackSourceSlots.clear();
+    }
+
     /**
      * Given a player number (normalized to the range 1-4), returns the track source slot associated with the
      * metadata archive that we have matched that player's track to, if any, so we can report it in a meaningful
@@ -429,7 +434,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         logger.warn("Cannot send PSSI request",data[0x25]);
                         return null;
                     }
-                    logger.info("data {}",data[0x25]);
                 }
                 return null;
 
