@@ -186,12 +186,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     * The value that comes in update packet 0x25 for PSSI data.
+     * The value that comes in update packet[0x25] for PSSI data.
      */
     private static final int METADATA_TYPE_IDENTIFIER_PSSI = 10;
 
     /**
-     * The value that comes in update packet 0x25 once per song change
+     * The value that comes in update packet[0x25] once per song change
      */
     private static final int METADATA_TYPE_IDENTIFIER_SONG_CHANGE = 1;
 
