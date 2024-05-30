@@ -186,8 +186,7 @@ public class OpusProvider {
             // Clear player caches as matching data might not be applicable anymore.
             VirtualRekordbox.getInstance().clearPlayerCaches();
 
-            // Request initial PSSI for matching just in case there are songs already loaded on startup.
-            // After this we will request PSSI data on song change.
+            // Request initial PSSIs for track matching. After this we will request PSSI data on song change.
             VirtualRekordbox.getInstance().requestPSSI();
 
             VirtualCdj.getInstance().deliverMediaDetailsUpdate(newDetails);
