@@ -343,6 +343,10 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     private final Map<Integer, SlotReference> playerTrackSourceSlots = new ConcurrentHashMap<>();
 
+    /**
+     * Clear both player caches so that we can reload the data. This usually happens when we load an archive
+     * in OpusProvider.
+     */
     public void clearPlayerCaches(){
         playerSongStructures.clear();
         playerTrackSourceSlots.clear();
