@@ -186,6 +186,16 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
+     * The value that comes in update packet[0x25] for PSSI data.
+     */
+    private static final int METADATA_TYPE_IDENTIFIER_PSSI = 10;
+
+    /**
+     * The value that comes in update packet[0x25] once per song change
+     */
+    private static final int METADATA_TYPE_IDENTIFIER_SONG_CHANGE = 1;
+
+    /**
      * Used to construct the keep-alive packet we broadcast in order to participate in the DJ Link network.
      * Some of these bytes are fixed, some get replaced by things like our device name and number, MAC address,
      * and IP address, as described in the
@@ -334,6 +344,15 @@ public class VirtualRekordbox extends LifecycleParticipant {
     private final Map<Integer, SlotReference> playerTrackSourceSlots = new ConcurrentHashMap<>();
 
     /**
+     * Clear both player caches so that we can reload the data. This usually happens when we load an archive
+     * in OpusProvider.
+     */
+    public void clearPlayerCaches(){
+        playerSongStructures.clear();
+        playerTrackSourceSlots.clear();
+    }
+
+    /**
      * Given a player number (normalized to the range 1-4), returns the track source slot associated with the
      * metadata archive that we have matched that player's track to, if any, so we can report it in a meaningful
      * way in {@link CdjStatus} packets.
@@ -397,7 +416,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
             case OPUS_METADATA:
                 byte[] data = packet.getData();
                 // PSSI Data
-                if (data[0x25] == 10) {  // TODO should this be a named constant?
+                if (data[0x25] == METADATA_TYPE_IDENTIFIER_PSSI) {
 
                     final int rekordboxId = (int) Util.bytesToNumber(data, 0x28, 4);
                     // Record this song structure so that we can use it for matching tracks in CdjStatus packets.
@@ -411,6 +430,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         if (sourceSlot != 0) {  // We found match, record it.
                             playerTrackSourceSlots.put(player, SlotReference.getSlotReference(sourceSlot, USB_SLOT));
                         }
+                    }
+                } else if (data[0x25] == METADATA_TYPE_IDENTIFIER_SONG_CHANGE) {
+                    try {
+                        requestPSSI();
+                    } catch (IOException e) {
+                        logger.warn("Cannot send PSSI request");
                     }
                 }
                 return null;
@@ -920,9 +945,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
             sendRekordboxLightingPacket();
 
             Thread.sleep(getAnnounceInterval());
-
-            requestPSSI();  // TODO Shouldn't we only do this when we detect a new track has been loaded?
-
         } catch (Throwable t) {
             logger.warn("Unable to send announcement packets, flushing DeviceFinder due to likely network change and shutting down.", t);
             DeviceFinder.getInstance().flush();

@@ -183,6 +183,12 @@ public class OpusProvider {
                 Thread.sleep(50);
             }
 
+            // Clear player caches as matching data might not be applicable anymore.
+            VirtualRekordbox.getInstance().clearPlayerCaches();
+
+            // Request initial PSSIs for track matching. After this we will request PSSI data on song change.
+            VirtualRekordbox.getInstance().requestPSSI();
+
             VirtualCdj.getInstance().deliverMediaDetailsUpdate(newDetails);
         } catch (Exception e) {
             filesystem.close();
