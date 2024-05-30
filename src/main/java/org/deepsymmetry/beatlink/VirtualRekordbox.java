@@ -188,12 +188,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * The value that comes in update packet 0x25 for PSSI data.
      */
-    private static int METADATA_TYPE_IDENTIFIER_PSSI = 10;
+    private static final int METADATA_TYPE_IDENTIFIER_PSSI = 10;
 
     /**
      * The value that comes in update packet 0x25 once per song change
      */
-    private static int METADATA_TYPE_IDENTIFIER_SONG_CHANGE = 1;
+    private static final int METADATA_TYPE_IDENTIFIER_SONG_CHANGE = 1;
 
     /**
      * Used to construct the keep-alive packet we broadcast in order to participate in the DJ Link network.
