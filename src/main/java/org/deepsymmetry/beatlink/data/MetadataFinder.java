@@ -532,7 +532,6 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param slot the slot in which media is mounted
      */
     private void recordMount(SlotReference slot) {
-
         if (mediaMounts.add(slot)) {
             deliverMountUpdate(slot, true);
         }
