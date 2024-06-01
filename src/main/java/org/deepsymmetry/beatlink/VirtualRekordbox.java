@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink;
 
 import org.apiguardian.api.API;
+import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
@@ -314,15 +315,21 @@ public class VirtualRekordbox extends LifecycleParticipant {
             0x01, 0x02, 0x00, 0x29,  0x00, 0x00, 0x00, 0x00,   0x00
     };
 
+    /**
+     * Packet used to tell Opus device we want PSSI data once for all players with loaded songs.
+     */
     private static final byte[] requestPSSIBytes = {
             0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x55, 0x72, 0x65, 0x6b, 0x6f, 0x72,
             0x64, 0x62, 0x6f, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
             0x00, 0x17, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x0a, 0x02, 0x03, 0x01
     };
 
-    private static final byte[] deviceName = "rekordbox".getBytes();
-
-    // TODO this (and the arrays above) need JavaDoc.
+    /**
+     * This imitates the request RekordboxLighting sends to get PSSI data from Opus Quad device
+     * (and maybe more devices in the future).
+     *
+     * @throws IOException
+     */
     @API(status = API.Status.EXPERIMENTAL)
     public void requestPSSI() throws IOException{
         if (DeviceFinder.getInstance().isRunning() && !DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
@@ -347,9 +354,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * Clear both player caches so that we can reload the data. This usually happens when we load an archive
      * in OpusProvider.
      */
-    public void clearPlayerCaches(){
-        playerSongStructures.clear();
-        playerTrackSourceSlots.clear();
+    public void clearPlayerCaches(int usbSlotNumber){
+        playerSongStructures.remove(usbSlotNumber);
+        playerTrackSourceSlots.remove(usbSlotNumber);
     }
 
     /**

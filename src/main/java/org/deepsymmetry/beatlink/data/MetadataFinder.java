@@ -532,6 +532,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param slot the slot in which media is mounted
      */
     private void recordMount(SlotReference slot) {
+
         if (mediaMounts.add(slot)) {
             deliverMountUpdate(slot, true);
         }
@@ -541,6 +542,9 @@ public class MetadataFinder extends LifecycleParticipant {
             } catch (Exception e) {
                 logger.warn("Problem trying to request media details for {}", slot, e);
             }
+        }
+        if (OpusProvider.getInstance().isRunning()) {
+            OpusProvider.getInstance().pollAndSendMediaDetails(slot.player);
         }
     }
 
