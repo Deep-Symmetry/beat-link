@@ -353,6 +353,13 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * Clear both player caches so that we can reload the data. This usually happens when we load an archive
      * in OpusProvider.
+     *
+     * @param usbSlotNumber the slot we have the archive loaded in
+     */
+
+    /**
+     *
+     * @param usbSlotNumber
      */
     public void clearPlayerCaches(int usbSlotNumber){
         playerSongStructures.remove(usbSlotNumber);
