@@ -120,7 +120,7 @@ public class OpusProvider {
      *
      * Queues are initiated in constructor and should never be null.
      */
-    private final Map<Integer, LinkedBlockingQueue<MediaDetails>> archiveAttachStatusMap = new ConcurrentHashMap<>();
+    private final Map<Integer, LinkedBlockingQueue<MediaDetails>> archiveAttachQueueMap = new ConcurrentHashMap<>();
 
     /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
@@ -148,7 +148,7 @@ public class OpusProvider {
         final MediaDetails emptyDetails = new MediaDetails(emptySlotReference, CdjStatus.TrackType.REKORDBOX, "",
                 0, 0, 0);
 
-        archiveAttachStatusMap.get(usbSlotNumber).add(emptyDetails);
+        archiveAttachQueueMap.get(usbSlotNumber).add(emptyDetails);
 
         if (formerArchive != null) {
             try {
@@ -199,7 +199,7 @@ public class OpusProvider {
             VirtualRekordbox.getInstance().requestPSSI();
 
             // Put new MediaDetails into queue.
-            archiveAttachStatusMap.get(usbSlotNumber).put(newDetails);
+            archiveAttachQueueMap.get(usbSlotNumber).put(newDetails);
         } catch (Exception e) {
             filesystem.close();
             throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
@@ -232,7 +232,7 @@ public class OpusProvider {
     public void pollAndSendMediaDetails(int usbSlotNumber){
         if (usbSlotNumber > 0 && usbSlotNumber < 4) {
             // Only send media details if there is something in the queue.
-            MediaDetails mediaDetails = archiveAttachStatusMap.get(usbSlotNumber).poll();
+            MediaDetails mediaDetails = archiveAttachQueueMap.get(usbSlotNumber).poll();
 
             if (mediaDetails != null) {
                 VirtualCdj.getInstance().deliverMediaDetailsUpdate(mediaDetails);
@@ -621,7 +621,7 @@ public class OpusProvider {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public synchronized MediaDetails pollFromArchiveAttachedQueue(int usbSlotNumber){
-        return archiveAttachStatusMap.get(usbSlotNumber).poll();
+        return archiveAttachQueueMap.get(usbSlotNumber).poll();
     }
 
     /**
@@ -674,7 +674,7 @@ public class OpusProvider {
         extractDirectory = CrateDigger.createDownloadDirectory();
         // Create MediaDetails Queues, one per USB slot 1-3.
         for (int i = 1; i <= 3; i++) {
-            archiveAttachStatusMap.put(i, new LinkedBlockingQueue<>());
+            archiveAttachQueueMap.put(i, new LinkedBlockingQueue<>());
         }
     }
 
