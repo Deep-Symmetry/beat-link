@@ -222,6 +222,13 @@ public class OpusProvider {
         return usbArchiveMap.get(usbSlotNumber);
     }
 
+    /**
+     * Grab MediaDetails off of archiveAttachStatusMap and deliver it to VirtualCdj listeners. Message is null
+     * if not exists.
+     *
+     * @param usbSlotNumber
+     */
+    @API(status = API.Status.EXPERIMENTAL)
     public void pollAndSendMediaDetails(int usbSlotNumber){
         if (usbSlotNumber > 0 && usbSlotNumber < 4) {
             // Only send media details if there is something in the queue.
