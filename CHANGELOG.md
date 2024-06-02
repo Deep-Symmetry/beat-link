@@ -4,16 +4,12 @@ All notable changes to this project will be documented in this file.
 This change log follows the conventions of
 [keepachangelog.com](http://keepachangelog.com/).
 
-## [Unreleased (opus branch)][unreleased-opus]
+## [Unreleased][unreleased]
 
 ### Added
 
+- The ability to provide most features with the Opus Quad, even though that hardware does not really support the Pro DJ Link protocol, by leveraging its ability to work with rekordbox lighting. Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work!
 - The ability to proxy metadata from mounted archive files corresponding to USB media mounted in the Opus Quad, which cannot itself provide that information.
-
-
-## [Unreleased][unreleased]
-
-Nothing so far
 
 
 ## [7.4.0] - 2024-05-04
@@ -841,7 +837,6 @@ May the Fourth be with you.
 - Initial early release of DeviceFinder.
 
 
-[unreleased-opus]: https://github.com/Deep-Symmetry/beat-link/compare/main...opus
 [unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.4.0...HEAD
 [7.4.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.3.0...v7.4.0
 [7.3.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.2.0...v7.3.0
