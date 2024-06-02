@@ -16,7 +16,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -115,6 +115,14 @@ public class OpusProvider {
     private final Map<Integer, RekordboxUsbArchive> usbArchiveMap = new ConcurrentHashMap<>();
 
     /**
+     * Contains a queue per slot number which allows us to slow down sending VirtualCdj.deliverMediaDetailsUpdate
+     * when we attach metadata archives until the application is actually ready to do so.
+     *
+     * Queues are initiated in constructor and should never be null.
+     */
+    private final Map<Integer, LinkedBlockingQueue<MediaDetails>> archiveAttachQueueMap = new ConcurrentHashMap<>();
+
+    /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
      * This must be a file created using {@link org.deepsymmetry.cratedigger.Archivist#createArchive(Database, File)}
      * from that media.
@@ -135,6 +143,13 @@ public class OpusProvider {
         // First close and remove any archive we had previously attached for this slot.
         final RekordboxUsbArchive formerArchive = usbArchiveMap.remove(usbSlotNumber);
 
+        // Report archive closed.
+        final SlotReference emptySlotReference = SlotReference.getSlotReference(usbSlotNumber, null);
+        final MediaDetails emptyDetails = new MediaDetails(emptySlotReference, CdjStatus.TrackType.REKORDBOX, "",
+                0, 0, 0);
+
+        archiveAttachQueueMap.get(usbSlotNumber).add(emptyDetails);
+
         if (formerArchive != null) {
             try {
                 logger.info("Detached metadata archive {} from USB{}", formerArchive, formerArchive.usbSlot);
@@ -142,6 +157,9 @@ public class OpusProvider {
                 //noinspection ResultOfMethodCallIgnored
                 formerArchive.getDatabase().sourceFile.delete();
                 formerArchive.getFileSystem().close();
+
+                // Clear player caches as matching data is not applicable anymore.
+                VirtualRekordbox.getInstance().clearPlayerCaches(usbSlotNumber);
             } catch (IOException e) {
                 logger.error("Problem closing database or FileSystem for USB{}", usbSlotNumber, e);
             }
@@ -175,21 +193,13 @@ public class OpusProvider {
             // Send a media update so clients know this media is mounted.
             final SlotReference slotReference = SlotReference.getSlotReference(usbSlotNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
             final MediaDetails newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, filesystem.toString(),
-                    database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
-
-            // Wait for media mount to exist before continuing otherwise we might not properly register the drive
-            // and wind up in a bad state.
-            while (!MetadataFinder.getInstance().getMountedMediaSlots().contains(slotReference)) {
-                Thread.sleep(50);
-            }
-
-            // Clear player caches as matching data might not be applicable anymore.
-            VirtualRekordbox.getInstance().clearPlayerCaches();
+            database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
 
             // Request initial PSSIs for track matching. After this we will request PSSI data on song change.
             VirtualRekordbox.getInstance().requestPSSI();
 
-            VirtualCdj.getInstance().deliverMediaDetailsUpdate(newDetails);
+            // Put new MediaDetails into queue.
+            archiveAttachQueueMap.get(usbSlotNumber).put(newDetails);
         } catch (Exception e) {
             filesystem.close();
             throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
@@ -210,6 +220,24 @@ public class OpusProvider {
     @API(status = API.Status.EXPERIMENTAL)
     public RekordboxUsbArchive findArchive(int usbSlotNumber) {
         return usbArchiveMap.get(usbSlotNumber);
+    }
+
+    /**
+     * Grab MediaDetails off of archiveAttachStatusMap and deliver it to VirtualCdj listeners. Message is null
+     * if not exists.
+     *
+     * @param usbSlotNumber
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public void pollAndSendMediaDetails(int usbSlotNumber){
+        if (usbSlotNumber > 0 && usbSlotNumber < 4) {
+            // Only send media details if there is something in the queue.
+            MediaDetails mediaDetails = archiveAttachQueueMap.get(usbSlotNumber).poll();
+
+            if (mediaDetails != null) {
+                VirtualCdj.getInstance().deliverMediaDetailsUpdate(mediaDetails);
+            }
+        }
     }
 
     /**
@@ -587,6 +615,16 @@ public class OpusProvider {
     }
 
     /**
+     * Get a message from archive attached queue for your slot message to see if we want to send MediaDetails to liteners.
+     *
+     * @return MediaDetails for the specific the USB slot number.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public synchronized MediaDetails pollFromArchiveAttachedQueue(int usbSlotNumber){
+        return archiveAttachQueueMap.get(usbSlotNumber).poll();
+    }
+
+    /**
      * Start proxying track metadata from mounted archives for the Opus Quad decks.
      */
     @API(status = API.Status.STABLE)
@@ -634,6 +672,10 @@ public class OpusProvider {
      */
     private OpusProvider() {
         extractDirectory = CrateDigger.createDownloadDirectory();
+        // Create MediaDetails Queues, one per USB slot 1-3.
+        for (int i = 1; i <= 3; i++) {
+            archiveAttachQueueMap.put(i, new LinkedBlockingQueue<>());
+        }
     }
 
     @Override
