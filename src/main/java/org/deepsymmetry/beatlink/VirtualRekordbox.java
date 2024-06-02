@@ -1,7 +1,6 @@
 package org.deepsymmetry.beatlink;
 
 import org.apiguardian.api.API;
-import org.deepsymmetry.beatlink.data.MetadataFinder;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.slf4j.Logger;
@@ -209,6 +208,10 @@ public class VirtualRekordbox extends LifecycleParticipant {
             0x02, 0x0b, 0x04, 0x01,  0x00, 0x00, 0x04, 0x08
     };
 
+    /**
+     * Used to construct the packet we send to request lighting information from the Opus Quad, which is how we
+     * can figure out what tracks it is playing.
+     */
     private static final byte[] rekordboxLightingRequestStatusBytes = {
             0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,  0x4f, 0x4c, 0x11, 0x72,  0x65, 0x6b, 0x6f, 0x72,
             0x64, 0x62, 0x6f, 0x78,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x01,
@@ -328,7 +331,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * This imitates the request RekordboxLighting sends to get PSSI data from Opus Quad device
      * (and maybe more devices in the future).
      *
-     * @throws IOException
+     * @throws IOException if there is a problem sending the request
      */
     @API(status = API.Status.EXPERIMENTAL)
     public void requestPSSI() throws IOException{
@@ -356,11 +359,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      *
      * @param usbSlotNumber the slot we have the archive loaded in
      */
-
-    /**
-     *
-     * @param usbSlotNumber
-     */
+    @API(status = API.Status.EXPERIMENTAL)
     public void clearPlayerCaches(int usbSlotNumber){
         playerSongStructures.remove(usbSlotNumber);
         playerTrackSourceSlots.remove(usbSlotNumber);
@@ -377,6 +376,13 @@ public class VirtualRekordbox extends LifecycleParticipant {
     SlotReference findMatchedTrackSourceSlotForPlayer(int player) {
         return playerTrackSourceSlots.get(player);
     }
+
+
+    /**
+     * Keeps track of the most recent valid (non-zero) status flag byte we have received from each device number,
+     * so we can reuse it in cases where a corrupt (zero) value has been sent to us.
+     */
+    private final Map<Integer, Byte> lastValidStatusFlagBytes = new ConcurrentHashMap<>();
 
     /**
      * Given an update packet sent to us, create the appropriate object to describe it.
@@ -406,7 +412,24 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
             case CDJ_STATUS:
                 if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
-                    CdjStatus status = new CdjStatus(packet);
+                    // Try to recover from a malformed Opus Quad packet with a zero value in its status flags by reusing the last valid one we saw from the same device.
+                    final byte reportedStatusFlags = packet.getData()[CdjStatus.STATUS_FLAGS];
+                    final boolean hadToRecoverStatusFlags = (reportedStatusFlags == 0);
+                    final int rawDeviceNumber = packet.getData()[CdjStatus.DEVICE_NUMBER_OFFSET];
+                    if (hadToRecoverStatusFlags) {
+                        final Byte recoveredStatusFlags = lastValidStatusFlagBytes.get(rawDeviceNumber);
+                        if (recoveredStatusFlags != null) {
+                            packet.getData()[CdjStatus.STATUS_FLAGS] = recoveredStatusFlags;
+                        } else {
+                            logger.warn("Unable to recover from malformed Opus Quad status packet because we have not yet received a valid packet from device {}.",
+                                    rawDeviceNumber);
+                            return null;  // Discard this packet.
+                        }
+                    } else {
+                        lastValidStatusFlagBytes.put(rawDeviceNumber, reportedStatusFlags);  // Record in case next packet for this device is malformed.
+                    }
+
+                    CdjStatus status = new CdjStatus(packet, hadToRecoverStatusFlags);
 
                     // If source player number is zero the deck does not have a song loaded, clear the PSSI and source slot we had for that player.
                     if (status.getTrackSourcePlayer() == 0) {
@@ -825,7 +848,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     * TODO top-level description needed.
+     * TODO: top-level description needed.
      *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}.
      * @throws Exception if there is a problem opening a socket on the right network
@@ -1036,6 +1059,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}, or it was already running.
      * @throws SocketException if the socket to listen on port 50002 cannot be created
      */
+    @API(status = API.Status.EXPERIMENTAL)
     synchronized boolean start(byte deviceNumber) throws Exception {
         // TODO I am not sure we actually need this method. If we do want to control the device number that is used,
         //      we will need to add a mechanism do that from VirtualCdj.
@@ -1049,6 +1073,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * Stop announcing ourselves and listening for status updates.
      */
+    @API(status = API.Status.EXPERIMENTAL)
     synchronized void stop() {
         if (isRunning()) {
             DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
@@ -1056,6 +1081,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
             socket.set(null);
             broadcastAddress.set(null);
             updates.clear();
+            lastValidStatusFlagBytes.clear();
             setDeviceNumber((byte) 0);  // Set up for self-assignment if restarted.
             deliverLifecycleAnnouncement(logger, false);
         }

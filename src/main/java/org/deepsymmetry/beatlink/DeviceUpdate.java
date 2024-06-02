@@ -15,6 +15,11 @@ import java.net.InetAddress;
 public abstract class DeviceUpdate {
 
     /**
+     * The offset at which the device number that sent this packet can be found.
+     */
+    public static final int DEVICE_NUMBER_OFFSET = 0x21;
+
+    /**
      * The address from which this device update was received.
      */
     final InetAddress address;
@@ -60,14 +65,14 @@ public abstract class DeviceUpdate {
         address = packet.getAddress();
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
-        deviceName = new String(packetBytes, 11, 20).trim();
+        deviceName = new String(packetBytes, 0x0b, 20).trim();
         isFromOpusQuad = deviceName.equals(OpusProvider.OPUS_NAME);
         preNexusCdj = deviceName.startsWith("CDJ") && (deviceName.endsWith("900") || deviceName.endsWith("2000"));
 
         if (isFromOpusQuad) {
-            deviceNumber = Util.translateOpusPlayerNumbers(packetBytes[40]);
+            deviceNumber = Util.translateOpusPlayerNumbers(packetBytes[DEVICE_NUMBER_OFFSET]);
         } else {
-            deviceNumber = Util.unsign(packetBytes[33]);
+            deviceNumber = Util.unsign(packetBytes[DEVICE_NUMBER_OFFSET]);
         }
     }
 

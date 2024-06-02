@@ -77,6 +77,25 @@ public class CdjStatus extends DeviceUpdate {
     public static final int PLAYING_FLAG = 0x40;
 
     /**
+     * The byte which reports the state of the player’s CD slot, labeled <i>d<sub>l</sub></i> in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
+     */
+    public static final int LOCAL_CD_STATE = 0x37;
+
+    /**
+     * The byte which reports the state of the player’s USB slot, labeled <i>U<sub>l</sub></i> in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
+     */
+    @API(status = API.Status.STABLE)
+    public static final int LOCAL_USB_STATE = 0x6F;
+
+    /**
+     * The byte which reports the state of the player’s SD slot, labeled <i>S<sub>l</sub></i> in the
+     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
+     */
+    public static final int LOCAL_SD_STATE = 0x73;
+
+    /**
      * The device number of the player from which the track was loaded, if any; labeled <i>D<sub>r</sub></i> in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      */
@@ -513,7 +532,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the proper value
      */
     private TrackSourceSlot findTrackSourceSlot() {
-        TrackSourceSlot result = TRACK_SOURCE_SLOT_MAP.get(packetBytes[41]);
+        TrackSourceSlot result = TRACK_SOURCE_SLOT_MAP.get(packetBytes[0x29]);
         if (result == null) {
             return TrackSourceSlot.UNKNOWN;
         }
@@ -526,7 +545,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the proper value
      */
     private TrackType findTrackType() {
-        TrackType result = TRACK_TYPE_MAP.get(packetBytes[42]);
+        TrackType result = TRACK_TYPE_MAP.get(packetBytes[0x2a]);
         if (result == null) {
             return TrackType.UNKNOWN;
         }
@@ -539,7 +558,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the proper value
      */
     private PlayState1 findPlayState1() {
-        PlayState1 result = PLAY_STATE_1_MAP.get(packetBytes[123]);
+        PlayState1 result = PLAY_STATE_1_MAP.get(packetBytes[0x7b]);
         if (result == null) {
             return PlayState1.UNKNOWN;
         }
@@ -552,7 +571,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the proper value
      */
     private PlayState2 findPlayState2() {
-        switch (packetBytes[139]) {
+        switch (packetBytes[0x8b]) {
             case 0x6a:
             case 0x7a:
             case (byte)0xfa:
@@ -574,7 +593,7 @@ public class CdjStatus extends DeviceUpdate {
      * @return the proper value
      */
     private PlayState3 findPlayState3() {
-        PlayState3 result = PLAY_STATE_3_MAP.get(packetBytes[157]);
+        PlayState3 result = PLAY_STATE_3_MAP.get(packetBytes[0x9d]);
         if (result == null) {
             return PlayState3.UNKNOWN;
         }
@@ -606,13 +625,34 @@ public class CdjStatus extends DeviceUpdate {
     public static final int MINIMUM_PACKET_SIZE = 0xcc;
 
     /**
+     * Indicates whether the status flags in this instance had to be reused from the previous valid packet received
+     * from this device, because it is an Opus Quad which sent a zero value in the current packet.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public final boolean statusFlagsWereReplayed;
+
+    /**
      * Constructor sets all the immutable interpreted fields based on the packet content.
      *
      * @param packet the CDJ status packet that was received
      */
     @API(status = API.Status.STABLE)
     public CdjStatus(DatagramPacket packet) {
+        this(packet, false);
+    }
+
+    /**
+     * Constructor that records whether the status flag is a replay of a previous, valid status flag, because
+     * we are receiving corrupt data from an Opus Quad.
+     *
+     * @param packet the CDJ status packet that was received, except that a zero {@link #STATUS_FLAGS} byte
+     *               may have been replaced by a valid one from the previous packet received for this device
+     * @param statusFlagsReplayed indicates whether the status flag replacement has occurred.
+     */
+    CdjStatus(DatagramPacket packet, boolean statusFlagsReplayed) {
         super(packet, "CDJ status", packet.getLength());
+
+        statusFlagsWereReplayed = statusFlagsReplayed;
 
         if (packetBytes.length < MINIMUM_PACKET_SIZE) {
             throw new IllegalArgumentException("Unable to create a CdjStatus object, packet too short: we need " + MINIMUM_PACKET_SIZE +
@@ -633,16 +673,16 @@ public class CdjStatus extends DeviceUpdate {
             logger.warn("Processing CDJ Status packets with unexpected lengths {}.", packetBytes.length);
         }
         trackType = findTrackType();
-        rekordboxId = (int)Util.bytesToNumber(packetBytes, 44, 4);
-        pitch = (int)Util.bytesToNumber(packetBytes, 141, 3);
-        bpm = (int)Util.bytesToNumber(packetBytes, 146, 2);
+        rekordboxId = (int)Util.bytesToNumber(packetBytes, 0x2c, 4);
+        pitch = (int)Util.bytesToNumber(packetBytes, 0x8d, 3);
+        bpm = (int)Util.bytesToNumber(packetBytes, 0x92, 2);
         playState1 = findPlayState1();
         playState2 = findPlayState2();
         playState3 = findPlayState3();
-        firmwareVersion = new String(packetBytes, 124, 4).trim();
+        firmwareVersion = new String(packetBytes, 0x7c, 4).trim();
         handingMasterToDevice = Util.unsign(packetBytes[MASTER_HAND_OFF]);
 
-        final byte trackSourceByte = packetBytes[40];
+        final byte trackSourceByte = packetBytes[0x28];
         if (isFromOpusQuad && (trackSourceByte < 16)) {
             int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
             if (sourcePlayer != 0) {
@@ -654,7 +694,7 @@ public class CdjStatus extends DeviceUpdate {
             trackSourcePlayer = sourcePlayer;
             trackSourceSlot = TrackSourceSlot.USB_SLOT;
             // Indicate whether we have a metadata archive available for the USB slot:
-            packetBytes[111] = (byte) (OpusProvider.getInstance().findArchive(deviceNumber) == null? 4 : 0);
+            packetBytes[LOCAL_USB_STATE] = (byte) (OpusProvider.getInstance().findArchive(deviceNumber) == null? 4 : 0);
         } else {
             trackSourcePlayer = trackSourceByte;
             trackSourceSlot = findTrackSourceSlot();
@@ -732,7 +772,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public int getBeatWithinBar() {
-        return packetBytes[166];
+        return packetBytes[0xa6];
     }
 
     /**
@@ -773,23 +813,15 @@ public class CdjStatus extends DeviceUpdate {
 
     /**
      * Was the CDJ playing a track when this update was sent? Has special logic to try to accommodate the quirks of
-     * both pre-nexus players and the Opus Quad.
+     * pre-nexus players.
      *
      * @return true if the play flag was set, or, if this seems to be a non-nexus player, if <em>P<sub>1</sub></em>
      *         and <em>P<sub>2</sub></em> have values corresponding to a playing state.
      */
     @API(status = API.Status.STABLE)
     public boolean isPlaying() {
-        if (packetBytes.length >= 212) {
-            final boolean simpleResult = (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
-            if (!simpleResult && isFromOpusQuad) {
-                // Sometimes the Opus Quad lies and reports that it is not playing in this flag, even though it actually is.
-                // Try to recover from that.
-                return playState1 == PlayState1.PLAYING || playState1 == PlayState1.LOOPING ||
-                        (playState1 == PlayState1.SEARCHING && (playState2.protocolValue & 0x0f) == 0x0a);
-            } else {
-                return simpleResult;
-            }
+        if (packetBytes.length >= 0xd4) {
+            return (packetBytes[STATUS_FLAGS] & PLAYING_FLAG) > 0;
         } else {
             // Pre-nexus players don’t send this critical flag byte at all, so we always have to infer play state.
             return playState1 == PlayState1.PLAYING || playState1 == PlayState1.LOOPING ||
@@ -838,7 +870,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isLocalUsbLoaded() {
-        return (packetBytes[111] == 0);
+        return (packetBytes[LOCAL_USB_STATE] == 0);
     }
 
     /**
@@ -848,7 +880,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isLocalUsbUnloading() {
-        return (packetBytes[111] == 2);
+        return (packetBytes[LOCAL_USB_STATE] == 2);
     }
 
     /**
@@ -858,7 +890,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isLocalUsbEmpty() {
-        return (packetBytes[111] == 4);
+        return (packetBytes[LOCAL_USB_STATE] == 4);
     }
 
     /**
@@ -868,7 +900,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isLocalSdLoaded() {
-        return (packetBytes[115] == 0);
+        return (packetBytes[LOCAL_SD_STATE] == 0);
     }
 
     /**
@@ -878,7 +910,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isLocalSdUnloading() {
-        return (packetBytes[115] == 2);
+        return (packetBytes[LOCAL_SD_STATE] == 2);
     }
 
     /**
@@ -888,7 +920,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isLocalSdEmpty() {
-        return (packetBytes[115] == 4);
+        return (packetBytes[LOCAL_SD_STATE] == 4);
     }
 
     /**
@@ -901,7 +933,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isDiscSlotEmpty() {
-        return (packetBytes[0x37] != 0x1e) && (packetBytes[0x37] != 0x11);
+        return (packetBytes[LOCAL_CD_STATE] != 0x1e) && (packetBytes[LOCAL_CD_STATE] != 0x11);
     }
 
     /**
@@ -912,7 +944,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isDiscSlotAsleep() {
-        return (packetBytes[0x37] == 1);
+        return (packetBytes[LOCAL_CD_STATE] == 1);
     }
 
     /**
@@ -1036,7 +1068,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isLinkMediaAvailable() {
-        return (packetBytes[117] != 0);
+        return (packetBytes[0x75] != 0);
     }
 
     /**
@@ -1046,7 +1078,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public boolean isBusy() {
-        return packetBytes[39] != 0;
+        return packetBytes[0x27] != 0;
     }
 
     /**
@@ -1057,7 +1089,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public int getTrackNumber() {
-        return (int)Util.bytesToNumber(packetBytes, 50, 2);
+        return (int)Util.bytesToNumber(packetBytes, 0x32, 2);
     }
 
     /**
@@ -1083,7 +1115,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public int getBeatNumber() {
-        long result = Util.bytesToNumber(packetBytes, 160, 4);
+        long result = Util.bytesToNumber(packetBytes, 0xa0, 4);
         if (result != 0xffffffffL) {
             return (int) result;
         } return -1;
@@ -1104,7 +1136,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public int getCueCountdown() {
-        return (int)Util.bytesToNumber(packetBytes, 164, 2);
+        return (int)Util.bytesToNumber(packetBytes, 0xa4, 2);
     }
 
     /**
@@ -1151,7 +1183,7 @@ public class CdjStatus extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public long getPacketNumber() {
-        return Util.bytesToNumber(packetBytes, 200, 4);
+        return Util.bytesToNumber(packetBytes, 0xc8, 4);
     }
 
     /**
@@ -1221,7 +1253,8 @@ public class CdjStatus extends DeviceUpdate {
                 ", isBeatWithinBarMeaningful? " + isBeatWithinBarMeaningful() + ", cue: " + formatCueCountdown() +
                 ", Playing? " + isPlaying() + ", Master? " + isTempoMaster() +
                 ", Synced? " + isSynced() + ", On-Air? " + isOnAir() +
-                ", handingMasterToDevice:" + handingMasterToDevice + "]";
+                ", handingMasterToDevice: " + handingMasterToDevice +
+                ", statusFlagsWereReplayed: " + statusFlagsWereReplayed + "]";
     }
 
 }
