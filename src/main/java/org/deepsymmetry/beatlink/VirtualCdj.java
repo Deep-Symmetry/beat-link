@@ -952,7 +952,7 @@ public class VirtualCdj extends LifecycleParticipant {
         receiver.start();
 
         // Create the thread which announces our participation in the DJ Link network, to request update packets
-        Thread announcer = new Thread(null, () -> {
+        final Thread announcer = new Thread(null, () -> {
             while (isRunning()) {
                 sendAnnouncement(broadcastAddress.get());
             }
