@@ -11,6 +11,9 @@ This change log follows the conventions of
 - The ability to provide most features with the Opus Quad, even though that hardware does not really support the Pro DJ Link protocol, by leveraging its ability to work with rekordbox lighting. Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work!
 - The ability to proxy metadata from mounted archive files corresponding to USB media mounted in the Opus Quad, which cannot itself provide that information.
 
+### Fixed
+
+- An error in interpreting database export file format by the Crate Digger library could lead to some rows that were actually present in tables not being found.
 
 ## [7.4.0] - 2024-05-04
 
