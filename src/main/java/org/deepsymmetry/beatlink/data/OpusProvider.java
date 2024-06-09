@@ -115,10 +115,10 @@ public class OpusProvider {
     private final Map<Integer, RekordboxUsbArchive> usbArchiveMap = new ConcurrentHashMap<>();
 
     /**
-     * Contains a queue per slot number which allows us to slow down sending VirtualCdj.deliverMediaDetailsUpdate
-     * when we attach metadata archives until the application is actually ready to do so.
+     * <p>Contains a queue per slot number which allows us to slow down sending VirtualCdj.deliverMediaDetailsUpdate
+     * when we attach metadata archives until the application is actually ready to do so.</p>
      *
-     * Queues are initiated in constructor and should never be null.
+     * <p>Queues are initialized in the constructor and will never be {@code null}.</p>
      */
     private final Map<Integer, LinkedBlockingQueue<MediaDetails>> archiveAttachQueueMap = new ConcurrentHashMap<>();
 
@@ -223,13 +223,12 @@ public class OpusProvider {
     }
 
     /**
-     * Grab MediaDetails off of archiveAttachStatusMap and deliver it to VirtualCdj listeners. Message is null
-     * if not exists.
+     * Grab {@link MediaDetails} for a slot from {@link #archiveAttachQueueMap} and deliver it to VirtualCdj listeners.
+     * Message is {@code }null} if that media archive does not exist.
      *
-     * @param usbSlotNumber
+     * @param usbSlotNumber the USB slot whose queue should be checked
      */
-    @API(status = API.Status.EXPERIMENTAL)
-    public void pollAndSendMediaDetails(int usbSlotNumber){
+    void pollAndSendMediaDetails(int usbSlotNumber){
         if (usbSlotNumber > 0 && usbSlotNumber < 4) {
             // Only send media details if there is something in the queue.
             MediaDetails mediaDetails = archiveAttachQueueMap.get(usbSlotNumber).poll();
@@ -612,16 +611,6 @@ public class OpusProvider {
             }
         }
         return 0;
-    }
-
-    /**
-     * Get a message from archive attached queue for your slot message to see if we want to send MediaDetails to liteners.
-     *
-     * @return MediaDetails for the specific the USB slot number.
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    public synchronized MediaDetails pollFromArchiveAttachedQueue(int usbSlotNumber){
-        return archiveAttachQueueMap.get(usbSlotNumber).poll();
     }
 
     /**
