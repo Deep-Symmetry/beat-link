@@ -466,7 +466,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
     /**
      * This will send the announcement that makes players think that they are talking to rekordbox.
-     * This will make players start to send out status packets.
+     * After we send these announcement packets other players will start to send out status packets.
+     * We need to send these every second or two otherwise we will be disconnevted from the pro link
+     * network.
      */
     @API(status = API.Status.EXPERIMENTAL)
     public void sendRekordboxAnnouncement() {
@@ -482,7 +484,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     * This method will start up all of the required pieces to emulate Rekordbox LIghting to pioneer devices on
+     * This method will start up all of the required pieces to emulate Rekordbox Lighting to pioneer devices on
      * the network. This is not as powerful as emulating a CDJ, as that will get most ProLink devices to become
      * very chatty, but rather this is for devices that don't support ProLink properly but can be coaxed to send
      * status packets when they talk to RekordboxLighting (the Opus Quad being the only device at the time of
