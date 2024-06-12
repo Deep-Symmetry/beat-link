@@ -462,9 +462,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         final int player = Util.translateOpusPlayerNumbers(data[0x21]);
                         playerSongStructures.put(player, pssiFromOpus);
                         // Also record the conceptual source slot that represents the USB slot from which this track seems to have been loaded
-                        // TODO we need to check that the track was loaded from a player, and not rekordbox, as well, before trying to do this!
                         final int sourceSlot = OpusProvider.getInstance().findMatchingUsbSlotForTrack(rekordboxId, player, pssiFromOpus);
-                        if (sourceSlot != 0) {  // We found match, record it.
+                        if (sourceSlot != 0) {  // We found a match, record it.
                             playerTrackSourceSlots.put(player, SlotReference.getSlotReference(sourceSlot, USB_SLOT));
                         }
                     }
@@ -517,62 +516,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     @API(status = API.Status.EXPERIMENTAL)
     private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 4000;
-
-    // TODO: Is any of this stuff needed? If so it needs to be modified to work in the device number range used by rekordbox
-    /**
-     * <p>Try to choose a device number, which we have not seen on the network. If we have already tried one, it must
-     * have been defended, so increment to the next one we can try (we stop at 15). If we have not yet tried one,
-     * pick the first appropriate one to try, honoring the value of {@link #useStandardPlayerNumber} to determine
-     * if we start at 1 or 7. Set the number we are going to try next in {@link #claimingNumber}.</p>
-     *
-     * <p>Even though in theory we should be able to rely on the protocol to tell us if we are claiming a
-     * number that belongs to another player, it turns out the XDJ-XZ is buggy and tells us to go ahead and
-     * use whatever we were claiming, and further fails to defend the device numbers that it is using. So
-     * we still need to make sure the {@link DeviceFinder} has been running long enough to see all devices
-     * so we can avoid trying to claim a number that some other device is already using.</p>
-     *
-     * @return true if there was a number available for us to try claiming
-     */
-    private boolean selfAssignDeviceNumber() {
-        final long now = System.currentTimeMillis();
-        final long started = DeviceFinder.getInstance().getFirstDeviceTime();
-        if (now - started < SELF_ASSIGNMENT_WATCH_PERIOD) {
-            try {
-                Thread.sleep(SELF_ASSIGNMENT_WATCH_PERIOD - (now - started));  // Sleep until we hit the right time
-            } catch (InterruptedException e) {
-                logger.warn("Interrupted waiting to self-assign device number, giving up.");
-                return false;
-            }
-        }
-
-        if (claimingNumber.get() == 0) {
-            // We have not yet tried a number. If we are not supposed to use standard player numbers, make sure
-            // the first one we try is 7 (to accommodate the CDJ-3000, which can use channels 5 and 6).
-            if (!getUseStandardPlayerNumber()) {
-                claimingNumber.set(6);
-            }
-        }
-
-        // Record what numbers we have already seen, since there is no point trying one of them.
-        Set<Integer> numbersUsed = new HashSet<>();
-        for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
-            numbersUsed.add(device.getDeviceNumber());
-        }
-
-        // Try next available player number less than mixers use.
-        final int startingNumber = claimingNumber.get() + 1;
-        for (int result = startingNumber; result < 16; result++) {
-            if (!numbersUsed.contains(result)) {  // We found one that is not used, so we can use it
-                claimingNumber.set(result);
-                if (getUseStandardPlayerNumber() && (result > 4)) {
-                    logger.warn("Unable to self-assign a standard player number, all are in use. Trying number {}.", result);
-                }
-                return true;
-            }
-        }
-        logger.warn("Found no unused device numbers between {} and 15, giving up.", startingNumber);
-        return false;
-    }
 
     /**
      * Hold the network interfaces which match the address on which we found player traffic. Should only be one,
@@ -690,150 +633,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     * Implement the device-number claim protocol described in the
-     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-startup">protocol analysis</a>.
-     *
-     * @return true iff a device number was successfully established and startup can proceed
+     * This will send the announcement that makes players think that they are talking to rekordbox.
+     * This will make players start to send out status packets.
      */
-    private boolean claimDeviceNumber() {
-        // Set up our state trackers for device assignment negotiation.
-        claimRejected.set(false);
-        mixerAssigned.set(0);
-
-        // Send the initial series of three "coming online" packets.
-        Arrays.fill(helloBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
-        System.arraycopy(getDeviceName().getBytes(), 0, helloBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-        for (int i = 1; i <= 3; i++) {
-            try {
-                logger.debug("Sending hello packet {}", i);
-                DatagramPacket announcement = new DatagramPacket(helloBytes, helloBytes.length,
-                        broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                socket.get().send(announcement);
-                Thread.sleep(300);
-            } catch (Exception e) {
-                logger.warn("Unable to send hello packet to network, failing to go online.", e);
-                return false;
-            }
-        }
-
-        // Establish the device number we want to claim; if zero that means we will try to self-assign.
-        claimingNumber.set(getDeviceNumber());
-        boolean claimed = false;  // Indicates we have successfully claimed a number and can be done.
-
-        selfAssignLoop:
-        while (!claimed) {
-            // If we are supposed to self-assign a number, find the next one we can try.
-            if (getDeviceNumber() == 0 && !selfAssignDeviceNumber()) {
-                // There are no addresses left for us to try, give up and report failure.
-                claimingNumber.set(0);
-                return false;
-            }
-
-            // Send the series of three initial device number claim packets, unless we are interrupted by a defense
-            // or a mixer assigning us a specific number.
-            Arrays.fill(claimStage1bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
-            System.arraycopy(getDeviceName().getBytes(), 0, claimStage1bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-            System.arraycopy(rekordboxKeepAliveBytes, MAC_ADDRESS_OFFSET, claimStage1bytes, 0x26, 6);
-            for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
-                claimStage1bytes[0x24] = (byte) i;  // The packet counter.
-                try {
-                    logger.debug("Sending claim stage 1 packet {}", i);
-                    DatagramPacket announcement = new DatagramPacket(claimStage1bytes, claimStage1bytes.length,
-                            broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                    socket.get().send(announcement);
-                    //noinspection BusyWait
-                    Thread.sleep(300);
-                } catch (Exception e) {
-                    logger.warn("Unable to send device number claim stage 1 packet to network, failing to go online.", e);
-                    claimingNumber.set(0);
-                    return false;
-                }
-                if (claimRejected.get()) {  // Some other player is defending the number we tried to claim.
-                    if (getDeviceNumber() == 0) {  // We are trying to pick a number.
-                        continue selfAssignLoop;  // Try the next available number, if any.
-                    }
-                    logger.warn("Unable to use device number {}, another device has it. Failing to go online.", getDeviceNumber());
-                    claimingNumber.set(0);
-                    return false;
-                }
-            }
-
-            // Send the middle series of device claim packets, unless we are interrupted by a defense
-            // or a mixer assigning us a specific number.
-            Arrays.fill(claimStage2bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
-            System.arraycopy(getDeviceName().getBytes(), 0, claimStage2bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-            System.arraycopy(matchedAddress.getAddress().getAddress(), 0, claimStage2bytes, 0x24, 4);
-            System.arraycopy(rekordboxKeepAliveBytes, MAC_ADDRESS_OFFSET, claimStage2bytes, 0x28, 6);
-            claimStage2bytes[0x2e] = (byte) claimingNumber.get();  // The number we are claiming.
-            claimStage2bytes[0x31] = (getDeviceNumber() == 0) ? (byte) 1 : (byte) 2;  // The auto-assign flag.
-            for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
-                claimStage2bytes[0x2f] = (byte) i;  // The packet counter.
-                try {
-                    logger.debug("Sending claim stage 2 packet {} for device {}", i, claimStage2bytes[0x2e]);
-                    DatagramPacket announcement = new DatagramPacket(claimStage2bytes, claimStage2bytes.length,
-                            broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                    socket.get().send(announcement);
-                    //noinspection BusyWait
-                    Thread.sleep(300);
-                } catch (Exception e) {
-                    logger.warn("Unable to send device number claim stage 2 packet to network, failing to go online.", e);
-                    claimingNumber.set(0);
-                    return false;
-                }
-                if (claimRejected.get()) {  // Some other player is defending the number we tried to claim.
-                    if (getDeviceNumber() == 0) {  // We are trying to pick a number.
-                        continue selfAssignLoop;  // Try the next available number, if any.
-                    }
-                    logger.warn("Unable to use device number {}, another device has it. Failing to go online.", getDeviceNumber());
-                    claimingNumber.set(0);
-                    return false;
-                }
-            }
-
-            // If the mixer assigned us a number, use it.
-            final int assigned = mixerAssigned.getAndSet(0);
-            if (assigned > 0) {
-                claimingNumber.set(assigned);
-            }
-
-            // Send the final series of device claim packets, unless we are interrupted by a defense, or the mixer
-            // acknowledges our acceptance of its assignment.
-            Arrays.fill(claimStage3bytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
-            System.arraycopy(getDeviceName().getBytes(), 0, claimStage3bytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-            claimStage3bytes[0x24] = (byte) claimingNumber.get();  // The number we are claiming.
-            for (int i = 1; i <= 3 && mixerAssigned.get() == 0; i++) {
-                claimStage3bytes[0x25] = (byte) i;  // The packet counter.
-                try {
-                    logger.debug("Sending claim stage 3 packet {} for device {}", i, claimStage3bytes[0x24]);
-                    DatagramPacket announcement = new DatagramPacket(claimStage3bytes, claimStage3bytes.length,
-                            broadcastAddress.get(), DeviceFinder.ANNOUNCEMENT_PORT);
-                    socket.get().send(announcement);
-                    //noinspection BusyWait
-                    Thread.sleep(300);
-                } catch (Exception e) {
-                    logger.warn("Unable to send device number claim stage 3 packet to network, failing to go online.", e);
-                    claimingNumber.set(0);
-                    return false;
-                }
-                if (claimRejected.get()) {  // Some other player is defending the number we tried to claim.
-                    if (getDeviceNumber() == 0) {  // We are trying to pick a number.
-                        continue selfAssignLoop;  // Try the next available number, if any.
-                    }
-                    logger.warn("Unable to use device number {}, another device has it. Failing to go online.", getDeviceNumber());
-                    claimingNumber.set(0);
-                    return false;
-                }
-            }
-
-            claimed = true;  // If we finished all our loops, the number we wanted is ours.
-        }
-        // Set the device number we claimed.
-        rekordboxKeepAliveBytes[DEVICE_NUMBER_OFFSET] = (byte) claimingNumber.getAndSet(0);
-        mixerAssigned.set(0);
-        return true;  // Huzzah, we found the right device number to use!
-    }
-
-    // TODO JavaDoc needed
     @API(status = API.Status.EXPERIMENTAL)
     public void sendRekordboxAnnouncement() {
         if (isRunning()) {
@@ -848,7 +650,11 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     * TODO: top-level description needed.
+     * This method will start up all of the required pieces to emulate Rekordbox LIghting to pioneer devices on
+     * the network. This is not as powerful as emulating a CDJ, as that will get most ProLink devices to become
+     * very chatty, but rather this is for devices that don't support ProLink properly but can be coaxed to send
+     * status packets when they talk to RekordboxLighting (the Opus Quad being the only device at the time of
+     * coding this).
      *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}.
      * @throws Exception if there is a problem opening a socket on the right network
@@ -907,16 +713,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
         DeviceFinder.getInstance().addIgnoredAddress(matchedAddress.getBroadcast());
         // Inform the DeviceFinder to ignore our own device announcement packets.
         DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
-
-        // Determine the device number we are supposed to use, and make sure it can be claimed by us.
-        if (!claimDeviceNumber()) {
-            // We couldn't get a device number, so clean up and report failure.
-            logger.warn("Unable to allocate a device number for the Virtual CDJ, giving up.");
-            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
-            socket.get().close();
-            socket.set(null);
-            return false;
-        }
 
         // Set up our buffer and packet to receive incoming messages.
         final byte[] buffer = new byte[512];
@@ -1043,31 +839,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
             return createVirtualRekordbox();
         }
         return true;  // We were already active
-    }
-
-    /**
-     * <p>Start announcing ourselves as a specific device number (if we can claim it) and listening for status packets.
-     * If already active, has no effect. Requires the {@link DeviceFinder} to be active in order to find out how to
-     * communicate with other devices, so will start that if it is not already. </p>
-     *
-     * <p>This version is shorthand for calling {@link #setDeviceNumber(byte)} with the specified device number and
-     * then immediately calling {@link #start()}, but avoids the race condition which can occur if startup is already
-     * in progress, which would lead to an {@link IllegalStateException}. This is not uncommon when startup is being
-     * driven by receipt of device announcement packets.</p>
-     *
-     * @param deviceNumber the device number to try to claim
-     * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}, or it was already running.
-     * @throws SocketException if the socket to listen on port 50002 cannot be created
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    synchronized boolean start(byte deviceNumber) throws Exception {
-        // TODO I am not sure we actually need this method. If we do want to control the device number that is used,
-        //      we will need to add a mechanism do that from VirtualCdj.
-        if (!isRunning()) {
-            setDeviceNumber(deviceNumber);
-            return start();
-        }
-        return true;  // We are already running.
     }
 
     /**
