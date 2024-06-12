@@ -505,7 +505,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     /**
      * This will send the announcement that makes players think that they are talking to rekordbox.
      * After we send these announcement packets other players will start to send out status packets.
-     * We need to send these every second or two otherwise we will be disconnevted from the pro link
+     * We need to send these every second or two otherwise we will be disconnected from the Pro DJ Link
      * network.
      */
     @API(status = API.Status.EXPERIMENTAL)
