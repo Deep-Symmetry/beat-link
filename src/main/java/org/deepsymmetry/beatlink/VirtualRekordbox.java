@@ -426,6 +426,44 @@ public class VirtualRekordbox extends LifecycleParticipant {
     @API(status = API.Status.EXPERIMENTAL)
     private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 4000;
 
+    /**
+     * <p>Choose a device number, which we have not seen on the network.
+     *
+     * @return true if there was a number available for us to try claiming
+     */
+    private boolean selfAssignDeviceNumber() {
+        final long now = System.currentTimeMillis();
+        final long started = DeviceFinder.getInstance().getFirstDeviceTime();
+        if (now - started < SELF_ASSIGNMENT_WATCH_PERIOD) {
+            try {
+                Thread.sleep(SELF_ASSIGNMENT_WATCH_PERIOD - (now - started));  // Sleep until we hit the right time
+            } catch (InterruptedException e) {
+                logger.warn("Interrupted waiting to self-assign device number, giving up.");
+                return false;
+            }
+        }
+
+        // Record what numbers we have already seen, since there is no point trying one of them.
+        Set<Integer> numbersUsed = new HashSet<>();
+        for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
+            numbersUsed.add(device.getDeviceNumber());
+        }
+
+        // If we are able to use the number we were configures to use before startup, great!
+        if (!numbersUsed.contains((int) getDeviceNumber())) {
+            return true;
+        }
+
+        // Try finding an unused player number higher than two rekordbox laptops would use, and less than rekordbox mobile uses.
+        for (int result = 0x13; result < 0x28; result++) {
+            if (!numbersUsed.contains(result)) {  // We found one that is not used, so we can use it
+                setDeviceNumber((byte) result);
+                return true;
+            }
+        }
+        logger.warn("Found no unused device numbers between 0x13 and 0x27, giving up.");
+        return false;
+    }
 
     /**
      * Hold the network interfaces which match the address on which we found player traffic. Should only be one,
@@ -547,6 +585,16 @@ public class VirtualRekordbox extends LifecycleParticipant {
         DeviceFinder.getInstance().addIgnoredAddress(matchedAddress.getBroadcast());
         // Inform the DeviceFinder to ignore our own device announcement packets.
         DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
+
+        // Determine a device number we can use.
+        if (!selfAssignDeviceNumber()) {
+            // We couldn't get a device number, so clean up and report failure.
+            logger.warn("Unable to find an unused a device number for the Virtual recordbox, giving up.");
+            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
+            socket.get().close();
+            socket.set(null);
+            return false;
+        }
 
         // Set up our buffer and packet to receive incoming messages.
         createStatusReceiver().start();
