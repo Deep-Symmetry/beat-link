@@ -50,7 +50,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public boolean isRunning() {
-        return socket.get() != null && claimingNumber.get() == 0;
+        return socket.get() != null;
     }
 
     /**
@@ -89,46 +89,11 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     private final Map<DeviceReference, DeviceUpdate> updates = new ConcurrentHashMap<>();
 
-    /**
-     * Should we try to use a device number in the range 1 to 4 if we find one is available?
-     */
-    private final AtomicBoolean useStandardPlayerNumber = new AtomicBoolean(false);
 
     /**
-     * When self-assigning a player number, should we try to use a value that is legal for a standard CDJ, in
-     * the range 1 to 4? By default, we do not, to avoid any potential conflict with real players. However, if
-     * the user is intending to use features (like becoming tempo master) which require Beat Link to operate with
-     * a device number in the standard range, and will always have fewer than four real players
-     * on the network, this can be set to {@code true}, and a device number in this range will be chosen if it
-     * is not in use on the network during startup.
-     *
-     * @param attempt true if self-assignment should try to use device numbers below 5 when available
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    public void setUseStandardPlayerNumber(boolean attempt) {
-        useStandardPlayerNumber.set(attempt);
-    }
-
-    /**
-     * When self-assigning a player number, should we try to use a value that is legal for a standard CDJ, in
-     * the range 1 to 4? By default, we do not, to avoid any potential conflict with real players. However, if
-     * the user is intending to use features (like becoming tempo master) which require Beat Link to operate with
-     * a device number in the standard range, and will always have fewer than four real players
-     * on the network, this can be set to {@code true}, and a device number in this range will be chosen if it
-     * is not in use on the network during startup.
-     *
-     * @return true if self-assignment should try to use device numbers below 5 when available
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    public boolean getUseStandardPlayerNumber() {
-        return useStandardPlayerNumber.get();
-    }
-
-    /**
-     * Get the device number that is used when sending presence announcements on the network to pose as a virtual CDJ.
-     * This starts out being zero unless you explicitly assign another value, which means that the <code>VirtualRekordbox</code>
-     * should assign itself an unused device number by watching the network when you call
-     * {@link #start()}.
+     * Get the device number that is used when sending presence announcements on the network to pose as a virtual rekordbox.
+     * This value is not meaningful until the <code>VirtualRekordbox</code> is running and has found an available number
+     * to use.
      *
      * @return the virtual player number
      */
@@ -139,9 +104,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
     /**
      * <p>Set the device number to be used when sending presence announcements on the network to pose as a virtual Rekordbox.
-     * Used during the startup process; cannot be set while running. If set to zero, will attempt to claim any free
-     * device number, otherwise will try to claim the number specified. If the mixer tells us that we are plugged
-     * into a channel-specific Ethernet port, we will honor that and use the device number specified by the mixer.</p>
+     * Used during the startup process; cannot be set while running. If we find this device number is in use, we will pick
+     * another number in the range 0x13 to 0x27.</p>
      *
      * @param number the virtual player number
      * @throws IllegalStateException if we are currently running
@@ -262,61 +226,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
         return new String(rekordboxKeepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).trim();
     }
 
-    /**
-     * The initial packet sent three times when coming online.
-     */
-    private static final byte[] helloBytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x0a, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x04, 0x00, 0x26,  0x01, 0x40
-    };
-
-    /**
-     * The first-stage device number claim packet series.
-     */
-    private static final byte[] claimStage1bytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x00, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x03, 0x00, 0x2c,  0x0d, 0x01, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00
-    };
-
-    /**
-     * The second-stage device number claim packet series.
-     */
-    private static final byte[] claimStage2bytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x02, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x03, 0x00, 0x32,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x0d, 0x00,
-            0x01, 0x00
-    };
-
-    /**
-     * The third-stage (final) device number claim packet series.
-     */
-    private static final byte[] claimStage3bytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x04, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x03, 0x00, 0x26,  0x0d, 0x00
-    };
-
-    /**
-     * Packet used to acknowledge a mixer's intention to assign us a device number.
-     */
-    private static final byte[] assignmentRequestBytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x02, 0x01,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x02, 0x00, 0x32,  0x00, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x00
-    };
-
-    /**
-     * Packet used to tell another device we are already using a device number.
-     */
-    private static final byte[] deviceNumberDefenseBytes = {
-            0x51, 0x73, 0x70, 0x74,  0x31, 0x57, 0x6d, 0x4a,   0x4f, 0x4c, 0x08, 0x00,  0x62, 0x65, 0x61, 0x74,
-            0x2d, 0x6c, 0x69, 0x6e,  0x6b, 0x00, 0x00, 0x00,   0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-            0x01, 0x02, 0x00, 0x29,  0x00, 0x00, 0x00, 0x00,   0x00
-    };
 
     /**
      * Packet used to tell Opus device we want PSSI data once for all players with loaded songs.
@@ -517,6 +426,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     @API(status = API.Status.EXPERIMENTAL)
     private static final long SELF_ASSIGNMENT_WATCH_PERIOD = 4000;
 
+
     /**
      * Hold the network interfaces which match the address on which we found player traffic. Should only be one,
      * or we will likely receive duplicate packets, which will cause problematic behavior.
@@ -554,6 +464,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         return Collections.unmodifiableList(matchingInterfaces);
     }
 
+<<<<<<< HEAD
     /**
      * If we are in the process of trying to establish a device number, this will hold the number we are
      * currently trying to claim. Otherwise, it will hold the value 0.
@@ -636,6 +547,10 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * This will send the announcement that makes players think that they are talking to rekordbox.
      * This will make players start to send out status packets.
      */
+=======
+
+    // TODO JavaDoc needed
+>>>>>>> upstream/main
     @API(status = API.Status.EXPERIMENTAL)
     public void sendRekordboxAnnouncement() {
         if (isRunning()) {
@@ -714,7 +629,45 @@ public class VirtualRekordbox extends LifecycleParticipant {
         // Inform the DeviceFinder to ignore our own device announcement packets.
         DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
 
+<<<<<<< HEAD
+=======
+        // Determine a device number we can use.
+        if (!selfAssignDeviceNumber()) {
+            // We couldn't get a device number, so clean up and report failure.
+            logger.warn("Unable to find an unused a device number for the Virtual recordbox, giving up.");
+            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
+            socket.get().close();
+            socket.set(null);
+            return false;
+        }
+
+>>>>>>> upstream/main
         // Set up our buffer and packet to receive incoming messages.
+        createStatusReceiver().start();
+
+        // Create the thread which announces our participation in the DJ Link network, to request update packets
+        final Thread announcer = new Thread(null, () -> {
+            while (isRunning()) {
+                sendAnnouncements();
+            }
+        }, "beat-link VirtualRekordbox announcement/updates sender");
+        announcer.setDaemon(true);
+        announcer.start();
+
+        // Inform the DeviceFinder to ignore our own broadcast Rekordbox announcement packets.
+        DeviceFinder.getInstance().addIgnoredAddress(matchedAddress.getBroadcast());
+
+        deliverLifecycleAnnouncement(logger, true);
+
+        return true;
+    }
+
+    /**
+     * Create a thread that will wait for and process status update packets sent to our socket.
+     *
+     * @return the thread
+     */
+    private Thread createStatusReceiver() {
         final byte[] buffer = new byte[512];
         final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
@@ -749,24 +702,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         }, "beat-link VirtualRekordbox status receiver");
         receiver.setDaemon(true);
         receiver.setPriority(Thread.MAX_PRIORITY);
-        receiver.start();
-
-
-        // Create the thread which announces our participation in the DJ Link network, to request update packets
-        Thread announcer = new Thread(null, () -> {
-            while (isRunning()) {
-                sendAnnouncements();
-            }
-        }, "beat-link VirtualRekordbox announcement/updates sender");
-        announcer.setDaemon(true);
-        announcer.start();
-
-        // Inform the DeviceFinder to ignore our own broadcast Rekordbox announcement packets.
-        DeviceFinder.getInstance().addIgnoredAddress(matchedAddress.getBroadcast());
-
-        deliverLifecycleAnnouncement(logger, true);
-
-        return true;
+        return receiver;
     }
 
     /**
@@ -971,81 +907,11 @@ public class VirtualRekordbox extends LifecycleParticipant {
     private VirtualRekordbox() {
     }
 
-    /**
-     * We have received a packet from a device trying to claim a device number, see if we should defend it.
-     *
-     * @param packet       the packet received
-     * @param deviceOffset the index of the byte within the packet holding the device number being claimed
-     */
-    private void handleDeviceClaimPacket(DatagramPacket packet, int deviceOffset) {
-        if (packet.getData().length < deviceOffset + 1) {
-            logger.warn("Ignoring too-short device claim packet.");
-            return;
-        }
-        if (isRunning() && getDeviceNumber() == packet.getData()[deviceOffset]) {
-            defendDeviceNumber(packet.getAddress());
-        }
-    }
-
-    /**
-     * The {@link DeviceFinder} delegates packets it doesn't know how to deal with to us using this method, because
-     * they relate to claiming or defending device numbers, which is our responsibility.
-     *
-     * @param kind   the kind of packet that was received
-     * @param packet the actual bytes of the packet
-     */
-    void handleSpecialAnnouncementPacket(Util.PacketType kind, DatagramPacket packet) {
-        if (kind == Util.PacketType.DEVICE_NUMBER_STAGE_1) {
-            logger.debug("Received device number claim stage 1 packet.");
-        } else if (kind == Util.PacketType.DEVICE_NUMBER_STAGE_2) {
-            handleDeviceClaimPacket(packet, 0x2e);
-        } else if (kind == Util.PacketType.DEVICE_NUMBER_STAGE_3) {
-            handleDeviceClaimPacket(packet, 0x24);
-        } else if (kind == Util.PacketType.DEVICE_NUMBER_WILL_ASSIGN) {
-            logger.debug("The mixer at address {} wants to assign us a specific device number.", packet.getAddress().getHostAddress());
-            if (claimingNumber.get() != 0) {
-                requestNumberFromMixer(packet.getAddress());
-            } else {
-                logger.warn("Ignoring mixer device number assignment offer; we are not claiming a device number!");
-            }
-        } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGN) {
-            mixerAssigned.set(packet.getData()[0x24]);
-            if (mixerAssigned.get() == 0) {
-                logger.debug("Mixer at address {} told us to use any device.", packet.getAddress().getHostAddress());
-            } else {
-                logger.info("Mixer at address {} told us to use device number {}", packet.getAddress().getHostAddress(), mixerAssigned.get());
-            }
-        } else if (kind == Util.PacketType.DEVICE_NUMBER_ASSIGNMENT_FINISHED) {
-            mixerAssigned.set(claimingNumber.get());
-            logger.info("Mixer confirmed device assignment.");
-        } else if (kind == Util.PacketType.DEVICE_NUMBER_IN_USE) {
-            final int defendedDevice = packet.getData()[0x24];
-            if (defendedDevice == 0) {
-                logger.warn("Ignoring unexplained attempt to defend device 0.");
-            } else if (defendedDevice == claimingNumber.get()) {
-                logger.warn("Another device is defending device number {}, so we can't use it.", defendedDevice);
-                claimRejected.set(true);
-            } else if (isRunning()) {
-                if (defendedDevice == getDeviceNumber()) {
-                    logger.warn("Another device has claimed it owns our device number, shutting down.");
-                    stop();
-                } else {
-                    logger.warn("Another device is defending a number we are not using, ignoring: {}", defendedDevice);
-                }
-            } else {
-                logger.warn("Received device number defense message for device number {} when we are not even running!", defendedDevice);
-            }
-        } else {
-            logger.warn("Received unrecognized special announcement packet type: {}", kind);
-        }
-    }
-
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("VirtualRekordbox[number:").append(getDeviceNumber()).append(", name:").append(getDeviceName());
         sb.append(", announceInterval:").append(getAnnounceInterval());
-        sb.append(", useStandardPlayerNumber:").append(getUseStandardPlayerNumber());
         sb.append(", active:").append(isRunning());
         if (isRunning()) {
             sb.append(", localAddress:").append(getLocalAddress().getHostAddress());

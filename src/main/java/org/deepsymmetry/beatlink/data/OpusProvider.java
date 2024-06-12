@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @author James Elliott
  * @since 8.0.0 */
-@API(status = API.Status.EXPERIMENTAL)  // TODO get rid of all IntelliJ code pattern entry points and @SuppressWarnings annotations, use this instead.
+@API(status = API.Status.EXPERIMENTAL)
 public class OpusProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(OpusProvider.class);
@@ -224,7 +224,7 @@ public class OpusProvider {
 
     /**
      * Grab {@link MediaDetails} for a slot from {@link #archiveAttachQueueMap} and deliver it to VirtualCdj listeners.
-     * Message is {@code }null} if that media archive does not exist.
+     * Message is {@code null} if that media archive does not exist.
      *
      * @param usbSlotNumber the USB slot whose queue should be checked
      */
