@@ -464,93 +464,10 @@ public class VirtualRekordbox extends LifecycleParticipant {
         return Collections.unmodifiableList(matchingInterfaces);
     }
 
-<<<<<<< HEAD
-    /**
-     * If we are in the process of trying to establish a device number, this will hold the number we are
-     * currently trying to claim. Otherwise, it will hold the value 0.
-     */
-    private final AtomicInteger claimingNumber = new AtomicInteger(0);
-
-    /**
-     * If another player defends the number we tried to claim, this value will get set to true, and we will either
-     * have to try another number, or fail to start up, as appropriate.
-     */
-    private final AtomicBoolean claimRejected = new AtomicBoolean(false);
-
-    /**
-     * If a mixer has assigned us a device number, this will be that non-zero value.
-     */
-    private final AtomicInteger mixerAssigned = new AtomicInteger(0);
-
-    /**
-     * Implement the process of requesting a device number from a mixer that has told us it is responsible for
-     * assigning it to us as described in the
-     * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/startup.html#cdj-startup">protocol analysis</a>.
-     *
-     * @param mixerAddress the address from which we received a mixer device number assignment offer
-     */
-    private void requestNumberFromMixer(InetAddress mixerAddress) {
-        final DatagramSocket currentSocket = socket.get();
-        if (currentSocket == null) {
-            logger.warn("Gave up before sending device number request to mixer.");
-            return;  // We've already given up.
-        }
-
-        // Send a packet directly to the mixer telling it we are ready for its device assignment.
-        Arrays.fill(assignmentRequestBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
-        System.arraycopy(getDeviceName().getBytes(), 0, assignmentRequestBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-        System.arraycopy(matchedAddress.getAddress().getAddress(), 0, assignmentRequestBytes, 0x24, 4);
-        System.arraycopy(rekordboxKeepAliveBytes, MAC_ADDRESS_OFFSET, assignmentRequestBytes, 0x28, 6);
-        // Can't call getDeviceNumber() on next line because that's synchronized!
-        assignmentRequestBytes[0x31] = (rekordboxKeepAliveBytes[DEVICE_NUMBER_OFFSET] == 0) ? (byte) 1 : (byte) 2;  // The auto-assign flag.
-        assignmentRequestBytes[0x2f] = 1;  // The packet counter.
-        try {
-            DatagramPacket announcement = new DatagramPacket(assignmentRequestBytes, assignmentRequestBytes.length,
-                    mixerAddress, DeviceFinder.ANNOUNCEMENT_PORT);
-            logger.debug("Sending device number request to mixer at address {}, port {}", announcement.getAddress().getHostAddress(), announcement.getPort());
-            currentSocket.send(announcement);
-        } catch (Exception e) {
-            logger.warn("Unable to send device number request to mixer.", e);
-        }
-    }
-
-    /**
-     * Tell a device that is trying to use the same number that we have ownership of it.
-     *
-     * @param invaderAddress the address from which a rogue device claim or announcement was received for the same
-     *                       device number we are using
-     */
-    void defendDeviceNumber(InetAddress invaderAddress) {
-        final DatagramSocket currentSocket = socket.get();
-        if (currentSocket == null) {
-            logger.warn("Went offline before we could defend our device number.");
-            return;
-        }
-
-        // Send a packet to the interloper telling it that we are using that device number.
-        Arrays.fill(deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH, (byte) 0);
-        System.arraycopy(getDeviceName().getBytes(), 0, deviceNumberDefenseBytes, DEVICE_NAME_OFFSET, getDeviceName().getBytes().length);
-        deviceNumberDefenseBytes[0x24] = rekordboxKeepAliveBytes[DEVICE_NUMBER_OFFSET];
-        System.arraycopy(matchedAddress.getAddress().getAddress(), 0, deviceNumberDefenseBytes, 0x25, 4);
-        try {
-            DatagramPacket defense = new DatagramPacket(deviceNumberDefenseBytes, deviceNumberDefenseBytes.length,
-                    invaderAddress, DeviceFinder.ANNOUNCEMENT_PORT);
-            logger.info("Sending device number defense packet to invader at address {}, port {}",
-                    defense.getAddress().getHostAddress(), defense.getPort());
-            currentSocket.send(defense);
-        } catch (Exception e) {
-            logger.error("Unable to send device defense packet.", e);
-        }
-    }
-
     /**
      * This will send the announcement that makes players think that they are talking to rekordbox.
      * This will make players start to send out status packets.
      */
-=======
-
-    // TODO JavaDoc needed
->>>>>>> upstream/main
     @API(status = API.Status.EXPERIMENTAL)
     public void sendRekordboxAnnouncement() {
         if (isRunning()) {
@@ -629,19 +546,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
         // Inform the DeviceFinder to ignore our own device announcement packets.
         DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
 
-<<<<<<< HEAD
-=======
-        // Determine a device number we can use.
-        if (!selfAssignDeviceNumber()) {
-            // We couldn't get a device number, so clean up and report failure.
-            logger.warn("Unable to find an unused a device number for the Virtual recordbox, giving up.");
-            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
-            socket.get().close();
-            socket.set(null);
-            return false;
-        }
-
->>>>>>> upstream/main
         // Set up our buffer and packet to receive incoming messages.
         createStatusReceiver().start();
 
