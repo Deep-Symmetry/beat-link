@@ -371,9 +371,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         final int player = Util.translateOpusPlayerNumbers(data[0x21]);
                         playerSongStructures.put(player, pssiFromOpus);
                         // Also record the conceptual source slot that represents the USB slot from which this track seems to have been loaded
-                        // TODO we need to check that the track was loaded from a player, and not rekordbox, as well, before trying to do this!
                         final int sourceSlot = OpusProvider.getInstance().findMatchingUsbSlotForTrack(rekordboxId, player, pssiFromOpus);
-                        if (sourceSlot != 0) {  // We found match, record it.
+                        if (sourceSlot != 0) {  // We found a match, record it.
                             playerTrackSourceSlots.put(player, SlotReference.getSlotReference(sourceSlot, USB_SLOT));
                         }
                     }
@@ -503,8 +502,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
         return Collections.unmodifiableList(matchingInterfaces);
     }
 
-
-    // TODO JavaDoc needed
+    /**
+     * This will send the announcement that makes players think that they are talking to rekordbox.
+     * After we send these announcement packets other players will start to send out status packets.
+     * We need to send these every second or two otherwise we will be disconnected from the Pro DJ Link
+     * network.
+     */
     @API(status = API.Status.EXPERIMENTAL)
     public void sendRekordboxAnnouncement() {
         if (isRunning()) {
@@ -519,7 +522,11 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     * TODO: top-level description needed.
+     * This method will start up all of the required pieces to emulate Rekordbox Lighting to pioneer devices on
+     * the network. This is not as powerful as emulating a CDJ, as that will get most ProLink devices to become
+     * very chatty, but rather this is for devices that don't support Pro DJ Link properly but can be coaxed to
+     * send status packets when they talk to RekordboxLighting (the Opus Quad being the only device at the time
+     * of coding this).
      *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualRekordbox}.
      * @throws Exception if there is a problem opening a socket on the right network

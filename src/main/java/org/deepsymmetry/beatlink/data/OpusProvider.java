@@ -571,9 +571,10 @@ public class OpusProvider {
         }
     };
 
-    // TODO the JavaDoc here needs to be improved
     /**
-     * Method that will use PSSI + rekordboxId to confirm that the database filesystem match the song
+     * Method that will use PSSI + rekordboxId to confirm that the database filesystem match the song. Will
+     * look up PSSI in the chosen archive for the specific RekordboxId and then see if the PSSI mathes what the
+     * Opus is sending us.
      *
      * @param dataRef This is the track/slot data
      * @param pssiFromOpus PSSI sent from the opus
