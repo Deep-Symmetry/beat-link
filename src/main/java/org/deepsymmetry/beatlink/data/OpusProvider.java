@@ -573,7 +573,7 @@ public class OpusProvider {
 
     /**
      * Method that will use PSSI + rekordboxId to confirm that the database filesystem match the song. Will
-     * look up PSSI in the chosen archive for the specific RekordboxId and then see if the PSSI mathes what the
+     * look up PSSI in the chosen archive for the specific RekordboxId and then see if the PSSI matches what the
      * Opus is sending us.
      *
      * @param dataRef This is the track/slot data

@@ -522,8 +522,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     * This method will start up all of the required pieces to emulate Rekordbox Lighting to pioneer devices on
-     * the network. This is not as powerful as emulating a CDJ, as that will get most ProLink devices to become
+     * This method will start up all the required pieces to emulate Rekordbox Lighting to pioneer devices on the
+     * network. This is not as powerful as emulating a CDJ, as that will get most Pro DJ Link devices to become
      * very chatty, but rather this is for devices that don't support Pro DJ Link properly but can be coaxed to
      * send status packets when they talk to RekordboxLighting (the Opus Quad being the only device at the time
      * of coding this).
