@@ -253,11 +253,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     * Keeps track of the PSSI bytes we have received for each player.
-     */
-    private final Map<Integer, ByteBuffer> playerSongStructures = new ConcurrentHashMap<>();
-
-    /**
      * Keeps track of the source slots we've matched to metadata archives for each player.
      */
     private final Map<Integer, SlotReference> playerTrackSourceSlots = new ConcurrentHashMap<>();
@@ -270,7 +265,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public void clearPlayerCaches(int usbSlotNumber){
-        playerSongStructures.remove(usbSlotNumber);
         playerTrackSourceSlots.remove(usbSlotNumber);
     }
 
@@ -342,7 +336,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
                     // If source player number is zero the deck does not have a song loaded, clear the PSSI and source slot we had for that player.
                     if (status.getTrackSourcePlayer() == 0) {
-                        playerSongStructures.remove(status.getDeviceNumber());
                         playerTrackSourceSlots.remove(status.getDeviceNumber());
                     }
                     return status;
@@ -369,7 +362,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     if (rekordboxId != 0) {
                         final ByteBuffer pssiFromOpus = ByteBuffer.wrap(Arrays.copyOfRange(data, 0x35, data.length));
                         final int player = Util.translateOpusPlayerNumbers(data[0x21]);
-                        playerSongStructures.put(player, pssiFromOpus);
                         // Also record the conceptual source slot that represents the USB slot from which this track seems to have been loaded
                         final int sourceSlot = OpusProvider.getInstance().findMatchingUsbSlotForTrack(rekordboxId, player, pssiFromOpus);
                         if (sourceSlot != 0) {  // We found a match, record it.
