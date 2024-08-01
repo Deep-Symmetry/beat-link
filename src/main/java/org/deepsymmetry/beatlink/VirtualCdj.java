@@ -927,7 +927,10 @@ public class VirtualCdj extends LifecycleParticipant {
         }
 
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template
-        System.arraycopy(matchingInterfaces.get(0).getHardwareAddress(), 0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
+        byte[] addr = matchingInterfaces.get(0).getHardwareAddress();
+        if (addr != null) {
+          System.arraycopy(addr, 0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
+        }
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, keepAliveBytes, 44, 4);
         broadcastAddress.set(matchedAddress.getBroadcast());
 
