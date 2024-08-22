@@ -680,17 +680,17 @@ public class Message {
          * Reports the title and artist of a track, returned when listing playlists or all tracks sorted by artist,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
-        TRACK_TITLE_AND_ARTIST(0x0704),
-        /**
-         * Reports the title and duration of a track, returned when listing playlists or all tracks sorted by time,
-         * or in their default sort order when the DJ has set this as the default second column for track lists.
-         */
-        TRACK_TITLE_AND_TIME(0x0b04),
+        TRACK_TITLE_AND_ARTIST (0x0704),
         /**
          * Reports the title and rating of a track, returned when listing playlists or all tracks sorted by rating,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
          */
         TRACK_TITLE_AND_RATING (0x0a04),
+        /**
+         * Reports the title and duration of a track, returned when listing playlists or all tracks sorted by time,
+         * or in their default sort order when the DJ has set this as the default second column for track lists.
+         */
+        TRACK_TITLE_AND_TIME (0x0b04),
         /**
          * Reports the title and BPM of a track, returned when listing playlists or all tracks sorted by BPM,
          * or in their default sort order when the DJ has set this as the default second column for track lists.
