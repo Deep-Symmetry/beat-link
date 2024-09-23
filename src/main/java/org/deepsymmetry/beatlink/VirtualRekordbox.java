@@ -896,7 +896,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         }
 
         // Set up our buffer and packet to receive incoming messages.
-        final byte[] buffer = new byte[512];
+        final byte[] buffer = new byte[1420];
         final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
         // Create the update reception thread
