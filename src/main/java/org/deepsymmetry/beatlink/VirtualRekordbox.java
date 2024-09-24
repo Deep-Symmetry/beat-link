@@ -614,7 +614,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
      * @return the thread
      */
     private Thread createStatusReceiver() {
-        final byte[] buffer = new byte[512];
+        final byte[] buffer = new byte[1420];
         final DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
         // Create the update reception thread
