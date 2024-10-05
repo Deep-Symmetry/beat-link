@@ -297,7 +297,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         final int length = packet.getLength();
         final Util.PacketType kind = Util.validateHeader(packet, UPDATE_PORT);
         if (kind == null) {
-            logger.warn("Ignoring unrecognized packet sent to update port.");
+            logger.debug("Ignoring unrecognized packet sent to update port.");  // validateHeader will already warn once
             return null;
         }
 
@@ -348,7 +348,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 if (length >= CdjStatus.MINIMUM_PACKET_SIZE) {
                     return new CdjStatus(packet);
                 } else {
-                    logger.warn("Opus Hello bytes packet.");
+                    logger.debug("Opus Hello bytes packet.");
                     return null;
                 }
 
