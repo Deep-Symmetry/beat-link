@@ -336,7 +336,7 @@ public class BeatFinder extends LifecycleParticipant {
         if (timeFinderListener != null) {
             result.add(timeFinderListener);
         }
-        return Collections.unmodifiableSet(result);
+        return result;
     }
 
     /**

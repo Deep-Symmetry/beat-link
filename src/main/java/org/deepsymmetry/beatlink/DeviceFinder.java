@@ -371,6 +371,13 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     private final Set<DeviceAnnouncementListener> deviceListeners =
             Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    /**
+     * Maintains a read-only copy of deviceListeners
+     */
+    private final Set<DeviceAnnouncementListener> deviceListenersImmutable =
+            Collections.unmodifiableSet(deviceListeners);
+
     /**
      * Adds the specified device announcement listener to receive device announcements when DJ Link devices
      * are found on or leave the network. If {@code listener} is {@code null} or already present in the list
@@ -410,8 +417,7 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     @API(status = API.Status.STABLE)
     public Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
-        // Make a copy so callers get an immutable snapshot of the current state.
-        return Set.copyOf(deviceListeners);
+        return deviceListenersImmutable;
     }
 
     /**
