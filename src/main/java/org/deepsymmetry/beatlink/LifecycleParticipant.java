@@ -3,9 +3,11 @@ package org.deepsymmetry.beatlink;
 import org.apiguardian.api.API;
 import org.slf4j.Logger;
 
+import java.lang.ref.WeakReference;
 import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Provides the abstract skeleton for all the classes that can be started and stopped in Beat Link, and for which
@@ -17,12 +19,13 @@ public abstract class LifecycleParticipant {
     /**
      * Keeps track of the registered device announcement listeners.
      */
-    private final Set<LifecycleListener> lifecycleListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final List<WeakReference<LifecycleListener>> lifecycleListeners = new LinkedList<>();
 
     /**
      * <p>Adds the specified life cycle listener to receive announcements when the component starts and stops.
      * If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed.</p>
+     * of registered listeners, no exception is thrown and no action is performed. Presence on a listener list does not
+     * prevent an object from being garbage-collected if it has no other references.</p>
      *
      * <p>Lifecycle announcements are delivered to listeners on a separate thread to avoid worries about deadlock in
      * synchronized start and stop methods. The called function should still be fast, or delegate long operations to
@@ -31,10 +34,8 @@ public abstract class LifecycleParticipant {
      * @param listener the device announcement listener to add
      */
     @API(status = API.Status.STABLE)
-    public void addLifecycleListener(LifecycleListener listener) {
-        if (listener != null) {
-            lifecycleListeners.add(listener);
-        }
+    public synchronized void addLifecycleListener(LifecycleListener listener) {
+        Util.addListener(lifecycleListeners, listener);
     }
 
     /**
@@ -45,10 +46,8 @@ public abstract class LifecycleParticipant {
      * @param listener the life cycle listener to remove
      */
     @API(status = API.Status.STABLE)
-    public void removeLifecycleListener(LifecycleListener listener) {
-        if (listener != null) {
-            lifecycleListeners.remove(listener);
-        }
+    public synchronized void removeLifecycleListener(LifecycleListener listener) {
+        Util.removeListener(lifecycleListeners, listener);
     }
 
     /**
@@ -57,9 +56,9 @@ public abstract class LifecycleParticipant {
      * @return the currently registered lifecycle listeners
      */
     @API(status = API.Status.STABLE)
-    public Set<LifecycleListener> getLifecycleListeners() {
+    public synchronized Set<LifecycleListener> getLifecycleListeners() {
         // Make a copy so the caller gets an immutable snapshot of the current moment in time.
-        return Set.copyOf(lifecycleListeners);
+        return Collections.unmodifiableSet(Util.gatherListeners(lifecycleListeners));
     }
 
     /**

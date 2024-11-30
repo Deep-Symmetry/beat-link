@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -304,12 +305,13 @@ public class BeatGridFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered beat grid listeners.
      */
-    private final Set<BeatGridListener> beatGridListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final List<WeakReference<BeatGridListener>> beatGridListeners = new LinkedList<>();
 
     /**
      * <p>Adds the specified beat grid listener to receive updates when the beat grid information for a player changes.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
-     * thrown and no action is performed.</p>
+     * thrown and no action is performed. Presence on a listener list does not
+     * prevent an object from being garbage-collected if it has no other references.</p>
      *
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -323,10 +325,8 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @param listener the album art update listener to add
      */
     @API(status = API.Status.STABLE)
-    public void addBeatGridListener(BeatGridListener listener) {
-        if (listener != null) {
-            beatGridListeners.add(listener);
-        }
+    public synchronized void addBeatGridListener(BeatGridListener listener) {
+        Util.addListener(beatGridListeners, listener);
     }
 
     /**
@@ -337,10 +337,8 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @param listener the waveform listener to remove
      */
     @API(status = API.Status.STABLE)
-    public void removeBeatGridListener(BeatGridListener listener) {
-        if (listener != null) {
-            beatGridListeners.remove(listener);
-        }
+    public synchronized void removeBeatGridListener(BeatGridListener listener) {
+        Util.removeListener(beatGridListeners, listener);
     }
 
     /**
@@ -349,9 +347,9 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @return the listeners that are currently registered for beat grid updates
      */
     @API(status = API.Status.STABLE)
-    public Set<BeatGridListener> getBeatGridListeners() {
+    public synchronized Set<BeatGridListener> getBeatGridListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Set.copyOf(beatGridListeners);
+        return Collections.unmodifiableSet(Util.gatherListeners(beatGridListeners));
     }
 
     /**
@@ -361,9 +359,10 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @param beatGrid the new beat grid associated with that player, if any
      */
     private void deliverBeatGridUpdate(int player, BeatGrid beatGrid) {
-        if (!getBeatGridListeners().isEmpty()) {
+        final Set<BeatGridListener> listeners = getBeatGridListeners();
+        if (!listeners.isEmpty()) {
             final BeatGridUpdate update = new BeatGridUpdate(player, beatGrid);
-            for (final BeatGridListener listener : getBeatGridListeners()) {
+            for (final BeatGridListener listener : listeners) {
                 try {
                     listener.beatGridChanged(update);
 

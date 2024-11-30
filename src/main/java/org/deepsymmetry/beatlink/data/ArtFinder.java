@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -496,13 +497,13 @@ public class ArtFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered track metadata update listeners.
      */
-    private final Set<AlbumArtListener> artListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final List<WeakReference<AlbumArtListener>> artListeners = new LinkedList<>();
 
     /**
      * <p>Adds the specified album art listener to receive updates when the album art for a player changes.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
-     * thrown and no action is performed.</p>
+     * thrown and no action is performed. Presence on a listener list does not
+     * prevent an object from being garbage-collected if it has no other references.</p>
      *
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -516,10 +517,8 @@ public class ArtFinder extends LifecycleParticipant {
      * @param listener the album art update listener to add
      */
     @API(status = API.Status.STABLE)
-    public void addAlbumArtListener(AlbumArtListener listener) {
-        if (listener != null) {
-            artListeners.add(listener);
-        }
+    public synchronized void addAlbumArtListener(AlbumArtListener listener) {
+        Util.addListener(artListeners, listener);
     }
 
     /**
@@ -530,10 +529,8 @@ public class ArtFinder extends LifecycleParticipant {
      * @param listener the album art update listener to remove
      */
     @API(status = API.Status.STABLE)
-    public void removeAlbumArtListener(AlbumArtListener listener) {
-        if (listener != null) {
-            artListeners.remove(listener);
-        }
+    public synchronized void removeAlbumArtListener(AlbumArtListener listener) {
+        Util.removeListener(artListeners, listener);
     }
 
     /**
@@ -542,18 +539,19 @@ public class ArtFinder extends LifecycleParticipant {
      * @return the listeners that are currently registered for album art updates
      */
     @API(status = API.Status.STABLE)
-    public Set<AlbumArtListener> getAlbumArtListeners() {
+    public synchronized Set<AlbumArtListener> getAlbumArtListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Set.copyOf(artListeners);
+        return Collections.unmodifiableSet(Util.gatherListeners(artListeners));
     }
 
     /**
      * Send an album art update announcement to all registered listeners.
      */
     private void deliverAlbumArtUpdate(int player, AlbumArt art) {
-        if (!getAlbumArtListeners().isEmpty()) {
+        Set<AlbumArtListener> listeners = getAlbumArtListeners();
+        if (!listeners.isEmpty()) {
             final AlbumArtUpdate update = new AlbumArtUpdate(player, art);
-            for (final AlbumArtListener listener : getAlbumArtListeners()) {
+            for (final AlbumArtListener listener : listeners) {
                 try {
                     listener.albumArtChanged(update);
 

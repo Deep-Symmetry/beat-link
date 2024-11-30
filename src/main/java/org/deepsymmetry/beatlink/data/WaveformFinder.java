@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -605,12 +606,13 @@ public class WaveformFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered waveform listeners.
      */
-    private final Set<WaveformListener> waveformListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final List<WeakReference<WaveformListener>> waveformListeners = new LinkedList<>();
 
     /**
      * <p>Adds the specified waveform listener to receive updates when the waveform information for a player changes.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
-     * thrown and no action is performed.</p>
+     * thrown and no action is performed. Presence on a listener list does not
+     * prevent an object from being garbage-collected if it has no other references.</p>
      *
      * <p>Updates are delivered to listeners on the Swing Event Dispatch thread, so it is safe to interact with
      * user interface elements within the event handler.</p>
@@ -622,10 +624,8 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param listener the waveform update listener to add
      */
     @API(status = API.Status.STABLE)
-    public void addWaveformListener(WaveformListener listener) {
-        if (listener != null) {
-            waveformListeners.add(listener);
-        }
+    public synchronized void addWaveformListener(WaveformListener listener) {
+        Util.addListener(waveformListeners, listener);
     }
 
     /**
@@ -636,10 +636,8 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param listener the waveform update listener to remove
      */
     @API(status = API.Status.STABLE)
-    public void removeWaveformListener(WaveformListener listener) {
-        if (listener != null) {
-            waveformListeners.remove(listener);
-        }
+    public synchronized void removeWaveformListener(WaveformListener listener) {
+        Util.removeListener(waveformListeners, listener);
     }
 
     /**
@@ -648,9 +646,9 @@ public class WaveformFinder extends LifecycleParticipant {
      * @return the listeners that are currently registered for waveform updates
      */
     @API(status = API.Status.STABLE)
-    public Set<WaveformListener> getWaveformListeners() {
+    public synchronized Set<WaveformListener> getWaveformListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Set.copyOf(waveformListeners);
+        return Collections.unmodifiableSet(Util.gatherListeners(waveformListeners));
     }
 
     /**

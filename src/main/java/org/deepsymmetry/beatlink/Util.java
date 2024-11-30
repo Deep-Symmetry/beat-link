@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
@@ -15,6 +16,7 @@ import java.net.NetworkInterface;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 
@@ -512,6 +514,71 @@ public class Util {
         while (buffer.hasRemaining()) {
             channel.write(buffer);
         }
+    }
+
+    /**
+     * Add a listener to one of the weakly-held listener lists maintained by Beat Link classes. Does nothing
+     * if the listener is already on the list. Also cleans out any references to garbage-collected listeners.
+     * Attempts to add a `null` listener are ignored, but will still clean out garbage-collected references.
+     *
+     * @param listenerList the listener list to be added to
+     * @param listener the listener to add
+     * @param <T> the type of listeners weakly referenced by the list
+     */
+    public static <T> void addListener(List<WeakReference<T>> listenerList, T listener) {
+        Iterator<WeakReference<T>> iterator = listenerList.iterator();
+        while (iterator.hasNext()) {
+            T currentListener = iterator.next().get();
+
+            if (currentListener == null) {
+                iterator.remove();  // We found a garbage-collected listener.
+            } else if (currentListener == listener) {
+                return;  // The listener was already on the list.
+            }
+        }
+
+        if (listener != null) {
+            listenerList.add(new WeakReference<>(listener));
+        }
+    }
+
+    /**
+     * Remove a listener from one of the weakly-held listener lists maintained by Beat Link classes. Does nothing
+     * if the listener is not on the list, except for cleaning out any references to garbage-collected listeners.
+     *
+     * @param listenerList the listener list to be removed from
+     * @param listener the listener to remove
+     * @param <T> the type of listeners weakly referenced by the list
+     */
+    public static <T> void removeListener(List<WeakReference<T>> listenerList, T listener) {
+        Iterator<WeakReference<T>> iterator = listenerList.iterator();
+        while (iterator.hasNext()) {
+            T currentListener = iterator.next().get();
+            if (currentListener == listener || currentListener == null) iterator.remove();
+        }
+    }
+
+    /**
+     * Gather a set of the surviving listeners from a weakly-held listener list, for exposure through the API.
+     * Removes any that have been garbage collected from the listener list.
+     *
+     * @param listenerList the listener list whose non-garbage-collected members should be returned
+     * @param <T> the type of listeners weakly referenced by the list
+     *
+     * @return the listeners that were registered and have not been garbage collected
+     */
+    public static <T> Set<T> gatherListeners(List<WeakReference<T>> listenerList) {
+        Set<T> result = new HashSet<>();
+        Iterator<WeakReference<T>> iterator = listenerList.iterator();
+        while (iterator.hasNext()) {
+            T listener = iterator.next().get();
+            if (listener == null) {
+                iterator.remove();
+            } else {
+                result.add(listener);
+            }
+        }
+        return result;
     }
 
     /**
@@ -1073,7 +1140,6 @@ public class Util {
     public static int translateOpusPlayerNumbers(int reportedPlayerNumber) {
         return reportedPlayerNumber & 7;
     }
-
 
     /**
      * Prevent instantiation.

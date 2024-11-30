@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author James Elliott
  */
+@SuppressWarnings("LoggingSimilarMessage")
 @API(status = API.Status.STABLE)
 public class VirtualCdj extends LifecycleParticipant {
 
@@ -927,9 +928,9 @@ public class VirtualCdj extends LifecycleParticipant {
         }
 
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template
-        byte[] addr = matchingInterfaces.get(0).getHardwareAddress();
-        if (addr != null) {
-          System.arraycopy(addr, 0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
+        byte[] address = matchingInterfaces.get(0).getHardwareAddress();
+        if (address != null) {
+          System.arraycopy(address, 0, keepAliveBytes, MAC_ADDRESS_OFFSET, 6);
         }
         System.arraycopy(matchedAddress.getAddress().getAddress(), 0, keepAliveBytes, 44, 4);
         broadcastAddress.set(matchedAddress.getBroadcast());

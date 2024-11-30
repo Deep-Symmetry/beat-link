@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -369,12 +370,13 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered device announcement listeners.
      */
-    private final Set<DeviceAnnouncementListener> deviceListeners =
-            Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final List<WeakReference<DeviceAnnouncementListener>> deviceListeners = new LinkedList<>();
+
     /**
      * Adds the specified device announcement listener to receive device announcements when DJ Link devices
      * are found on or leave the network. If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed.
+     * of registered listeners, no exception is thrown and no action is performed. Presence on a listener list does not
+     * prevent an object from being garbage-collected if it has no other references.
      *
      * <p>Device announcements are delivered to listeners on the
      * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
@@ -384,10 +386,8 @@ public class DeviceFinder extends LifecycleParticipant {
      * @param listener the device announcement listener to add
      */
     @API(status = API.Status.STABLE)
-    public void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
-        if (listener != null) {
-            deviceListeners.add(listener);
-        }
+    public synchronized void addDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+        Util.addListener(deviceListeners, listener);
     }
 
     /**
@@ -397,10 +397,8 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @param listener the device announcement listener to remove
      */
-    public void removeDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
-        if (listener != null) {
-            deviceListeners.remove(listener);
-        }
+    public synchronized void removeDeviceAnnouncementListener(DeviceAnnouncementListener listener) {
+        Util.removeListener(deviceListeners, listener);
     }
 
     /**
@@ -409,9 +407,9 @@ public class DeviceFinder extends LifecycleParticipant {
      * @return the currently registered device announcement listeners
      */
     @API(status = API.Status.STABLE)
-    public Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
+    public synchronized Set<DeviceAnnouncementListener> getDeviceAnnouncementListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Set.copyOf(deviceListeners);
+        return Collections.unmodifiableSet(Util.gatherListeners(deviceListeners));
     }
 
     /**

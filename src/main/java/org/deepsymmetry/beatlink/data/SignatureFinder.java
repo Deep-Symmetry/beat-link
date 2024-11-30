@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -174,12 +175,13 @@ public class SignatureFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered signature listeners.
      */
-    private final Set<SignatureListener> signatureListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final List<WeakReference<SignatureListener>> signatureListeners = new LinkedList<>();
 
     /**
      * <p>Adds the specified signature listener to receive updates when the track signature for a player changes.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
-     * thrown and no action is performed.</p>
+     * thrown and no action is performed. Presence on a listener list does not
+     * prevent an object from being garbage-collected if it has no other references.</p>
      *
      * <p>Updates are delivered to listeners on the Swing Event Dispatch thread, so it is safe to interact with
      * user interface elements within the event handler.</p>
@@ -191,10 +193,8 @@ public class SignatureFinder extends LifecycleParticipant {
      * @param listener the track signature update listener to add
      */
     @API(status = API.Status.STABLE)
-    public void addSignatureListener(SignatureListener listener) {
-        if (listener != null) {
-            signatureListeners.add(listener);
-        }
+    public synchronized void addSignatureListener(SignatureListener listener) {
+        Util.addListener(signatureListeners, listener);
     }
 
     /**
@@ -205,10 +205,8 @@ public class SignatureFinder extends LifecycleParticipant {
      * @param listener the track signature update listener to remove
      */
     @API(status = API.Status.STABLE)
-    public void removeSignatureListener(SignatureListener listener) {
-        if (listener != null) {
-            signatureListeners.remove(listener);
-        }
+    public synchronized void removeSignatureListener(SignatureListener listener) {
+        Util.removeListener(signatureListeners, listener);
     }
 
     /**
@@ -217,9 +215,9 @@ public class SignatureFinder extends LifecycleParticipant {
      * @return the listeners that are currently registered for track signature updates
      */
     @API(status = API.Status.STABLE)
-    public Set<SignatureListener> getSignatureListeners() {
+    public synchronized Set<SignatureListener> getSignatureListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Set.copyOf(signatureListeners);
+        return Collections.unmodifiableSet(Util.gatherListeners(signatureListeners));
     }
 
     private void deliverSignatureUpdate(final int player, final String signature) {
