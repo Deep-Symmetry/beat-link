@@ -744,8 +744,8 @@ May the Fourth be with you.
 
 ### Changed
 
-- Device updates, beat announcements, and master announcements are time
-  sensitive, so they are now delivered directly on the thread that is
+- Device updates, beat announcements, and master announcements are 
+  time-sensitive, so they are now delivered directly on the thread that is
   receiving them from the network, rather than being added to the Event
   Dispatch Queue. This will reduce latency, but means listener methods
   need to be very fast, and delegate any lengthy, non-time-sensitive
