@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
-import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -444,13 +443,12 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     /**
      * Keeps track of the registered tag listeners, indexed by the type of tag they are listening for.
      */
-    private final Map<String, List<WeakReference<AnalysisTagListener>>> analysisTagListeners = new ConcurrentHashMap<>();
+    private final Map<String, Set<AnalysisTagListener>> analysisTagListeners = new ConcurrentHashMap<>();
 
     /**
      * <p>Adds the specified listener to receive updates when track analysis information of a specific type for a player changes.
      * If {@code listener} is {@code null} or already present in the set of registered listeners for the specified file
-     * extension and tag type, no exception is thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.</p>
+     * extension and tag type, no exception is thrown and no action is performed.</p>
      *
      * <p>Updates are delivered to listeners on the Swing Event Dispatch thread, so it is safe to interact with
      * user interface elements within the event handler.</p>
@@ -468,13 +466,13 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
         if (listener != null) {
             final String tagKey = typeTag + fileExtension;
             boolean trackingNewTag = false;
-            List<WeakReference<AnalysisTagListener>> specificTagListeners = analysisTagListeners.get(tagKey);
+            Set<AnalysisTagListener> specificTagListeners = analysisTagListeners.get(tagKey);
             if (specificTagListeners == null) {
                 trackingNewTag = true;
-                specificTagListeners = new LinkedList<>();
+                specificTagListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
                 analysisTagListeners.put(tagKey, specificTagListeners);
             }
-            Util.addListener(specificTagListeners, listener);
+            specificTagListeners.add(listener);
             if (trackingNewTag) primeCache();  // Someone is interested in something new, so go get it.
         }
     }
@@ -492,9 +490,9 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     public synchronized void removeAnalysisTagListener(final AnalysisTagListener listener, final String fileExtension, final String typeTag) {
         if (listener != null) {
             final String tagKey = typeTag + fileExtension;
-            List<WeakReference<AnalysisTagListener>> specificTagListeners = analysisTagListeners.get(tagKey);
+            Set<AnalysisTagListener> specificTagListeners = analysisTagListeners.get(tagKey);
             if (specificTagListeners != null) {
-                Util.removeListener(specificTagListeners, listener);
+                specificTagListeners.remove(listener);
                 if (specificTagListeners.isEmpty()) {  // No listeners left of this type, remove the parent entry.
                     analysisTagListeners.remove(tagKey);
                 }
@@ -510,11 +508,11 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * @return the listeners that are currently registered for track analysis updates, indexed by typeTag + fileExtension
      */
     @API(status = API.Status.STABLE)
-    public synchronized Map<String, Set<AnalysisTagListener>> getTagListeners() {
+    public Map<String, Set<AnalysisTagListener>> getTagListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
         final Map<String, Set<AnalysisTagListener>> result = new HashMap<>();
-        for (Map.Entry<String, List<WeakReference<AnalysisTagListener>>> entry : new HashMap<>(analysisTagListeners).entrySet()) {
-            result.put(entry.getKey(), Collections.unmodifiableSet(Util.gatherListeners(entry.getValue())));
+        for (Map.Entry<String, Set<AnalysisTagListener>> entry : new HashMap<>(analysisTagListeners).entrySet()) {
+            result.put(entry.getKey(), Set.copyOf(entry.getValue()));
         }
 
         return Collections.unmodifiableMap(result);
@@ -529,10 +527,10 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
      * @param taggedSection the new parsed track analysis information, if any
      */
     private void deliverAnalysisTagUpdate(final int player, final String fileExtension, final String typeTag, final RekordboxAnlz.TaggedSection taggedSection) {
-        final List<WeakReference<AnalysisTagListener>> currentListeners = analysisTagListeners.get(typeTag + fileExtension);
+        final Set<AnalysisTagListener> currentListeners = analysisTagListeners.get(typeTag + fileExtension);
         if (currentListeners != null) {
-            // Iterate over a copy to avoid concurrent modification issues, and filter out garbage-collected ones.
-            final Set<AnalysisTagListener> listeners = Util.gatherListeners(currentListeners);
+            // Iterate over a copy to avoid concurrent modification issues.
+            final Set<AnalysisTagListener> listeners = new HashSet<>(currentListeners);
             if (!listeners.isEmpty()) {
                 SwingUtilities.invokeLater(() -> {
                     final AnalysisTagUpdate update = new AnalysisTagUpdate(player, fileExtension, typeTag, taggedSection);

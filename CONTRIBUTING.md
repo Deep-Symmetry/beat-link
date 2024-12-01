@@ -8,7 +8,7 @@ great.
 First of all, we would *love* to hear from you! We have no way of
 knowing who has discovered, explored, downloaded and tried Beat Link.
 So if you have, please write a quick note on the [Beat Link Trigger Zulip
-channel](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger)
+stream](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger)
 to let us know! Even if it is only to explain why it didn&rsquo;t
 quite work for you.
 
@@ -44,10 +44,8 @@ Once you have something working you’d like to share, you can open a
 [pull request][pulls].
 
 Or if you simply have an idea, or something that you wish worked
-differently, feel free to discuss it on the [Beat Link Trigger Zulip
-channel](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger),
-and if directed to do so by the community there, open an
-[issue][issues].
+differently, feel free to open an [issue][issues] if it seems like
+nobody already has.
 
 ## Maintainers
 

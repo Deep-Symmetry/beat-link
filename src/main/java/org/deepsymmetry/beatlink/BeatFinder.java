@@ -6,11 +6,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -279,13 +279,13 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered beat listeners, except the TimeFinder's.
      */
-    private final List<WeakReference<BeatListener>> beatListeners = new LinkedList<>();
+    private final Set<BeatListener> beatListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified beat listener to receive beat announcements when DJ Link devices broadcast
      * them on the network. If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.</p>
+     * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -299,11 +299,11 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the beat listener to add
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addBeatListener(BeatListener listener) {
+    public void addBeatListener(BeatListener listener) {
         if (TimeFinder.getInstance().isOwnBeatListener(listener)) {
             timeFinderBeatListener.set(listener);
-        } else {
-            Util.addListener(beatListeners, listener);
+        } else if (listener != null) {
+            beatListeners.add(listener);
         }
     }
 
@@ -315,11 +315,11 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the beat listener to remove
      */
     @API(status = API.Status.STABLE)
-    public synchronized void removeBeatListener(BeatListener listener) {
+    public void removeBeatListener(BeatListener listener) {
         if (TimeFinder.getInstance().isOwnBeatListener(listener)) {
             timeFinderBeatListener.set(null);
-        } else {
-            Util.removeListener(beatListeners, listener);
+        } else if (listener != null) {
+            beatListeners.remove(listener);
         }
     }
 
@@ -329,9 +329,9 @@ public class BeatFinder extends LifecycleParticipant {
      * @return the currently registered beat listeners
      */
     @API(status = API.Status.STABLE)
-    public synchronized Set<BeatListener> getBeatListeners() {
+    public Set<BeatListener> getBeatListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        final Set<BeatListener> result = Util.gatherListeners(beatListeners);
+        final Set<BeatListener> result = new HashSet<>(beatListeners);
         final BeatListener timeFinderListener = timeFinderBeatListener.get();
         if (timeFinderListener != null) {
             result.add(timeFinderListener);
@@ -355,7 +355,7 @@ public class BeatFinder extends LifecycleParticipant {
                 logger.warn("Problem delivering beat announcement to TimeFinder listener", t);
             }
         }
-        for (final BeatListener listener : Util.gatherListeners(beatListeners)) {
+        for (final BeatListener listener : new LinkedList<>(beatListeners)) {
             try {
                 listener.newBeat(beat);
             } catch (Throwable t) {
@@ -367,13 +367,12 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered precise position listeners.
      */
-    private final List<WeakReference<PrecisePositionListener>> precisePositionListeners = new LinkedList<>();
+    private final Set<PrecisePositionListener> precisePositionListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified precise position listener to receive precise position updates when DJ Link devices send
      * them to Beat Link. If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.</p>
+     * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, precise position updates are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -388,8 +387,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the precise position listener to add
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addPrecisePositionListener(PrecisePositionListener listener) {
-        Util.addListener(precisePositionListeners, listener);
+    public void addPrecisePositionListener(PrecisePositionListener listener) {
+        if (listener != null) {
+            precisePositionListeners.add(listener);
+        }
     }
 
     /**
@@ -400,8 +401,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the precise position listener to remove
      */
     @API(status = API.Status.STABLE)
-    public synchronized void removePrecisePositionListener(PrecisePositionListener listener) {
-        Util.removeListener(precisePositionListeners, listener);
+    public void removePrecisePositionListener(PrecisePositionListener listener) {
+        if (listener != null) {
+            precisePositionListeners.remove(listener);
+        }
     }
 
     /**
@@ -410,9 +413,9 @@ public class BeatFinder extends LifecycleParticipant {
      * @return the currently registered precise position listeners
      */
     @API(status = API.Status.STABLE)
-    public synchronized Set<PrecisePositionListener> getPrecisePositionListeners() {
+    public Set<PrecisePositionListener> getPrecisePositionListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(Util.gatherListeners(precisePositionListeners));
+        return Set.copyOf(precisePositionListeners);
     }
 
     /**
@@ -433,13 +436,12 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered sync command listeners.
      */
-    private final List<WeakReference<SyncListener>> syncListeners = new LinkedList<>();
+    private final Set<SyncListener> syncListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified sync command listener to receive sync commands when DJ Link devices send
      * them to Beat Link. If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.</p>
+     * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, sync commands are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -453,8 +455,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the sync listener to add
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addSyncListener(SyncListener listener) {
-        Util.addListener(syncListeners, listener);
+    public void addSyncListener(SyncListener listener) {
+        if (listener != null) {
+            syncListeners.add(listener);
+        }
     }
 
     /**
@@ -465,8 +469,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the sync listener to remove
      */
     @API(status = API.Status.STABLE)
-    public synchronized void removeSyncListener(SyncListener listener) {
-        Util.removeListener(syncListeners, listener);
+    public void removeSyncListener(SyncListener listener) {
+        if (listener != null) {
+            syncListeners.remove(listener);
+        }
     }
 
     /**
@@ -475,9 +481,9 @@ public class BeatFinder extends LifecycleParticipant {
      * @return the currently registered sync listeners
      */
     @API(status = API.Status.STABLE)
-    public synchronized Set<SyncListener> getSyncListeners() {
+    public Set<SyncListener> getSyncListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(Util.gatherListeners(syncListeners));
+        return Set.copyOf(syncListeners);
     }
 
     /**
@@ -509,15 +515,14 @@ public class BeatFinder extends LifecycleParticipant {
     }
 
     /**
-     * Keeps track of the registered master handoff command listeners.
+     * Keeps track of the registered master  handoff command listeners.
      */
-    private final List<WeakReference<MasterHandoffListener>> masterHandoffListeners = new LinkedList<>();
+    private final Set<MasterHandoffListener> masterHandoffListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified master handoff listener to receive tempo master handoff commands when DJ Link devices send
      * them to Beat Link. If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.</p>
+     * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, handoff commands are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -531,8 +536,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the tempo master handoff listener to add
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addMasterHandoffListener(MasterHandoffListener listener) {
-        Util.addListener(masterHandoffListeners, listener);
+    public void addMasterHandoffListener(MasterHandoffListener listener) {
+        if (listener != null) {
+            masterHandoffListeners.add(listener);
+        }
     }
 
     /**
@@ -543,8 +550,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the tempo master handoff listener to remove
      */
     @API(status = API.Status.STABLE)
-    public synchronized void removeMasterHandoffListener(MasterHandoffListener listener) {
-        Util.removeListener(masterHandoffListeners, listener);
+    public void removeMasterHandoffListener(MasterHandoffListener listener) {
+        if (listener != null) {
+            masterHandoffListeners.remove(listener);
+        }
     }
 
     /**
@@ -553,9 +562,9 @@ public class BeatFinder extends LifecycleParticipant {
      * @return the currently registered tempo master handoff command listeners
      */
     @API(status = API.Status.STABLE)
-    public synchronized Set<MasterHandoffListener> getMasterHandoffListeners() {
+    public Set<MasterHandoffListener> getMasterHandoffListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(Util.gatherListeners(masterHandoffListeners));
+        return Set.copyOf(masterHandoffListeners);
     }
 
     /**
@@ -592,13 +601,12 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered on-air listeners.
      */
-    private final List<WeakReference<OnAirListener>> onAirListeners = new LinkedList<>();
+    private final Set<OnAirListener> onAirListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified on-air listener to receive channel on-air updates when the mixer broadcasts
      * them on the network. If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.</p>
+     * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, on-air updates are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -612,8 +620,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the on-air listener to add
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addOnAirListener(OnAirListener listener) {
-        Util.addListener(onAirListeners, listener);
+    public void addOnAirListener(OnAirListener listener) {
+        if (listener != null) {
+            onAirListeners.add(listener);
+        }
     }
 
     /**
@@ -624,8 +634,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the on-air listener to remove
      */
     @API(status = API.Status.STABLE)
-    public synchronized void removeOnAirListener(OnAirListener listener) {
-        Util.removeListener(onAirListeners, listener);
+    public void removeOnAirListener(OnAirListener listener) {
+        if (listener != null) {
+            onAirListeners.remove(listener);
+        }
     }
 
     /**
@@ -634,9 +646,9 @@ public class BeatFinder extends LifecycleParticipant {
      * @return the currently registered on-air listeners
      */
     @API(status = API.Status.STABLE)
-    public synchronized Set<OnAirListener> getOnAirListeners() {
+    public Set<OnAirListener> getOnAirListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(Util.gatherListeners(onAirListeners));
+        return Set.copyOf(onAirListeners);
     }
 
     /**
@@ -657,13 +669,12 @@ public class BeatFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered fader start listeners.
      */
-    private final List<WeakReference<FaderStartListener>> faderStartListeners = new LinkedList<>();
+    private final Set<FaderStartListener> faderStartListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * <p>Adds the specified fader start listener to receive fader start commands when the mixer broadcasts
      * them on the network. If {@code listener} is {@code null} or already present in the list
-     * of registered listeners, no exception is thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.</p>
+     * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, fader start commands are delivered to listeners directly on the thread that is receiving them
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -677,8 +688,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the fader start listener to add
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addFaderStartListener(FaderStartListener listener) {
-        Util.addListener(faderStartListeners, listener);
+    public void addFaderStartListener(FaderStartListener listener) {
+        if (listener != null) {
+            faderStartListeners.add(listener);
+        }
     }
 
     /**
@@ -689,8 +702,10 @@ public class BeatFinder extends LifecycleParticipant {
      * @param listener the fader start listener to remove
      */
     @API(status = API.Status.STABLE)
-    public synchronized void removeFaderStartListener(FaderStartListener listener) {
-        Util.removeListener(faderStartListeners, listener);
+    public void removeFaderStartListener(FaderStartListener listener) {
+        if (listener != null) {
+            faderStartListeners.remove(listener);
+        }
     }
 
     /**
@@ -699,9 +714,9 @@ public class BeatFinder extends LifecycleParticipant {
      * @return the currently registered fader start listeners
      */
     @API(status = API.Status.STABLE)
-    public synchronized Set<FaderStartListener> getFaderStartListeners() {
+    public Set<FaderStartListener> getFaderStartListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(Util.gatherListeners(faderStartListeners));
+        return Set.copyOf(faderStartListeners);
     }
 
     /**

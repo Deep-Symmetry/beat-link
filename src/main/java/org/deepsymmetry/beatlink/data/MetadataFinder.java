@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -375,7 +374,7 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * Check whether we are configured to use metadata only from caches and downloaded metadata exports,
-     * never actively requesting it from a player. Note that this will implicitly mean all the metadata-related
+     * never actively requesting it from a player. Note that this will implicitly mean all of the metadata-related
      * finders ({@link ArtFinder}, {@link BeatGridFinder}, and {@link WaveformFinder}) are in passive mode as well,
      * because their activity is triggered by the availability of new track metadata.
      *
@@ -390,7 +389,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Set whether we are configured to use metadata only from caches or downloaded metadata exports,
      * never actively requesting it from a player.
-     * Note that this will implicitly put all the metadata-related finders ({@link ArtFinder}, {@link BeatGridFinder},
+     * Note that this will implicitly put all of the metadata-related finders ({@link ArtFinder}, {@link BeatGridFinder},
      * and {@link WaveformFinder}) into a passive mode as well, because their activity is triggered by the availability
      * of new track metadata.
      *
@@ -604,13 +603,12 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered mount update listeners.
      */
-    private final List<WeakReference<MountListener>> mountListeners = new LinkedList<>();
+    private final Set<MountListener> mountListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Adds the specified mount update listener to receive updates when media is mounted or unmounted by any player.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
-     * thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.
+     * thrown and no action is performed.
      *
      * <p>Note that at the time a mount is detected, we will not yet know any details about the mounted media.
      * If {@code listener} also implements {@link MediaDetailsListener}, then as soon as the media details have
@@ -629,8 +627,10 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param listener the mount update listener to add
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addMountListener(MountListener listener) {
-        Util.addListener(mountListeners, listener);
+    public void addMountListener(MountListener listener) {
+        if (listener != null) {
+            mountListeners.add(listener);
+        }
     }
 
     /**
@@ -641,8 +641,10 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param listener the mount update listener to remove
      */
     @API(status = API.Status.STABLE)
-    public synchronized void removeMountListener(MountListener listener) {
-        Util.removeListener(mountListeners, listener);
+    public void removeMountListener(MountListener listener) {
+        if (listener != null) {
+            mountListeners.remove(listener);
+        }
     }
 
     /**
@@ -651,9 +653,9 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return the listeners that are currently registered for mount updates
      */
     @API(status = API.Status.STABLE)
-    public synchronized Set<MountListener> getMountListeners() {
+    public Set<MountListener> getMountListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(Util.gatherListeners(mountListeners));
+        return Set.copyOf(mountListeners);
     }
 
     /**
@@ -687,13 +689,12 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Keeps track of the registered track metadata update listeners.
      */
-    private final List<WeakReference<TrackMetadataListener>> trackListeners = new LinkedList<>();
+    private final Set<TrackMetadataListener> trackListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Adds the specified track metadata listener to receive updates when the track metadata for a player changes.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
-     * thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.
+     * thrown and no action is performed.
      *
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -707,8 +708,10 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param listener the track metadata update listener to add
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addTrackMetadataListener(TrackMetadataListener listener) {
-        Util.addListener(trackListeners, listener);
+    public void addTrackMetadataListener(TrackMetadataListener listener) {
+        if (listener != null) {
+            trackListeners.add(listener);
+        }
     }
 
    /**
@@ -719,8 +722,10 @@ public class MetadataFinder extends LifecycleParticipant {
      * @param listener the track metadata update listener to remove
      */
    @API(status = API.Status.STABLE)
-    public synchronized void removeTrackMetadataListener(TrackMetadataListener listener) {
-       Util.removeListener(trackListeners, listener);
+    public void removeTrackMetadataListener(TrackMetadataListener listener) {
+        if (listener != null) {
+            trackListeners.remove(listener);
+        }
     }
 
     /**
@@ -729,9 +734,9 @@ public class MetadataFinder extends LifecycleParticipant {
      * @return the listeners that are currently registered for track metadata updates
      */
     @API(status = API.Status.STABLE)
-    public synchronized Set<TrackMetadataListener> getTrackMetadataListeners() {
+    public Set<TrackMetadataListener> getTrackMetadataListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(Util.gatherListeners(trackListeners));
+        return Set.copyOf(trackListeners);
     }
 
     /**

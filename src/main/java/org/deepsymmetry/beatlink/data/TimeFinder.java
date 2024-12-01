@@ -5,13 +5,13 @@ import org.deepsymmetry.beatlink.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.ref.WeakReference;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * <p>Watches the beat packets and transport information contained in player status update to infer the current
@@ -286,49 +286,29 @@ public class TimeFinder extends LifecycleParticipant {
     }
 
     /**
-     * Used to keep track of the information we need to about listeners registered for track position updates,
-     * without preventing their garbage collection.
+     * Keeps track of the listeners that have registered interest in closely following track playback for a particular
+     * player. The keys are the listener interface, and the values are the last update that was sent to that
+     * listener. If no information was known during the last update, the special value {@link #NO_INFORMATION} is
+     * used to represent it, rather than trying to store a {@code null} value in the hash map.
      */
-    private static class TrackPositionListenerRecord {
-
-        /**
-         * Holds a reference to the registered listener until it gets garbage collected.
-         */
-        final WeakReference<TrackPositionListener> listener;
-
-        /**
-         * Keeps track of the player number that the listener is interested in.
-         */
-        final int playerNumber;
-
-        /**
-         * Keeps track of the update we last sent to this listener, if any.
-         */
-        final AtomicReference<TrackPositionUpdate> lastUpdateSent = new AtomicReference<>();
-
-        /**
-         * Constructor sets up the immutable fields.
-         *
-         * @param listener the listener registered to receive updates
-         * @param player the device number it is interested in updates for
-         */
-        TrackPositionListenerRecord(TrackPositionListener listener, int player) {
-            this.listener = new WeakReference<>(listener);
-            playerNumber = player;
-        }
-    }
+    private final ConcurrentHashMap<TrackPositionListener, TrackPositionUpdate> trackPositionListeners = new ConcurrentHashMap<>();
 
     /**
-     * Keeps track of the listeners that have registered interest in closely following track playback for a particular
-     * player.
+     * Keeps track of the player numbers that registered track position listeners are interested in.
      */
-    List<TrackPositionListenerRecord> trackPositionListeners = new LinkedList<>();
+    private final ConcurrentHashMap<TrackPositionListener, Integer> listenerPlayerNumbers = new ConcurrentHashMap<>();
+
+    /**
+     * This is used to represent the fact that we have told a listener that there is no information for it, since
+     * we can't actually store a {@code null} value in a {@link ConcurrentHashMap}.
+     */
+    private final TrackPositionUpdate NO_INFORMATION = new TrackPositionUpdate(0, 0, 0,
+            false, false, 0, false, null, false, false);
 
     /**
      * Add a listener that wants to closely follow track playback for a particular player. The listener will be called
      * as soon as there is an initial {@link TrackPositionUpdate} for the specified player, and whenever there is an
-     * unexpected change in playback position, speed, or state on that player. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.
+     * unexpected change in playback position, speed, or state on that player.
      * <p>
      * To help the listener orient itself, it is sent a {@link TrackPositionListener#movementChanged(TrackPositionUpdate)}
      * message immediately upon registration to report the current playback position, even if none is known (in which
@@ -341,24 +321,11 @@ public class TimeFinder extends LifecycleParticipant {
      * @param listener the interface that will be called when there are changes in track playback on the player
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addTrackPositionListener(int player, TrackPositionListener listener) {
-        Iterator<TrackPositionListenerRecord> iterator = trackPositionListeners.iterator();
-        while (iterator.hasNext()) {
-            TrackPositionListenerRecord listenerRecord = iterator.next();
-            TrackPositionListener currentListener = listenerRecord.listener.get();
-
-            if (currentListener == null || currentListener == listener) {
-                iterator.remove();  // We found a garbage-collected listener, or former registration of same one.
-            }
-        }
-
-        if (listener != null) {  // We have a new listener to register
-            TrackPositionListenerRecord record = new TrackPositionListenerRecord(listener, player);
-            TrackPositionUpdate currentPosition = positions.get(player);
-            record.lastUpdateSent.set(currentPosition);
-            trackPositionListeners.add(record);
-            listener.movementChanged(currentPosition);  // If this throws an exception, the caller will catch it.
-        }
+    public void addTrackPositionListener(int player, TrackPositionListener listener) {
+        listenerPlayerNumbers.put(listener, player);
+        TrackPositionUpdate currentPosition = positions.get(player);
+        trackPositionListeners.put(listener, currentPosition == null? NO_INFORMATION : currentPosition);
+        listener.movementChanged(currentPosition);  // If this throws an exception, the caller will catch it.
     }
 
     /**
@@ -367,12 +334,9 @@ public class TimeFinder extends LifecycleParticipant {
      * @param listener the interface that will no longer be called for changes in track playback
      */
     @API(status = API.Status.STABLE)
-    public synchronized void removeTrackPositionListener(TrackPositionListener listener) {
-        Iterator<TrackPositionListenerRecord> iterator = trackPositionListeners.iterator();
-        while (iterator.hasNext()) {
-            TrackPositionListener currentListener = iterator.next().listener.get();
-            if (currentListener == listener || currentListener == null) iterator.remove();
-        }
+    public void removeTrackPositionListener(TrackPositionListener listener) {
+        trackPositionListeners.remove(listener);
+        listenerPlayerNumbers.remove(listener);
     }
 
     /**
@@ -442,26 +406,6 @@ public class TimeFinder extends LifecycleParticipant {
     }
 
     /**
-     * Gather a copy of the surviving registered listener records.
-     *
-     * @return information about the listeners that have not yet been garbage collected.
-     */
-    private synchronized List<TrackPositionListenerRecord> getTrackPositionListeners() {
-        List<TrackPositionListenerRecord> result = new LinkedList<>();
-        Iterator<TrackPositionListenerRecord> iterator = trackPositionListeners.iterator();
-        while (iterator.hasNext()) {
-            TrackPositionListenerRecord record = iterator.next();
-            if (record.listener.get() == null) {
-                iterator.remove();
-            } else {
-                result.add(record);
-            }
-        }
-        return result;
-
-    }
-
-    /**
      * Check if the current position tracking information for a player represents a significant change compared to
      * what a listener was last informed to expect, and if so, send another update. If this is a definitive update
      * (i.e. a new beat), and the listener wants all beats, always send it.
@@ -473,40 +417,40 @@ public class TimeFinder extends LifecycleParticipant {
      */
     private void updateListenersIfNeeded(int player, TrackPositionUpdate update, Beat beat) {
         // Iterate over a copy to avoid issues with concurrent modification
-        for (TrackPositionListenerRecord record : getTrackPositionListeners()) {
-            TrackPositionListener listener = record.listener.get();
-            if (listener != null) {  // The listener was not garbage collected after the list was gathered.
-                if (player == record.playerNumber) {  // This listener is interested in this player
-                    if (update == null) {  // We are reporting a loss of information
-                        if (record.lastUpdateSent.getAndSet(null) != null) {
+        for (Map.Entry<TrackPositionListener, TrackPositionUpdate> entry : new HashMap<>(trackPositionListeners).entrySet()) {
+            if (player == listenerPlayerNumbers.get(entry.getKey())) {  // This listener is interested in this player
+                if (update == null) {  // We are reporting a loss of information
+                    if (entry.getValue() != NO_INFORMATION) {
+                        if (trackPositionListeners.replace(entry.getKey(), entry.getValue(), NO_INFORMATION)) {
                             try {
-                                listener.movementChanged(null);
+                                entry.getKey().movementChanged(null);
                             } catch (Throwable t) {
                                 logger.warn("Problem delivering null movementChanged update", t);
                             }
                         }
-                    } else {  // We have some information, see if it is a significant change from what was last reported
-                        final TrackPositionUpdate lastUpdate = record.lastUpdateSent.get();
-                        if (lastUpdate == null ||
-                                lastUpdate.playing != update.playing ||
-                                pitchesDiffer(lastUpdate, update) ||
-                                interpolationsDisagree(lastUpdate, update)) {
+                    }
+                } else {  // We have some information, see if it is a significant change from what was last reported
+                    final TrackPositionUpdate lastUpdate = entry.getValue();
+                    if (lastUpdate == NO_INFORMATION ||
+                            lastUpdate.playing != update.playing ||
+                            pitchesDiffer(lastUpdate, update) ||
+                            interpolationsDisagree(lastUpdate, update)) {
+                        if (trackPositionListeners.replace(entry.getKey(), entry.getValue(), update)) {
                             try {
-                                listener.movementChanged(update);
+                                entry.getKey().movementChanged(update);
                             } catch (Throwable t) {
                                 logger.warn("Problem delivering movementChanged update", t);
                             }
-                            record.lastUpdateSent.set(update);
                         }
+                    }
 
-                        // And regardless of whether this was a significant change, if this was a new beat and the listener
-                        // implements the interface that requests all beats, send that information.
-                        if (update.fromBeat && listener instanceof TrackPositionBeatListener) {
-                            try {
-                                ((TrackPositionBeatListener) listener).newBeat(beat, update);
-                            } catch (Throwable t) {
-                                logger.warn("Problem delivering newBeat update", t);
-                            }
+                    // And regardless of whether this was a significant change, if this was a new beat and the listener
+                    // implements the interface that requests all beats, send that information.
+                    if (update.fromBeat && entry.getKey() instanceof TrackPositionBeatListener) {
+                        try {
+                            ((TrackPositionBeatListener) entry.getKey()).newBeat(beat, update);
+                        } catch (Throwable t) {
+                            logger.warn("Problem delivering newBeat update", t);
                         }
                     }
                 }

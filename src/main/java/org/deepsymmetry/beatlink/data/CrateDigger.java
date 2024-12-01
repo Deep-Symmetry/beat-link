@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -654,14 +653,14 @@ public class CrateDigger {
     /**
      * Keeps track of the registered database listeners.
      */
-    private final List<WeakReference<DatabaseListener>> dbListeners = new LinkedList<>();
+    private final Set<DatabaseListener> dbListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
      * Adds the specified database listener to receive updates when a rekordbox database has been obtained for a
      * media slot, or when the underlying media for a database has been unmounted, so it is no longer relevant.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
-     * thrown and no action is performed. Presence on a listener list does not
-     * prevent an object from being garbage-collected if it has no other references.
+     * thrown and no action is performed.
      *
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in listener methods, you need to use
@@ -675,8 +674,10 @@ public class CrateDigger {
      * @param listener the database update listener to add
      */
     @API(status = API.Status.STABLE)
-    public synchronized void addDatabaseListener(DatabaseListener listener) {
-        Util.addListener(dbListeners, listener);
+    public void addDatabaseListener(DatabaseListener listener) {
+        if (listener != null) {
+            dbListeners.add(listener);
+        }
     }
 
     /**
@@ -687,19 +688,16 @@ public class CrateDigger {
      * @param listener the database update listener to remove
      */
     @API(status = API.Status.STABLE)
-    public synchronized void removeDatabaseListener(DatabaseListener listener) {
-        Util.removeListener(dbListeners, listener);
+    public void removeDatabaseListener(DatabaseListener listener) {
+        if (listener != null) {
+            dbListeners.remove(listener);
+        }
     }
 
-    /**
-     * Get the set of currently-registered database listeners.
-     *
-     * @return the listeners that are currently registered for database updates
-     */
     @API(status = API.Status.STABLE)
-    public synchronized Set<DatabaseListener> getDatabaseListeners() {
+    public Set<DatabaseListener> getDatabaseListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
-        return Collections.unmodifiableSet(Util.gatherListeners(dbListeners));
+        return Set.copyOf(dbListeners);
     }
 
     /**

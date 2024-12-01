@@ -15,10 +15,6 @@ This change log follows the conventions of
 
 - An error in interpreting database export file format by the Crate Digger library could lead to some rows that were actually present in tables not being found.
 
-### Changed
-
-- Whenever listeners are registered for events produced by Beat Link classes, they are now wrapped in `WeakReference` containers, so that the listeners can be garbage collected even if they have been registered. Beat Link will notice that the `WeakReference` content has become `null`, and remove it from the listener list.
-
 ## [7.4.0] - 2024-05-04
 
 May the Fourth be with you.
@@ -748,8 +744,8 @@ May the Fourth be with you.
 
 ### Changed
 
-- Device updates, beat announcements, and master announcements are
-  time-sensitive, so they are now delivered directly on the thread that is
+- Device updates, beat announcements, and master announcements are time
+  sensitive, so they are now delivered directly on the thread that is
   receiving them from the network, rather than being added to the Event
   Dispatch Queue. This will reduce latency, but means listener methods
   need to be very fast, and delegate any lengthy, non-time-sensitive
