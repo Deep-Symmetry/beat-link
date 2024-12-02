@@ -409,7 +409,7 @@ public class VirtualCdj extends LifecycleParticipant {
     /**
      * Track the most recently reported master tempo.
      */
-    private final AtomicLong masterTempo = new AtomicLong();
+    private final AtomicLong masterTempo = new AtomicLong(Double.doubleToLongBits(0.0));
 
     /**
      * Get the current master tempo.
