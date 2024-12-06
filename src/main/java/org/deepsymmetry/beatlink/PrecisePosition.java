@@ -72,14 +72,6 @@ public class PrecisePosition extends DeviceUpdate {
         return playbackPosition;
     }
 
-    /**
-     * Get the device pitch at the time of the beat. This is an integer ranging from 0 to 2097152, which corresponds
-     * to a range between completely stopping playback to playing at twice normal tempo. The equivalent percentage
-     * value can be obtained by passing the pitch to {@link Util#pitchToPercentage(long)}, and the corresponding
-     * fractional scaling value by passing it to {@link Util#pitchToMultiplier(long)}.
-     *
-     * @return the raw device pitch
-     */
     @Override
     public int getPitch() {
         return pitch;
