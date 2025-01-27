@@ -282,7 +282,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
         return playerTrackSourceSlots.get(player);
     }
 
-    public int findDeviceSqlRekordboxIdForPlayer(int player) {
+    int findDeviceSqlRekordboxIdForPlayer(int player) {
         return playerToDeviceSqlRekordboxId.getOrDefault(player, 0);
     }
 
