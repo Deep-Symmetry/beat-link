@@ -257,6 +257,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     private final Map<Integer, SlotReference> playerTrackSourceSlots = new ConcurrentHashMap<>();
 
+    private final Map<Integer, Integer> playerToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
+
     /**
      * Clear both player caches so that we can reload the data. This usually happens when we load an archive
      * in OpusProvider.
@@ -280,6 +282,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
         return playerTrackSourceSlots.get(player);
     }
 
+    public int findDeviceSqlRekordboxIdForPlayer(int player) {
+        return playerToDeviceSqlRekordboxId.getOrDefault(player, 0);
+    }
 
     /**
      * Keeps track of the most recent valid (non-zero) status flag byte we have received from each device number,
@@ -366,6 +371,10 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         final int sourceSlot = OpusProvider.getInstance().findMatchingUsbSlotForTrack(rekordboxId, player, pssiFromOpus);
                         if (sourceSlot != 0) {  // We found a match, record it.
                             playerTrackSourceSlots.put(player, SlotReference.getSlotReference(sourceSlot, USB_SLOT));
+                        }
+                        final int deviceSqlRekordboxId = OpusProvider.getInstance().getDeviceSqlRekordboxIdFromPssi(pssiFromOpus);
+                        if (deviceSqlRekordboxId != 0) {
+                            playerToDeviceSqlRekordboxId.put(player, deviceSqlRekordboxId);
                         }
                     }
                 } else if (data[0x25] == METADATA_TYPE_IDENTIFIER_SONG_CHANGE) {

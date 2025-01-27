@@ -589,7 +589,7 @@ public class OpusProvider {
         }
     };
 
-    private int getDeviceSqlRekordboxIdFromPssi(ByteBuffer pssi) {
+    public int getDeviceSqlRekordboxIdFromPssi(ByteBuffer pssi) {
         // logger.info("getDeviceSqlRekordboxIdFromPssi() called with pssi: {}", pssi.array());
         for (Map.Entry<RekordboxAnlz, Integer> entry : pssiToDeviceSqlRekordboxId.entrySet()) {
             RekordboxAnlz anlz = entry.getKey();

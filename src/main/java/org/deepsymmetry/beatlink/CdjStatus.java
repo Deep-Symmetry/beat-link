@@ -251,7 +251,7 @@ public class CdjStatus extends DeviceUpdate {
      * The rekordbox ID of the track that was loaded, if any; labeled<i>rekordbox</i> in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      */
-    private final int rekordboxId;
+    private int rekordboxId;
 
     /**
      * Get the rekordbox ID of the track that was loaded, if any; labeled <i>rekordbox</i> in Figure 11 of
@@ -673,7 +673,6 @@ public class CdjStatus extends DeviceUpdate {
             logger.warn("Processing CDJ Status packets with unexpected lengths {}.", packetBytes.length);
         }
         trackType = findTrackType();
-        rekordboxId = (int)Util.bytesToNumber(packetBytes, 0x2c, 4);
         pitch = (int)Util.bytesToNumber(packetBytes, 0x8d, 3);
         bpm = (int)Util.bytesToNumber(packetBytes, 0x92, 2);
         playState1 = findPlayState1();
@@ -690,6 +689,10 @@ public class CdjStatus extends DeviceUpdate {
                 if (matchedSourceSlot != null) {
                     sourcePlayer = matchedSourceSlot.player;
                 }
+                final int deviceSqlRekordboxId = VirtualRekordbox.getInstance().findDeviceSqlRekordboxIdForPlayer(sourcePlayer);
+                if (deviceSqlRekordboxId != 0) {
+                    rekordboxId = deviceSqlRekordboxId;
+                }
             }
             trackSourcePlayer = sourcePlayer;
             trackSourceSlot = TrackSourceSlot.USB_SLOT;
@@ -698,6 +701,7 @@ public class CdjStatus extends DeviceUpdate {
         } else {
             trackSourcePlayer = trackSourceByte;
             trackSourceSlot = findTrackSourceSlot();
+            rekordboxId = (int)Util.bytesToNumber(packetBytes, 0x2c, 4);
         }
     }
 
