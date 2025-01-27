@@ -362,19 +362,16 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 // PSSI Data
                 if (data[0x25] == METADATA_TYPE_IDENTIFIER_PSSI) {
 
-                    final int rekordboxId = (int) Util.bytesToNumber(data, 0x28, 4);
+                    final ByteBuffer pssiFromOpus = ByteBuffer.wrap(Arrays.copyOfRange(data, 0x35, data.length));
+                    final int rekordboxId = OpusProvider.getInstance().getDeviceSqlRekordboxIdFromPssi(pssiFromOpus);
                     // Record this song structure so that we can use it for matching tracks in CdjStatus packets.
                     if (rekordboxId != 0) {
-                        final ByteBuffer pssiFromOpus = ByteBuffer.wrap(Arrays.copyOfRange(data, 0x35, data.length));
                         final int player = Util.translateOpusPlayerNumbers(data[0x21]);
+                        playerToDeviceSqlRekordboxId.put(player, rekordboxId);
                         // Also record the conceptual source slot that represents the USB slot from which this track seems to have been loaded
                         final int sourceSlot = OpusProvider.getInstance().findMatchingUsbSlotForTrack(rekordboxId, player, pssiFromOpus);
                         if (sourceSlot != 0) {  // We found a match, record it.
                             playerTrackSourceSlots.put(player, SlotReference.getSlotReference(sourceSlot, USB_SLOT));
-                        }
-                        final int deviceSqlRekordboxId = OpusProvider.getInstance().getDeviceSqlRekordboxIdFromPssi(pssiFromOpus);
-                        if (deviceSqlRekordboxId != 0) {
-                            playerToDeviceSqlRekordboxId.put(player, deviceSqlRekordboxId);
                         }
                     }
                 } else if (data[0x25] == METADATA_TYPE_IDENTIFIER_SONG_CHANGE) {
