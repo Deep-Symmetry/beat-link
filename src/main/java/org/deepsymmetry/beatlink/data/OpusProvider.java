@@ -123,6 +123,11 @@ public class OpusProvider {
     private final Map<Integer, LinkedBlockingQueue<MediaDetails>> archiveAttachQueueMap = new ConcurrentHashMap<>();
 
     /**
+     * TODO: Doc
+     */
+    private final Map<RekordboxAnlz, Integer> pssiToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
+
+    /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
      * This must be a file created using {@link org.deepsymmetry.cratedigger.Archivist#createArchive(Database, File)}
      * from that media.
@@ -189,6 +194,19 @@ public class OpusProvider {
             // If we got here, this looks like a valid metadata archive because we found a valid database export inside it.
             usbArchiveMap.put(usbSlotNumber, new RekordboxUsbArchive(usbSlotNumber, database, filesystem));
             logger.info("Attached metadata archive {} for slot {}.", filesystem, usbSlotNumber);
+
+            // Populate pssiToDeviceSqlRekordboxId
+            SlotReference slotRef = SlotReference.getSlotReference(1, CdjStatus.TrackSourceSlot.USB_SLOT);
+
+            for (int i = 1; i <= 9999; i++) {
+                DataReference dataRef = new DataReference(slotRef, i);
+                RekordboxAnlz anlz = findExtendedAnalysis(usbSlotNumber, dataRef, database, filesystem);
+                if (anlz != null) {
+                    pssiToDeviceSqlRekordboxId.put(anlz, i);
+                }
+            }
+
+            logger.info("pssiToDeviceSqlRekordboxId is now filled with {} entries", pssiToDeviceSqlRekordboxId.size());
 
             // Send a media update so clients know this media is mounted.
             final SlotReference slotReference = SlotReference.getSlotReference(usbSlotNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
@@ -571,6 +589,22 @@ public class OpusProvider {
         }
     };
 
+    private int getDeviceSqlRekordboxIdFromPssi(ByteBuffer pssi) {
+        // logger.info("getDeviceSqlRekordboxIdFromPssi() called with pssi: {}", pssi.array());
+        for (Map.Entry<RekordboxAnlz, Integer> entry : pssiToDeviceSqlRekordboxId.entrySet()) {
+            RekordboxAnlz anlz = entry.getKey();
+            for (RekordboxAnlz.TaggedSection taggedSection : anlz.sections()) {
+                if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
+                    // logger.info("getDeviceSqlRekordboxIdFromPssi() found SONG_STRUCTURE with body: {}", taggedSection._raw_body());
+                    if (Util.indexOfByteBuffer(pssi, taggedSection._raw_body()) > -1) {
+                        return entry.getValue();
+                    }
+                }
+            }
+        }
+        return 0;  // Return 0 if no match found
+    }
+
     /**
      * Method that will use PSSI + rekordboxId to confirm that the database filesystem match the song. Will
      * look up PSSI in the chosen archive for the specific RekordboxId and then see if the PSSI matches what the
@@ -583,6 +617,8 @@ public class OpusProvider {
      */
     private boolean trackMatchesArchive(DataReference dataRef, ByteBuffer pssiFromOpus, RekordboxUsbArchive archive) {
         RekordboxAnlz anlz = findExtendedAnalysis(archive.getUsbSlot(), dataRef, archive.getDatabase(), archive.getFileSystem());
+        int deviceSqlRekordboxId = getDeviceSqlRekordboxIdFromPssi(pssiFromOpus);
+        logger.info("According to getDeviceSqlRekordboxIdFromPssi(), the deviceSqlRekordboxId is {}", deviceSqlRekordboxId);
         if (anlz != null) {
             for (RekordboxAnlz.TaggedSection taggedSection : anlz.sections()) {
                 if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
