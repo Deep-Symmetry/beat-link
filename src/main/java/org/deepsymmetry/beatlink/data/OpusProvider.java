@@ -617,8 +617,6 @@ public class OpusProvider {
      */
     private boolean trackMatchesArchive(DataReference dataRef, ByteBuffer pssiFromOpus, RekordboxUsbArchive archive) {
         RekordboxAnlz anlz = findExtendedAnalysis(archive.getUsbSlot(), dataRef, archive.getDatabase(), archive.getFileSystem());
-        int deviceSqlRekordboxId = getDeviceSqlRekordboxIdFromPssi(pssiFromOpus);
-        logger.info("According to getDeviceSqlRekordboxIdFromPssi(), the deviceSqlRekordboxId is {}", deviceSqlRekordboxId);
         if (anlz != null) {
             for (RekordboxAnlz.TaggedSection taggedSection : anlz.sections()) {
                 if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
