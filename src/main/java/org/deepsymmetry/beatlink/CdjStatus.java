@@ -683,13 +683,15 @@ public class CdjStatus extends DeviceUpdate {
 
         final byte trackSourceByte = packetBytes[0x28];
         if (isFromOpusQuad && (trackSourceByte < 16)) {
+            // sourcePlayer variable will be changed to the slot number
             int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
+            int player = Util.translateOpusPlayerNumbers(trackSourceByte);
             if (sourcePlayer != 0) {
                 final SlotReference matchedSourceSlot = VirtualRekordbox.getInstance().findMatchedTrackSourceSlotForPlayer(deviceNumber);
                 if (matchedSourceSlot != null) {
                     sourcePlayer = matchedSourceSlot.player;
                 }
-                final int deviceSqlRekordboxId = VirtualRekordbox.getInstance().findDeviceSqlRekordboxIdForPlayer(sourcePlayer);
+                final int deviceSqlRekordboxId = VirtualRekordbox.getInstance().findDeviceSqlRekordboxIdForPlayer(player);
                 if (deviceSqlRekordboxId != 0) {
                     rekordboxId = deviceSqlRekordboxId;
                 }
