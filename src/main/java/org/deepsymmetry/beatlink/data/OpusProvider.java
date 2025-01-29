@@ -125,7 +125,7 @@ public class OpusProvider {
     /**
      * TODO: Doc
      */
-    private final Map<RekordboxAnlz, Integer> pssiToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
+    private final Map<byte[], Integer> pssiToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
 
     /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
@@ -202,7 +202,13 @@ public class OpusProvider {
                 DataReference dataRef = new DataReference(slotRef, i);
                 RekordboxAnlz anlz = findExtendedAnalysis(usbSlotNumber, dataRef, database, filesystem);
                 if (anlz != null) {
-                    pssiToDeviceSqlRekordboxId.put(anlz, i);
+                    // Get the SONG_STRUCTURE raw body
+                    byte[] songStructure = getSongStructureRawBody(anlz);
+                    if (songStructure != null) {
+                        pssiToDeviceSqlRekordboxId.put(songStructure, i);
+                    } else {
+                        logger.warn("No SONG_STRUCTURE found for track {}", i);
+                    }
                 }
             }
 
@@ -295,6 +301,15 @@ public class OpusProvider {
      */
     private RekordboxAnlz findExtendedAnalysis(int usbSlotNumber, DataReference track, Database database, FileSystem filesystem) {
         return findTrackAnalysis(usbSlotNumber, track, database, filesystem, ".EXT");
+    }
+
+    private byte[] getSongStructureRawBody(RekordboxAnlz anlz) {
+        for (RekordboxAnlz.TaggedSection section : anlz.sections()) {
+            if (section.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
+                return section._raw_body();
+            }
+        }
+        return null;
     }
 
     /**
@@ -590,16 +605,22 @@ public class OpusProvider {
     };
 
     public int getDeviceSqlRekordboxIdFromPssi(ByteBuffer pssi) {
-        // logger.info("getDeviceSqlRekordboxIdFromPssi() called with pssi: {}", pssi.array());
-        for (Map.Entry<RekordboxAnlz, Integer> entry : pssiToDeviceSqlRekordboxId.entrySet()) {
-            RekordboxAnlz anlz = entry.getKey();
-            for (RekordboxAnlz.TaggedSection taggedSection : anlz.sections()) {
-                if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
-                    // logger.info("getDeviceSqlRekordboxIdFromPssi() found SONG_STRUCTURE with body: {}", taggedSection._raw_body());
-                    if (Util.indexOfByteBuffer(pssi, taggedSection._raw_body()) > -1) {
-                        return entry.getValue();
-                    }
-                }
+        // Note: Right now we only parse the first packet part of the PSSI
+        // from the Opus, so that means we don't have the full PSSI,
+        // but it should be enough to verify that the song structure matches
+        // (We have max 1357 bytes to verify so I think we're good)
+        // 
+        // From observation, the actual part we need to check from the
+        // body sent from the Opus is starting at index 11
+        // (that's where the SONG_STRUCTURE starts)
+        ByteBuffer slicedPssi = pssi.duplicate();
+        slicedPssi.position(11);
+        ByteBuffer finalSlice = slicedPssi.slice();
+
+        for (Map.Entry<byte[], Integer> entry : pssiToDeviceSqlRekordboxId.entrySet()) {
+            byte[] songStructure = entry.getKey();
+            if (Util.indexOfByteBuffer(finalSlice, songStructure) > -1) {
+                return entry.getValue();
             }
         }
         return 0;  // Return 0 if no match found
