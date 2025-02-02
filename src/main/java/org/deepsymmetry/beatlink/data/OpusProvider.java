@@ -644,13 +644,18 @@ public class OpusProvider {
         } else if (matches.size() == 1) {
             return matches.get(0);
         } else {
-            // Multiple matches found - look for exact ID match first
+            // Multiple matches found - prefer the match with the same ID sent from the Opus
             if (matches.contains(idSentFromOpus)) {
-                logger.info("Multiple PSSI matches found, using ID sent from Opus: {}", idSentFromOpus);
+                logger.info("Multiple PSSI matches found, preferring ID sent from Opus: {}", idSentFromOpus);
                 return idSentFromOpus;
             }
-            logger.warn("Multiple PSSI matches found but none match ID from Opus: {}", idSentFromOpus);
-            return 0;
+            // If the Opus sent back an ID that we don't have a match for,
+            // we'll just return the first match we found. (By this point
+            // we are experiencing de-synced databases between the DeviceSQL and Device Library Plus,
+            // see: https://deep-symmetry.zulipchat.com/#narrow/channel/275322-beat-link-trigger/topic/Opus.20Quad.20Integration/near/495932074)
+            int firstMatch = matches.get(0);
+            logger.info("Multiple PSSI matches found but none match ID from Opus: {}. Returning the first match: {}", idSentFromOpus, firstMatch);
+            return firstMatch;
         }
     }
 
