@@ -615,7 +615,7 @@ public class OpusProvider {
         }
     };
 
-    public int getDeviceSqlRekordboxIdFromPssi(ByteBuffer pssi) {
+    public int getDeviceSqlRekordboxIdFromPssi(ByteBuffer pssi, int idSentFromOpus) {
         // Note: Right now we only parse the first packet part of the PSSI
         // from the Opus, so that means we don't have the full PSSI,
         // but it should be enough to verify that the song structure matches
@@ -628,13 +628,28 @@ public class OpusProvider {
         slicedPssi.position(11);
         ByteBuffer finalSlice = slicedPssi.slice();
 
+        List<Integer> matches = new ArrayList<>();
+
         for (Map.Entry<byte[], Integer> entry : pssiToDeviceSqlRekordboxId.entrySet()) {
             byte[] songStructure = entry.getKey();
             if (Util.indexOfByteBuffer(finalSlice, songStructure) > -1) {
-                return entry.getValue();
+                matches.add(entry.getValue());
             }
         }
-        return 0;  // Return 0 if no match found
+
+        if (matches.isEmpty()) {
+            return 0;
+        } else if (matches.size() == 1) {
+            return matches.get(0);
+        } else {
+            // Multiple matches found - look for exact ID match first
+            if (matches.contains(idSentFromOpus)) {
+                logger.info("Multiple PSSI matches found, using ID sent from Opus: {}", idSentFromOpus);
+                return idSentFromOpus;
+            }
+            logger.warn("Multiple PSSI matches found but none match ID from Opus: {}", idSentFromOpus);
+            return 0;
+        }
     }
 
     /**

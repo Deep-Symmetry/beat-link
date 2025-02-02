@@ -361,9 +361,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 byte[] data = packet.getData();
                 // PSSI Data
                 if (data[0x25] == METADATA_TYPE_IDENTIFIER_PSSI) {
-
+                    final int rekordboxIdFromOpus = (int) Util.bytesToNumber(data, 0x28, 4);
                     final ByteBuffer pssiFromOpus = ByteBuffer.wrap(Arrays.copyOfRange(data, 0x35, data.length));
-                    final int rekordboxId = OpusProvider.getInstance().getDeviceSqlRekordboxIdFromPssi(pssiFromOpus);
+
+                    // Get the actual rekordbox DeviceSQL ID
+                    final int rekordboxId = OpusProvider.getInstance().getDeviceSqlRekordboxIdFromPssi(pssiFromOpus, rekordboxIdFromOpus);
+
                     // Record this song structure so that we can use it for matching tracks in CdjStatus packets.
                     if (rekordboxId != 0) {
                         final int player = Util.translateOpusPlayerNumbers(data[0x21]);
