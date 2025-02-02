@@ -218,6 +218,8 @@ public class OpusProvider {
                     } else {
                         logger.warn("No SONG_STRUCTURE found for track {}", i);
                     }
+                } else {
+                    logger.warn("No extended analysis found for track {}", i);
                 }
             }
 
