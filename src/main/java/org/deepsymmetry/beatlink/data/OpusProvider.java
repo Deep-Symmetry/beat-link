@@ -198,7 +198,16 @@ public class OpusProvider {
             // Populate pssiToDeviceSqlRekordboxId
             SlotReference slotRef = SlotReference.getSlotReference(1, CdjStatus.TrackSourceSlot.USB_SLOT);
 
-            for (int i = 1; i <= 9999; i++) {
+            // Get max ID first
+            // This can be found by finding the max key in database.trackIndex
+            int maxId = 0;
+            for (Long key : database.trackIndex.keySet()) {
+                if (key > maxId) {
+                    maxId = key.intValue();
+                }
+            }
+
+            for (int i = 1; i <= maxId; i++) {
                 DataReference dataRef = new DataReference(slotRef, i);
                 RekordboxAnlz anlz = findExtendedAnalysis(usbSlotNumber, dataRef, database, filesystem);
                 if (anlz != null) {
