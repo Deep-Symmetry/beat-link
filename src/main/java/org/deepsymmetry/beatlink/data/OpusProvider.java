@@ -214,6 +214,8 @@ public class OpusProvider {
                     // Get the SONG_STRUCTURE raw body
                     byte[] songStructure = getSongStructureRawBody(anlz);
                     if (songStructure != null) {
+                        // TODO: The map should also include usbSlotNumber,
+                        // so we don't have to take care of slot matching separately.
                         pssiToDeviceSqlRekordboxId.put(songStructure, i);
                     } else {
                         logger.warn("No SONG_STRUCTURE found for track {}", i);
