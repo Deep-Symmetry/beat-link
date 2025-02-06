@@ -251,7 +251,7 @@ public class CdjStatus extends DeviceUpdate {
      * The rekordbox ID of the track that was loaded, if any; labeled<i>rekordbox</i> in
      * the <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#cdj-status-packets">Packet Analysis document</a>.
      */
-    private final int rekordboxId;
+    private int rekordboxId;
 
     /**
      * Get the rekordbox ID of the track that was loaded, if any; labeled <i>rekordbox</i> in Figure 11 of
@@ -673,7 +673,6 @@ public class CdjStatus extends DeviceUpdate {
             logger.warn("Processing CDJ Status packets with unexpected lengths {}.", packetBytes.length);
         }
         trackType = findTrackType();
-        rekordboxId = (int)Util.bytesToNumber(packetBytes, 0x2c, 4);
         pitch = (int)Util.bytesToNumber(packetBytes, 0x8d, 3);
         bpm = (int)Util.bytesToNumber(packetBytes, 0x92, 2);
         playState1 = findPlayState1();
@@ -684,11 +683,19 @@ public class CdjStatus extends DeviceUpdate {
 
         final byte trackSourceByte = packetBytes[0x28];
         if (isFromOpusQuad && (trackSourceByte < 16)) {
+            // sourcePlayer variable will be changed to the slot number, it's not the deck number
             int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
+            int player = Util.translateOpusPlayerNumbers(trackSourceByte);
             if (sourcePlayer != 0) {
                 final SlotReference matchedSourceSlot = VirtualRekordbox.getInstance().findMatchedTrackSourceSlotForPlayer(deviceNumber);
                 if (matchedSourceSlot != null) {
                     sourcePlayer = matchedSourceSlot.player;
+                }
+                // TODO: findDeviceSqlRekordboxIdForPlayer function would also return matchedSourceSlot,
+                // replacing the need for the findMatchedTrackSourceSlotForPlayer function.
+                final int deviceSqlRekordboxId = VirtualRekordbox.getInstance().findDeviceSqlRekordboxIdForPlayer(player);
+                if (deviceSqlRekordboxId != 0) {
+                    rekordboxId = deviceSqlRekordboxId;
                 }
             }
             trackSourcePlayer = sourcePlayer;
@@ -698,6 +705,7 @@ public class CdjStatus extends DeviceUpdate {
         } else {
             trackSourcePlayer = trackSourceByte;
             trackSourceSlot = findTrackSourceSlot();
+            rekordboxId = (int)Util.bytesToNumber(packetBytes, 0x2c, 4);
         }
     }
 

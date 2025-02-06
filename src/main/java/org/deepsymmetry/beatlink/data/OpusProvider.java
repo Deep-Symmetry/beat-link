@@ -123,6 +123,11 @@ public class OpusProvider {
     private final Map<Integer, LinkedBlockingQueue<MediaDetails>> archiveAttachQueueMap = new ConcurrentHashMap<>();
 
     /**
+     * TODO: Doc
+     */
+    private final Map<byte[], Integer> pssiToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
+
+    /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
      * This must be a file created using {@link org.deepsymmetry.cratedigger.Archivist#createArchive(Database, File)}
      * from that media.
@@ -189,6 +194,38 @@ public class OpusProvider {
             // If we got here, this looks like a valid metadata archive because we found a valid database export inside it.
             usbArchiveMap.put(usbSlotNumber, new RekordboxUsbArchive(usbSlotNumber, database, filesystem));
             logger.info("Attached metadata archive {} for slot {}.", filesystem, usbSlotNumber);
+
+            // Populate pssiToDeviceSqlRekordboxId
+            SlotReference slotRef = SlotReference.getSlotReference(1, CdjStatus.TrackSourceSlot.USB_SLOT);
+
+            // Get max ID first
+            // This can be found by finding the max key in database.trackIndex
+            int maxId = 0;
+            for (Long key : database.trackIndex.keySet()) {
+                if (key > maxId) {
+                    maxId = key.intValue();
+                }
+            }
+
+            for (int i = 1; i <= maxId; i++) {
+                DataReference dataRef = new DataReference(slotRef, i);
+                RekordboxAnlz anlz = findExtendedAnalysis(usbSlotNumber, dataRef, database, filesystem);
+                if (anlz != null) {
+                    // Get the SONG_STRUCTURE raw body
+                    byte[] songStructure = getSongStructureRawBody(anlz);
+                    if (songStructure != null) {
+                        // TODO: The map should also include usbSlotNumber,
+                        // so we don't have to take care of slot matching separately.
+                        pssiToDeviceSqlRekordboxId.put(songStructure, i);
+                    } else {
+                        logger.warn("No SONG_STRUCTURE found for track {}", i);
+                    }
+                } else {
+                    logger.warn("No extended analysis found for track {}", i);
+                }
+            }
+
+            logger.info("pssiToDeviceSqlRekordboxId is now filled with {} entries", pssiToDeviceSqlRekordboxId.size());
 
             // Send a media update so clients know this media is mounted.
             final SlotReference slotReference = SlotReference.getSlotReference(usbSlotNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
@@ -277,6 +314,15 @@ public class OpusProvider {
      */
     private RekordboxAnlz findExtendedAnalysis(int usbSlotNumber, DataReference track, Database database, FileSystem filesystem) {
         return findTrackAnalysis(usbSlotNumber, track, database, filesystem, ".EXT");
+    }
+
+    private byte[] getSongStructureRawBody(RekordboxAnlz anlz) {
+        for (RekordboxAnlz.TaggedSection section : anlz.sections()) {
+            if (section.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
+                return section._raw_body();
+            }
+        }
+        return null;
     }
 
     /**
@@ -570,6 +616,48 @@ public class OpusProvider {
             return null;
         }
     };
+
+    public int getDeviceSqlRekordboxIdFromPssi(ByteBuffer pssi, int idSentFromOpus) {
+        // Note: Right now we only parse the first packet part of the PSSI
+        // from the Opus, so that means we don't have the full PSSI,
+        // but it should be enough to verify that the song structure matches
+        // (We have max 1357 bytes to verify so I think we're good)
+        // 
+        // From observation, the actual part we need to check from the
+        // body sent from the Opus is starting at index 11
+        // (that's where the SONG_STRUCTURE starts)
+        ByteBuffer slicedPssi = pssi.duplicate();
+        slicedPssi.position(11);
+        ByteBuffer finalSlice = slicedPssi.slice();
+
+        List<Integer> matches = new ArrayList<>();
+
+        for (Map.Entry<byte[], Integer> entry : pssiToDeviceSqlRekordboxId.entrySet()) {
+            byte[] songStructure = entry.getKey();
+            if (Util.indexOfByteBuffer(finalSlice, songStructure) > -1) {
+                matches.add(entry.getValue());
+            }
+        }
+
+        if (matches.isEmpty()) {
+            return 0;
+        } else if (matches.size() == 1) {
+            return matches.get(0);
+        } else {
+            // Multiple matches found - prefer the match with the same ID sent from the Opus
+            if (matches.contains(idSentFromOpus)) {
+                logger.info("Multiple PSSI matches found, preferring ID sent from Opus: {}", idSentFromOpus);
+                return idSentFromOpus;
+            }
+            // If the Opus sent back an ID that we don't have a match for,
+            // we'll just return the first match we found. (By this point
+            // we are experiencing de-synced databases between the DeviceSQL and Device Library Plus,
+            // see: https://deep-symmetry.zulipchat.com/#narrow/channel/275322-beat-link-trigger/topic/Opus.20Quad.20Integration/near/495932074)
+            int firstMatch = matches.get(0);
+            logger.info("Multiple PSSI matches found but none match ID from Opus: {}. Returning the first match: {}", idSentFromOpus, firstMatch);
+            return firstMatch;
+        }
+    }
 
     /**
      * Method that will use PSSI + rekordboxId to confirm that the database filesystem match the song. Will

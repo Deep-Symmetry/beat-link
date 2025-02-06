@@ -257,6 +257,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     private final Map<Integer, SlotReference> playerTrackSourceSlots = new ConcurrentHashMap<>();
 
+    private final Map<Integer, Integer> playerToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
+
     /**
      * Clear both player caches so that we can reload the data. This usually happens when we load an archive
      * in OpusProvider.
@@ -280,6 +282,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
         return playerTrackSourceSlots.get(player);
     }
 
+    int findDeviceSqlRekordboxIdForPlayer(int player) {
+        return playerToDeviceSqlRekordboxId.getOrDefault(player, 0);
+    }
 
     /**
      * Keeps track of the most recent valid (non-zero) status flag byte we have received from each device number,
@@ -356,12 +361,16 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 byte[] data = packet.getData();
                 // PSSI Data
                 if (data[0x25] == METADATA_TYPE_IDENTIFIER_PSSI) {
+                    final int rekordboxIdFromOpus = (int) Util.bytesToNumber(data, 0x28, 4);
+                    final ByteBuffer pssiFromOpus = ByteBuffer.wrap(Arrays.copyOfRange(data, 0x35, data.length));
 
-                    final int rekordboxId = (int) Util.bytesToNumber(data, 0x28, 4);
+                    // Get the actual rekordbox DeviceSQL ID
+                    final int rekordboxId = OpusProvider.getInstance().getDeviceSqlRekordboxIdFromPssi(pssiFromOpus, rekordboxIdFromOpus);
+
                     // Record this song structure so that we can use it for matching tracks in CdjStatus packets.
                     if (rekordboxId != 0) {
-                        final ByteBuffer pssiFromOpus = ByteBuffer.wrap(Arrays.copyOfRange(data, 0x35, data.length));
                         final int player = Util.translateOpusPlayerNumbers(data[0x21]);
+                        playerToDeviceSqlRekordboxId.put(player, rekordboxId);
                         // Also record the conceptual source slot that represents the USB slot from which this track seems to have been loaded
                         final int sourceSlot = OpusProvider.getInstance().findMatchingUsbSlotForTrack(rekordboxId, player, pssiFromOpus);
                         if (sourceSlot != 0) {  // We found a match, record it.
