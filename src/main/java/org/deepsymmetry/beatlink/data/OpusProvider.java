@@ -154,8 +154,6 @@ public class OpusProvider {
             try {
                 logger.info("Detached metadata archive {} from USB{}", formerArchive, formerArchive.usbSlot);
                 formerArchive.getDatabase().close();
-                //noinspection ResultOfMethodCallIgnored
-                formerArchive.getDatabase().sourceFile.delete();
                 formerArchive.getFileSystem().close();
 
                 // Clear player caches as matching data is not applicable anymore.
