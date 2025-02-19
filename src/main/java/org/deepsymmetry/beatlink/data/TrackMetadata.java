@@ -270,7 +270,7 @@ public class TrackMetadata {
         trackType = CdjStatus.TrackType.REKORDBOX;  // These are the only kind of tracks in a rekordbox database.
         this.cueList = cueList;
         try (Statement statement = connection.createStatement();
-             ResultSet trackSet = statement.executeQuery("select * from contents where content_id=" + trackReference.rekordboxId)) {
+             ResultSet trackSet = statement.executeQuery("select * from content where content_id=" + trackReference.rekordboxId)) {
             if (!trackSet.next()) {
                 throw new SQLException("Track " + trackReference.rekordboxId + " not found in export database");
             }
