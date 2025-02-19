@@ -8,6 +8,7 @@ import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.deepsymmetry.cratedigger.pdb.RekordboxPdb;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sqlite.mc.SQLiteMCSqlCipherConfig;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,9 +16,14 @@ import java.nio.ByteBuffer;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * <p>Allows users to attach metadata archives created by the
@@ -56,24 +62,43 @@ public class OpusProvider {
     }
 
     /**
-     * Container for the USB slot number, database and filesystem of any particular Rekordbox USB archive.
+     * If the user knows the key needed to access the SQLite database, it will be stored here.
+     */
+    private static final AtomicReference<String> databaseKey = new AtomicReference<>();
+
+    /**
+     * Set the key needed to access SQLite databases found in metadata archives. If this is known and supplied,
+     * more reliable access to metadata can be obtained by using these newer, Device Library Plus databases.
+     *
+     * @param key the key needed to open the {@code exportLibrary.db} databases.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    private static void setDatabaseKey(String key) {
+        databaseKey.set(key);
+    }
+
+    /**
+     * Container for the USB slot number, database or JDBC connection, and filesystem of any particular Rekordbox USB archive.
      */
     @API(status = API.Status.EXPERIMENTAL)
     public static class RekordboxUsbArchive {
         private final int usbSlot;
         private final Database database;
+        private final Connection connection;
         private final FileSystem fileSystem;
 
         /**
          * Return information about the metadata archive, if any, attached for one of the Opus Quad USB slots.
          *
          * @param usbSlot the slot number that the user has attached the archive to, should correspond to the USB slot in the Opus Quad, so they can keep track of what they are doing
-         * @param database the parsed database which contains information about tracks, artwork, etc.
+         * @param database the parsed DeviceSQL database which contains information about tracks, artwork, etc.
+         * @param connection the JDBC connection to the SQLite database that can be used instead of database; only one of these will be non-null.
          * @param fileSystem the filesystem which contains the database and other metadata
          */
-        private RekordboxUsbArchive(int usbSlot, Database database, FileSystem fileSystem) {
+        private RekordboxUsbArchive(int usbSlot, Database database, Connection connection, FileSystem fileSystem) {
             this.usbSlot = usbSlot;
             this.database = database;
+            this.connection = connection;
             this.fileSystem = fileSystem;
         }
 
@@ -88,13 +113,24 @@ public class OpusProvider {
         }
 
         /**
-         * Get the database belonging to this archive.
+         * Get the DeviceSQL database found in this archive. Will be {@code null} if {@link #getConnection()} is not {@code null}.
          *
          * @return the parsed database which contains information about tracks, artwork, etc.
          */
         @API(status = API.Status.EXPERIMENTAL)
         public Database getDatabase() {
             return database;
+        }
+
+        /**
+         * Get the JDBC connection used to communicate with the SQLite database found in this archive.
+         * Will be {@code null} if the archive lacked an {@code exportLibrary.db} file or if {@link #databaseKey} is {@code null} or incorrect.
+         *
+         * @return the connection that can be used to query information about tracks, artwork, etc.
+         */
+        @API(status = API.Status.EXPERIMENTAL)
+        public Connection getConnection() {
+            return connection;
         }
 
         /**
@@ -152,14 +188,23 @@ public class OpusProvider {
 
         if (formerArchive != null) {
             try {
-                logger.info("Detached metadata archive {} from USB{}", formerArchive, formerArchive.usbSlot);
-                formerArchive.getDatabase().close();
+                logger.info("Detached metadata archive {} from slot {}", formerArchive, formerArchive.usbSlot);
+                if (formerArchive.getDatabase() != null) {
+                    formerArchive.getDatabase().close();
+                }
+                if (formerArchive.getConnection() != null) {
+                    try {
+                        formerArchive.getConnection().close();
+                    } catch (Exception e) {
+                        logger.error("Problem closing metadata archive JDBC connection for slot {}", usbSlotNumber, e);
+                    }
+                }
                 formerArchive.getFileSystem().close();
 
                 // Clear player caches as matching data is not applicable anymore.
                 VirtualRekordbox.getInstance().clearPlayerCaches(usbSlotNumber);
             } catch (IOException e) {
-                logger.error("Problem closing database or FileSystem for USB{}", usbSlotNumber, e);
+                logger.error("Problem closing database or FileSystem for slot {}", usbSlotNumber, e);
             }
 
             // Clean up any extracted files associated with this archive.
@@ -179,29 +224,80 @@ public class OpusProvider {
 
         // Open the new archive filesystem.
         FileSystem filesystem = FileSystems.newFileSystem(archiveFile.toPath(), Thread.currentThread().getContextClassLoader());
-        try {
-            final File databaseFile = new File(extractDirectory, slotPrefix(usbSlotNumber) + "export.pdb");
-            Files.copy(filesystem.getPath("/export.pdb"), databaseFile.toPath());
-            final Database database = new Database(databaseFile);
 
-            // If we got here, this looks like a valid metadata archive because we found a valid database export inside it.
-            usbArchiveMap.put(usbSlotNumber, new RekordboxUsbArchive(usbSlotNumber, database, filesystem));
-            logger.info("Attached metadata archive {} for slot {}.", filesystem, usbSlotNumber);
+        // First see if we can decrypt and use a SQLite Device Library Plus database from the archive.
+        final SlotReference slotReference = SlotReference.getSlotReference(usbSlotNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
+        RekordboxUsbArchive openedArchive = null;
+        MediaDetails newDetails = null;
+        if (databaseKey.get() != null) {
+            try {
+                final File databaseFile = new File(extractDirectory, slotPrefix(usbSlotNumber) + "exportLibrary.db");
+                Files.copy(filesystem.getPath("/exportLibrary.db"), databaseFile.toPath());
+                final Connection connection = SQLiteMCSqlCipherConfig.getV4Defaults().withKey(databaseKey.get()).build()
+                        .createConnection("jdbc:sqlite:file:" + databaseFile.getAbsolutePath());
 
-            // Send a media update so clients know this media is mounted.
-            final SlotReference slotReference = SlotReference.getSlotReference(usbSlotNumber, CdjStatus.TrackSourceSlot.USB_SLOT);
-            final MediaDetails newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, filesystem.toString(),
-            database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
+                // If we got here, this is a valid metadata archive, we found a valid SQLite Device Library Plus export inside it,
+                // and we have the correct key to decrypt and use the database.
+                openedArchive = new RekordboxUsbArchive(usbSlotNumber, null, connection, filesystem);
+                newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, filesystem.toString(),
+                        getRowCount(connection,"content"), getRowCount(connection,"playlist"), databaseFile.lastModified());
+                logger.info("Attached SQLite metadata archive {} for slot {}.", filesystem, usbSlotNumber);
 
-            // Request initial PSSIs for track matching. After this we will request PSSI data on song change.
-            VirtualRekordbox.getInstance().requestPSSI();
-
-            // Put new MediaDetails into queue.
-            archiveAttachQueueMap.get(usbSlotNumber).put(newDetails);
-        } catch (Exception e) {
-            filesystem.close();
-            throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
+            } catch (Exception e) {
+                filesystem.close();
+                logger.error("Problem reading exportLibrary.db from metadata archive {}, is database key correct?", archiveFile, e);
+            }
         }
+
+        // Failing that, fall back to parsing and using the DeviceSQL export database.
+        if (openedArchive == null) {
+            try {
+                final File databaseFile = new File(extractDirectory, slotPrefix(usbSlotNumber) + "export.pdb");
+                Files.copy(filesystem.getPath("/export.pdb"), databaseFile.toPath());
+                final Database database = new Database(databaseFile);
+
+                // If we got here, this looks like a valid metadata archive because we found a valid DeviceSQL database export inside it.
+                openedArchive = new RekordboxUsbArchive(usbSlotNumber, database, null, filesystem);
+                newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, filesystem.toString(),
+                        database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
+                logger.info("Attached DeviceSQL metadata archive {} for slot {}.", filesystem, usbSlotNumber);
+            } catch (Exception e) {
+                filesystem.close();
+                throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
+            }
+        }
+
+        // We successfully opened the archive with one of the two database formats.
+        usbArchiveMap.put(usbSlotNumber, openedArchive);
+
+        // Request initial PSSIs for track matching. After this we will request PSSI data on song change.
+        VirtualRekordbox.getInstance().requestPSSI();
+
+        // Send a media update so clients know this media is mounted.
+        try {
+            archiveAttachQueueMap.get(usbSlotNumber).put(newDetails);
+        } catch (InterruptedException e) {
+            logger.error("Problem enqueuing media update for mounted metadata archive", e);
+        }
+    }
+
+    /**
+     * Helper method to count the rows in a table.
+     * @param connection provides access to the database
+     * @param table the name of the table whose row count is desired
+     *
+     * @return the number of rows found in the table, or 0 if something goes wrong
+     */
+    private static int getRowCount(Connection connection, String table) {
+        try (Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery("select count (*) ")) {
+            if (resultSet.next()) {
+                return resultSet.getInt(1);
+            }
+        } catch (Exception e) {
+            logger.error("Problem counting rows in SQLite database from table {}", table, e);
+        }
+        return 0;
     }
 
     /**
@@ -255,12 +351,13 @@ public class OpusProvider {
      *
      * @param track the track whose analysis file is desired
      * @param database the parsed database export from which the analysis path can be determined
+     * @param connection the JDBC connection to the more-useful SQLite database, if one is available
      * @param filesystem the open ZIP filesystem in which metadata can be found
      *
      * @return the parsed file containing the track analysis
      */
-    private RekordboxAnlz findTrackAnalysis(int usbSlotNumber, DataReference track, Database database, FileSystem filesystem) {
-        return findTrackAnalysis(usbSlotNumber, track, database, filesystem, ".DAT");
+    private RekordboxAnlz findTrackAnalysis(int usbSlotNumber, DataReference track, Database database, Connection connection, FileSystem filesystem) {
+        return findTrackAnalysis(usbSlotNumber, track, database, connection, filesystem, ".DAT");
     }
 
     /**
@@ -269,12 +366,13 @@ public class OpusProvider {
      *
      * @param track the track whose extended analysis file is desired
      * @param database the parsed database export from which the analysis path can be determined
+     * @param connection the JDBC connection to the more-useful SQLite database, if one is available
      * @param filesystem the open ZIP filesystem in which metadata can be found
      *
      * @return the parsed file containing the track analysis
      */
-    private RekordboxAnlz findExtendedAnalysis(int usbSlotNumber, DataReference track, Database database, FileSystem filesystem) {
-        return findTrackAnalysis(usbSlotNumber, track, database, filesystem, ".EXT");
+    private RekordboxAnlz findExtendedAnalysis(int usbSlotNumber, DataReference track, Database database, Connection connection, FileSystem filesystem) {
+        return findTrackAnalysis(usbSlotNumber, track, database, connection, filesystem, ".EXT");
     }
 
     /**
@@ -302,20 +400,37 @@ public class OpusProvider {
      *
      * @param track the track whose extended analysis file is desired
      * @param database the parsed database export from which the analysis path can be determined
+     * @param connection the JDBC connection to the more-useful SQLite database, if one is available
      * @param filesystem the open ZIP filesystem in which metadata can be found
      * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type file to be retrieved
      *
      * @return the parsed file containing the track analysis
      */
-    private RekordboxAnlz findTrackAnalysis(int usbSlotNumber, DataReference track, Database database, FileSystem filesystem, String extension) {
+    private RekordboxAnlz findTrackAnalysis(int usbSlotNumber, DataReference track, Database database, Connection connection, FileSystem filesystem, String extension) {
         File file = null;
-        try {
+        String analyzePath = null;
+        if (connection != null) {
+            // We can use the nice SQLite Device Library Plus database
+            try (Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery("select analysisDataFilePath from content where content_id = " + track.rekordboxId)) {
+                if (resultSet.next()) {
+                    analyzePath = resultSet.getString(1);
+                }
+            } catch (SQLException e) {
+                logger.error("Problem reading track analysis file path from SQLite database", e);
+            }
+        } else {
+            // We have to fall back to the legacy DeviceSQL database
             RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
             if (trackRow != null) {
+                analyzePath = Database.getText(trackRow.analyzePath());
+            }
+        }
+        try {
+            if (analyzePath != null) {
                 file = new File(extractDirectory, slotPrefix(usbSlotNumber) +
                         "track-" + track.rekordboxId + "-anlz" + extension.toLowerCase());
                 final String filePath = file.getCanonicalPath();
-                final String analyzePath = Database.getText(trackRow.analyzePath());
                 final String requestedPath = analyzePath.replaceAll("\\.DAT$", extension.toUpperCase());
                 try {
                     synchronized (Util.allocateNamedLock(filePath)) {
@@ -360,11 +475,22 @@ public class OpusProvider {
         public TrackMetadata getTrackMetadata(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
             if (archive != null) {
-                Database database = archive.getDatabase();
-                try {
-                    return new TrackMetadata(track, database, getCueList(sourceMedia, track));
-                } catch (Exception e) {
-                    logger.error("Problem fetching metadata for track {} from database {}", track, database, e);
+                Connection connection = archive.getConnection();
+                if (connection != null) {
+                    // We have a usable SQLite Device Library Plus database connection we can use
+                    try {
+                        return new TrackMetadata(track, connection, getCueList(sourceMedia, track));
+                    } catch (Exception e) {
+                        logger.error("Problem fetching metadata for track {} from JDBC SQLite connection", track, e);
+                    }
+                } else {
+                    // We have to fall back to the legacy DeviceSQL database and hope the IDs match
+                    Database database = archive.getDatabase();
+                    try {
+                        return new TrackMetadata(track, database, getCueList(sourceMedia, track));
+                    } catch (Exception e) {
+                        logger.error("Problem fetching metadata for track {} from DeviceSQL database {}", track, database, e);
+                    }
                 }
             }
             return null;
@@ -376,13 +502,31 @@ public class OpusProvider {
             final RekordboxUsbArchive archive = findArchive(art.player);
 
             if (archive != null) {
-
                 final FileSystem fileSystem = archive.getFileSystem();
+                final Connection connection = archive.getConnection();
                 final Database database = archive.getDatabase();
 
                 try {
-                    RekordboxPdb.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
-                    if (artworkRow != null) {
+                    String artPath = null;
+                    if (connection != null) {
+                        // We have a JDBC connection to the SQLite Device Library Plus export database
+                        try (Statement statement = connection.createStatement();
+                             ResultSet resultSet = statement.executeQuery("select * from image where image_id = " + art.rekordboxId)) {
+                            if (resultSet.next()) {
+                                artPath = resultSet.getString("path");
+                            }
+                        } catch (SQLException e) {
+                            logger.error("Problem retrieving artwork path from SQLite database", e);
+                        }
+                    } else {
+                        // We have to use the legacy DeviceSQL database
+                        RekordboxPdb.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
+                        if (artworkRow != null) {
+                            artPath = Database.getText(artworkRow.path());
+                        }
+                    }
+
+                    if (artPath != null) {
                         file = new File(extractDirectory, slotPrefix(archive.getUsbSlot()) +
                                 "art-" + art.rekordboxId + ".jpg");
                         if (file.canRead()) {
@@ -390,16 +534,16 @@ public class OpusProvider {
                         }
                         if (ArtFinder.getInstance().getRequestHighResolutionArt()) {
                             try {
-                                extractFile(fileSystem, Util.highResolutionPath(Database.getText(artworkRow.path())), file);
+                                extractFile(fileSystem, Util.highResolutionPath(artPath), file);
                             } catch (IOException e) {
                                 if (!(e instanceof java.nio.file.NoSuchFileException)) {
                                     logger.error("Unexpected exception type trying to load high resolution album art", e);
                                 }
                                 // Fall back to looking for the normal resolution art.
-                                extractFile(fileSystem, Database.getText(artworkRow.path()), file);
+                                extractFile(fileSystem, artPath, file);
                             }
                         } else {
-                            extractFile(fileSystem, Database.getText(artworkRow.path()), file);
+                            extractFile(fileSystem, artPath, file);
                         }
                         return new AlbumArt(art, file);
                     } else {
@@ -420,11 +564,8 @@ public class OpusProvider {
             final RekordboxUsbArchive archive = findArchive(track.player);
 
             if (archive != null) {
-
-                final Database database = archive.getDatabase();
-
                 try {
-                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, database, archive.getFileSystem());
+                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
                     if (file != null) {
                         try {
                             return new BeatGrid(track, file);
@@ -433,7 +574,7 @@ public class OpusProvider {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching beat grid for track {} from database {}", track, database, e);
+                    logger.error("Problem fetching beat grid for track {} from archive {}", track, archive, e);
                 }
             }
             return null;
@@ -443,15 +584,11 @@ public class OpusProvider {
         public CueList getCueList(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
             if (archive != null) {
-
-                final FileSystem fileSystem = archive.getFileSystem();
-                final Database database = archive.getDatabase();
-
                 try {
                     // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues
-                    RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, database, fileSystem);
+                    RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
                     if (file ==  null) {  // No extended analysis found, fall back to the basic one
-                        file = findTrackAnalysis(archive.getUsbSlot(), track, database, fileSystem);
+                        file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
                     }
                     if (file != null) {
                         try {
@@ -461,7 +598,7 @@ public class OpusProvider {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching cue list for track {} from database {}", track, database, e);
+                    logger.error("Problem fetching cue list for track {} from archive {}", track, archive, e);
                 }
             }
             return null;        }
@@ -470,12 +607,8 @@ public class OpusProvider {
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
             RekordboxUsbArchive archive = findArchive(track.player);
             if (archive != null) {
-
-                final Database database = archive.getDatabase();
-                final FileSystem fileSystem = archive.getFileSystem();
-
                 try {
-                    final RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, database, fileSystem);  // Look for color preview first
+                    final RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());  // Look for color preview first
                     if (file != null) {
                         try {
                             return new WaveformPreview(track, file);
@@ -486,10 +619,10 @@ public class OpusProvider {
                 } catch (IllegalStateException e) {
                     logger.info("No color preview waveform found, checking for blue version.");
                 } catch (Exception e) {
-                    logger.error("Problem fetching color waveform preview for track {} from database {}", track, database, e);
+                    logger.error("Problem fetching color waveform preview for track {} from archive {}", track, archive, e);
                 }
                 try {
-                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, database, fileSystem);
+                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
                     if (file != null) {
                         try {
                             return new WaveformPreview(track, file);
@@ -498,7 +631,7 @@ public class OpusProvider {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching waveform preview for track {} from database {}", track, database, e);
+                    logger.error("Problem fetching waveform preview for track {} from archive {}", track, archive, e);
                 }
             }
             return null;
@@ -509,11 +642,8 @@ public class OpusProvider {
             final RekordboxUsbArchive archive = findArchive(track.player);
 
             if (archive != null) {
-
-                final Database database = archive.getDatabase();
-
                 try {
-                    RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, database, archive.getFileSystem());
+                    RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
                     if (file != null) {
                         try {
                             return new WaveformDetail(track, file);
@@ -522,7 +652,7 @@ public class OpusProvider {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching waveform preview for track {} from database {}", track, database, e);
+                    logger.error("Problem fetching waveform preview for track {} from archive {}", track, archive, e);
                 }
             }
             return null;
@@ -533,9 +663,6 @@ public class OpusProvider {
             final RekordboxUsbArchive archive = findArchive(track.player);
 
             if (archive != null) {
-
-                final Database database = archive.getDatabase();
-                final FileSystem fileSystem = archive.getFileSystem();
                 try {
                     if ((typeTag.length()) > 4) {
                         throw new IllegalArgumentException("typeTag cannot be longer than four characters");
@@ -549,7 +676,8 @@ public class OpusProvider {
                         }
                     }
 
-                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, database, fileSystem, fileExtension);  // Open the desired file to scan.
+                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(),
+                            archive.getFileSystem(), fileExtension);  // Open the desired file to scan.
                     if (file != null) {
                         try {  // Scan for the requested tag type.
                             for (RekordboxAnlz.TaggedSection section : file.sections()) {
@@ -562,7 +690,7 @@ public class OpusProvider {
                         }
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching analysis file {} section {} for track {} from database {}", fileExtension, typeTag, track, database, e);
+                    logger.error("Problem fetching analysis file {} section {} for track {} from archive {}", fileExtension, typeTag, track, archive, e);
                 }
             }
             return null;
@@ -580,7 +708,7 @@ public class OpusProvider {
      * @return true if matched
      */
     private boolean trackMatchesArchive(DataReference dataRef, ByteBuffer pssiFromOpus, RekordboxUsbArchive archive) {
-        RekordboxAnlz anlz = findExtendedAnalysis(archive.getUsbSlot(), dataRef, archive.getDatabase(), archive.getFileSystem());
+        RekordboxAnlz anlz = findExtendedAnalysis(archive.getUsbSlot(), dataRef, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
         if (anlz != null) {
             for (RekordboxAnlz.TaggedSection taggedSection : anlz.sections()) {
                 if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
