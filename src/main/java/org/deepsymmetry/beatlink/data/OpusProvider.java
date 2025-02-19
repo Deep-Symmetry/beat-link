@@ -64,7 +64,7 @@ public class OpusProvider {
     /**
      * If the user knows the key needed to access the SQLite database, it will be stored here.
      */
-    private static final AtomicReference<String> databaseKey = new AtomicReference<>();
+    private final AtomicReference<String> databaseKey = new AtomicReference<>();
 
     /**
      * Set the key needed to access SQLite databases found in metadata archives. If this is known and supplied,
@@ -73,7 +73,7 @@ public class OpusProvider {
      * @param key the key needed to open the {@code exportLibrary.db} databases.
      */
     @API(status = API.Status.EXPERIMENTAL)
-    private static void setDatabaseKey(String key) {
+    public void setDatabaseKey(String key) {
         databaseKey.set(key);
     }
 
