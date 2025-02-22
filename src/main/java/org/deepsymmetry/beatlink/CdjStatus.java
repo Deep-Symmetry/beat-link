@@ -691,8 +691,6 @@ public class CdjStatus extends DeviceUpdate {
                 if (matchedSourceSlot != null) {
                     sourcePlayer = matchedSourceSlot.player;
                 }
-                // TODO: findDeviceSqlRekordboxIdForPlayer function would also return matchedSourceSlot,
-                // replacing the need for the findMatchedTrackSourceSlotForPlayer function.
                 final int deviceSqlRekordboxId = VirtualRekordbox.getInstance().findDeviceSqlRekordboxIdForPlayer(player);
                 if (deviceSqlRekordboxId != 0) {
                     rekordboxId = deviceSqlRekordboxId;

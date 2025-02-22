@@ -3,12 +3,12 @@ package org.deepsymmetry.beatlink;
 import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
+import org.deepsymmetry.beatlink.data.OpusProvider.DeviceSqlRekordboxIdAndSlot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.*;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.*;
@@ -293,6 +293,77 @@ public class VirtualRekordbox extends LifecycleParticipant {
     private final Map<Integer, Byte> lastValidStatusFlagBytes = new ConcurrentHashMap<>();
 
     /**
+     * Tracks packets received from devices to reconstruct complete messages that span multiple packets.
+     * TODO: Doc
+     */
+    private static class PacketTracker {
+        private final List<Byte> data;
+
+        PacketTracker() {
+            this.data = new ArrayList<>();
+        }
+
+        /**
+         * Receives and processes a new packet in the sequence.
+         *
+         * @param packetData the data from the new packet
+         * @param packetNumber which packet this is in the sequence
+         * @param totalPackets how many packets make up the complete message
+         * @return true if this was the final packet in the sequence
+         */
+        boolean receivePacket(byte[] packetData, int packetNumber, int totalPackets) {
+            for (byte b : packetData) {
+                data.add(b);
+            }
+
+            if (packetNumber == totalPackets) {
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Reset the tracker state
+         */
+        void resetForNewPacketStream() {
+            data.clear();
+        }
+
+        /**
+         * Convert the accumulated data to a byte array, trimming trailing zeros.
+         * We are not sure if the OPUS_METADATA packets send the length of the entire PSSI back,
+         * so for now we just trim the trailing zeros.
+         *
+         * @return the complete message data with trailing zeros removed
+         */
+        byte[] getDataAsBytesAndTrimTrailingZeros() {
+            // First convert to regular byte array
+            byte[] result = new byte[data.size()];
+            for (int i = 0; i < data.size(); i++) {
+                result[i] = data.get(i);
+            }
+
+            // Find last non-zero byte
+            int lastNonZero = result.length - 1;
+            while (lastNonZero >= 0 && result[lastNonZero] == 0) {
+                lastNonZero--;
+            }
+
+            // If we found trailing zeros, create a new trimmed array
+            if (lastNonZero < result.length - 1) {
+                return Arrays.copyOf(result, lastNonZero + 1);
+            }
+
+            return result;
+        }
+    }
+
+    /**
+     * TODO: Doc
+     */
+    private final Map<Integer, PacketTracker> playerPacketTrackers = new ConcurrentHashMap<>();
+
+    /**
      * Given an update packet sent to us, create the appropriate object to describe it.
      *
      * @param packet the packet received on our update port
@@ -359,26 +430,40 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
             case OPUS_METADATA:
                 byte[] data = packet.getData();
+                final int playerNumber = Util.translateOpusPlayerNumbers(data[0x21]);
+                final int rekordboxIdFromOpus = (int) Util.bytesToNumber(data, 0x28, 4);
+
+                // Get or create tracker for this player
+                PacketTracker tracker = playerPacketTrackers.computeIfAbsent(playerNumber, k -> new PacketTracker());
+
                 // PSSI Data
                 if (data[0x25] == METADATA_TYPE_IDENTIFIER_PSSI) {
-                    final int rekordboxIdFromOpus = (int) Util.bytesToNumber(data, 0x28, 4);
-                    final ByteBuffer pssiFromOpus = ByteBuffer.wrap(Arrays.copyOfRange(data, 0x35, data.length));
+                    final int totalPackets = data[0x33] - 1;
+                    final int packetNumber = data[0x31];
+                    final byte[] binaryData = Arrays.copyOfRange(data, 0x34, data.length);
+                    
+                    boolean dataComplete = tracker.receivePacket(binaryData, packetNumber, totalPackets);
 
-                    // Get the actual rekordbox DeviceSQL ID
-                    final int rekordboxId = OpusProvider.getInstance().getDeviceSqlRekordboxIdFromPssi(pssiFromOpus, rekordboxIdFromOpus);
+                    // Process the packet
+                    if (dataComplete) {
+                        // We have a complete PSSI message
+                        final byte[] pssiFromOpus = tracker.getDataAsBytesAndTrimTrailingZeros();
 
-                    // Record this song structure so that we can use it for matching tracks in CdjStatus packets.
-                    if (rekordboxId != 0) {
-                        final int player = Util.translateOpusPlayerNumbers(data[0x21]);
-                        playerToDeviceSqlRekordboxId.put(player, rekordboxId);
-                        // Also record the conceptual source slot that represents the USB slot from which this track seems to have been loaded
-                        final int sourceSlot = OpusProvider.getInstance().findMatchingUsbSlotForTrack(rekordboxId, player, pssiFromOpus);
-                        if (sourceSlot != 0) {  // We found a match, record it.
-                            playerTrackSourceSlots.put(player, SlotReference.getSlotReference(sourceSlot, USB_SLOT));
+                        // Get the actual rekordbox DeviceSQL ID and slot number
+                        final DeviceSqlRekordboxIdAndSlot match = OpusProvider.getInstance().getDeviceSqlRekordboxIdAndSlotNumberFromPssi(pssiFromOpus, rekordboxIdFromOpus);
+
+                        // Record this song structure for matching tracks in CdjStatus packets
+                        if (match != null) {
+                            playerToDeviceSqlRekordboxId.put(playerNumber, match.getRekordboxId());
+                            playerTrackSourceSlots.put(playerNumber, SlotReference.getSlotReference(match.getUsbSlot(), USB_SLOT));
                         }
                     }
                 } else if (data[0x25] == METADATA_TYPE_IDENTIFIER_SONG_CHANGE) {
                     try {
+                        // Reset tracker
+                        tracker.resetForNewPacketStream();
+
+                        // Request PSSI
                         requestPSSI();
                     } catch (IOException e) {
                         logger.warn("Cannot send PSSI request");

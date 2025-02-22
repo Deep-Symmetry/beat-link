@@ -15,6 +15,8 @@ import java.nio.ByteBuffer;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -125,7 +127,56 @@ public class OpusProvider {
     /**
      * TODO: Doc
      */
-    private final Map<byte[], Integer> pssiToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
+    public static class DeviceSqlRekordboxIdAndSlot {
+        private final int rekordboxId;
+        private final int usbSlot;
+        // Storing songStructure for debugging purposes
+        private final byte[] songStructure;
+    
+        private DeviceSqlRekordboxIdAndSlot(int rekordboxId, int usbSlot, byte[] songStructure) {
+            this.rekordboxId = rekordboxId;
+            this.usbSlot = usbSlot;
+            this.songStructure = songStructure;
+        }
+    
+        public int getRekordboxId() {
+            return rekordboxId;
+        }
+    
+        public int getUsbSlot() {
+            return usbSlot;
+        }
+
+        public byte[] getSongStructure() {
+            return songStructure;
+        }
+    }
+
+    /**
+     * TODO: Doc
+     */
+    private final Map<String, DeviceSqlRekordboxIdAndSlot> pssiToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
+
+    /**
+     * TODO: Doc
+     */
+    private String computeSha1(byte[] data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA1");
+            digest.update(data);
+            byte[] result = digest.digest();
+            
+            StringBuilder hex = new StringBuilder(result.length * 2);
+            for (byte b : result) {
+                hex.append(Integer.toString((b & 0xff) + 0x100, 16).substring(1));
+            }
+            return hex.toString();
+            
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("Unable to obtain SHA-1 MessageDigest instance", e);
+            return null;
+        }
+    }
 
     /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
@@ -214,9 +265,13 @@ public class OpusProvider {
                     // Get the SONG_STRUCTURE raw body
                     byte[] songStructure = getSongStructureRawBody(anlz);
                     if (songStructure != null) {
-                        // TODO: The map should also include usbSlotNumber,
-                        // so we don't have to take care of slot matching separately.
-                        pssiToDeviceSqlRekordboxId.put(songStructure, i);
+                        // SHA1 the songStructure
+                        String sha1 = computeSha1(songStructure);
+                        if (sha1 == null) {
+                            logger.warn("Could not calculate SHA-1 for track {}", i);
+                            continue;
+                        }
+                        pssiToDeviceSqlRekordboxId.put(sha1, new DeviceSqlRekordboxIdAndSlot(i, usbSlotNumber, songStructure));
                     } else {
                         logger.warn("No SONG_STRUCTURE found for track {}", i);
                     }
@@ -617,43 +672,48 @@ public class OpusProvider {
         }
     };
 
-    public int getDeviceSqlRekordboxIdFromPssi(ByteBuffer pssi, int idSentFromOpus) {
-        // Note: Right now we only parse the first packet part of the PSSI
-        // from the Opus, so that means we don't have the full PSSI,
-        // but it should be enough to verify that the song structure matches
-        // (We have max 1357 bytes to verify so I think we're good)
-        // 
+    public DeviceSqlRekordboxIdAndSlot getDeviceSqlRekordboxIdAndSlotNumberFromPssi(byte[] pssi, int idSentFromOpus) {
         // From observation, the actual part we need to check from the
-        // body sent from the Opus is starting at index 11
+        // body sent from the Opus is starting at index 12
         // (that's where the SONG_STRUCTURE starts)
-        ByteBuffer slicedPssi = pssi.duplicate();
-        slicedPssi.position(11);
-        ByteBuffer finalSlice = slicedPssi.slice();
+        byte[] pssiBody = Arrays.copyOfRange(pssi, 12, pssi.length);
 
-        List<Integer> matches = new ArrayList<>();
+        // Compute the SHA-1 of the final slice
+        String pssiBodySha1 = computeSha1(pssiBody);
 
-        for (Map.Entry<byte[], Integer> entry : pssiToDeviceSqlRekordboxId.entrySet()) {
-            byte[] songStructure = entry.getKey();
-            if (Util.indexOfByteBuffer(finalSlice, songStructure) > -1) {
+        if (pssiBodySha1 == null) {
+            logger.warn("Could not calculate SHA-1 for PSSI");
+            return null;
+        }
+
+        List<DeviceSqlRekordboxIdAndSlot> matches = new ArrayList<>();
+
+        // Go through pssiToDeviceSqlRekordboxId completely and find all matches
+        for (Map.Entry<String, DeviceSqlRekordboxIdAndSlot> entry : pssiToDeviceSqlRekordboxId.entrySet()) {
+            String sha1 = entry.getKey();
+            if (pssiBodySha1.equals(sha1)) {
                 matches.add(entry.getValue());
             }
         }
 
         if (matches.isEmpty()) {
-            return 0;
+            logger.warn("No PSSI matches found");
+            return null;
         } else if (matches.size() == 1) {
             return matches.get(0);
         } else {
             // Multiple matches found - prefer the match with the same ID sent from the Opus
-            if (matches.contains(idSentFromOpus)) {
-                logger.info("Multiple PSSI matches found, preferring ID sent from Opus: {}", idSentFromOpus);
-                return idSentFromOpus;
+            for (DeviceSqlRekordboxIdAndSlot match : matches) {
+                if (match.getRekordboxId() == idSentFromOpus) {
+                    logger.info("Multiple PSSI matches found, preferring ID sent from Opus: {}", idSentFromOpus);
+                    return match;
+                }
             }
             // If the Opus sent back an ID that we don't have a match for,
             // we'll just return the first match we found. (By this point
             // we are experiencing de-synced databases between the DeviceSQL and Device Library Plus,
             // see: https://deep-symmetry.zulipchat.com/#narrow/channel/275322-beat-link-trigger/topic/Opus.20Quad.20Integration/near/495932074)
-            int firstMatch = matches.get(0);
+            DeviceSqlRekordboxIdAndSlot firstMatch = matches.get(0);
             logger.info("Multiple PSSI matches found but none match ID from Opus: {}. Returning the first match: {}", idSentFromOpus, firstMatch);
             return firstMatch;
         }
