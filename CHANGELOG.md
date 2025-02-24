@@ -10,6 +10,7 @@ This change log follows the conventions of
 
 - The ability to provide most features with the Opus Quad, even though that hardware does not really support the Pro DJ Link protocol, by leveraging its ability to work with rekordbox lighting. Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work!
 - The ability to proxy metadata from mounted archive files corresponding to USB media mounted in the Opus Quad, which cannot itself provide that information.
+- When we unexpectedly are unable to route a message to a CDJ, we now log extensive troubleshooting information about the address we are trying to send to and the state of the network interfaces at that moment.
 
 ### Fixed
 
