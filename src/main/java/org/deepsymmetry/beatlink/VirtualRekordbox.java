@@ -430,6 +430,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
             case OPUS_METADATA:
                 byte[] data = packet.getData();
+                final int packetLength = packet.getLength();
+                final byte[] binaryData = Arrays.copyOfRange(data, 0x34, packetLength);
                 final int playerNumber = Util.translateOpusPlayerNumbers(data[0x21]);
                 final int rekordboxIdFromOpus = (int) Util.bytesToNumber(data, 0x28, 4);
 
@@ -440,7 +442,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 if (data[0x25] == METADATA_TYPE_IDENTIFIER_PSSI) {
                     final int totalPackets = data[0x33] - 1;
                     final int packetNumber = data[0x31];
-                    final byte[] binaryData = Arrays.copyOfRange(data, 0x34, data.length);
                     
                     boolean dataComplete = tracker.receivePacket(binaryData, packetNumber, totalPackets);
 
@@ -448,6 +449,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     if (dataComplete) {
                         // We have a complete PSSI message
                         final byte[] pssiFromOpus = tracker.getDataAsBytesAndTrimTrailingZeros();
+
+                        // Reset the packet tracker since we have the required data now
+                        tracker.resetForNewPacketStream();
 
                         // Get the actual rekordbox DeviceSQL ID and slot number
                         final DeviceSqlRekordboxIdAndSlot match = OpusProvider.getInstance().getDeviceSqlRekordboxIdAndSlotNumberFromPssi(pssiFromOpus, rekordboxIdFromOpus);
@@ -460,10 +464,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     }
                 } else if (data[0x25] == METADATA_TYPE_IDENTIFIER_SONG_CHANGE) {
                     try {
-                        // Reset tracker
-                        tracker.resetForNewPacketStream();
-
-                        // Request PSSI
                         requestPSSI();
                     } catch (IOException e) {
                         logger.warn("Cannot send PSSI request");
