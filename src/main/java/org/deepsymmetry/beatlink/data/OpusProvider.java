@@ -166,13 +166,10 @@ public class OpusProvider {
     public static class DeviceSqlRekordboxIdAndSlot {
         private final int rekordboxId;
         private final int usbSlot;
-        // Storing songStructure for debugging purposes
-        private final byte[] songStructure;
     
-        private DeviceSqlRekordboxIdAndSlot(int rekordboxId, int usbSlot, byte[] songStructure) {
+        private DeviceSqlRekordboxIdAndSlot(int rekordboxId, int usbSlot) {
             this.rekordboxId = rekordboxId;
             this.usbSlot = usbSlot;
-            this.songStructure = songStructure;
         }
     
         public int getRekordboxId() {
@@ -181,10 +178,6 @@ public class OpusProvider {
     
         public int getUsbSlot() {
             return usbSlot;
-        }
-
-        public byte[] getSongStructure() {
-            return songStructure;
         }
     }
 
@@ -340,7 +333,7 @@ public class OpusProvider {
                                 logger.warn("Could not calculate SHA-1 for track {}", i);
                                 continue;
                             }
-                            pssiToDeviceSqlRekordboxId.put(sha1, new DeviceSqlRekordboxIdAndSlot(i, usbSlotNumber, songStructure));
+                            pssiToDeviceSqlRekordboxId.put(sha1, new DeviceSqlRekordboxIdAndSlot(i, usbSlotNumber));
                         } else {
                             logger.warn("No SONG_STRUCTURE found for track {}", i);
                         }
