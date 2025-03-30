@@ -252,6 +252,12 @@ public class OpusProvider {
 
                 // Clear player caches as matching data is not applicable anymore.
                 VirtualRekordbox.getInstance().clearPlayerCaches(usbSlotNumber);
+                
+                // Clean up PSSI mapping for this USB slot
+                pssiToDeviceSqlRekordboxId.entrySet().removeIf(entry -> 
+                    entry.getValue().getUsbSlot() == usbSlotNumber);
+                logger.info("Removed PSSI mappings for slot {}, pssiToDeviceSqlRekordboxId now has {} entries", 
+                    usbSlotNumber, pssiToDeviceSqlRekordboxId.size());
             } catch (IOException e) {
                 logger.error("Problem closing database or FileSystem for slot {}", usbSlotNumber, e);
             }
