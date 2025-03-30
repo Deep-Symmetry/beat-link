@@ -838,7 +838,7 @@ public class OpusProvider {
             // If the Opus sent back an ID that we don't have a match for,
             // we'll just return the first match we found.
             DeviceSqlRekordboxIdAndSlot firstMatch = matches.get(0);
-            logger.info("Multiple PSSI matches found but none match ID from Opus: {}. Returning the first match: {}", idSentFromOpus, firstMatch);
+            logger.info("Multiple PSSI matches found, but none match ID sent from Opus: {}. Returning the first match: {}", idSentFromOpus, firstMatch);
             return firstMatch;
         }
     }
