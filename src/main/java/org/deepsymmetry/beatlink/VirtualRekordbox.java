@@ -294,7 +294,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
     /**
      * Tracks packets received from devices to reconstruct complete messages that span multiple packets.
-     * TODO: Doc
+     * Used primarily for reconstructing binary data (specifically PSSI) from the Opus Quad, which 
+     * arrives fragmented across multiple packets. Maintains state between packet
+     * arrivals until a complete message is assembled, at which point the data can be processed.
      */
     private static class PacketTracker {
         private final List<Byte> data;
@@ -359,7 +361,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
     }
 
     /**
-     * TODO: Doc
+     * Packet trackers for each player.
      */
     private final Map<Integer, PacketTracker> playerPacketTrackers = new ConcurrentHashMap<>();
 

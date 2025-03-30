@@ -161,7 +161,7 @@ public class OpusProvider {
     private final Map<Integer, LinkedBlockingQueue<MediaDetails>> archiveAttachQueueMap = new ConcurrentHashMap<>();
 
     /**
-     * TODO: Doc
+     * Object to store a rekordbox ID and USB slot number together.
      */
     public static class DeviceSqlRekordboxIdAndSlot {
         private final int rekordboxId;
@@ -182,12 +182,14 @@ public class OpusProvider {
     }
 
     /**
-     * TODO: Doc
+     * A SHA1 hash of the song structure of a track, mapped to the corresponding DeviceSQL rekordbox ID and USB slot.
      */
     private final Map<String, DeviceSqlRekordboxIdAndSlot> pssiToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
 
     /**
-     * TODO: Doc
+     * Compute the SHA1 hash of the given data, similiar to SignatureFinder.computeTrackSignature().
+     * @param data the data to hash
+     * @return the SHA1 hash of the data, or {@code null} if there is an error
      */
     private String computeSha1(byte[] data) {
         try {
