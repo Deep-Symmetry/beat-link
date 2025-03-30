@@ -836,9 +836,7 @@ public class OpusProvider {
                 }
             }
             // If the Opus sent back an ID that we don't have a match for,
-            // we'll just return the first match we found. (By this point
-            // we are experiencing de-synced databases between the DeviceSQL and Device Library Plus,
-            // see: https://deep-symmetry.zulipchat.com/#narrow/channel/275322-beat-link-trigger/topic/Opus.20Quad.20Integration/near/495932074)
+            // we'll just return the first match we found.
             DeviceSqlRekordboxIdAndSlot firstMatch = matches.get(0);
             logger.info("Multiple PSSI matches found but none match ID from Opus: {}. Returning the first match: {}", idSentFromOpus, firstMatch);
             return firstMatch;
