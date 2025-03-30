@@ -374,7 +374,7 @@ public class MetadataFinder extends LifecycleParticipant {
 
     /**
      * Check whether we are configured to use metadata only from caches and downloaded metadata exports,
-     * never actively requesting it from a player. Note that this will implicitly mean all of the metadata-related
+     * never actively requesting it from a player. Note that this will implicitly mean all the metadata-related
      * finders ({@link ArtFinder}, {@link BeatGridFinder}, and {@link WaveformFinder}) are in passive mode as well,
      * because their activity is triggered by the availability of new track metadata.
      *
@@ -389,7 +389,7 @@ public class MetadataFinder extends LifecycleParticipant {
     /**
      * Set whether we are configured to use metadata only from caches or downloaded metadata exports,
      * never actively requesting it from a player.
-     * Note that this will implicitly put all of the metadata-related finders ({@link ArtFinder}, {@link BeatGridFinder},
+     * Note that this will implicitly put all the metadata-related finders ({@link ArtFinder}, {@link BeatGridFinder},
      * and {@link WaveformFinder}) into a passive mode as well, because their activity is triggered by the availability
      * of new track metadata.
      *
@@ -748,7 +748,6 @@ public class MetadataFinder extends LifecycleParticipant {
             for (final TrackMetadataListener listener : getTrackMetadataListeners()) {
                 try {
                     listener.metadataChanged(update);
-
                 } catch (Throwable t) {
                     logger.warn("Problem delivering track metadata update to listener", t);
                 }

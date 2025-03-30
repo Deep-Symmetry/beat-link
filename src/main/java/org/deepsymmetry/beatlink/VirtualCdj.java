@@ -1520,6 +1520,74 @@ public class VirtualCdj extends LifecycleParticipant {
     }
 
     /**
+     * Troubleshooting method to produce a compact summary of the IPv4 addresses (if any) attached to
+     * a network interface.
+     *
+     * @param networkInterface the interface whose addresses should be described
+     * @return the description
+     */
+    private String describeIPv4Addresses(NetworkInterface networkInterface) {
+        final List<InterfaceAddress> candidates = new LinkedList<>();
+        for (InterfaceAddress candidate : networkInterface.getInterfaceAddresses()) {
+            if (candidate.getBroadcast() != null) {  // It is an IPv4 network
+                candidates.add(candidate);
+            }
+        }
+        if (!candidates.isEmpty()) {
+            final StringBuilder builder = new StringBuilder();
+            for (InterfaceAddress candidate : candidates) {
+                if (builder.length() > 0) {
+                    builder.append(", ");
+                }
+                builder.append(candidate.getAddress().getHostAddress()).append("/").append(candidate.getNetworkPrefixLength());
+            }
+            return builder.toString();
+        }
+        return "No IPv4 addresses";
+    }
+
+    /**
+     * Troubleshooting method to describe a network interface.
+     *
+     * @param networkInterface the interface whose description is desired
+     * @return a description of the interface that may help debug network problems.
+     */
+    private String describeInterface(NetworkInterface networkInterface) {
+        final String displayName = networkInterface.getDisplayName();
+        final String rawName = networkInterface.getName();
+        final StringBuilder result = new StringBuilder(displayName);
+        if (!displayName.equals(rawName)) {
+            result.append(" (").append(rawName).append(")");
+        }
+        result.append(": ").append(describeIPv4Addresses(networkInterface));
+        return result.toString();
+    }
+
+    /**
+     * Troubleshooting method to log all the active network interfaces present in the system with IPv4 addresses.
+     */
+    private void listNetworkInterfaces() {
+        final List<String> interfaces = new ArrayList<>();
+        try {
+            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+            while (networkInterfaces.hasMoreElements()) {
+                interfaces.add(describeInterface(networkInterfaces.nextElement()));
+            }
+            Collections.sort(interfaces);
+            if (interfaces.isEmpty()) {
+                logger.warn("No active network interfaces with IPv4 addresses found!");
+            } else {
+                logger.warn("Active network interfaces with IPv4 addresses:");
+                for (String description : interfaces) {
+                    logger.warn(description);
+                }
+            }
+        } catch (SocketException e) {
+            logger.error("Unable to enumerate network interfaces", e);
+        }
+    }
+
+    /**
      * Finish the work of building and sending a protocol packet.
      *
      * @param kind the type of packet to create and send
@@ -1535,7 +1603,13 @@ public class VirtualCdj extends LifecycleParticipant {
                 ByteBuffer.wrap(payload));
         packet.setAddress(destination);
         packet.setPort(port);
-        socket.get().send(packet);
+        try {
+            socket.get().send(packet);
+        } catch (java.net.NoRouteToHostException e) {
+            logger.warn("Unable to route packet to player at address {}", destination);
+            listNetworkInterfaces();
+            throw e;
+        }
     }
 
     /**

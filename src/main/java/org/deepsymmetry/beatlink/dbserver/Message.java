@@ -23,7 +23,7 @@ import java.util.*;
 @API(status = API.Status.STABLE)
 public class Message {
 
-    private static final Logger logger = LoggerFactory.getLogger(Client.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(Message.class.getName());
 
     /**
      * The special field that marks the start of a new message.
@@ -630,6 +630,10 @@ public class Message {
          * The root menu item that takes you to the key list.
          */
         KEY_MENU (0x008b),
+        /**
+         * The root menu item that takes you to the date added list.
+         */
+        DATE_ADDED_MENU (0x008c),
         /**
          * The root menu item that takes you to the color list.
          */

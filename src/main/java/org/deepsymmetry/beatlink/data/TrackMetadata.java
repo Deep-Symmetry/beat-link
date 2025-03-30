@@ -10,6 +10,10 @@ import org.deepsymmetry.cratedigger.pdb.RekordboxPdb;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 
 /**
@@ -17,6 +21,7 @@ import java.util.*;
  *
  * @author James Elliott
  */
+@SuppressWarnings("DeprecatedIsStillUsed")  // We still offer the fields for now, someday they may be removed.
 @API(status = API.Status.STABLE)
 public class TrackMetadata {
 
@@ -37,21 +42,25 @@ public class TrackMetadata {
     /**
      * The raw dbserver messages containing the metadata when it was read over the network.
      * Can be used to analyze fields that have not yet been reliably understood,
-     * and is also used for storing the metadata in a file. Will be {@code null} if
-     * the metadata was constructed from a {@link org.deepsymmetry.cratedigger.pdb.RekordboxPdb.TrackRow}.
+     * and was previously used for storing the metadata in a file. Will be {@code null} if
+     * the metadata was constructed from a {@link org.deepsymmetry.cratedigger.pdb.RekordboxPdb.TrackRow}
+     * or a Device Library Plus SQLite connection.
      *
+     * @deprecated This information is rarely available since the development of Crate Digger.
      * @see #rawRow
      */
-    @API(status = API.Status.STABLE)
+    @API(status = API.Status.DEPRECATED)
     public final List<Message> rawItems;
 
     /**
      * The raw row within a rekordbox database export from which this metadata was created,
-     * if any. Will be {@code null} if it was read from a dbserver metadata response.
+     * if any. Will be {@code null} if it was read from a dbserver metadata response or a
+     * Device Library Plus SQLite connection.
      *
+     * @deprecated This information is not always available, so should not be relied on.
      * @see #rawItems
      */
-    @API(status = API.Status.STABLE)
+    @API(status = API.Status.DEPRECATED)
     public final RekordboxPdb.TrackRow rawRow;
 
     /**
@@ -240,6 +249,82 @@ public class TrackMetadata {
         dateAdded = Database.getText(rawRow.dateAdded());
         bitRate = (int)rawRow.bitrate();
         year = rawRow.year();
+    }
+
+    /**
+     * Constructor for when reading from a Device Library Plus SQLite export database.
+     * Finds the desired track in the exported database, along with all the related records,
+     * and sets all the interpreted fields based on the queried database structures.
+     *
+     * @param reference the unique track reference that was used to request this track metadata
+     * @param connection the JDBC connection to the exported database
+     * @param cueList the cues associated with the track, if any
+     *
+     * @throws SQLException if there is a problem querying the database
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    TrackMetadata(DataReference reference, Connection connection, CueList cueList) throws SQLException {
+        rawRow = null;    // We did not create this from a PDB file.
+        rawItems = null;  // Nor did it come from a DeviceSQL dbserver network connection.
+        trackReference = reference;
+        trackType = CdjStatus.TrackType.REKORDBOX;  // These are the only kind of tracks in a rekordbox database.
+        this.cueList = cueList;
+        try (Statement statement = connection.createStatement();
+             ResultSet trackSet = statement.executeQuery("select * from content where content_id=" + trackReference.rekordboxId)) {
+            if (!trackSet.next()) {
+                throw new SQLException("Track " + trackReference.rekordboxId + " not found in export database");
+            }
+            artworkId = trackSet.getInt("image_id");
+            title = trackSet.getString("title");
+            duration = trackSet.getInt("length");
+            //noinspection SpellCheckingInspection
+            tempo = trackSet.getInt("bpmx100");
+            comment = trackSet.getString("djComment");
+            dateAdded = trackSet.getString("dateAdded");
+            //noinspection SpellCheckingInspection
+            bitRate = trackSet.getInt("bitrate");
+            year = trackSet.getInt("releaseYear");
+
+            // And load any related rows that are supposed to be present.
+            artist = extractRelatedName(connection, "artist", trackSet.getInt("artist_id_artist"));
+            originalArtist = extractRelatedName(connection, "artist", trackSet.getInt("artist_id_originalArtist"));
+            remixer = extractRelatedName(connection, "artist", trackSet.getInt("artist_id_remixer"));
+
+            album = extractRelatedName(connection, "album", trackSet.getInt("album_id"));
+            label = extractRelatedName(connection, "label", trackSet.getInt("label_id"));
+            key = extractRelatedName(connection, "key", trackSet.getInt("key_id"));
+            genre = extractRelatedName(connection, "genre", trackSet.getInt("genre_id"));
+
+            final SearchableItem colorTemp = extractRelatedName(connection, "color", trackSet.getInt("color_id"));
+            if (colorTemp != null) {
+                color = new ColorItem(colorTemp.id, colorTemp.label);
+            }
+        }
+    }
+
+    /**
+     * Helper method to load a related row name when loading a track using SQLite.
+     *
+     * @param connection the used to talk to the database
+     * @param table      the name of the table in which the row should be sought
+     * @param id         the ID of the related row, or zero if none is expected
+     * @return the loaded album, if one was found
+     */
+    @SuppressWarnings("LoggingSimilarMessage")
+    private SearchableItem extractRelatedName(Connection connection, String table, int id) {
+        if (id != 0) {
+            try (Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery("select * from " + table + " where " + table + "_id=" + id)) {
+                if (resultSet.next()) {
+                    return new SearchableItem(id, resultSet.getString("name"));
+                } else {
+                    logger.warn("{} row with id {} not found when loading track", table, id);
+                }
+            } catch (SQLException e) {
+                logger.warn("{} row with id {} not found when loading track", table, id);
+            }
+        }
+        return null;
     }
 
     /**
