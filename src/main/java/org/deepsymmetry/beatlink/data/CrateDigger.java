@@ -180,7 +180,7 @@ public class CrateDigger {
                 }
                 triesMade++;
                 if (triesMade < retryLimit) {
-                    logger.warn("Attempt to fetch file from player failed, tries left: {}", retryLimit - triesMade, e);
+                    logger.warn("Attempt to fetch file {} from {} to {} failed, tries left: {}", path, slot, destination, retryLimit - triesMade, e);
                     try {
                         //noinspection BusyWait
                         Thread.sleep(Math.min(MAX_RETRY_INTERVAL, triesMade * RETRY_BACKOFF));
@@ -482,20 +482,44 @@ public class CrateDigger {
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
             final Database database = findDatabase(track);
             if (database != null) {
-                try {
-                    RekordboxAnlz file = findExtendedAnalysis(track, database);  // Look for color preview first
-                    if (file != null) {
-                        try {
-                            return new WaveformPreview(track, file);
-                        } finally {
-                            file._io().close();
+
+                // Attempt 3-band preview if so configured first
+                if (WaveformFinder.getInstance().getPreferredStyle() == WaveformFinder.WaveformStyle.THREE_BAND) {
+                    try {
+                        final RekordboxAnlz file = findTrackAnalysis(track, database, ".2EX");
+                        if (file != null) {
+                            try {
+                                return new WaveformPreview(track, file);
+                            } finally {
+                                file._io().close();
+                            }
                         }
+                    } catch (IllegalStateException e) {
+                        logger.info("No 3-band preview waveform found, falling back to color or blue version.");
+                    } catch (Exception e) {
+                        logger.error("Problem fetching 3-band waveform preview for track {} from database {}", track, database, e);
                     }
-                } catch (IllegalStateException e) {
-                    logger.info("No color preview waveform found, checking for blue version.");
-                } catch (Exception e) {
-                    logger.error("Problem fetching color waveform preview for track {} from database {}", track, database, e);
                 }
+
+                // Attempt color preview if so configured next
+                if (WaveformFinder.getInstance().getPreferredStyle() == WaveformFinder.WaveformStyle.RGB) {
+                    try {
+                        final RekordboxAnlz file = findExtendedAnalysis(track, database);
+                        if (file != null) {
+                            try {
+                                return new WaveformPreview(track, file);
+                            } finally {
+                                file._io().close();
+                            }
+                        }
+                    } catch (IllegalStateException e) {
+                        logger.info("No color preview waveform found, checking for blue version.");
+                    } catch (Exception e) {
+                        logger.error("Problem fetching color waveform preview for track {} from database {}", track, database, e);
+                    }
+                }
+
+                // Final fallback option, the old blue-and white waveforms.
                 try {
                     final RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
@@ -516,6 +540,26 @@ public class CrateDigger {
         public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
             final Database database = findDatabase(track);
             if (database != null) {
+
+                // Attempt 3-band waveform detail if so configured first
+                if (WaveformFinder.getInstance().getPreferredStyle() == WaveformFinder.WaveformStyle.THREE_BAND) {
+                    try {
+                        final RekordboxAnlz file = findTrackAnalysis(track, database, ".2EX");
+                        if (file != null) {
+                            try {
+                                return new WaveformDetail(track, file);
+                            } finally {
+                                file._io().close();
+                            }
+                        }
+                    } catch (IllegalStateException e) {
+                        logger.info("No 3-band detail waveform found, falling back to color or blue version.");
+                    } catch (Exception e) {
+                        logger.error("Problem fetching waveform detail for track {} from database {}", track, database, e);
+                    }
+                }
+
+                // Fall back to color or blue/white waveform detail
                 try {
                     final RekordboxAnlz file = findExtendedAnalysis(track, database);
                     if (file != null) {

@@ -2,6 +2,7 @@ package org.deepsymmetry.beatlink.data;
 
 import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
+import org.deepsymmetry.beatlink.data.WaveformFinder.WaveformStyle;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
@@ -61,10 +62,19 @@ public class WaveformDetail {
     private final ByteBuffer detailBuffer;
 
     /**
-     * Indicates whether this is an NXS2-style color waveform, or a monochrome (blue) waveform.
+     * Indicates whether this is an NXS2-style color waveform, or a monochrome (blue) waveform (use predates
+     * the existence of {@link #style}). Has no meaning if {@link #style} is {@link WaveformFinder.WaveformStyle#THREE_BAND}.
+     *
+     * @deprecated since 8.0.0
      */
-    @API(status = API.Status.STABLE)
+    @API(status = API.Status.DEPRECATED)
     public final boolean isColor;
+
+    /**
+     * Indicates the format of this waveform preview.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public final WaveformStyle style;
 
     /**
      * Get the raw bytes of the waveform detail data
@@ -86,10 +96,14 @@ public class WaveformDetail {
     @API(status = API.Status.STABLE)
     public int getFrameCount() {
         final int bytes = getData().remaining();
-        if (isColor) {
-            return bytes / 2;
+
+        switch (style) {
+            case THREE_BAND: return bytes / 3;
+            case RGB: return bytes / 2;
+            case BLUE: return bytes;
         }
-        return bytes;
+
+        throw new IllegalStateException("Unrecognized waveform style: " + style);
     }
 
     /**
@@ -130,6 +144,7 @@ public class WaveformDetail {
     @API(status = API.Status.STABLE)
     public WaveformDetail(DataReference reference, Message message) {
         isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, it's an NXS2 color wave.
+        style = isColor? WaveformStyle.RGB : WaveformStyle.BLUE;  // We don't yet know how to request 3-band waveforms using the dbserver protocol.
         dataReference = reference;
         rawMessage = message;
         // Load the bytes we were sent, and skip over the proper number of leading junk bytes
@@ -149,22 +164,39 @@ public class WaveformDetail {
         dataReference = reference;
         rawMessage = null;
         ByteBuffer found = null;
+        boolean threeBandFound = false;
         boolean colorFound = false;
 
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
-            if (WaveformFinder.getInstance().isColorPreferred() && section.body() instanceof RekordboxAnlz.WaveColorScrollTag) {
+
+            // Check for requested 3-band waveform first
+            if (WaveformFinder.getInstance().getPreferredStyle() == WaveformStyle.THREE_BAND &&
+                    section.body() instanceof RekordboxAnlz.Wave3bandScrollTag) {
+                RekordboxAnlz.Wave3bandScrollTag tag = (RekordboxAnlz.Wave3bandScrollTag) section.body();
+                found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
+                threeBandFound = true;
+                break;
+            }
+
+            // Next see if requested color waveform present
+            if (WaveformFinder.getInstance().getPreferredStyle() == WaveformStyle.RGB &&
+                    section.body() instanceof RekordboxAnlz.WaveColorScrollTag) {
                 RekordboxAnlz.WaveColorScrollTag tag = (RekordboxAnlz.WaveColorScrollTag) section.body();
                 found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
                 colorFound = true;
                 break;
             }
+
+            // Finally fall back to blue/white waveform
             if (section.body() instanceof RekordboxAnlz.WaveScrollTag) {
                 RekordboxAnlz.WaveScrollTag tag = (RekordboxAnlz.WaveScrollTag) section.body();
                 found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
-                // Keep going in case we also find the color version, which is better.
+                // Keep going in case we also find a requested color version, which is better.
             }
         }
+
         detailBuffer = found;
+        style = threeBandFound? WaveformStyle.THREE_BAND : (colorFound? WaveformStyle.RGB : WaveformStyle.BLUE);
         isColor = colorFound;
         if (detailBuffer == null) {
             throw new IllegalStateException("Could not construct WaveformDetail, missing from ANLZ file " + anlzFile);
@@ -172,20 +204,35 @@ public class WaveformDetail {
     }
 
     /**
-     * Constructor for use with external caching mechanisms.
+     * Constructor for use with external caching mechanisms, for code that predates 3-band support.
      *
      * @param reference the unique database reference that was used to request this waveform preview
      * @param data the waveform data as will be returned by {@link #getData()}
      * @param isColor indicates whether the data represents a color waveform
+     *
+     * @deprecated since 8.0.0
      */
-    @API(status = API.Status.STABLE)
+    @API(status = API.Status.DEPRECATED)
     public WaveformDetail(DataReference reference, ByteBuffer data, boolean isColor) {
+        this(reference, data, isColor? WaveformStyle.RGB : WaveformStyle.BLUE);
+    }
+
+    /**
+     * Constructor for use with external caching mechanisms.
+     *
+     * @param reference the unique database reference that was used to request this waveform preview
+     * @param data the waveform data as will be returned by {@link #getData()}
+     * @param style indicates the style of the waveform
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public WaveformDetail(DataReference reference, ByteBuffer data, WaveformStyle style) {
         dataReference = reference;
         rawMessage = null;
         byte[] bytes = new byte[data.remaining()];
         data.get(bytes);
         detailBuffer = ByteBuffer.wrap(bytes).asReadOnlyBuffer();
-        this.isColor = isColor;
+        isColor = style == WaveformStyle.RGB;
+        this.style = style;
     }
 
     /**
@@ -235,10 +282,21 @@ public class WaveformDetail {
         final int limit = getFrameCount();
         int sum = 0;
         for (int i = segment; (i < segment + scale) && (i < limit); i++) {
-            if (isColor) {
-                sum += (getColorWaveformBits(waveBytes, segment) >> 2) & 0x1f;
-            } else {
-                sum += waveBytes.get(i) & 0x1f;
+            switch (style) {
+                case THREE_BAND:
+                    // TODO: Implement!
+                    break;
+
+                case RGB:
+                    sum += (getColorWaveformBits(waveBytes, segment) >> 2) & 0x1f;
+                    break;
+
+                case BLUE:
+                    sum += waveBytes.get(i) & 0x1f;
+                    break;
+
+                default:
+                    throw new IllegalStateException("Unrecognized waveform style: " + style);
             }
         }
         return sum / scale;
@@ -258,23 +316,33 @@ public class WaveformDetail {
     public Color segmentColor(final int segment, final int scale) {
         final ByteBuffer waveBytes = getData();
         final int limit = getFrameCount();
-        if (isColor) {
-            int red = 0;
-            int green = 0;
-            int blue = 0;
-            for (int i = segment; (i < segment + scale) && (i < limit); i++) {
-                int bits = getColorWaveformBits(waveBytes, segment);
-                red += (bits >> 13) & 7;
-                green += (bits >> 10) & 7;
-                blue += (bits >> 7) & 7;
-            }
-            return new Color(red * 255 / (scale * 7), blue * 255 / (scale * 7), green * 255 / (scale * 7));
+
+        switch (style) {
+            case THREE_BAND:
+                // TODO: Implement!
+                return Color.WHITE;
+
+            case RGB:
+                int red = 0;
+                int green = 0;
+                int blue = 0;
+                for (int i = segment; (i < segment + scale) && (i < limit); i++) {
+                    int bits = getColorWaveformBits(waveBytes, segment);
+                    red += (bits >> 13) & 7;
+                    green += (bits >> 10) & 7;
+                    blue += (bits >> 7) & 7;
+                }
+                return new Color(red * 255 / (scale * 7), blue * 255 / (scale * 7), green * 255 / (scale * 7));
+
+            case BLUE:
+                int sum = 0;
+                for (int i = segment; (i < segment + scale) && (i < limit); i++) {
+                    sum += (waveBytes.get(i) & 0xe0) >> 5;
+                }
+                return COLOR_MAP[sum / scale];
         }
-        int sum = 0;
-        for (int i = segment; (i < segment + scale) && (i < limit); i++) {
-            sum += (waveBytes.get(i) & 0xe0) >> 5;
-        }
-        return COLOR_MAP[sum / scale];
+
+        throw new IllegalStateException("Unrecognized waveform style: " + style);
     }
 
 
