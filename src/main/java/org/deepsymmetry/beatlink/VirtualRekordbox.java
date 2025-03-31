@@ -374,6 +374,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
     /**
      * Packet trackers for each player.
+     * See {@link PacketTracker} for more details.
      */
     private final Map<Integer, PacketTracker> playerPacketTrackers = new ConcurrentHashMap<>();
 
