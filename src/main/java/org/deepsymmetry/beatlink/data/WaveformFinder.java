@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +51,46 @@ public class WaveformFinder extends LifecycleParticipant {
          * The three-band waveforms introduced with the CDJ-3000 players.
          */
         THREE_BAND
+    }
+
+    /**
+     * The frequency bands that are drawn for three-band waveforms, along with the colors used to draw them.
+     */
+    public enum ThreeBandLayer {
+
+        /**
+         * Low frequencies are drawn in dark blue.
+         */
+        LOW(new Color(32, 83,  217)),
+
+        /**
+         * The overlap of low and mid-range frequencies are drawn in brown.
+         */
+        LOW_AND_MIO(new Color(169, 107, 39)),
+
+        /**
+         * Mid-range frequencies are drawn in amber.
+         */
+        MID(new Color(242, 170, 60)),
+
+        /**
+         * High frequencies are drawn in white.
+         */
+        HIGH(new Color(255, 255, 255));
+
+        /**
+         * The color with which this band should be drawn.
+         */
+        public final Color color;
+
+        /**
+         * Constructor simply records the band color.
+         *
+         * @param color the color with which this band should be drawn.
+         */
+        ThreeBandLayer(Color color) {
+            this.color = color;
+        }
     }
 
     /**

@@ -275,6 +275,7 @@ public class WaveformDetail {
      *
      * @return a value from 0 to 31 representing the height of the waveform at that segment, which may be an average
      *         of a number of values starting there, determined by the scale
+     * @throws UnsupportedOperationException for three-band waveforms since each band has a different height
      */
     @API(status = API.Status.STABLE)
     public int segmentHeight(final int segment, final int scale) {
@@ -284,8 +285,7 @@ public class WaveformDetail {
         for (int i = segment; (i < segment + scale) && (i < limit); i++) {
             switch (style) {
                 case THREE_BAND:
-                    // TODO: Implement!
-                    break;
+                    throw new UnsupportedOperationException();
 
                 case RGB:
                     sum += (getColorWaveformBits(waveBytes, segment) >> 2) & 0x1f;
@@ -303,6 +303,48 @@ public class WaveformDetail {
     }
 
     /**
+     * Determine the height of a three-band preview given an index into it.
+     *
+     * @param segment the index of the waveform preview segment to examine
+     * @param scale the number of wave segments being drawn as a single pixel column
+     * @param band the band whose height is wanted
+     *
+     * @return a value from 0 to 31 representing the height of the waveform at that segment, which may be an average
+     *         of a number of values starting there, determined by the scale
+     * @throws UnsupportedOperationException if called on a non three-band waveform
+     */
+    public int segmentHeight(final int segment, final int scale, final WaveformFinder.ThreeBandLayer band) {
+        if (style != WaveformStyle.THREE_BAND) throw new UnsupportedOperationException();
+
+        final ByteBuffer bytes = getData();
+        final int limit = getFrameCount();
+        int sum = 0;
+
+        for (int i = segment; (i < segment + scale) && (i < limit); i++) {
+            final int base = i * 3;
+
+            switch (band) {
+                case LOW:
+                    sum += Math.round(Util.unsign(bytes.get(base + 2)) * 0.4f);
+                    break;
+
+                case MID:
+                    sum += Math.round(Util.unsign(bytes.get(base)) * 0.3f);
+                    break;
+
+                case HIGH:
+                    sum += Math.round(Util.unsign(bytes.get(base + 1)) * 0.06f);
+                    break;
+
+                default:
+                    throw new IllegalStateException("Unrecognized three-band waveform band: " + band);
+            }
+        }
+
+        return sum / scale;
+    }
+
+    /**
      * Determine the color of the waveform given an index into it. If {@code scale} is larger than 1 we are zoomed out,
      * so we determine an average color of {@code scale} segments starting with the specified one.
      *
@@ -311,6 +353,7 @@ public class WaveformDetail {
      *
      * @return the color of the waveform at that segment, which may be based on an average
      *         of a number of values starting there, determined by the scale
+     * @throws UnsupportedOperationException if called on a three-band waveform, colors are fixed for each band
      */
     @API(status = API.Status.STABLE)
     public Color segmentColor(final int segment, final int scale) {
@@ -319,8 +362,7 @@ public class WaveformDetail {
 
         switch (style) {
             case THREE_BAND:
-                // TODO: Implement!
-                return Color.WHITE;
+                throw new UnsupportedOperationException();
 
             case RGB:
                 int red = 0;
