@@ -187,7 +187,7 @@ public class OpusProvider {
     private final Map<String, DeviceSqlRekordboxIdAndSlot> pssiToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
 
     /**
-     * Compute the SHA1 hash of the given data, similiar to SignatureFinder.computeTrackSignature().
+     * Compute the SHA1 hash of the given data, similar to {@link SignatureFinder#computeTrackSignature(String, SearchableItem, int, WaveformDetail, BeatGrid)}.
      * @param data the data to hash
      * @return the SHA1 hash of the data, or {@code null} if there is an error
      */
