@@ -257,6 +257,10 @@ public class VirtualRekordbox extends LifecycleParticipant {
      */
     private final Map<Integer, SlotReference> playerTrackSourceSlots = new ConcurrentHashMap<>();
 
+    /**
+     * Keeps track of the current DeviceSQL rekordbox ID for each player.
+     * See {@link #findDeviceSqlRekordboxIdForPlayer(int)} for more details.
+     */
     private final Map<Integer, Integer> playerToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
 
     /**
@@ -282,6 +286,14 @@ public class VirtualRekordbox extends LifecycleParticipant {
         return playerTrackSourceSlots.get(player);
     }
 
+    /**
+     * Given a player number (normalized to the range 1-4), returns the DeviceSQL rekordbox ID for the
+     * track that is currently loaded on that player. Returns 0 if we are searching for a PSSI match still on a new track load,
+     * or if a PSSI match wasn't found, or if the player does not have a track loaded.
+     *
+     * @param player the player whose DeviceSQL rekordbox ID we are interested in
+     * @return the DeviceSQL rekordbox ID for the track that is currently loaded on that player
+     */
     int findDeviceSqlRekordboxIdForPlayer(int player) {
         return playerToDeviceSqlRekordboxId.getOrDefault(player, 0);
     }
@@ -413,8 +425,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     CdjStatus status = new CdjStatus(packet, hadToRecoverStatusFlags);
 
                     // If source player number is zero the deck does not have a song loaded, clear the PSSI and source slot we had for that player.
+                    // This also represents a new track load.
+                    // We also need to set the DeviceSQL rekordbox ID to 0 for the player, so we don't
+                    // reflect the old track right when the new track is loaded (it takes a few seconds to match the PSSI).
                     if (status.getTrackSourcePlayer() == 0) {
                         playerTrackSourceSlots.remove(status.getDeviceNumber());
+                        playerToDeviceSqlRekordboxId.remove(status.getDeviceNumber());
                     }
                     return status;
                 } else {

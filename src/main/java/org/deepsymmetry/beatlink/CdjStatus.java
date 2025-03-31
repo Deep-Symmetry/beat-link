@@ -693,9 +693,7 @@ public class CdjStatus extends DeviceUpdate {
                     sourcePlayer = matchedSourceSlot.player;
                 }
                 final int deviceSqlRekordboxId = VirtualRekordbox.getInstance().findDeviceSqlRekordboxIdForPlayer(player);
-                if (deviceSqlRekordboxId != 0) {
-                    maybeRekordboxId = deviceSqlRekordboxId;
-                }
+                maybeRekordboxId = deviceSqlRekordboxId;
             }
             trackSourcePlayer = sourcePlayer;
             trackSourceSlot = TrackSourceSlot.USB_SLOT;
