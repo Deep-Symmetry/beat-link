@@ -468,6 +468,11 @@ public class OpusProvider {
         return findTrackAnalysis(usbSlotNumber, track, database, connection, filesystem, ".EXT");
     }
 
+    /**
+     * Get the raw body of the SONG_STRUCTURE section of the extended analysis file.
+     * @param anlz the extended analysis file to search
+     * @return the raw body of the SONG_STRUCTURE section, or {@code null} if no SONG_STRUCTURE section is found
+     */
     private byte[] getSongStructureRawBody(RekordboxAnlz anlz) {
         for (RekordboxAnlz.TaggedSection section : anlz.sections()) {
             if (section.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
@@ -799,6 +804,14 @@ public class OpusProvider {
         }
     };
 
+    /**
+     * Given a PSSI message and the ID sent from the Opus, return the DeviceSQL rekordbox ID and USB slot number
+     * that matches the PSSI. Also handle multiple matches, preferring the match with the same ID sent from the Opus, otherwise
+     * returning the first match found.
+     * @param pssi the PSSI message
+     * @param idSentFromOpus the ID sent from the Opus
+     * @return the DeviceSQL rekordbox ID and USB slot number that matches the PSSI, or {@code null} if no match is found
+     */
     public DeviceSqlRekordboxIdAndSlot getDeviceSqlRekordboxIdAndSlotNumberFromPssi(byte[] pssi, int idSentFromOpus) {
         // From observation, the actual part we need to check from the
         // body sent from the Opus is starting at index 12
