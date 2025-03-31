@@ -475,7 +475,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         // Get the actual rekordbox DeviceSQL ID and slot number
                         final DeviceSqlRekordboxIdAndSlot match = OpusProvider.getInstance().getDeviceSqlRekordboxIdAndSlotNumberFromPssi(pssiFromOpus, rekordboxIdFromOpus);
 
-                        // Record this song structure for matching tracks in CdjStatus packets
+                        // Record the match in the player maps
                         if (match != null) {
                             playerToDeviceSqlRekordboxId.put(playerNumber, match.getRekordboxId());
                             playerTrackSourceSlots.put(playerNumber, SlotReference.getSlotReference(match.getUsbSlot(), USB_SLOT));
