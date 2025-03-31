@@ -315,6 +315,8 @@ public class OpusProvider {
 
                 // If we got here, this looks like a valid metadata archive because we found a valid DeviceSQL database export inside it.
                 openedArchive = new RekordboxUsbArchive(usbSlotNumber, database, null, filesystem);
+                newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, filesystem.toString(),
+                    database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
 
                 // Populate pssiToDeviceSqlRekordboxId
                 SlotReference slotRef = SlotReference.getSlotReference(1, CdjStatus.TrackSourceSlot.USB_SLOT);
@@ -351,9 +353,7 @@ public class OpusProvider {
                 }
 
                 logger.info("pssiToDeviceSqlRekordboxId is now filled with {} entries", pssiToDeviceSqlRekordboxId.size());
-                    newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, filesystem.toString(),
-                            database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
-                    logger.info("Attached DeviceSQL metadata archive {} for slot {}.", filesystem, usbSlotNumber);
+                logger.info("Attached DeviceSQL metadata archive {} for slot {}.", filesystem, usbSlotNumber);
                 } catch (Exception e) {
                     filesystem.close();
                     throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
