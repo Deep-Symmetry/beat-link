@@ -316,7 +316,7 @@ public class SignatureFinder extends LifecycleParticipant {
             // Create a hex string representation of the hash
             StringBuilder hex = new StringBuilder(result.length * 2);
             for (byte aResult : result) {
-                hex.append(Integer.toString((aResult & 0xff) + 0x100, 16).substring(1));
+                hex.append(String.format("%02x", (aResult & 0xff)));
             }
 
             return hex.toString();

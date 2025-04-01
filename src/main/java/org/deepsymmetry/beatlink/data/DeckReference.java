@@ -4,6 +4,7 @@ import org.apiguardian.api.API;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Uniquely identifies a place where a track can be currently loaded on the network, either the visible deck of one
@@ -35,12 +36,18 @@ public class DeckReference {
     private DeckReference(int player, int hotCue) {
         this.player = player;
         this.hotCue = hotCue;
+        hashcode = Objects.hash(player, hotCue);
     }
 
     /**
      * Holds all the instances of this class as they get created by the static factory method.
      */
     private static final Map<Integer, Map<Integer, DeckReference>> instances = new HashMap<>();
+
+    /**
+     * We can precompute our hash code since we are immutable.
+     */
+    private final int hashcode;
 
     /**
      * Get a unique reference to a place where a track is currently loaded in a player.
@@ -54,6 +61,16 @@ public class DeckReference {
     public static synchronized DeckReference getDeckReference(int player, int hotCue) {
         final Map<Integer, DeckReference> playerMap = instances.computeIfAbsent(player, k -> new HashMap<>());
         return playerMap.computeIfAbsent(hotCue, c -> new DeckReference(player, c));
+    }
+
+    @Override
+    public int hashCode() {
+        return hashcode;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof DeckReference && player == ((DeckReference) obj).player && hotCue == ((DeckReference) obj).hotCue;
     }
 
     @Override

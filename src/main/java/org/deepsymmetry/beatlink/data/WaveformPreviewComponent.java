@@ -2,6 +2,8 @@ package org.deepsymmetry.beatlink.data;
 
 import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.*;
+import org.deepsymmetry.beatlink.data.WaveformFinder.ThreeBandLayer;
+import org.deepsymmetry.beatlink.data.WaveformFinder.WaveformStyle;
 import org.deepsymmetry.cratedigger.pdb.RekordboxAnlz;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -636,11 +638,20 @@ public class WaveformPreviewComponent extends JComponent {
             g.setColor(TRANSPARENT);
             g.fillRect(0, 0, preview.segmentCount, preview.maxHeight);
             for (int segment = 0; segment < preview.segmentCount; segment++) {
-                g.setColor(preview.segmentColor(segment, false));
-                g.drawLine(segment, preview.maxHeight, segment, preview.maxHeight - preview.segmentHeight(segment, false));
-                if (preview.isColor) {  // We have a front color segment to draw on top.
-                    g.setColor(preview.segmentColor(segment, true));
-                    g.drawLine(segment, preview.maxHeight, segment, preview.maxHeight - preview.segmentHeight(segment, true));
+                if (preview.style == WaveformStyle.THREE_BAND) {
+                    g.setColor(ThreeBandLayer.HIGH.color);
+                    g.drawLine(segment, preview.maxHeight, segment, preview.maxHeight - preview.segmentHeight(segment, ThreeBandLayer.HIGH));
+                    g.setColor(ThreeBandLayer.MID.color);
+                    g.drawLine(segment, preview.maxHeight, segment, preview.maxHeight - preview.segmentHeight(segment, ThreeBandLayer.MID));
+                    g.setColor(ThreeBandLayer.LOW.color);
+                    g.drawLine(segment, preview.maxHeight, segment, preview.maxHeight - preview.segmentHeight(segment, ThreeBandLayer.LOW));
+                } else {
+                    g.setColor(preview.segmentColor(segment, false));
+                    g.drawLine(segment, preview.maxHeight, segment, preview.maxHeight - preview.segmentHeight(segment, false));
+                    if (preview.style == WaveformStyle.RGB) {  // We have a front color segment to draw on top.
+                        g.setColor(preview.segmentColor(segment, true));
+                        g.drawLine(segment, preview.maxHeight, segment, preview.maxHeight - preview.segmentHeight(segment, true));
+                    }
                 }
             }
             waveformImage.set(image);

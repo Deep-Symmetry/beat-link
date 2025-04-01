@@ -223,17 +223,15 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
     private void updateAnalysisTag(final TrackMetadataUpdate update, final String fileExtension, final String typeTag, RekordboxAnlz.TaggedSection analysisTag) {
         final CacheEntry cacheEntry = new CacheEntry(update.metadata.trackReference, fileExtension, typeTag, analysisTag);
         final String tagKey = typeTag + fileExtension;
-        ConcurrentHashMap<String, CacheEntry> newDeckMap = new ConcurrentHashMap<>();
-        ConcurrentHashMap<String, CacheEntry> deckMap = hotCache.putIfAbsent(DeckReference.getDeckReference(update.player, 0), newDeckMap);
-        if (deckMap == null) deckMap = newDeckMap;  // We added a new deck reference to the hot cache.
+        final ConcurrentHashMap<String, CacheEntry> deckMap = hotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, 0),
+                k -> new ConcurrentHashMap<>());
         deckMap.put(tagKey, cacheEntry);
         if (update.metadata.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : update.metadata.getCueList().entries) {
                 if (entry.hotCueNumber != 0) {
-                    newDeckMap = new ConcurrentHashMap<>();
-                    deckMap = hotCache.putIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber), newDeckMap);
-                    if (deckMap == null) deckMap = newDeckMap;  // We added a new deck reference to the hot cache.
-                    deckMap.put(tagKey, cacheEntry);
+                    final ConcurrentHashMap<String, CacheEntry> cueMap = hotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber),
+                            k -> new ConcurrentHashMap<>());
+                    cueMap.put(tagKey, cacheEntry);
                 }
             }
         }

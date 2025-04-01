@@ -5,6 +5,7 @@ import org.deepsymmetry.beatlink.CdjStatus;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Uniquely identifies a media slot on the network from which tracks can be loaded, by the player and slot type.
@@ -29,6 +30,11 @@ public class SlotReference {
     public final CdjStatus.TrackSourceSlot slot;
 
     /**
+     * We are immutable, so we can precompute our hash code.
+     */
+    private final int hashcode;
+
+    /**
      * Create a unique reference to a media slot on the network from which tracks can be loaded.
      *
      * @param player the player in which the slot is found
@@ -39,6 +45,7 @@ public class SlotReference {
     private SlotReference(int player, CdjStatus.TrackSourceSlot slot) {
         this.player = player;
         this.slot = slot;
+        hashcode = Objects.hash(player, slot);
     }
 
     /**
@@ -72,6 +79,16 @@ public class SlotReference {
     @API(status = API.Status.STABLE)
     public static SlotReference getSlotReference(DataReference dataReference) {
         return getSlotReference(dataReference.player, dataReference.slot);
+    }
+
+    @Override
+    public int hashCode() {
+        return hashcode;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof SlotReference && ((SlotReference) obj).player == player && ((SlotReference) obj).slot == slot;
     }
 
     @Override

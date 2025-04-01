@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +51,46 @@ public class WaveformFinder extends LifecycleParticipant {
          * The three-band waveforms introduced with the CDJ-3000 players.
          */
         THREE_BAND
+    }
+
+    /**
+     * The frequency bands that are drawn for three-band waveforms, along with the colors used to draw them.
+     */
+    public enum ThreeBandLayer {
+
+        /**
+         * Low frequencies are drawn in dark blue.
+         */
+        LOW(new Color(32, 83,  217)),
+
+        /**
+         * The overlap of low and mid-range frequencies are drawn in brown.
+         */
+        LOW_AND_MIO(new Color(169, 107, 39)),
+
+        /**
+         * Mid-range frequencies are drawn in amber.
+         */
+        MID(new Color(242, 170, 60)),
+
+        /**
+         * High frequencies are drawn in white.
+         */
+        HIGH(new Color(255, 255, 255));
+
+        /**
+         * The color with which this band should be drawn.
+         */
+        public final Color color;
+
+        /**
+         * Constructor simply records the band color.
+         *
+         * @param color the color with which this band should be drawn.
+         */
+        ThreeBandLayer(Color color) {
+            this.color = color;
+        }
     }
 
     /**
@@ -343,21 +384,15 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param preview the waveform preview which we retrieved
      */
     private void updatePreview(TrackMetadataUpdate update, WaveformPreview preview) {
-        final Map<WaveformStyle,WaveformPreview> newMap = new ConcurrentHashMap<>();
-        Map<WaveformStyle,WaveformPreview> mainDeckMap = previewHotCache.putIfAbsent(DeckReference.getDeckReference(update.player, 0), newMap);
-        if (mainDeckMap == null) {
-            mainDeckMap = newMap;  // We just created it.
-        }
+        Map<WaveformStyle,WaveformPreview> mainDeckMap = previewHotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, 0),
+                k -> new ConcurrentHashMap<>());
         mainDeckMap.put(preview.style, preview);
 
         if (update.metadata.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : update.metadata.getCueList().entries) {
                 if (entry.hotCueNumber != 0) {
-                    final Map<WaveformStyle,WaveformPreview> newHotMap = new ConcurrentHashMap<>();
-                    Map<WaveformStyle,WaveformPreview> hotCueMap = previewHotCache.putIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber), newHotMap);
-                    if (hotCueMap == null) {
-                        hotCueMap = newHotMap;  // We just created it
-                    }
+                    final Map<WaveformStyle,WaveformPreview> hotCueMap = previewHotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber),
+                            k -> new ConcurrentHashMap<>());
                     hotCueMap.put(preview.style, preview);
                 }
             }
@@ -383,11 +418,8 @@ public class WaveformFinder extends LifecycleParticipant {
         if (update.metadata.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : update.metadata.getCueList().entries) {
                 if (entry.hotCueNumber != 0) {
-                    final Map<WaveformStyle,WaveformDetail> newHotMap = new ConcurrentHashMap<>();
-                    Map<WaveformStyle,WaveformDetail> hotCueMap = detailHotCache.putIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber), newHotMap);
-                    if (hotCueMap == null) {
-                        hotCueMap = newHotMap;  // We just created it
-                    }
+                    final Map<WaveformStyle,WaveformDetail> hotCueMap = detailHotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber),
+                            k -> new ConcurrentHashMap<>());
                     hotCueMap.put(detail.style, detail);
                 }
             }

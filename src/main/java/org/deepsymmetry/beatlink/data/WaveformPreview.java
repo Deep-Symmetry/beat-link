@@ -2,6 +2,7 @@ package org.deepsymmetry.beatlink.data;
 
 import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.Util;
+import org.deepsymmetry.beatlink.data.WaveformFinder.ThreeBandLayer;
 import org.deepsymmetry.beatlink.data.WaveformFinder.WaveformStyle;
 import org.deepsymmetry.beatlink.dbserver.BinaryField;
 import org.deepsymmetry.beatlink.dbserver.Message;
@@ -129,7 +130,13 @@ public class WaveformPreview {
     private int getMaxHeight() {
         int result = 0;
         for (int i = 0; i < segmentCount; i++) {
-            result = Math.max(result, segmentHeight(i, false));
+            if (style == WaveformStyle.THREE_BAND) {
+                result = Math.max(result, segmentHeight(i, ThreeBandLayer.LOW));
+                result = Math.max(result, segmentHeight(i, ThreeBandLayer.MID));
+                result = Math.max(result, segmentHeight(i, ThreeBandLayer.HIGH));
+            } else {
+                result = Math.max(result, segmentHeight(i, false));
+            }
         }
         return result;
     }
@@ -268,6 +275,7 @@ public class WaveformPreview {
      *
      * @return a value from 0 to 31 representing the height of the waveform at that segment, which may be an average
      *         of a number of values starting there, determined by the scale
+     * @throws UnsupportedOperationException for three-band waveforms since each band has a different height
      */
     @API(status = API.Status.STABLE)
     public int segmentHeight(final int segment, final boolean front) {
@@ -275,8 +283,7 @@ public class WaveformPreview {
 
         switch (style) {
             case THREE_BAND:
-                // TODO: Implement!
-                return 0;
+                throw new UnsupportedOperationException();
 
             case RGB:
                 final int base = segment * 6;
@@ -295,6 +302,40 @@ public class WaveformPreview {
     }
 
     /**
+     * Determine the height of a three-band preview given an index into it.
+     *
+     * @param segment the index of the waveform preview segment to examine
+     * @param band the band whose height is wanted
+     *
+     * @return a value from 0 to 31 representing the height of the waveform at that segment, which may be an average
+     *         of a number of values starting there, determined by the scale
+     * @throws UnsupportedOperationException if called on a non three-band waveform
+     */
+    public int segmentHeight(final int segment, final ThreeBandLayer band) {
+        if (style != WaveformStyle.THREE_BAND) throw new UnsupportedOperationException();
+
+        final ByteBuffer bytes = getData();
+        final int base = segment * 3;
+
+        final float lowScaled = Util.unsign(bytes.get(base + 2)) * 0.49f;
+        if (band == ThreeBandLayer.LOW) {
+            return Math.round(lowScaled);
+        }
+
+        final float midScaled = Util.unsign(bytes.get(base)) * 0.32f;
+        if (band == ThreeBandLayer.MID) {
+            return Math.round(lowScaled + midScaled);
+        }
+
+        final float highScaled = Util.unsign(bytes.get(base + 1)) * 0.25f;
+        if (band == ThreeBandLayer.HIGH) {
+            return Math.round(lowScaled + midScaled + highScaled);
+        }
+
+        throw new IllegalStateException("Unrecognized three-band waveform band: " + band);
+    }
+
+    /**
      * Determine the color of the waveform given an index into it.
      *
      * @param segment the index of the first waveform byte to examine
@@ -303,6 +344,7 @@ public class WaveformPreview {
      *
      * @return the color of the waveform at that segment, which may be based on an average
      *         of a number of values starting there, determined by the scale
+     * @throws UnsupportedOperationException if called on a three-band waveform, colors are fixed for each band
      */
     @API(status = API.Status.STABLE)
     public Color segmentColor(final int segment, final boolean front) {
@@ -310,8 +352,7 @@ public class WaveformPreview {
 
         switch (style) {
             case THREE_BAND:
-                // TODO: Implement!
-                return Color.BLACK;
+                throw new UnsupportedOperationException();
 
             case RGB:
                 final int base = segment * 6;

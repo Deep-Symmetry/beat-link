@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.deepsymmetry.beatlink.data.WaveformFinder.*;
+
 
 /**
  * Provides a convenient way to draw waveform detail in a user interface, including annotations like the
@@ -637,9 +639,9 @@ public class WaveformDetailComponent extends JComponent {
                     cueList.set(metadata.getCueList());
                 }
             }
-            WaveformFinder.getInstance().addWaveformListener(waveformListener);
-            if (WaveformFinder.getInstance().isRunning() && WaveformFinder.getInstance().isFindingDetails()) {
-                waveform.set(WaveformFinder.getInstance().getLatestDetailFor(player));
+            getInstance().addWaveformListener(waveformListener);
+            if (getInstance().isRunning() && getInstance().isFindingDetails()) {
+                waveform.set(getInstance().getLatestDetailFor(player));
             } else {
                 waveform.set(null);
             }
@@ -680,7 +682,7 @@ public class WaveformDetailComponent extends JComponent {
             animating.set(false);
             VirtualCdj.getInstance().removeUpdateListener(updateListener);
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
-            WaveformFinder.getInstance().removeWaveformListener(waveformListener);
+            getInstance().removeWaveformListener(waveformListener);
             AnalysisTagFinder.getInstance().removeAnalysisTagListener(analysisTagListener, ".EXT", "PSSI");
             cueList.set(null);
             waveform.set(null);
@@ -1016,11 +1018,36 @@ public class WaveformDetailComponent extends JComponent {
         final Stroke wideStroke = new BasicStroke(2);
         for (int x = clipRect.x; x <= clipRect.x + clipRect.width; x++) {
             final int segment = getSegmentForX(x);
-            if (waveform.get() != null) { // Drawing the waveform itself
-                if ((segment >= 0) && (segment < waveform.get().getFrameCount())) {
-                    g.setColor(waveform.get().segmentColor(segment, scale.get()));
-                    final int height = (waveform.get().segmentHeight(segment, scale.get()) * maxHeight) / 31;
-                    g.drawLine(x, axis - height, x, axis + height);
+            final WaveformDetail detail = waveform.get();
+            if (detail != null) { // Drawing the waveform itself
+                if ((segment >= 0) && (segment < detail.getFrameCount())) {
+                    if (detail.style == WaveformStyle.THREE_BAND) {
+                        final int lowHeight = detail.segmentHeight(segment, scale.get(), ThreeBandLayer.LOW);
+                        final int midHeight = detail.segmentHeight(segment, scale.get(), ThreeBandLayer.MID);
+
+                        if (lowHeight > midHeight) {
+                            g.setColor(ThreeBandLayer.LOW.color);
+                            g.drawLine(x, axis - lowHeight, x, axis + lowHeight);
+                            g.setColor(ThreeBandLayer.LOW_AND_MIO.color);
+                            g.drawLine(x, axis - midHeight, x, axis + midHeight);
+                        } else {
+                            if (lowHeight != midHeight) {
+                                g.setColor(ThreeBandLayer.MID.color);
+                                g.drawLine(x, axis - midHeight, x, axis + midHeight);
+                            }
+                            g.setColor(ThreeBandLayer.LOW_AND_MIO.color);
+                            g.drawLine(x, axis - lowHeight, x, axis + lowHeight);
+                        }
+
+                        g.setColor(ThreeBandLayer.HIGH.color);
+                        final int highHeight = detail.segmentHeight(segment, scale.get(), ThreeBandLayer.HIGH);
+                        g.drawLine(x, axis - highHeight, x, axis + highHeight);
+
+                    } else {
+                        g.setColor(waveform.get().segmentColor(segment, scale.get()));
+                        final int height = (waveform.get().segmentHeight(segment, scale.get()) * maxHeight) / 31;
+                        g.drawLine(x, axis - height, x, axis + height);
+                    }
                 }
             }
             if (beatGrid.get() != null) {  // Draw the beat markers
