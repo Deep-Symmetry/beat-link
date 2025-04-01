@@ -469,8 +469,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
                         // Record the match in the player maps
                         if (match != null) {
-                            playerToDeviceSqlRekordboxId.put(playerNumber, match.getRekordboxId());
-                            playerTrackSourceSlots.put(playerNumber, SlotReference.getSlotReference(match.getUsbSlot(), USB_SLOT));
+                            playerToDeviceSqlRekordboxId.put(playerNumber, match.rekordboxId);
+                            playerTrackSourceSlots.put(playerNumber, SlotReference.getSlotReference(match.usbSlot, USB_SLOT));
                         }
                     }
                 } else if (data[0x25] == METADATA_TYPE_IDENTIFIER_SONG_CHANGE) {
