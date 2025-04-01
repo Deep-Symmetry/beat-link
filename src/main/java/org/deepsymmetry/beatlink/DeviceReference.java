@@ -96,7 +96,7 @@ public class DeviceReference {
 
     @Override
     public boolean equals(Object obj) {
-        return obj instanceof DeviceReference && ((DeviceReference) obj).deviceNumber == deviceNumber && ((DeviceReference) obj).address == address;
+        return obj instanceof DeviceReference && ((DeviceReference) obj).deviceNumber == deviceNumber && ((DeviceReference) obj).address.equals(address);
     }
 
     @Override
