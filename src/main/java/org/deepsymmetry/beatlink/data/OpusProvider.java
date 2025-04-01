@@ -281,7 +281,7 @@ public class OpusProvider {
             // Further clean up by removing any SHA-1 hashes that no longer have matches.
             pssiToDeviceSqlRekordboxIds.entrySet().removeIf(entry -> entry.getValue().isEmpty());
 
-            logger.info("Removed PSSI mappings for slot {}, pssiToDeviceSqlRekordboxId now has {} entries",
+            logger.info("Removed PSSI mappings for slot {}, pssiToDeviceSqlRekordboxIds now has {} entries",
                     usbSlotNumber, pssiToDeviceSqlRekordboxIds.size());
 
             // Clean up any extracted files associated with this archive.
@@ -338,7 +338,7 @@ public class OpusProvider {
                 newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, filesystem.toString(),
                     database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
 
-                // Populate pssiToDeviceSqlRekordboxId
+                // Populate pssiToDeviceSqlRekordboxIds
                 SlotReference slotRef = SlotReference.getSlotReference(1, CdjStatus.TrackSourceSlot.USB_SLOT);
 
                 for (long key : database.trackIndex.keySet()) {
@@ -366,7 +366,7 @@ public class OpusProvider {
                     }
                 }
 
-                logger.info("pssiToDeviceSqlRekordboxId now contains {} entries", pssiToDeviceSqlRekordboxIds.size());
+                logger.info("pssiToDeviceSqlRekordboxIds now contains {} entries", pssiToDeviceSqlRekordboxIds.size());
                 logger.info("Attached DeviceSQL metadata archive {} for slot {}.", filesystem, usbSlotNumber);
                 } catch (Exception e) {
                     filesystem.close();
