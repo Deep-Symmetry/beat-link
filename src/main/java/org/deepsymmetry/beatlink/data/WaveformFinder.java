@@ -384,21 +384,15 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param preview the waveform preview which we retrieved
      */
     private void updatePreview(TrackMetadataUpdate update, WaveformPreview preview) {
-        final Map<WaveformStyle,WaveformPreview> newMap = new ConcurrentHashMap<>();
-        Map<WaveformStyle,WaveformPreview> mainDeckMap = previewHotCache.putIfAbsent(DeckReference.getDeckReference(update.player, 0), newMap);
-        if (mainDeckMap == null) {
-            mainDeckMap = newMap;  // We just created it.
-        }
+        Map<WaveformStyle,WaveformPreview> mainDeckMap = previewHotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, 0),
+                k -> new ConcurrentHashMap<>());
         mainDeckMap.put(preview.style, preview);
 
         if (update.metadata.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : update.metadata.getCueList().entries) {
                 if (entry.hotCueNumber != 0) {
-                    final Map<WaveformStyle,WaveformPreview> newHotMap = new ConcurrentHashMap<>();
-                    Map<WaveformStyle,WaveformPreview> hotCueMap = previewHotCache.putIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber), newHotMap);
-                    if (hotCueMap == null) {
-                        hotCueMap = newHotMap;  // We just created it
-                    }
+                    final Map<WaveformStyle,WaveformPreview> hotCueMap = previewHotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber),
+                            k -> new ConcurrentHashMap<>());
                     hotCueMap.put(preview.style, preview);
                 }
             }
@@ -424,11 +418,8 @@ public class WaveformFinder extends LifecycleParticipant {
         if (update.metadata.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : update.metadata.getCueList().entries) {
                 if (entry.hotCueNumber != 0) {
-                    final Map<WaveformStyle,WaveformDetail> newHotMap = new ConcurrentHashMap<>();
-                    Map<WaveformStyle,WaveformDetail> hotCueMap = detailHotCache.putIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber), newHotMap);
-                    if (hotCueMap == null) {
-                        hotCueMap = newHotMap;  // We just created it
-                    }
+                    final Map<WaveformStyle,WaveformDetail> hotCueMap = detailHotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber),
+                            k -> new ConcurrentHashMap<>());
                     hotCueMap.put(detail.style, detail);
                 }
             }
