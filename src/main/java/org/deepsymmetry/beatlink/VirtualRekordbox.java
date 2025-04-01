@@ -330,10 +330,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                 data.add(b);
             }
 
-            if (packetNumber == totalPackets) {
-                return true;
-            }
-            return false;
+            return packetNumber == totalPackets;
         }
 
         /**
@@ -351,21 +348,16 @@ public class VirtualRekordbox extends LifecycleParticipant {
          * @return the complete message data with trailing zeros removed
          */
         byte[] getDataAsBytesAndTrimTrailingZeros() {
-            // First convert to regular byte array
+
+            // Start by removing any trailing zeroes.
+            while (!data.isEmpty() && data.getLast() == 0) {
+                data.removeLast();
+            }
+
+            // Then convert to regular byte array.
             byte[] result = new byte[data.size()];
             for (int i = 0; i < data.size(); i++) {
                 result[i] = data.get(i);
-            }
-
-            // Find last non-zero byte
-            int lastNonZero = result.length - 1;
-            while (lastNonZero >= 0 && result[lastNonZero] == 0) {
-                lastNonZero--;
-            }
-
-            // If we found trailing zeros, create a new trimmed array
-            if (lastNonZero < result.length - 1) {
-                return Arrays.copyOf(result, lastNonZero + 1);
             }
 
             return result;
