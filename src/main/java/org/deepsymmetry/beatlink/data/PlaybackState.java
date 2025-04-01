@@ -2,6 +2,8 @@ package org.deepsymmetry.beatlink.data;
 
 import org.apiguardian.api.API;
 
+import java.util.Objects;
+
 /**
  * Captures the playback state of a single player that has the track loaded, as an immutable value class.
  */
@@ -27,6 +29,11 @@ public class PlaybackState {
     public final boolean playing;
 
     /**
+     * We are immutable so we can precompute our hash code.
+     */
+    private final int hashcode;
+
+    /**
      * Create an instance to represent a particular playback state.
      *
      * @param player the player number whose playback state this represents
@@ -38,6 +45,18 @@ public class PlaybackState {
         this.player = player;
         this.position = position;
         this.playing = playing;
+        hashcode = Objects.hash(player, position, playing);
+    }
+
+    @Override
+    public int hashCode() {
+        return hashcode;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof PlaybackState && ((PlaybackState) obj).player == player &&
+                ((PlaybackState) obj).position == position && ((PlaybackState) obj).playing == playing;
     }
 
     @Override

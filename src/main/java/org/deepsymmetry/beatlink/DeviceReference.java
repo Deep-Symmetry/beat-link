@@ -5,6 +5,7 @@ import org.apiguardian.api.API;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Uniquely identifies a device on the network. We used to use just the IP address for this, but the introduction of
@@ -32,6 +33,11 @@ public class DeviceReference {
     public final InetAddress address;
 
     /**
+     * We are immutable so we can precompute our hash code.
+     */
+    private final int hashcode;
+
+    /**
      * Create a unique device identifier.
      *
      * @param number the device number reported by the device
@@ -40,6 +46,7 @@ public class DeviceReference {
     private DeviceReference(int number, InetAddress address) {
         deviceNumber = number;
         this.address = address;
+        hashcode = Objects.hash(deviceNumber, address);
     }
 
     /**
@@ -80,6 +87,16 @@ public class DeviceReference {
     @API(status = API.Status.STABLE)
     public static DeviceReference getDeviceReference(DeviceUpdate update) {
         return getDeviceReference(update.deviceNumber, update.address);
+    }
+
+    @Override
+    public int hashCode() {
+        return hashcode;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof DeviceReference && ((DeviceReference) obj).deviceNumber == deviceNumber && ((DeviceReference) obj).address == address;
     }
 
     @Override
