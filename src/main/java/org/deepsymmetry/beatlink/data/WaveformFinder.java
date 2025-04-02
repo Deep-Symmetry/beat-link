@@ -164,12 +164,8 @@ public class WaveformFinder extends LifecycleParticipant {
     public synchronized void setPreferredStyle(WaveformStyle style) {
         final WaveformStyle oldStyle = preferredStyle.getAndSet(style);
         if (oldStyle != style) {
-            stop();
-            try {
-                start();
-            } catch (Exception e) {
-                logger.error("Unexplained exception restarting; we had been running already!", e);
-            }
+            clearAllWaveforms();
+            primeCache();
         }
     }
 
@@ -199,6 +195,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * @deprecated since 8.0.0
      */
     @API(status = API.Status.DEPRECATED)
+    @Deprecated
     public final void setColorPreferred(boolean preferColor) {
         setPreferredStyle(preferColor? WaveformStyle.RGB : WaveformStyle.BLUE);
     }
@@ -213,6 +210,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * @deprecated since 8.0.0
      */
     @API(status = API.Status.DEPRECATED)
+    @Deprecated
     public final boolean isColorPreferred() {
         return preferredStyle.get() != WaveformStyle.BLUE;
     }
@@ -1113,25 +1111,33 @@ public class WaveformFinder extends LifecycleParticipant {
             queueHandler.interrupt();
             queueHandler = null;
 
-            // Report the loss of our waveforms, on the proper thread, outside our lock.
-            final Set<DeckReference> dyingPreviewCache = new HashSet<>(previewHotCache.keySet());
-            previewHotCache.clear();
-            final Set<DeckReference> dyingDetailCache = new HashSet<>(detailHotCache.keySet());
-            detailHotCache.clear();
-            SwingUtilities.invokeLater(() -> {
-                for (DeckReference deck : dyingPreviewCache) {  // Report the loss of our previews.
-                    if (deck.hotCue == 0) {
-                        deliverWaveformPreviewUpdate(deck.player, null);
-                    }
-                }
-                for (DeckReference deck : dyingDetailCache) {  // Report the loss of our details.
-                    if (deck.hotCue == 0) {
-                        deliverWaveformDetailUpdate(deck.player, null);
-                    }
-                }
-            });
+            clearAllWaveforms();
             deliverLifecycleAnnouncement(logger, false);
         }
+    }
+
+    /**
+     * Discard all waveforms that we have learned, either because we are stopping, or because the user has changed
+     * the preferred waveform style.
+     */
+    private void clearAllWaveforms() {
+        // Report the loss of our waveforms, on the proper thread, outside any lock.
+        final Set<DeckReference> dyingPreviewCache = new HashSet<>(previewHotCache.keySet());
+        previewHotCache.clear();
+        final Set<DeckReference> dyingDetailCache = new HashSet<>(detailHotCache.keySet());
+        detailHotCache.clear();
+        SwingUtilities.invokeLater(() -> {
+            for (DeckReference deck : dyingPreviewCache) {  // Report the loss of our previews.
+                if (deck.hotCue == 0) {
+                    deliverWaveformPreviewUpdate(deck.player, null);
+                }
+            }
+            for (DeckReference deck : dyingDetailCache) {  // Report the loss of our details.
+                if (deck.hotCue == 0) {
+                    deliverWaveformDetailUpdate(deck.player, null);
+                }
+            }
+        });
     }
 
     /**
