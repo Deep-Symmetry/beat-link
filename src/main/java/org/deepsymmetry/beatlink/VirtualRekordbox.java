@@ -350,8 +350,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
         byte[] getDataAsBytesAndTrimTrailingZeros() {
 
             // Start by removing any trailing zeroes.
-            while (!data.isEmpty() && data.getLast() == 0) {
-                data.removeLast();
+            while (!data.isEmpty() && data.get(data.size() - 1) == 0) {
+                data.remove(data.size() - 1);
             }
 
             // Then convert to regular byte array.
