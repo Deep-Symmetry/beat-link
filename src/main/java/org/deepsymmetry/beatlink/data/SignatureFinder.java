@@ -366,7 +366,7 @@ public class SignatureFinder extends LifecycleParticipant {
             WaveformFinder.getInstance().addLifecycleListener(lifecycleListener);
             WaveformFinder.getInstance().setFindDetails(true);
             WaveformFinder.getInstance().start();
-            WaveformFinder.getInstance().addWaveformListener(waveformListener);
+            WaveformFinder.getInstance().addWaveformListener(waveformListener, WaveformFinder.WaveformStyle.RGB);
 
             BeatGridFinder.getInstance().addLifecycleListener(lifecycleListener);
             BeatGridFinder.getInstance().start();
@@ -397,7 +397,7 @@ public class SignatureFinder extends LifecycleParticipant {
     public synchronized void stop () {
         if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
-            WaveformFinder.getInstance().removeWaveformListener(waveformListener);
+            WaveformFinder.getInstance().removeWaveformListener(waveformListener, WaveformFinder.WaveformStyle.RGB);
             BeatGridFinder.getInstance().removeBeatGridListener(beatGridListener);
             running.set(false);
             pendingUpdates.clear();
