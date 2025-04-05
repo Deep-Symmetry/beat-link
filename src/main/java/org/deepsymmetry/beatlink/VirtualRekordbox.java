@@ -428,12 +428,21 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
                     CdjStatus status = new CdjStatus(packet, hadToRecoverStatusFlags);
 
-                    // Check if the rekordbox ID has changed or if source player is zero (no track loaded)
-                    // Either condition indicates we need to clear our cached data for this player and request PSSI
+                    // Get previous ID for comparison
                     Integer previousId = previousRawRekordboxIds.get(status.getDeviceNumber());
-                    if (status.getTrackSourcePlayer() == 0 || (previousId != null && previousId != rawRekordboxId && rawRekordboxId != 0)) {
+                    
+                    // Determine if track has changed and if it's currently loaded
+                    boolean isLoaded = status.getTrackSourcePlayer() != 0;
+                    boolean trackChanged = previousId != null && previousId != rawRekordboxId && rawRekordboxId != 0;
+                    
+                    // Clear slot and ID mapping if deck is empty or track has changed
+                    if (trackChanged || !isLoaded) {
                         playerTrackSourceSlots.remove(status.getDeviceNumber());
                         playerToDeviceSqlRekordboxId.remove(status.getDeviceNumber());
+                    }
+                    
+                    // Only request PSSI when there's a new track loaded (ID change)
+                    if (trackChanged) {
                         try {
                             requestPSSI();
                         } catch (IOException e) {
