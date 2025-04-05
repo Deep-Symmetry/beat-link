@@ -434,7 +434,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     
                     // Determine if track has changed and if it's currently loaded
                     boolean isLoaded = status.getTrackSourcePlayer() != 0;
-                    boolean trackChanged = previousId != null && previousId != rawRekordboxId && rawRekordboxId != 0;
+                    boolean trackChanged = previousId != rawRekordboxId && rawRekordboxId != 0;
                     
                     // Clear slot and ID mapping if deck is empty or track has changed
                     if (trackChanged || !isLoaded) {
