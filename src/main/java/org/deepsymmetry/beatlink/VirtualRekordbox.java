@@ -305,6 +305,12 @@ public class VirtualRekordbox extends LifecycleParticipant {
     private final Map<Integer, Byte> lastValidStatusFlagBytes = new ConcurrentHashMap<>();
 
     /**
+     * Keeps track of the previous raw rekordbox IDs we've seen from each player, 
+     * so we can detect when a track changes.
+     */
+    private final Map<Integer, Integer> previousRawRekordboxIds = new ConcurrentHashMap<>();
+
+    /**
      * Tracks packets received from devices to reconstruct complete messages that span multiple packets.
      * Used primarily for reconstructing binary data (specifically PSSI) from the Opus Quad, which 
      * arrives fragmented across multiple packets. Maintains state between packet
@@ -415,16 +421,29 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         lastValidStatusFlagBytes.put(rawDeviceNumber, reportedStatusFlags);  // Record in case next packet for this device is malformed.
                     }
 
+                    // The raw ID sent from the Opus, we just need this to detect changes.
+                    // We can't use CdjStatus.getRekordboxId() because it still refers to the
+                    // playerToDeviceSqlRekordboxId map that hasn't been updated yet.
+                    int rawRekordboxId = (int)Util.bytesToNumber(packet.getData(), 0x2c, 4);
+
                     CdjStatus status = new CdjStatus(packet, hadToRecoverStatusFlags);
 
-                    // If source player number is zero the deck does not have a song loaded, clear the PSSI and source slot we had for that player.
-                    // This also represents a new track load.
-                    // We also need to set the DeviceSQL rekordbox ID to 0 for the player, so we don't
-                    // reflect the old track right when the new track is loaded (it takes a few seconds to match the PSSI).
-                    if (status.getTrackSourcePlayer() == 0) {
+                    // Check if the rekordbox ID has changed or if source player is zero (no track loaded)
+                    // Either condition indicates we need to clear our cached data for this player and request PSSI
+                    Integer previousId = previousRawRekordboxIds.get(status.getDeviceNumber());
+                    if (status.getTrackSourcePlayer() == 0 || (previousId != null && previousId != rawRekordboxId && rawRekordboxId != 0)) {
                         playerTrackSourceSlots.remove(status.getDeviceNumber());
                         playerToDeviceSqlRekordboxId.remove(status.getDeviceNumber());
+                        try {
+                            requestPSSI();
+                        } catch (IOException e) {
+                            logger.warn("Cannot send PSSI request");
+                        }
                     }
+                    
+                    // Update the previous ID for next comparison
+                    previousRawRekordboxIds.put(status.getDeviceNumber(), rawRekordboxId);
+                    
                     return status;
                 } else {
                     logger.warn("Ignoring too-short CDJ Status packet with length {} (we need " + CdjStatus.MINIMUM_PACKET_SIZE + " bytes).", length);
@@ -474,11 +493,8 @@ public class VirtualRekordbox extends LifecycleParticipant {
                         }
                     }
                 } else if (data[0x25] == METADATA_TYPE_IDENTIFIER_SONG_CHANGE) {
-                    try {
-                        requestPSSI();
-                    } catch (IOException e) {
-                        logger.warn("Cannot send PSSI request");
-                    }
+                    // This was one way to detect a track change, but the packet is sent too slow after a track change,
+                    // instead we detect for an ID change in between status packets in the CDJ_STATUS case above.
                 }
                 return null;
 
