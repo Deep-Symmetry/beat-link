@@ -428,8 +428,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
                     CdjStatus status = new CdjStatus(packet, hadToRecoverStatusFlags);
 
-                    // Get previous ID for comparison
-                    Integer previousId = previousRawRekordboxIds.get(status.getDeviceNumber());
+                    // Get previous ID for comparison, as well as update the map
+                    // (put() returns the previous value)
+                    Integer previousId = previousRawRekordboxIds.put(status.getDeviceNumber(), rawRekordboxId);
                     
                     // Determine if track has changed and if it's currently loaded
                     boolean isLoaded = status.getTrackSourcePlayer() != 0;
@@ -449,9 +450,6 @@ public class VirtualRekordbox extends LifecycleParticipant {
                             logger.warn("Cannot send PSSI request");
                         }
                     }
-                    
-                    // Update the previous ID for next comparison
-                    previousRawRekordboxIds.put(status.getDeviceNumber(), rawRekordboxId);
                     
                     return status;
                 } else {
