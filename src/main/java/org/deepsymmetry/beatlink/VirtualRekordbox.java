@@ -439,7 +439,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     // so just initialize previousId to 0 for safe comparison with rawRekordboxId
                     if (previousId == null) previousId = 0;
 
-                    // Determine if track has changed and if it's currently loaded
+                    // Determine if track has changed
                     boolean trackChanged = previousId != rawRekordboxId;
                     
                     // Clear slot and ID mapping if track has changed
