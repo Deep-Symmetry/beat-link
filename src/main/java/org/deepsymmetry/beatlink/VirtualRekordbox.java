@@ -499,10 +499,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                             playerTrackSourceSlots.put(playerNumber, SlotReference.getSlotReference(match.usbSlot, USB_SLOT));
                         }
                     }
-                } else if (data[0x25] == METADATA_TYPE_IDENTIFIER_SONG_CHANGE) {
-                    // This was one way to detect a track change, but the packet is sent too slow after a track change,
-                    // instead we detect for an ID change in between status packets in the CDJ_STATUS case above.
-                }
+                } 
                 return null;
 
             default:
