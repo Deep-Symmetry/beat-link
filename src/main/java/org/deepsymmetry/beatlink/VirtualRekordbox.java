@@ -431,10 +431,11 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     // Get previous ID for comparison, as well as update the map
                     // (put() returns the previous value)
                     Integer previousId = previousRawRekordboxIds.put(status.getDeviceNumber(), rawRekordboxId);
-                    
+                    if (previousId == null) previousId = 0;  // For safe and meaningful comparison with rawRekordboxId
+
                     // Determine if track has changed and if it's currently loaded
                     boolean isLoaded = status.getTrackSourcePlayer() != 0;
-                    boolean trackChanged = previousId != null && previousId != rawRekordboxId && rawRekordboxId != 0;
+                    boolean trackChanged = previousId != rawRekordboxId && rawRekordboxId != 0;
                     
                     // Clear slot and ID mapping if deck is empty or track has changed
                     if (trackChanged || !isLoaded) {
@@ -443,7 +444,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     }
                     
                     // Only request PSSI when there's a new track loaded (ID change)
-                    if (trackChanged) {
+                    if (trackChanged && isLoaded) {
                         try {
                             requestPSSI();
                         } catch (IOException e) {
