@@ -435,7 +435,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
                     // Determine if track has changed and if it's currently loaded
                     boolean isLoaded = status.getTrackSourcePlayer() != 0;
-                    boolean trackChanged = previousId != rawRekordboxId && rawRekordboxId != 0;
+                    boolean trackChanged = previousId != rawRekordboxId;
                     
                     // Clear slot and ID mapping if deck is empty or track has changed
                     if (trackChanged || !isLoaded) {
@@ -444,7 +444,7 @@ public class VirtualRekordbox extends LifecycleParticipant {
                     }
                     
                     // Only request PSSI when there's a new track loaded (ID change)
-                    if (trackChanged && isLoaded) {
+                    if (trackChanged) {
                         try {
                             requestPSSI();
                         } catch (IOException e) {
