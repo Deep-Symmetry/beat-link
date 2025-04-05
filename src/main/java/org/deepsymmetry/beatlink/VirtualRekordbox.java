@@ -428,27 +428,32 @@ public class VirtualRekordbox extends LifecycleParticipant {
 
                     CdjStatus status = new CdjStatus(packet, hadToRecoverStatusFlags);
 
+                    // Get the player/device number
+                    int deviceNumber = status.getDeviceNumber();
+
                     // Get previous ID for comparison, as well as update the map
                     // (put() returns the previous value)
-                    Integer previousId = previousRawRekordboxIds.put(status.getDeviceNumber(), rawRekordboxId);
-                    if (previousId == null) previousId = 0;  // For safe and meaningful comparison with rawRekordboxId
+                    Integer previousId = previousRawRekordboxIds.put(deviceNumber, rawRekordboxId);
+
+                    // If we haven't tracked this player before, put() will return null,
+                    // so just initialize previousId to 0 for safe comparison with rawRekordboxId
+                    if (previousId == null) previousId = 0;
 
                     // Determine if track has changed and if it's currently loaded
-                    boolean isLoaded = status.getTrackSourcePlayer() != 0;
                     boolean trackChanged = previousId != rawRekordboxId;
                     
-                    // Clear slot and ID mapping if deck is empty or track has changed
-                    if (trackChanged || !isLoaded) {
-                        playerTrackSourceSlots.remove(status.getDeviceNumber());
-                        playerToDeviceSqlRekordboxId.remove(status.getDeviceNumber());
-                    }
-                    
-                    // Only request PSSI when there's a new track loaded (ID change)
+                    // Clear slot and ID mapping if track has changed
                     if (trackChanged) {
-                        try {
-                            requestPSSI();
-                        } catch (IOException e) {
-                            logger.warn("Cannot send PSSI request");
+                        playerTrackSourceSlots.remove(deviceNumber);
+                        playerToDeviceSqlRekordboxId.remove(deviceNumber);
+                        
+                        // Only request PSSI if the deck is loaded
+                        if (rawRekordboxId != 0) {
+                            try {
+                                requestPSSI();
+                            } catch (IOException e) {
+                                logger.warn("Cannot send PSSI request");
+                            }
                         }
                     }
                     
