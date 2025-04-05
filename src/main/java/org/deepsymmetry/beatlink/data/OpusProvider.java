@@ -16,6 +16,8 @@ import java.nio.ByteBuffer;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -159,6 +161,70 @@ public class OpusProvider {
     private final Map<Integer, LinkedBlockingQueue<MediaDetails>> archiveAttachQueueMap = new ConcurrentHashMap<>();
 
     /**
+     * Object to store a rekordbox ID and USB slot number together. Safe to use as a hash key or set member.
+     */
+    public static class DeviceSqlRekordboxIdAndSlot {
+
+        public final int rekordboxId;
+        public final int usbSlot;
+
+        /**
+         * We are immutable so we can precompute our hash code.
+         */
+        private final int hashcode;
+
+        private DeviceSqlRekordboxIdAndSlot(int rekordboxId, int usbSlot) {
+            this.rekordboxId = rekordboxId;
+            this.usbSlot = usbSlot;
+            hashcode = Objects.hash(rekordboxId, usbSlot);
+        }
+
+        @Override
+        public int hashCode() {
+            return hashcode;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof DeviceSqlRekordboxIdAndSlot && ((DeviceSqlRekordboxIdAndSlot) obj).rekordboxId == rekordboxId &&
+                    ((DeviceSqlRekordboxIdAndSlot) obj).usbSlot == usbSlot;
+        }
+
+        @Override
+        public String toString() {
+            return "DeviceSqlRekordboxIdAndSlot[rekordboxId=" + rekordboxId + ", usbSlot=" + usbSlot + "]";
+        }
+    }
+
+    /**
+     * A map from the SHA1 hash of the song structure of a track to any corresponding DeviceSQL rekordbox ID and USB slot matches.
+     */
+    private final Map<String, Set<DeviceSqlRekordboxIdAndSlot>> pssiToDeviceSqlRekordboxIds = new ConcurrentHashMap<>();
+
+    /**
+     * Compute the SHA1 hash of the given data, similar to {@link SignatureFinder#computeTrackSignature(String, SearchableItem, int, WaveformDetail, BeatGrid)}.
+     * @param data the data to hash
+     * @return the SHA1 hash of the data, or {@code null} if there is an error
+     */
+    private String computeSha1(byte[] data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA1");
+            digest.update(data);
+            byte[] result = digest.digest();
+            
+            StringBuilder hex = new StringBuilder(result.length * 2);
+            for (byte b : result) {
+                hex.append(String.format("%02x", (b & 0xff)));
+            }
+            return hex.toString();
+            
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("Unable to obtain SHA-1 MessageDigest instance", e);
+            return null;
+        }
+    }
+
+    /**
      * Attach a metadata archive to supply information for the media mounted a USB slot of the Opus Quad.
      * This must be a file created using {@link org.deepsymmetry.cratedigger.Archivist#createArchive(Database, File)}
      * from that media.
@@ -200,12 +266,23 @@ public class OpusProvider {
                     }
                 }
                 formerArchive.getFileSystem().close();
-
-                // Clear player caches as matching data is not applicable anymore.
-                VirtualRekordbox.getInstance().clearPlayerCaches(usbSlotNumber);
             } catch (IOException e) {
                 logger.error("Problem closing database or FileSystem for slot {}", usbSlotNumber, e);
             }
+
+            // Clear player caches as matching data is not applicable anymore.
+            VirtualRekordbox.getInstance().clearPlayerCaches(usbSlotNumber);
+
+            // Clean up PSSI mappings for this USB slot.
+            for (Set<DeviceSqlRekordboxIdAndSlot> matches : pssiToDeviceSqlRekordboxIds.values()) {
+                matches.removeIf(v -> v.usbSlot == usbSlotNumber);
+            }
+
+            // Further clean up by removing any SHA-1 hashes that no longer have matches.
+            pssiToDeviceSqlRekordboxIds.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+
+            logger.info("Removed PSSI mappings for slot {}, pssiToDeviceSqlRekordboxIds now has {} entries",
+                    usbSlotNumber, pssiToDeviceSqlRekordboxIds.size());
 
             // Clean up any extracted files associated with this archive.
             final String prefix = slotPrefix(usbSlotNumber);
@@ -259,13 +336,43 @@ public class OpusProvider {
                 // If we got here, this looks like a valid metadata archive because we found a valid DeviceSQL database export inside it.
                 openedArchive = new RekordboxUsbArchive(usbSlotNumber, database, null, filesystem);
                 newDetails = new MediaDetails(slotReference, CdjStatus.TrackType.REKORDBOX, filesystem.toString(),
-                        database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
+                    database.trackIndex.size(), database.playlistIndex.size(), database.sourceFile.lastModified());
+
+                // Populate pssiToDeviceSqlRekordboxIds
+                SlotReference slotRef = SlotReference.getSlotReference(1, CdjStatus.TrackSourceSlot.USB_SLOT);
+
+                for (long key : database.trackIndex.keySet()) {
+                    final int trackId = Math.toIntExact(key);
+                    DataReference dataRef = new DataReference(slotRef, trackId);
+                    RekordboxAnlz anlz = findExtendedAnalysis(usbSlotNumber, dataRef, database, openedArchive.getConnection(), filesystem);
+                    if (anlz != null) {
+                        // Get the SONG_STRUCTURE raw body
+                        byte[] songStructure = getSongStructureRawBody(anlz);
+                        if (songStructure != null) {
+                            // SHA1 the songStructure
+                            String sha1 = computeSha1(songStructure);
+                            if (sha1 == null) {
+                                logger.warn("Could not calculate SHA-1 for track {}", trackId);
+                                continue;
+                            }
+                            Set <DeviceSqlRekordboxIdAndSlot> shaSet = pssiToDeviceSqlRekordboxIds.computeIfAbsent(sha1,
+                                    k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
+                            shaSet.add(new DeviceSqlRekordboxIdAndSlot(trackId, usbSlotNumber));
+                        } else {
+                            logger.warn("No SONG_STRUCTURE found for track {}", trackId);
+                        }
+                    } else {
+                        logger.warn("No extended analysis found for track {}", trackId);
+                    }
+                }
+
+                logger.info("pssiToDeviceSqlRekordboxIds now contains {} entries", pssiToDeviceSqlRekordboxIds.size());
                 logger.info("Attached DeviceSQL metadata archive {} for slot {}.", filesystem, usbSlotNumber);
-            } catch (Exception e) {
-                filesystem.close();
-                throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
+                } catch (Exception e) {
+                    filesystem.close();
+                    throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
+                }
             }
-        }
 
         // We successfully opened the archive with one of the two database formats.
         usbArchiveMap.put(usbSlotNumber, openedArchive);
@@ -373,6 +480,20 @@ public class OpusProvider {
      */
     private RekordboxAnlz findExtendedAnalysis(int usbSlotNumber, DataReference track, Database database, Connection connection, FileSystem filesystem) {
         return findTrackAnalysis(usbSlotNumber, track, database, connection, filesystem, ".EXT");
+    }
+
+    /**
+     * Get the raw body of the SONG_STRUCTURE section of the extended analysis file.
+     * @param anlz the extended analysis file to search
+     * @return the raw body of the SONG_STRUCTURE section, or {@code null} if no SONG_STRUCTURE section is found
+     */
+    private byte[] getSongStructureRawBody(RekordboxAnlz anlz) {
+        for (RekordboxAnlz.TaggedSection section : anlz.sections()) {
+            if (section.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
+                return section._raw_body();
+            }
+        }
+        return null;
     }
 
     /**
@@ -696,6 +817,52 @@ public class OpusProvider {
             return null;
         }
     };
+
+    /**
+     * Given a PSSI message and the ID sent from the Opus, return the DeviceSQL rekordbox ID and USB slot number
+     * that matches the PSSI. Also handle multiple matches, preferring the match with the same ID sent from the Opus, otherwise
+     * returning the first match found.
+     *
+     * @param pssi the PSSI message
+     * @param idSentFromOpus the ID sent from the Opus
+     * @return the DeviceSQL rekordbox ID and USB slot number that matches the PSSI, or {@code null} if no match is found
+     */
+    public DeviceSqlRekordboxIdAndSlot getDeviceSqlRekordboxIdAndSlotNumberFromPssi(byte[] pssi, int idSentFromOpus) {
+        // From observation, the actual part we need to check from the
+        // body sent from the Opus is starting at index 12
+        // (that's where the SONG_STRUCTURE starts)
+        byte[] pssiBody = Arrays.copyOfRange(pssi, 12, pssi.length);
+
+        // Compute the SHA-1 of the final slice
+        final String pssiBodySha1 = computeSha1(pssiBody);
+
+        if (pssiBodySha1 == null) {
+            logger.warn("Could not calculate SHA-1 for PSSI");
+            return null;
+        }
+
+        final Set<DeviceSqlRekordboxIdAndSlot> matches = pssiToDeviceSqlRekordboxIds.get(pssiBodySha1);
+
+        if (matches.isEmpty()) {
+            logger.warn("No PSSI matches found");
+            return null;
+        } else if (matches.size() == 1) {
+            return matches.iterator().next();
+        } else {
+            // Multiple matches found - prefer the match with the same ID sent from the Opus
+            for (DeviceSqlRekordboxIdAndSlot match : matches) {
+                if (match.rekordboxId == idSentFromOpus) {
+                    logger.info("Multiple PSSI matches found, preferring ID sent from Opus: {}", idSentFromOpus);
+                    return match;
+                }
+            }
+            // If the Opus sent back an ID that we don't have a match for,
+            // we'll just return the first match we found.
+            final DeviceSqlRekordboxIdAndSlot firstMatch = matches.iterator().next();
+            logger.info("Multiple PSSI matches found, but none match ID sent from Opus: {}. Returning the first match: {}", idSentFromOpus, firstMatch);
+            return firstMatch;
+        }
+    }
 
     /**
      * Method that will use PSSI + rekordboxId to confirm that the database filesystem match the song. Will

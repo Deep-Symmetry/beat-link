@@ -673,7 +673,7 @@ public class CdjStatus extends DeviceUpdate {
             logger.warn("Processing CDJ Status packets with unexpected lengths {}.", packetBytes.length);
         }
         trackType = findTrackType();
-        rekordboxId = (int)Util.bytesToNumber(packetBytes, 0x2c, 4);
+        int maybeRekordboxId = (int)Util.bytesToNumber(packetBytes, 0x2c, 4);
         pitch = (int)Util.bytesToNumber(packetBytes, 0x8d, 3);
         bpm = (int)Util.bytesToNumber(packetBytes, 0x92, 2);
         playState1 = findPlayState1();
@@ -684,12 +684,16 @@ public class CdjStatus extends DeviceUpdate {
 
         final byte trackSourceByte = packetBytes[0x28];
         if (isFromOpusQuad && (trackSourceByte < 16)) {
+            // sourcePlayer variable will be changed to the slot number, it's not the deck number
             int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
+            int player = Util.translateOpusPlayerNumbers(trackSourceByte);
             if (sourcePlayer != 0) {
                 final SlotReference matchedSourceSlot = VirtualRekordbox.getInstance().findMatchedTrackSourceSlotForPlayer(deviceNumber);
                 if (matchedSourceSlot != null) {
                     sourcePlayer = matchedSourceSlot.player;
                 }
+                final int deviceSqlRekordboxId = VirtualRekordbox.getInstance().findDeviceSqlRekordboxIdForPlayer(player);
+                maybeRekordboxId = deviceSqlRekordboxId;
             }
             trackSourcePlayer = sourcePlayer;
             trackSourceSlot = TrackSourceSlot.USB_SLOT;
@@ -699,6 +703,8 @@ public class CdjStatus extends DeviceUpdate {
             trackSourcePlayer = trackSourceByte;
             trackSourceSlot = findTrackSourceSlot();
         }
+
+        rekordboxId = maybeRekordboxId;
     }
 
     /**
