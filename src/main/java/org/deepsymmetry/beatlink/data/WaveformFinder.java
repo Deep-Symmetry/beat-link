@@ -97,13 +97,13 @@ public class WaveformFinder extends LifecycleParticipant {
      * Keeps track of the current waveform previews cached for each player. We hot cache data for any track which is
      * currently on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
-    private final Map<DeckReference, Map<WaveformStyle, WaveformPreview>> previewHotCache = new ConcurrentHashMap<>();
+    private final Map<DeckReference, WaveformPreview> previewHotCache = new ConcurrentHashMap<>();
 
     /**
      * Keeps track of the current waveform details cached for each player. We hot cache data for any track which is
      * currently on-deck in the player, as well as any that were loaded into a player's hot-cue slot.
      */
-    private final Map<DeckReference, Map<WaveformStyle,WaveformDetail>> detailHotCache = new ConcurrentHashMap<>();
+    private final Map<DeckReference, WaveformDetail> detailHotCache = new ConcurrentHashMap<>();
 
     /**
      * Should we ask for details as well as the previews?
@@ -122,7 +122,14 @@ public class WaveformFinder extends LifecycleParticipant {
         if (findDetails) {
             primeCache();  // Get details for any tracks that were already loaded on players.
         } else {
-            clearDetailedWaveforms();
+            // Inform our listeners, on the proper thread, that the detailed waveforms are no longer available
+            final Set<DeckReference> dyingCache = new HashSet<>(detailHotCache.keySet());
+            detailHotCache.clear();
+            SwingUtilities.invokeLater(() -> {
+                for (DeckReference deck : dyingCache) {
+                    deliverWaveformDetailUpdate(deck.player, null);
+                }
+            });
         }
     }
 
@@ -238,24 +245,18 @@ public class WaveformFinder extends LifecycleParticipant {
         @Override
         public void mediaUnmounted(SlotReference slot) {
             // Iterate over a copy to avoid concurrent modification issues
-            for (Map.Entry<DeckReference, Map<WaveformStyle, WaveformPreview>> entry : new HashMap<>(previewHotCache).entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    final WaveformPreview somePreview = entry.getValue().values().iterator().next();  // We don't care about the format.
-                    if (slot == SlotReference.getSlotReference(somePreview.dataReference)) {
-                        logger.debug("Evicting cached waveform preview in response to unmount report {}", entry.getValue());
-                        previewHotCache.remove(entry.getKey());
-                    }
+            for (Map.Entry<DeckReference, WaveformPreview> entry : new HashMap<>(previewHotCache).entrySet()) {
+                if (slot == SlotReference.getSlotReference(entry.getValue().dataReference)) {
+                    logger.debug("Evicting cached waveform preview in response to unmount report {}", entry.getValue());
+                    previewHotCache.remove(entry.getKey());
                 }
             }
 
             // Again iterate over a copy to avoid concurrent modification issues
-            for (Map.Entry<DeckReference, Map<WaveformStyle, WaveformDetail>> entry : new HashMap<>(detailHotCache).entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    final WaveformDetail someDetail = entry.getValue().values().iterator().next();  // We don't care about the format.
-                    if (slot == SlotReference.getSlotReference(someDetail.dataReference)) {
-                        logger.debug("Evicting cached waveform detail in response to unmount report {}", entry.getValue());
-                        detailHotCache.remove(entry.getKey());
-                    }
+            for (Map.Entry<DeckReference, WaveformDetail> entry : new HashMap<>(detailHotCache).entrySet()) {
+                if (slot == SlotReference.getSlotReference(entry.getValue().dataReference)) {
+                    logger.debug("Evicting cached waveform detail in response to unmount report {}", entry.getValue());
+                    detailHotCache.remove(entry.getKey());
                 }
             }
         }
@@ -311,12 +312,8 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param update the update which means we have no waveform preview for the associated player
      */
     private void clearDeckPreview(TrackMetadataUpdate update) {
-        final Map<WaveformStyle, WaveformPreview> formerPreviews = previewHotCache.remove(DeckReference.getDeckReference(update.player, 0));
-        if (formerPreviews != null) {
-            final Set<WaveformListener> lossNotified = new HashSet<>();
-            for (WaveformPreview formerPreview : formerPreviews.values()) {
-                deliverWaveformPreviewUpdate(update.player, formerPreview, lossNotified);
-            }
+        if (previewHotCache.remove(DeckReference.getDeckReference(update.player, 0)) != null) {
+            deliverWaveformPreviewUpdate(update.player, null);
         }
     }
 
@@ -328,12 +325,8 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param update the update which means we have no waveform preview for the associated player
      */
     private void clearDeckDetail(TrackMetadataUpdate update) {
-        final Map<WaveformStyle, WaveformDetail> formerDetails = detailHotCache.remove(DeckReference.getDeckReference(update.player, 0));
-        if (formerDetails != null) {
-            final Set<WaveformListener> lossNotified = new HashSet<>();
-            for (WaveformDetail formerDetail : formerDetails.values()) {
-                deliverWaveformDetailUpdate(update.player, formerDetail, lossNotified);
-            }
+        if (detailHotCache.remove(DeckReference.getDeckReference(update.player, 0)) != null) {
+            deliverWaveformDetailUpdate(update.player, null);
         }
     }
 
@@ -356,31 +349,21 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     private void clearWaveforms(DeviceAnnouncement announcement) {
         final int player = announcement.getDeviceNumber();
-
-        // Iterate over a copy of the preview cache to avoid concurrent modification issues
-        final Map<DeckReference, Map<WaveformStyle, WaveformPreview>> previewCacheCopy = new HashMap<>(previewHotCache);
-        for (DeckReference deck : previewCacheCopy.keySet()) {
+        // Iterate over a copy to avoid concurrent modification issues
+        for (DeckReference deck : new HashSet<>(previewHotCache.keySet())) {
             if (deck.player == player) {
                 previewHotCache.remove(deck);
                 if (deck.hotCue == 0) {
-                    final Set<WaveformListener> lossNotified = new HashSet<>();
-                    for (WaveformPreview preview : previewCacheCopy.get(deck).values()) {
-                        deliverWaveformPreviewUpdate(player, preview, lossNotified);  // Inform listeners that preview is gone.
-                    }
+                    deliverWaveformPreviewUpdate(player, null);  // Inform listeners that preview is gone.
                 }
             }
         }
-
-        // Again iterate over a copy of the detail cache to avoid concurrent modification issues
-        final Map<DeckReference, Map<WaveformStyle, WaveformDetail>> detailCacheCopy = new HashMap<>(detailHotCache);
-        for (DeckReference deck : previewCacheCopy.keySet()) {
+        // Again iterate over a copy to avoid concurrent modification issues
+        for (DeckReference deck : new HashSet<>(detailHotCache.keySet())) {
             if (deck.player == player) {
                 detailHotCache.remove(deck);
                 if (deck.hotCue == 0) {
-                    final Set<WaveformListener> lossNotified = new HashSet<>();
-                    for (WaveformDetail detail : detailCacheCopy.get(deck).values()) {
-                        deliverWaveformDetailUpdate(player, detail, lossNotified);  // Inform listeners that detail is gone.
-                    }
+                    deliverWaveformDetailUpdate(player, null);  // Inform listeners that detail is gone.
                 }
             }
         }
@@ -393,21 +376,15 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param preview the waveform preview which we retrieved
      */
     private void updatePreview(TrackMetadataUpdate update, WaveformPreview preview) {
-        Map<WaveformStyle,WaveformPreview> mainDeckMap = previewHotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, 0),
-                k -> new ConcurrentHashMap<>());
-        mainDeckMap.put(preview.style, preview);
-
+        previewHotCache.put(DeckReference.getDeckReference(update.player, 0), preview);  // Main deck
         if (update.metadata.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : update.metadata.getCueList().entries) {
                 if (entry.hotCueNumber != 0) {
-                    final Map<WaveformStyle,WaveformPreview> hotCueMap = previewHotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber),
-                            k -> new ConcurrentHashMap<>());
-                    hotCueMap.put(preview.style, preview);
+                    previewHotCache.put(DeckReference.getDeckReference(update.player, entry.hotCueNumber), preview);
                 }
             }
         }
-
-        deliverWaveformPreviewUpdate(update.player, preview, null);
+        deliverWaveformPreviewUpdate(update.player, preview);
     }
 
     /**
@@ -417,50 +394,20 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param detail the waveform detail which we retrieved
      */
     private void updateDetail(TrackMetadataUpdate update, WaveformDetail detail) {
-        Map<WaveformStyle,WaveformDetail> newMap = new ConcurrentHashMap<>();
-        Map<WaveformStyle,WaveformDetail> mainDeckMap = detailHotCache.put(DeckReference.getDeckReference(update.player, 0), newMap);
-        if (mainDeckMap == null) {
-            mainDeckMap = newMap;  // We just created it.
-        }
-        mainDeckMap.put(detail.style, detail);
-
+        detailHotCache.put(DeckReference.getDeckReference(update.player, 0), detail);  // Main deck
         if (update.metadata.getCueList() != null) {  // Update the cache with any hot cues in this track as well
             for (CueList.Entry entry : update.metadata.getCueList().entries) {
                 if (entry.hotCueNumber != 0) {
-                    final Map<WaveformStyle,WaveformDetail> hotCueMap = detailHotCache.computeIfAbsent(DeckReference.getDeckReference(update.player, entry.hotCueNumber),
-                            k -> new ConcurrentHashMap<>());
-                    hotCueMap.put(detail.style, detail);
+                    detailHotCache.put(DeckReference.getDeckReference(update.player, entry.hotCueNumber), detail);
                 }
             }
         }
-
-        deliverWaveformDetailUpdate(update.player, detail, null);
+        deliverWaveformDetailUpdate(update.player, detail);
     }
 
     /**
-     * Determine which available waveform style is the closest available to a given preferred style.
-     *
-     * @param preferred the style that is desired
-     * @param available the styles that are available
-     * @return the closest available acceptable match for the desired style (or {@code null} if there is none)
-     */
-    public WaveformStyle bestMatch(WaveformStyle preferred, Set<WaveformStyle> available) {
-        if (available.contains(preferred)) {
-            return preferred;  // Best case, we can give them what they are asking for.
-        }
-        switch (preferred) {
-            case BLUE: return null;  // Nothing suitable is available.
-            case RGB: return bestMatch(WaveformStyle.BLUE, available);  // Blue is the fallback for RGB.
-            case THREE_BAND: return bestMatch(WaveformStyle.RGB, available);  // RGB and then blue can fall back for 3-band.
-        }
-
-        throw new IllegalArgumentException("Unrecognized preferred waveform style: " + preferred);
-    }
-
-    /**
-     * Get the waveform previews available for all tracks currently loaded in any player, either on the playback deck, or
-     * in a hot cue. If multiple styles of preview are available for any slot, the best match for {@link #getPreferredStyle()}
-     * will be chosen.
+     * Get the waveform previews available for all tracks currently loaded in any player, either on the play deck, or
+     * in a hot cue.
      *
      * @return the previews associated with all current players, including for any tracks loaded in their hot cue slots
      *
@@ -469,20 +416,13 @@ public class WaveformFinder extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public Map<DeckReference, WaveformPreview> getLoadedPreviews() {
         ensureRunning();
-
-        Map<DeckReference, WaveformPreview> result = new HashMap<>();
-        for (final DeckReference deck : previewHotCache.keySet()) {
-            final Map<WaveformStyle, WaveformPreview> previews = previewHotCache.get(deck);
-            final WaveformStyle bestStyle = bestMatch(getPreferredStyle(), previews.keySet());
-            result.put(deck, previews.get(bestStyle));
-        }
-        return Collections.unmodifiableMap(result);
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Map.copyOf(previewHotCache);
     }
 
     /**
-     * Get the waveform details available for all tracks currently loaded in any player, either on the playback deck, or
-     * in a hot cue. If multiple styles of preview are available for any slot, the best match for {@link #getPreferredStyle()}
-     * will be chosen.
+     * Get the waveform details available for all tracks currently loaded in any player, either on the play deck, or
+     * in a hot cue.
      *
      * @return the details associated with all current players, including for any tracks loaded in their hot cue slots
      *
@@ -494,19 +434,12 @@ public class WaveformFinder extends LifecycleParticipant {
         if (!isFindingDetails()) {
             throw new IllegalStateException("WaveformFinder is not configured to find waveform details.");
         }
-
-        Map<DeckReference, WaveformDetail> result = new HashMap<>();
-        for (final DeckReference deck : detailHotCache.keySet()) {
-            final Map<WaveformStyle, WaveformDetail> details = detailHotCache.get(deck);
-            final WaveformStyle bestStyle = bestMatch(getPreferredStyle(), details.keySet());
-            result.put(deck, details.get(bestStyle));
-        }
-        return Collections.unmodifiableMap(result);
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Map.copyOf(detailHotCache);
     }
 
     /**
      * Look up the waveform preview we have for the track loaded in the main deck of a given player number.
-     * If multiple styles of waveform are available, the best match for {@link #getPreferredStyle()} will be chosen.
      *
      * @param player the device number whose waveform preview for the playing track is desired
      *
@@ -517,36 +450,11 @@ public class WaveformFinder extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public WaveformPreview getLatestPreviewFor(int player) {
         ensureRunning();
-        final Map<WaveformStyle, WaveformPreview> previews = previewHotCache.get(DeckReference.getDeckReference(player, 0));
-        if (previews == null) {
-            return null;
-        }
-        return previews.get(bestMatch(getPreferredStyle(), previews.keySet()));
-    }
-
-    /**
-     * Look up the waveform preview in a particular style we have for the track loaded in the main deck of a given player number.
-     *
-     * @param player the device number whose waveform preview for the playing track is desired
-     * @param style the waveform style desired
-     *
-     * @return the waveform preview in the specified style for the track loaded on that player, if available
-     *
-     * @throws IllegalStateException if the WaveformFinder is not running
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    public WaveformPreview getLatestPreviewFor(int player, WaveformStyle style) {
-        ensureRunning();
-        final Map<WaveformStyle, WaveformPreview> previews = previewHotCache.get(DeckReference.getDeckReference(player, 0));
-        if (previews == null) {
-            return null;
-        }
-        return previews.get(style);
+        return previewHotCache.get(DeckReference.getDeckReference(player, 0));
     }
 
     /**
      * Look up the waveform preview we have for a given player, identified by a status update received from that player.
-     * If multiple styles of waveform are available, the best match for {@link #getPreferredStyle()} will be chosen.
      *
      * @param update a status update from the player for which a waveform preview is desired
      *
@@ -560,24 +468,7 @@ public class WaveformFinder extends LifecycleParticipant {
     }
 
     /**
-     * Look up the waveform preview we have for a given player, identified by a status update received from that player,
-     * in a particular style.
-     *
-     * @param update a status update from the player for which a waveform preview is desired
-     * @param style the waveform style desired
-     *
-     * @return the waveform preview in the specified style for the track loaded on that player, if available
-     *
-     * @throws IllegalStateException if the WaveformFinder is not running
-     */
-    @API(status = API.Status.STABLE)
-    public WaveformPreview getLatestPreviewFor(DeviceUpdate update, WaveformStyle style) {
-        return getLatestPreviewFor(update.getDeviceNumber(), style);
-    }
-
-    /**
      * Look up the waveform detail we have for the track loaded in the main deck of a given player number.
-     * If multiple styles of waveform are available, the best match for {@link #getPreferredStyle()} will be chosen.
      *
      * @param player the device number whose waveform detail for the playing track is desired
      *
@@ -588,36 +479,11 @@ public class WaveformFinder extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public WaveformDetail getLatestDetailFor(int player) {
         ensureRunning();
-        final Map<WaveformStyle, WaveformDetail> details = detailHotCache.get(DeckReference.getDeckReference(player, 0));
-        if (details == null) {
-            return null;
-        }
-        return details.get(bestMatch(getPreferredStyle(), details.keySet()));
-    }
-
-    /**
-     * Look up the waveform detail in a particular style we have for the track loaded in the main deck of a given player number.
-     *
-     * @param player the device number whose waveform detail for the playing track is desired
-     * @param style the waveform style desired
-     *
-     * @return the waveform detail in the specified style for the track loaded on that player, if available
-     *
-     * @throws IllegalStateException if the WaveformFinder is not running
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    public WaveformDetail getLatestDetailFor(int player, WaveformStyle style) {
-        ensureRunning();
-        final Map<WaveformStyle, WaveformDetail> details = detailHotCache.get(DeckReference.getDeckReference(player, 0));
-        if (details == null) {
-            return null;
-        }
-        return details.get(style);
+        return detailHotCache.get(DeckReference.getDeckReference(player, 0));
     }
 
     /**
      * Look up the waveform detail we have for a given player, identified by a status update received from that player.
-     * If multiple styles of waveform are available, the best match for {@link #getPreferredStyle()} will be chosen.
      *
      * @param update a status update from the player for which waveform detail is desired
      *
@@ -628,22 +494,6 @@ public class WaveformFinder extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public WaveformDetail getLatestDetailFor(DeviceUpdate update) {
         return getLatestDetailFor(update.getDeviceNumber());
-    }
-
-    /**
-     * Look up the waveform detail we have for a given player, identified by a status update received from that player,
-     * in a particular style.
-     *
-     * @param update a status update from the player for which a waveform detail is desired
-     * @param style the waveform style desired
-     *
-     * @return the waveform detail in the specified style for the track loaded on that player, if available
-     *
-     * @throws IllegalStateException if the WaveformFinder is not running
-     */
-    @API(status = API.Status.STABLE)
-    public WaveformDetail getLatestDetailFor(DeviceUpdate update, WaveformStyle style) {
-        return getLatestDetailFor(update.getDeviceNumber(), style);
     }
 
     /**
@@ -698,9 +548,9 @@ public class WaveformFinder extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public WaveformPreview requestWaveformPreviewFrom(final DataReference dataReference) {
         ensureRunning();
-        for (Map<WaveformStyle,WaveformPreview> cachedMap : previewHotCache.values()) {
-            if (!cachedMap.isEmpty() && cachedMap.values().iterator().next().dataReference.equals(dataReference)) {
-                return cachedMap.get(bestMatch(getPreferredStyle(), cachedMap.keySet()));
+        for (WaveformPreview cached : previewHotCache.values()) {
+            if (cached.dataReference.equals(dataReference)) {  // Found a hot cue hit, use it.
+                return cached;
             }
         }
         return requestPreviewInternal(dataReference, false);
@@ -796,9 +646,9 @@ public class WaveformFinder extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public WaveformDetail requestWaveformDetailFrom(final DataReference dataReference) {
         ensureRunning();
-        for (Map<WaveformStyle,WaveformDetail> cachedMap : detailHotCache.values()) {
-            if (!cachedMap.isEmpty() && cachedMap.values().iterator().next().dataReference.equals(dataReference)) {  // Found a hot cue hit, use it.
-                return cachedMap.get(bestMatch(getPreferredStyle(), cachedMap.keySet()));
+        for (WaveformDetail cached : detailHotCache.values()) {
+            if (cached.dataReference.equals(dataReference)) {  // Found a hot cue hit, use it.
+                return cached;
             }
         }
         return requestDetailInternal(dataReference, false);
@@ -851,14 +701,9 @@ public class WaveformFinder extends LifecycleParticipant {
     private final Set<Integer> activeDetailRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
-     * Keeps track of the registered waveform listeners (for the {@link #preferredStyle}).
+     * Keeps track of the registered waveform listeners.
      */
     private final Set<WaveformListener> waveformListeners = Collections.newSetFromMap(new ConcurrentHashMap<>());
-
-    /**
-     * Keeps track of the registered waveform listeners (for specific styles).
-     */
-    private final Map<WaveformStyle, Set<WaveformListener>> specificWaveformListeners = new ConcurrentHashMap<>();
 
     /**
      * <p>Adds the specified waveform listener to receive updates when the waveform information for a player changes.
@@ -884,44 +729,9 @@ public class WaveformFinder extends LifecycleParticipant {
     }
 
     /**
-     * Helper function to look up the listeners registered to get waveforms only in a particular style, creating
-     * the set if it does not already exist.
-     *
-     * @param style the waveform format whose listener set is desired
-     * @return the set of listeners registered to receive waveforms in only that format
-     */
-    private Set<WaveformListener> listenersForStyle(WaveformStyle style) {
-        return specificWaveformListeners.computeIfAbsent(style, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
-    }
-
-    /**
-     * <p>Adds the specified waveform listener to receive updates when the waveform information for a player changes,
-     * always only offering waveforms in the specified style (if that style is not available, no waveform is offered).
-     * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
-     * thrown and no action is performed.</p>
-     *
-     * <p>Updates are delivered to listeners on the Swing Event Dispatch thread, so it is safe to interact with
-     * user interface elements within the event handler.</p>
-     *
-     * <p>Even so, any code in the listener method <em>must</em> finish quickly, or it will freeze the user interface,
-     * add latency for other listeners, and updates will back up. If you want to perform lengthy processing of any sort,
-     * do so on another thread.</p>
-     *
-     * @param listener the waveform update listener to add
-     * @param style the only waveform format in which the listener is interested
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    public void addWaveformListener(WaveformListener listener, WaveformStyle style) {
-        if (listener != null) {
-            listenersForStyle(style).add(listener);
-        }
-    }
-
-    /**
-     * Removes the specified general waveform listener so that it no longer receives updates when the
+     * Removes the specified waveform listener so that it no longer receives updates when the
      * waveform information for a player changes. If {@code listener} is {@code null} or not present
-     * in the set of listeners registered by {@link #addWaveformListener(WaveformListener)},
-     * no exception is thrown and no action is performed.
+     * in the set of registered listeners, no exception is thrown and no action is performed.
      *
      * @param listener the waveform update listener to remove
      */
@@ -933,23 +743,7 @@ public class WaveformFinder extends LifecycleParticipant {
     }
 
     /**
-     * Removes the specified style-specific waveform listener so that it no longer receives updates when the
-     * waveform information for a player changes. If {@code listener} is {@code null} or not present
-     * in the set of listeners registered by {@link #addWaveformListener(WaveformListener, WaveformStyle)},
-     * no exception is thrown and no action is performed.
-     *
-     * @param listener the waveform update listener to remove
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    public void removeWaveformListener(WaveformListener listener, WaveformStyle style) {
-        if (listener != null) {
-            listenersForStyle(style).remove(listener);
-        }
-    }
-
-    /**
-     * Get the set of currently-registered waveform listeners that accept waveforms in whatever format is
-     * currently preferred (see {@link #setPreferredStyle(WaveformStyle)}).
+     * Get the set of currently-registered waveform listeners.
      *
      * @return the listeners that are currently registered for waveform updates
      */
@@ -960,79 +754,25 @@ public class WaveformFinder extends LifecycleParticipant {
     }
 
     /**
-     * Get the set of currently-registered waveform listeners that only want waveforms in the specified format.
-     *
-     * @param style the waveform format in which the listeners are interested
-     * @return the listeners that are currently registered for waveform updates in that format
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    public Set<WaveformListener> getWaveformListeners(WaveformStyle style) {
-        // Make a copy so callers get an immutable snapshot of the current state.
-        return Set.copyOf(listenersForStyle(style));
-    }
-
-    /**
      * Send a waveform preview update announcement to all registered listeners.
      *
      * @param player the player whose waveform preview has changed
-     * @param preview the associated waveform preview, if any
-     * @param lossNotified if not {@code null}, we are reporting the loss of a waveform and this is a set that will
-     *                     be used to keep track of the general waveform listeners we have already notified about the
-     *                     loss, so they receive only one notification even if multiple formats were lost
+     * @param preview the new waveform preview, if any
      */
-    private void deliverWaveformPreviewUpdate(final int player, final WaveformPreview preview, final Set<WaveformListener> lossNotified) {
-
-        // Are we reporting a new waveform, or loss of an old one?
-        final WaveformPreviewUpdate update = new WaveformPreviewUpdate(player, (lossNotified != null)? null : preview);
-
-        // First send to the general listeners
+    private void deliverWaveformPreviewUpdate(final int player, final WaveformPreview preview) {
         final Set<WaveformListener> listeners = getWaveformListeners();
         if (!listeners.isEmpty()) {
             SwingUtilities.invokeLater(() -> {
+                final WaveformPreviewUpdate update = new WaveformPreviewUpdate(player, preview);
                 for (final WaveformListener listener : listeners) {
-                    if (lossNotified != null) {  // If we lost the waveform entirely, we always report that once.
-                        if (!lossNotified.contains(listener)) {
-                            lossNotified.add(listener);  // They only need to be notified about the loss once.
-                            try {
-                                listener.previewChanged(update);
-                            } catch (Throwable t) {
-                                logger.warn("Problem delivering waveform preview update to listener", t);
-                            }
-                        }
-                    } else {
-                        // If the style we just received is now the best match for the preferred style, send an update reporting it is now available.
-                        final Set<WaveformStyle> styles = new HashSet<>();
-                        final Map<WaveformStyle, WaveformPreview> cachedMap =  previewHotCache.get(DeckReference.getDeckReference(player,0));
-                        if (cachedMap != null) {
-                            styles.addAll(cachedMap.keySet());
-                        }
-                        styles.add(preview.style);
-                        if (bestMatch(getPreferredStyle(), styles) == preview.style) {
-                            try {
-                                listener.previewChanged(update);
-                            } catch (Throwable t) {
-                                logger.warn("Problem delivering waveform preview update to listener", t);
-                            }
-                        }
+                    try {
+                        listener.previewChanged(update);
+
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering waveform preview update to listener", t);
                     }
                 }
             });
-        }
-
-        // Then to any listeners for the specific format of the preview.
-        if (preview != null) {
-            final Set<WaveformListener> specificListeners = listenersForStyle(preview.style);
-            if (!specificListeners.isEmpty()) {
-                SwingUtilities.invokeLater(() -> {
-                    for (final WaveformListener listener : specificListeners) {
-                        try {
-                            listener.previewChanged(update);
-                        } catch (Throwable t) {
-                            logger.warn("Problem delivering waveform preview update to listener", t);
-                        }
-                    }
-                });
-            }
         }
     }
 
@@ -1041,43 +781,17 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @param player the player whose waveform detail has changed
      * @param detail the new waveform detail, if any
-     * @param lossNotified if not {@code null}, we are reporting the loss of a waveform and this is a set that will
-     *                     be used to keep track of the general waveform listeners we have already notified about the
-     *                     loss, so they receive only one notification even if multiple formats were lost
      */
-    private void deliverWaveformDetailUpdate(final int player, final WaveformDetail detail, final Set<WaveformListener> lossNotified) {
-
-        // Are we reporting a new waveform, or loss of an old one?
-        final WaveformDetailUpdate update = new WaveformDetailUpdate(player, (lossNotified != null)? null : detail);
-
-        // First send to the general listeners
-        final Set<WaveformListener> listeners = getWaveformListeners();
-        if (!listeners.isEmpty()) {
+    private void deliverWaveformDetailUpdate(final int player, final WaveformDetail detail) {
+        if (!getWaveformListeners().isEmpty()) {
             SwingUtilities.invokeLater(() -> {
-                for (final WaveformListener listener : listeners) {
-                    if (lossNotified != null) {  // If we lost the waveform entirely, we always report that once.
-                        if (!lossNotified.contains(listener)) {
-                            lossNotified.add(listener);
-                            try {
-                                listener.detailChanged(update);
-                            } catch (Throwable t) {
-                                logger.warn("Problem delivering waveform detail update to listener", t);
-                            }
-                        }
-                    } else {  // If the style we just received is now the best match for the preferred style, send an update reporting it is now available.
-                        final Set<WaveformStyle> styles = new HashSet<>();
-                        final Map<WaveformStyle, WaveformDetail> cachedMap =  detailHotCache.get(DeckReference.getDeckReference(player,0));
-                        if (cachedMap != null) {
-                            styles.addAll(cachedMap.keySet());
-                        }
-                        styles.add(detail.style);
-                        if (bestMatch(getPreferredStyle(), styles) == detail.style) {
-                            try {
-                                listener.detailChanged(update);
-                            } catch (Throwable t) {
-                                logger.warn("Problem delivering waveform detail update to listener", t);
-                            }
-                        }
+                final WaveformDetailUpdate update = new WaveformDetailUpdate(player, detail);
+                for (final WaveformListener listener : getWaveformListeners()) {
+                    try {
+                        listener.detailChanged(update);
+
+                    } catch (Throwable t) {
+                        logger.warn("Problem delivering waveform detail update to listener", t);
                     }
                 }
             });
@@ -1097,25 +811,21 @@ public class WaveformFinder extends LifecycleParticipant {
             clearDeck(update);
         } else {
             // We can offer waveform information for this device; check if we've already looked it up. First, preview:
-            final Map<WaveformStyle, WaveformPreview> lastPreviewMap = previewHotCache.get(DeckReference.getDeckReference(update.player, 0));
-            final WaveformPreview lastPreview = (lastPreviewMap == null)? null : lastPreviewMap.get(getPreferredStyle());
+            final WaveformPreview lastPreview = previewHotCache.get(DeckReference.getDeckReference(update.player, 0));
             if (lastPreview == null || !lastPreview.dataReference.equals(update.metadata.trackReference)) {  // We have something new!
-                clearDeckPreview(update);
 
                 // First see if we can find the new preview in the hot cache
-                for (Map<WaveformStyle, WaveformPreview> cachedMap : previewHotCache.values()) {
-                    final WaveformPreview cachedPreview = cachedMap.get(getPreferredStyle());
-                    if (cachedPreview != null && cachedPreview.dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
+                for (WaveformPreview cached : previewHotCache.values()) {
+                    if (cached.dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
+                        updatePreview(update, cached);
                         foundInCache = true;
-                        for (WaveformPreview cached : cachedMap.values()) {  // We can potentially use any of the cached styles for other listeners, too.
-                            updatePreview(update, cached);
-                        }
                         break;
                     }
                 }
 
                 // If not found in the cache, try actually retrieving it unless that is already in progress.
                 if (!foundInCache && activePreviewRequests.add(update.player)) {
+                    clearDeckPreview(update);  // We won't know what it is until our request completes.
                     new Thread(() -> {
                         try {
                             WaveformPreview preview = requestPreviewInternal(update.metadata.trackReference, true);
@@ -1133,25 +843,21 @@ public class WaveformFinder extends LifecycleParticipant {
 
             // Secondly, the detail.
             foundInCache = false;
-            final Map<WaveformStyle, WaveformDetail> lastDetailMap = detailHotCache.get(DeckReference.getDeckReference(update.player, 0));
-            final WaveformDetail lastDetail = (lastDetailMap == null)? null : lastDetailMap.get(getPreferredStyle());
+            final WaveformDetail lastDetail = detailHotCache.get(DeckReference.getDeckReference(update.player, 0));
             if (isFindingDetails() && (lastDetail == null || !lastDetail.dataReference.equals(update.metadata.trackReference))) {  // We have something new!
-                clearDeckDetail(update);
 
                 // First see if we can find the new detailed waveform in the hot cache
-                for (Map<WaveformStyle, WaveformDetail> cachedMap : detailHotCache.values()) {
-                    final WaveformDetail cachedDetail = cachedMap.get(getPreferredStyle());
-                    if (cachedDetail != null && cachedDetail.dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
+                for (WaveformDetail cached : detailHotCache.values()) {
+                    if (cached.dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
+                        updateDetail(update, cached);
                         foundInCache = true;
-                        for (WaveformDetail cached : cachedMap.values()) {  // We can potentially use any of the cached styles for other listeners, too.
-                            updateDetail(update, cached);
-                        }
                         break;
                     }
                 }
 
-                // If not found in the cache, try actually retrieving it unless that is already in progress.
+                // If not found in the cache try actually retrieving it, unless that is already in progress.
                 if (!foundInCache && activeDetailRequests.add(update.player)) {
+                    clearDeckDetail(update);  // We won't know what it is until our request completes.
                     new Thread(() -> {
                         try {
                             WaveformDetail detail = requestDetailInternal(update.metadata.trackReference, true);
@@ -1255,41 +961,22 @@ public class WaveformFinder extends LifecycleParticipant {
     }
 
     /**
-     * Discard all detail waveforms that we have learned, either because we are stopping, or because the user has
-     * changed the preferred waveform style or stopped tracking detailed waveforms.
-     */
-    private void clearDetailedWaveforms() {
-        // Report the loss of our detailed waveforms, on the proper thread, outside any lock.
-        final Map<DeckReference, Map<WaveformStyle, WaveformDetail>> dyingDetailCache = new HashMap<>(detailHotCache);
-        detailHotCache.clear();
-        SwingUtilities.invokeLater(() -> {
-            for (DeckReference deck : dyingDetailCache.keySet()) {  // Report the loss of our details.
-                if (deck.hotCue == 0) {
-                    final Set<WaveformListener> lossNotified = new HashSet<>();
-                    for (WaveformDetail detail : dyingDetailCache.get(deck).values()) {
-                        deliverWaveformDetailUpdate(deck.player, detail, lossNotified);
-                    }
-                }
-            }
-        });
-    }
-
-    /**
-     * Discard all waveforms that we have learned, either because we are stopping, or because the user has changed
-     * the preferred waveform style.
+     * Report the loss of all waveforms, on the proper thread, outside any lock.
      */
     private void clearAllWaveforms() {
-        clearDetailedWaveforms();
-        // Report the loss of our preview waveforms, on the proper thread, outside any lock.
-        final Map<DeckReference, Map<WaveformStyle, WaveformPreview>> dyingPreviewCache = new HashMap<>(previewHotCache);
+        final Set<DeckReference> dyingPreviewCache = new HashSet<>(previewHotCache.keySet());
         previewHotCache.clear();
+        final Set<DeckReference> dyingDetailCache = new HashSet<>(detailHotCache.keySet());
+        detailHotCache.clear();
         SwingUtilities.invokeLater(() -> {
-            for (DeckReference deck : dyingPreviewCache.keySet()) {  // Report the loss of our previews.
+            for (DeckReference deck : dyingPreviewCache) {  // Report the loss of our previews.
                 if (deck.hotCue == 0) {
-                    final Set<WaveformListener> lossNotified = new HashSet<>();
-                    for (WaveformPreview preview : dyingPreviewCache.get(deck).values()) {
-                        deliverWaveformPreviewUpdate(deck.player, preview, lossNotified);
-                    }
+                    deliverWaveformPreviewUpdate(deck.player, null);
+                }
+            }
+            for (DeckReference deck : dyingDetailCache) {  // Report the loss of our details.
+                if (deck.hotCue == 0) {
+                    deliverWaveformDetailUpdate(deck.player, null);
                 }
             }
         });

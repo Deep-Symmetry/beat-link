@@ -74,21 +74,25 @@ public class SignatureFinder extends LifecycleParticipant {
     };
 
     /**
-     * Our waveform listener updates our signature state as track waveforms come and go.
+     * Keeps track of the RGB waveforms we have available for the players, since these are what we need to hash
+     * to compute a track signature. We ask for them using a raw analysis tag finder, since the {@link WaveformFinder}
+     * may be configured to request a different style.
      */
-    private final WaveformListener waveformListener = new WaveformListener() {
-        @Override
-        public void previewChanged(WaveformPreviewUpdate update) {
-            // We don’t do anything with previews
-        }
+    private final Map<Integer, WaveformDetail> rgbWaveforms = new ConcurrentHashMap<>();
 
-        @Override
-        public void detailChanged(WaveformDetailUpdate update) {
-            if (update.detail == null) {
-                clearSignature(update.player);
-            } else {
-                checkIfSignatureReady(update.player);
-            }
+    /**
+     * Our tag listener updates our signature state as track RGB waveforms come and go.
+     */
+    private final AnalysisTagListener rgbWaveformListener = update -> {
+        if (update.taggedSection == null) {
+            rgbWaveforms.remove(update.player);
+            clearSignature(update.player);
+        } else {
+            final CdjStatus lastStatus = (CdjStatus) VirtualCdj.getInstance().getLatestStatusFor(update.player);
+            final DataReference reference = new DataReference(update.player, lastStatus.getTrackSourceSlot(), lastStatus.getRekordboxId());
+            WaveformDetail detail = new WaveformDetail(reference, update.taggedSection);
+            rgbWaveforms.put(update.player, detail);
+            checkIfSignatureReady(update.player);
         }
     };
 
@@ -335,7 +339,7 @@ public class SignatureFinder extends LifecycleParticipant {
      */
     private void handleUpdate(final int player) {
         final TrackMetadata metadata = MetadataFinder.getInstance().getLatestMetadataFor(player);
-        final WaveformDetail waveformDetail = WaveformFinder.getInstance().getLatestDetailFor(player);
+        final WaveformDetail waveformDetail = rgbWaveforms.get(player);
         final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(player);
         if (metadata != null && waveformDetail != null && beatGrid != null) {
             final String signature = computeTrackSignature(metadata.getTitle(), metadata.getArtist(),
@@ -363,10 +367,10 @@ public class SignatureFinder extends LifecycleParticipant {
             MetadataFinder.getInstance().start();
             MetadataFinder.getInstance().addTrackMetadataListener(metadataListener);
 
-            WaveformFinder.getInstance().addLifecycleListener(lifecycleListener);
-            WaveformFinder.getInstance().setFindDetails(true);
-            WaveformFinder.getInstance().start();
-            WaveformFinder.getInstance().addWaveformListener(waveformListener, WaveformFinder.WaveformStyle.RGB);
+            // Configure analysis tag finder to feed us RGB waveform detail tags for all loaded tracks.
+            AnalysisTagFinder.getInstance().addLifecycleListener(lifecycleListener);
+            AnalysisTagFinder.getInstance().start();
+            AnalysisTagFinder.getInstance().addAnalysisTagListener(rgbWaveformListener, ".EXT", "PWV5");
 
             BeatGridFinder.getInstance().addLifecycleListener(lifecycleListener);
             BeatGridFinder.getInstance().start();
@@ -397,7 +401,7 @@ public class SignatureFinder extends LifecycleParticipant {
     public synchronized void stop () {
         if (isRunning()) {
             MetadataFinder.getInstance().removeTrackMetadataListener(metadataListener);
-            WaveformFinder.getInstance().removeWaveformListener(waveformListener, WaveformFinder.WaveformStyle.RGB);
+            AnalysisTagFinder.getInstance().removeAnalysisTagListener(rgbWaveformListener, ".EXT", "PWV5");
             BeatGridFinder.getInstance().removeBeatGridListener(beatGridListener);
             running.set(false);
             pendingUpdates.clear();

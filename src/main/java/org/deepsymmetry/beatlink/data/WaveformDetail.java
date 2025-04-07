@@ -154,6 +154,35 @@ public class WaveformDetail {
     }
 
     /**
+     * Constructor from a raw analysis file tagged section, independent of the current preferred style.
+     *
+     * @param reference the unique database reference that was used to request this waveform preview
+     * @param section the parsed rekordbox track analysis file section containing the waveform preview
+     */
+    public WaveformDetail(DataReference reference, RekordboxAnlz.TaggedSection section) {
+        dataReference = reference;
+        rawMessage = null;
+        if (section.body() instanceof RekordboxAnlz.Wave3bandPreviewTag) {
+            RekordboxAnlz.Wave3bandScrollTag tag = (RekordboxAnlz.Wave3bandScrollTag) section.body();
+            detailBuffer = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
+            isColor = false;
+            style = WaveformStyle.THREE_BAND;
+        } else if (section.body() instanceof RekordboxAnlz.WaveColorScrollTag) {
+            RekordboxAnlz.WaveColorScrollTag tag = (RekordboxAnlz.WaveColorScrollTag) section.body();
+            detailBuffer = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
+            isColor = true;
+            style = WaveformStyle.RGB;
+        } else if (section.body() instanceof RekordboxAnlz.WaveScrollTag) {
+            RekordboxAnlz.WaveScrollTag tag = (RekordboxAnlz.WaveScrollTag) section.body();
+            detailBuffer = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
+            isColor = false;
+            style = WaveformStyle.BLUE;
+        } else {
+            throw new IllegalStateException("Cannot create WaveformDetail from section: " + section);
+        }
+    }
+
+    /**
      * Constructor when received from Crate Digger.
      *
      * @param reference the unique database reference that was used to request this waveform preview
