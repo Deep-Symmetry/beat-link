@@ -489,7 +489,7 @@ public class CrateDigger {
                         final RekordboxAnlz file = findTrackAnalysis(track, database, ".2EX");
                         if (file != null) {
                             try {
-                                return new WaveformPreview(track, file);
+                                return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.THREE_BAND);
                             } finally {
                                 file._io().close();
                             }
@@ -507,7 +507,7 @@ public class CrateDigger {
                         final RekordboxAnlz file = findExtendedAnalysis(track, database);
                         if (file != null) {
                             try {
-                                return new WaveformPreview(track, file);
+                                return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.RGB);
                             } finally {
                                 file._io().close();
                             }
@@ -524,7 +524,7 @@ public class CrateDigger {
                     final RekordboxAnlz file = findTrackAnalysis(track, database);
                     if (file != null) {
                         try {
-                            return new WaveformPreview(track, file);
+                            return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.BLUE);
                         } finally {
                             file._io().close();
                         }
@@ -547,7 +547,7 @@ public class CrateDigger {
                         final RekordboxAnlz file = findTrackAnalysis(track, database, ".2EX");
                         if (file != null) {
                             try {
-                                return new WaveformDetail(track, file);
+                                return new WaveformDetail(track, file, WaveformFinder.WaveformStyle.THREE_BAND);
                             } finally {
                                 file._io().close();
                             }
@@ -564,7 +564,7 @@ public class CrateDigger {
                     final RekordboxAnlz file = findExtendedAnalysis(track, database);
                     if (file != null) {
                         try {
-                            return new WaveformDetail(track, file);
+                            return new WaveformDetail(track, file, WaveformFinder.WaveformStyle.RGB);
                         } finally {
                             file._io().close();
                         }

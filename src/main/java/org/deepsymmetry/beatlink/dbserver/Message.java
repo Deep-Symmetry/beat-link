@@ -429,6 +429,13 @@ public class Message {
     public static final int ALNZ_FILE_TYPE_EXT = 0x00545845;
 
     /**
+     * The value to pass for the file type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
+     * an element of an ANLZnnnn.2EX file. (The characters "2EX" and NUL as a byte-swapped integer.)
+     */
+    @API(status = API.Status.STABLE)
+    public static final int ALNZ_FILE_TYPE_2EX = 0x00584532;
+
+    /**
      * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
      * the color waveform preview data. (The characters "PWV4" as a byte-swapped integer.)
      */
@@ -441,6 +448,20 @@ public class Message {
      */
     @API(status = API.Status.STABLE)
     public static final int ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL = 0x35565750;
+
+    /**
+     * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
+     * the CDJ-3000 style 3-band waveform preview data. (The characters "PWV6" as a byte-swapped integer.)
+     */
+    @API(status = API.Status.STABLE)
+    public static final int ANLZ_FILE_TAG_3BAND_WAVEFORM_PREVIEW = 0x36565750;
+
+    /**
+     * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain
+     * the scrollable CDJ-3000 style 3-band waveform data. (The characters "PWV7" as a byte-swapped integer.)
+     */
+    @API(status = API.Status.STABLE)
+    public static final int ANLZ_FILE_TAG_3BAND_WAVEFORM_DETAIL = 0x37565750;
 
     /**
      * The value to pass for the tag type argument of a {@link KnownType#ANLZ_TAG_REQ} request in order to obtain

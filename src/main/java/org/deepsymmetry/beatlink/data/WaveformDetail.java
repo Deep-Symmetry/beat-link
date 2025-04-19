@@ -128,23 +128,40 @@ public class WaveformDetail {
      *                 positions
      * @param beatGrid The locations of all the beats in the track, so they can be drawn
      *
-     * @return the component which will draw the annotated waveform preview
+     * @return the component which will draw the annotated waveform detail
      */
     @API(status = API.Status.STABLE)
     public JComponent createViewComponent(TrackMetadata metadata, BeatGrid beatGrid) {
         return new WaveformDetailComponent(this, metadata, beatGrid);
     }
 
+
+
+    /**
+     * Constructor when reading from the network or a file, for code that predates 3-band support. Assumes
+     * the current preferred style is what has been requested.
+     *
+     * @param reference the unique database reference that was used to request this waveform detail
+     * @param message the response that contains the detail
+     *
+     * @deprecated since 8.0.0
+     */
+    @API(status = API.Status.DEPRECATED)
+    public WaveformDetail(DataReference reference, Message message) {
+        this(reference, message, WaveformFinder.getInstance().getPreferredStyle());
+    }
+
     /**
      * Constructor when reading from the network or a file.
      *
      * @param reference the unique database reference that was used to request this waveform detail
-     * @param message the response that contains the preview
+     * @param message the response that contains the detail
+     * @param style the style of waveform that was requested, since this can no longer be determined from the message alone
      */
     @API(status = API.Status.STABLE)
-    public WaveformDetail(DataReference reference, Message message) {
-        isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, it's an NXS2 color wave.
-        style = isColor? WaveformStyle.RGB : WaveformStyle.BLUE;  // We don't yet know how to request 3-band waveforms using the dbserver protocol.
+    public WaveformDetail(DataReference reference, Message message, WaveformStyle style) {
+        isColor = style != WaveformStyle.BLUE;
+        this.style = style;
         dataReference = reference;
         rawMessage = message;
         // Load the bytes we were sent, and skip over the proper number of leading junk bytes
@@ -156,8 +173,8 @@ public class WaveformDetail {
     /**
      * Constructor from a raw analysis file tagged section, independent of the current preferred style.
      *
-     * @param reference the unique database reference that was used to request this waveform preview
-     * @param section the parsed rekordbox track analysis file section containing the waveform preview
+     * @param reference the unique database reference that was used to request this waveform detail
+     * @param section the parsed rekordbox track analysis file section containing the waveform detail
      */
     public WaveformDetail(DataReference reference, RekordboxAnlz.TaggedSection section) {
         dataReference = reference;
@@ -183,13 +200,30 @@ public class WaveformDetail {
     }
 
     /**
-     * Constructor when received from Crate Digger.
+     * Constructor when received from Crate Digger, for code that predates 3-band support. Assumes the current
+     * preferred style is what is being loaded.
      *
-     * @param reference the unique database reference that was used to request this waveform preview
-     * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
+     * @param reference the unique database reference that was used to request this waveform detail
+     * @param anlzFile the parsed rekordbox track analysis file containing the waveform detail (we rely on the correct
+     *                 file for the current preferred style being passed: ANLZ for blue, EXT for RGB, and 2EX for 3-band)
+     *
+     * @deprecated since 8.0.0
      */
     @API(status = API.Status.STABLE)
     public WaveformDetail(DataReference reference, RekordboxAnlz anlzFile) {
+        this(reference, anlzFile, WaveformFinder.getInstance().getPreferredStyle());
+    }
+
+    /**
+     * Constructor when received from Crate Digger.
+     *
+     * @param reference the unique database reference that was used to request this waveform detail
+     * @param anlzFile the parsed rekordbox track analysis file containing the waveform detail (we rely on the correct
+     *                 file for the requested style being passed: ANLZ for blue, EXT for RGB, and 2EX for 3-band)
+     * @param style indicates the style of the waveform desired
+     */
+    @API(status = API.Status.STABLE)
+    public WaveformDetail(DataReference reference, RekordboxAnlz anlzFile, WaveformStyle style) {
         dataReference = reference;
         rawMessage = null;
         ByteBuffer found = null;
@@ -199,8 +233,7 @@ public class WaveformDetail {
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
 
             // Check for requested 3-band waveform first
-            if (WaveformFinder.getInstance().getPreferredStyle() == WaveformStyle.THREE_BAND &&
-                    section.body() instanceof RekordboxAnlz.Wave3bandScrollTag) {
+            if (style == WaveformStyle.THREE_BAND && section.body() instanceof RekordboxAnlz.Wave3bandScrollTag) {
                 RekordboxAnlz.Wave3bandScrollTag tag = (RekordboxAnlz.Wave3bandScrollTag) section.body();
                 found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
                 threeBandFound = true;
@@ -208,8 +241,7 @@ public class WaveformDetail {
             }
 
             // Next see if requested color waveform present
-            if (WaveformFinder.getInstance().getPreferredStyle() == WaveformStyle.RGB &&
-                    section.body() instanceof RekordboxAnlz.WaveColorScrollTag) {
+            if (style == WaveformStyle.RGB && section.body() instanceof RekordboxAnlz.WaveColorScrollTag) {
                 RekordboxAnlz.WaveColorScrollTag tag = (RekordboxAnlz.WaveColorScrollTag) section.body();
                 found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
                 colorFound = true;
@@ -225,17 +257,17 @@ public class WaveformDetail {
         }
 
         detailBuffer = found;
-        style = threeBandFound? WaveformStyle.THREE_BAND : (colorFound? WaveformStyle.RGB : WaveformStyle.BLUE);
+        this.style = threeBandFound? WaveformStyle.THREE_BAND : (colorFound? WaveformStyle.RGB : WaveformStyle.BLUE);
         isColor = colorFound;
         if (detailBuffer == null) {
-            throw new IllegalStateException("Could not construct WaveformDetail, missing from ANLZ file " + anlzFile);
+            throw new IllegalStateException("Could not construct WaveformDetail of style " + style + ", missing from analysis file " + anlzFile);
         }
     }
 
     /**
      * Constructor for use with external caching mechanisms, for code that predates 3-band support.
      *
-     * @param reference the unique database reference that was used to request this waveform preview
+     * @param reference the unique database reference that was used to request this waveform detail
      * @param data the waveform data as will be returned by {@link #getData()}
      * @param isColor indicates whether the data represents a color waveform
      *
@@ -249,7 +281,7 @@ public class WaveformDetail {
     /**
      * Constructor for use with external caching mechanisms.
      *
-     * @param reference the unique database reference that was used to request this waveform preview
+     * @param reference the unique database reference that was used to request this waveform detail
      * @param data the waveform data as will be returned by {@link #getData()}
      * @param style indicates the style of the waveform
      */

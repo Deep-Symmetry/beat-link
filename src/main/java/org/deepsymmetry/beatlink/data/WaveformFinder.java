@@ -572,26 +572,40 @@ public class WaveformFinder extends LifecycleParticipant {
 
         final NumberField idField = new NumberField(rekordboxId);
 
-        // First try to get the NXS2-style color waveform if we are supposed to get color or 3-band waveforms (which we don’t yet know how to request).
-        if (getPreferredStyle() != WaveformStyle.BLUE) {
+        // First try to get the NXS2-style color waveform if we are supposed to.
+        if (getPreferredStyle() == WaveformStyle.RGB) {
             try {
                 Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
                         client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_PREVIEW), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
-                    return new WaveformPreview(new DataReference(slot, rekordboxId), response);
+                    return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.RGB);
                 } else {
                     logger.info("No color waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
                 logger.info("No color waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
             }
+        } else if (getPreferredStyle() == WaveformStyle.THREE_BAND) {
+            // Or try to get the CDJ-3000-style 3-band waveform if we are supposed to.
+            try {
+                Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
+                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
+                        new NumberField(Message.ANLZ_FILE_TAG_3BAND_WAVEFORM_PREVIEW), new NumberField(Message.ALNZ_FILE_TYPE_2EX));
+                if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
+                    return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.THREE_BAND);
+                } else {
+                    logger.info("No 3-band waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
+                }
+            } catch (Exception e) {
+                logger.info("No 3-band waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
+            }
         }
 
         Message response = client.simpleRequest(Message.KnownType.WAVE_PREVIEW_REQ, Message.KnownType.WAVE_PREVIEW,
                 client.buildRMST(Message.MenuIdentifier.DATA, slot.slot), NumberField.WORD_1,
                 idField, NumberField.WORD_0);
-        return new WaveformPreview(new DataReference(slot, rekordboxId), response);
+        return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
     }
 
     /**
@@ -676,18 +690,32 @@ public class WaveformFinder extends LifecycleParticipant {
                         client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
-                    return new WaveformDetail(new DataReference(slot, rekordboxId), response);
+                    return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.RGB);
                 } else {
-                    logger.info("No color waveform available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
+                    logger.info("No color waveform detail available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
-                logger.info("Problem requesting color waveform for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
+                logger.info("Problem requesting color waveform detail for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
+            }
+        } else if (preferredStyle.get() == WaveformStyle.THREE_BAND) {
+            // Or try to get the CDJ-3000-style 3-band waveform if we are supposed to.
+            try {
+                Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
+                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
+                        new NumberField(Message.ANLZ_FILE_TAG_3BAND_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_2EX));
+                if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
+                    return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.THREE_BAND);
+                } else {
+                    logger.info("No 3-band waveform detail available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
+                }
+            } catch (Exception e) {
+                logger.info("Problem requesting 3-band waveform detail for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
             }
         }
 
         Message response = client.simpleRequest(Message.KnownType.WAVE_DETAIL_REQ, Message.KnownType.WAVE_DETAIL,
                 client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField, NumberField.WORD_0);
-        return new WaveformDetail(new DataReference(slot, rekordboxId), response);
+        return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
     }
 
     /**

@@ -729,10 +729,11 @@ public class OpusProvider {
             RekordboxUsbArchive archive = findArchive(track.player);
             if (archive != null) {
                 try {
+                    // TODO: Consider adding support for 3-band waveforms as well.
                     final RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());  // Look for color preview first
                     if (file != null) {
                         try {
-                            return new WaveformPreview(track, file);
+                            return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.RGB);
                         } finally {
                             file._io().close();
                         }
@@ -746,7 +747,7 @@ public class OpusProvider {
                     final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
                     if (file != null) {
                         try {
-                            return new WaveformPreview(track, file);
+                            return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.BLUE);
                         } finally {
                             file._io().close();
                         }
@@ -767,7 +768,8 @@ public class OpusProvider {
                     RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
                     if (file != null) {
                         try {
-                            return new WaveformDetail(track, file);
+                            // TODO: This should use the same logic as above for looking for different styles.
+                            return new WaveformDetail(track, file, WaveformFinder.WaveformStyle.RGB);
                         } finally {
                             file._io().close();
                         }

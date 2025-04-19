@@ -142,31 +142,62 @@ public class WaveformPreview {
     }
 
     /**
+     * Constructor when reading from the network or a file, for code that predates 3-band support. Assumes the
+     * style requested was the current preferred style.
+     *
+     * @param reference the unique database reference that was used to request this waveform preview
+     * @param message the response that contains the preview
+     *
+     * @deprecated since 8.0.0
+     */
+    WaveformPreview(DataReference reference, Message message) {
+        this(reference, message, WaveformFinder.getInstance().getPreferredStyle());
+    }
+
+    /**
      * Constructor when reading from the network or a file.
      *
      * @param reference the unique database reference that was used to request this waveform preview
      * @param message the response that contains the preview
      */
-    WaveformPreview(DataReference reference, Message message) {
-        isColor = message.knownType == Message.KnownType.ANLZ_TAG;  // If we got one of these, it's an NXS2 color wave.
-        style = isColor? WaveformStyle.RGB : WaveformStyle.BLUE;  // We don't yet know how to request 3-band waveforms using the dbserver protocol.
+    @API(status = API.Status.STABLE)
+    WaveformPreview(DataReference reference, Message message, WaveformStyle style) {
+        isColor = style != WaveformStyle.BLUE;
+        this.style = style;
         dataReference = reference;
         rawMessage = message;
         ByteBuffer data = ((BinaryField) rawMessage.arguments.get(3)).getValue();
-        data.position(isColor? LEADING_DBSERVER_COLOR_JUNK_BYTES : 0);
+        data.position(style != WaveformStyle.BLUE? LEADING_DBSERVER_COLOR_JUNK_BYTES : 0);
         expandedData = data.slice();
         segmentCount = getSegmentCount();
         maxHeight = getMaxHeight();
     }
 
     /**
+     * Constructor when received from Crate Digger, for code that predates 3-band support. Assumes the style
+     * being loaded is the current preferred style.
+     *
+     * @param reference the unique database reference that was used to request this waveform preview
+     * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview (we rely on the correct
+     *                 file for the current preferred style being passed: ANLZ for blue, EXT for RGB, and 2EX for 3-band)
+     *
+     * @deprecated since 8.0.0
+     */
+    @API(status = API.Status.DEPRECATED)
+    public WaveformPreview(DataReference reference, RekordboxAnlz anlzFile) {
+        this(reference, anlzFile, WaveformFinder.getInstance().getPreferredStyle());
+    }
+
+    /**
      * Constructor when received from Crate Digger.
      *
      * @param reference the unique database reference that was used to request this waveform preview
-     * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview
+     * @param anlzFile the parsed rekordbox track analysis file containing the waveform preview (we rely on the correct
+     *                 file for the requested style being passed: ANLZ for blue, EXT for RGB, and 2EX for 3-band)
+     * @param style the waveform style being loaded
      */
     @API(status = API.Status.STABLE)
-    public WaveformPreview(DataReference reference, RekordboxAnlz anlzFile) {
+    public WaveformPreview(DataReference reference, RekordboxAnlz anlzFile, final WaveformStyle style) {
         dataReference = reference;
         rawMessage = null;
         ByteBuffer found = null;
@@ -176,8 +207,7 @@ public class WaveformPreview {
         for (RekordboxAnlz.TaggedSection section : anlzFile.sections()) {
 
             // Check for requested 3-band waveform first
-            if (WaveformFinder.getInstance().getPreferredStyle() == WaveformStyle.THREE_BAND &&
-                    section.body() instanceof RekordboxAnlz.Wave3bandPreviewTag) {
+            if (style == WaveformStyle.THREE_BAND && section.body() instanceof RekordboxAnlz.Wave3bandPreviewTag) {
                 RekordboxAnlz.Wave3bandPreviewTag tag = (RekordboxAnlz.Wave3bandPreviewTag) section.body();
                 found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
                 threeBandFound= true;
@@ -185,8 +215,7 @@ public class WaveformPreview {
             }
 
             // Next see if requested color waveform present
-            if (WaveformFinder.getInstance().getPreferredStyle() == WaveformStyle.RGB &&
-                    section.body() instanceof RekordboxAnlz.WaveColorPreviewTag) {
+            if (style == WaveformStyle.RGB && section.body() instanceof RekordboxAnlz.WaveColorPreviewTag) {
                 RekordboxAnlz.WaveColorPreviewTag tag = (RekordboxAnlz.WaveColorPreviewTag) section.body();
                 found = ByteBuffer.wrap(tag.entries()).asReadOnlyBuffer();
                 colorFound = true;
@@ -210,7 +239,7 @@ public class WaveformPreview {
             }
         }
         expandedData = found;
-        style = threeBandFound? WaveformStyle.THREE_BAND : (colorFound? WaveformStyle.RGB : WaveformStyle.BLUE);
+        this.style = threeBandFound? WaveformStyle.THREE_BAND : (colorFound? WaveformStyle.RGB : WaveformStyle.BLUE);
         isColor = colorFound;
         if (expandedData == null) {
             throw new IllegalStateException("Could not construct WaveformPreview, missing from ANLZ file " + anlzFile);
@@ -376,7 +405,7 @@ public class WaveformPreview {
 
     @Override
     public String toString() {
-        return "WaveformPreview[dataReference=" + dataReference + ", isColor? " + isColor + ", size:" + getData().remaining() +
+        return "WaveformPreview[dataReference=" + dataReference + ", style: " + style + ", size:" + getData().remaining() +
                 ", segments:" + segmentCount + "]";
     }
 }
