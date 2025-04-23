@@ -344,7 +344,7 @@ public class OpusProvider {
                 for (long key : database.trackIndex.keySet()) {
                     final int trackId = Math.toIntExact(key);
                     DataReference dataRef = new DataReference(slotRef, trackId);
-                    RekordboxAnlz anlz = findExtendedAnalysis(usbSlotNumber, dataRef, database, openedArchive.getConnection(), filesystem);
+                    RekordboxAnlz anlz = findTrackAnalysis(usbSlotNumber, dataRef, database, openedArchive.getConnection(), filesystem, ".EXT");
                     if (anlz != null) {
                         // Get the SONG_STRUCTURE raw body
                         byte[] songStructure = getSongStructureRawBody(anlz);
@@ -450,36 +450,6 @@ public class OpusProvider {
      */
     private String slotPrefix(int slot) {
         return "slot-" + slot + "-";
-    }
-
-    /**
-     * Find the analysis file for the specified track.
-     * Be sure to call {@code _io().close()} when you are done using the returned struct.
-     *
-     * @param track the track whose analysis file is desired
-     * @param database the parsed database export from which the analysis path can be determined
-     * @param connection the JDBC connection to the more-useful SQLite database, if one is available
-     * @param filesystem the open ZIP filesystem in which metadata can be found
-     *
-     * @return the parsed file containing the track analysis
-     */
-    private RekordboxAnlz findTrackAnalysis(int usbSlotNumber, DataReference track, Database database, Connection connection, FileSystem filesystem) {
-        return findTrackAnalysis(usbSlotNumber, track, database, connection, filesystem, ".DAT");
-    }
-
-    /**
-     * Find the extended analysis file for the specified track.
-     * Be sure to call {@code _io().close()} when you are done using the returned struct.
-     *
-     * @param track the track whose extended analysis file is desired
-     * @param database the parsed database export from which the analysis path can be determined
-     * @param connection the JDBC connection to the more-useful SQLite database, if one is available
-     * @param filesystem the open ZIP filesystem in which metadata can be found
-     *
-     * @return the parsed file containing the track analysis
-     */
-    private RekordboxAnlz findExtendedAnalysis(int usbSlotNumber, DataReference track, Database database, Connection connection, FileSystem filesystem) {
-        return findTrackAnalysis(usbSlotNumber, track, database, connection, filesystem, ".EXT");
     }
 
     /**
@@ -686,7 +656,7 @@ public class OpusProvider {
 
             if (archive != null) {
                 try {
-                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
+                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem(), ".DAT");
                     if (file != null) {
                         try {
                             return new BeatGrid(track, file);
@@ -707,9 +677,9 @@ public class OpusProvider {
             if (archive != null) {
                 try {
                     // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues
-                    RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
+                    RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem(), ".EXT");
                     if (file ==  null) {  // No extended analysis found, fall back to the basic one
-                        file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
+                        file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem(), ".DAT");
                     }
                     if (file != null) {
                         try {
@@ -722,39 +692,97 @@ public class OpusProvider {
                     logger.error("Problem fetching cue list for track {} from archive {}", track, archive, e);
                 }
             }
-            return null;        }
+            return null;
+        }
+
+        /**
+         * Helper function to try finding a waveform preview, used in {@link #getWaveformPreview(MediaDetails, DataReference)}.
+         *
+         * @param archive the metadata archive in which to look
+         * @param track the track whose waveform is being sought
+         * @param style the type of preview desired
+         *
+         * @return the waveform preview, if found, or {@code null}.
+         */
+        private WaveformPreview findPreview(RekordboxUsbArchive archive, DataReference track, WaveformFinder.WaveformStyle style) {
+            final String fileExtension = style == WaveformFinder.WaveformStyle.BLUE? ".DAT" :
+                    style == WaveformFinder.WaveformStyle.RGB? ".EXT" : ".2EX";
+            try {
+                final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem(), fileExtension);
+                if (file != null) {
+                    try {
+                        return new WaveformPreview(track, file, style);
+                    } finally {
+                        file._io().close();
+                    }
+                }
+            } catch (IllegalStateException e) {
+                logger.info("No {} waveform preview found.", style);
+            } catch (Exception e) {
+                logger.error("Problem fetching {} waveform preview for track {} from archive {}", style, track, archive, e);
+            }
+            return null;
+        }
 
         @Override
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
-            RekordboxUsbArchive archive = findArchive(track.player);
+            final RekordboxUsbArchive archive = findArchive(track.player);
+            final WaveformFinder.WaveformStyle style = WaveformFinder.getInstance().getPreferredStyle();
+            WaveformPreview result;
+
             if (archive != null) {
-                try {
-                    // TODO: Consider adding support for 3-band waveforms as well.
-                    final RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());  // Look for color preview first
-                    if (file != null) {
-                        try {
-                            return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.RGB);
-                        } finally {
-                            file._io().close();
-                        }
+                result = findPreview(archive, track, style);
+                if (result == null) {
+                    switch (style) {
+
+                        case BLUE:
+                            result = findPreview(archive, track, WaveformFinder.WaveformStyle.RGB);
+                            if (result == null) result = findPreview(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
+                            return result;
+
+                        case RGB:
+                            result = findPreview(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
+                            if (result == null) result = findPreview(archive, track, WaveformFinder.WaveformStyle.BLUE);
+                            return result;
+
+                        case THREE_BAND:
+                            result = findPreview(archive, track, WaveformFinder.WaveformStyle.RGB);
+                            if (result == null) result = findPreview(archive, track, WaveformFinder.WaveformStyle.BLUE);
+                            return result;
+
+                        default:
+                            logger.error("Unrecognized waveform style: {}", style);
                     }
-                } catch (IllegalStateException e) {
-                    logger.info("No color preview waveform found, checking for blue version.");
-                } catch (Exception e) {
-                    logger.error("Problem fetching color waveform preview for track {} from archive {}", track, archive, e);
                 }
-                try {
-                    final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
-                    if (file != null) {
-                        try {
-                            return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.BLUE);
-                        } finally {
-                            file._io().close();
-                        }
+            }
+
+            return null;
+        }
+
+        /**
+         * Helper function to try finding a waveform detail, used in {@link #getWaveformDetail(MediaDetails, DataReference)}.
+         *
+         * @param archive the metadata archive in which to look
+         * @param track the track whose waveform is being sought
+         * @param style the type of preview desired
+         *
+         * @return the waveform preview, if found, or {@code null}.
+         */
+        private WaveformDetail findDetail(RekordboxUsbArchive archive, DataReference track, WaveformFinder.WaveformStyle style) {
+            final String fileExtension = style == WaveformFinder.WaveformStyle.THREE_BAND? ".2EX" : ".EXT";
+            try {
+                final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem(), fileExtension);
+                if (file != null) {
+                    try {
+                        return new WaveformDetail(track, file, style);
+                    } finally {
+                        file._io().close();
                     }
-                } catch (Exception e) {
-                    logger.error("Problem fetching waveform preview for track {} from archive {}", track, archive, e);
                 }
+            } catch (IllegalStateException e) {
+                logger.info("No {} waveform detail found.", style);
+            } catch (Exception e) {
+                logger.error("Problem fetching {} waveform detail for track {} from archive {}", style, track, archive, e);
             }
             return null;
         }
@@ -762,20 +790,33 @@ public class OpusProvider {
         @Override
         public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
+            final WaveformFinder.WaveformStyle style = WaveformFinder.getInstance().getPreferredStyle();
+            WaveformDetail result;
 
             if (archive != null) {
-                try {
-                    RekordboxAnlz file = findExtendedAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
-                    if (file != null) {
-                        try {
-                            // TODO: This should use the same logic as above for looking for different styles.
-                            return new WaveformDetail(track, file, WaveformFinder.WaveformStyle.RGB);
-                        } finally {
-                            file._io().close();
-                        }
+                result = findDetail(archive, track, style);
+                if (result == null) {
+                    switch (style) {
+
+                        case BLUE:
+                            result = findDetail(archive, track, WaveformFinder.WaveformStyle.RGB);
+                            if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
+                            return result;
+
+                        case RGB:
+                            result = findDetail(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
+                            if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.BLUE);
+                            return result;
+
+                        case THREE_BAND:
+                            result = findDetail(archive, track, WaveformFinder.WaveformStyle.RGB);
+                            if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.BLUE);
+                            return result;
+
+                        default:
+                            //noinspection LoggingSimilarMessage
+                            logger.error("Unrecognized waveform style: {}", style);
                     }
-                } catch (Exception e) {
-                    logger.error("Problem fetching waveform preview for track {} from archive {}", track, archive, e);
                 }
             }
             return null;
@@ -877,7 +918,7 @@ public class OpusProvider {
      * @return true if matched
      */
     private boolean trackMatchesArchive(DataReference dataRef, ByteBuffer pssiFromOpus, RekordboxUsbArchive archive) {
-        RekordboxAnlz anlz = findExtendedAnalysis(archive.getUsbSlot(), dataRef, archive.getDatabase(), archive.getConnection(), archive.getFileSystem());
+        RekordboxAnlz anlz = findTrackAnalysis(archive.getUsbSlot(), dataRef, archive.getDatabase(), archive.getConnection(), archive.getFileSystem(), ".EXT");
         if (anlz != null) {
             for (RekordboxAnlz.TaggedSection taggedSection : anlz.sections()) {
                 if (taggedSection.fourcc() == RekordboxAnlz.SectionTags.SONG_STRUCTURE) {
