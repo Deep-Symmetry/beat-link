@@ -927,9 +927,11 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     private void primeCache() {
         SwingUtilities.invokeLater(() -> {
-            for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
-                if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
-                    handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+            if (isRunning()) {
+                for (Map.Entry<DeckReference, TrackMetadata> entry : MetadataFinder.getInstance().getLoadedTracks().entrySet()) {
+                    if (entry.getKey().hotCue == 0) {  // The track is currently loaded in a main player deck
+                        handleUpdate(new TrackMetadataUpdate(entry.getKey().player, entry.getValue()));
+                    }
                 }
             }
         });
