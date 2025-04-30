@@ -2846,6 +2846,8 @@ public class VirtualCdj extends LifecycleParticipant {
                 if (defendedDevice == getDeviceNumber()) {
                     logger.warn("Another device has claimed it owns our device number, shutting down.");
                     stop();
+                } else if (defendedDevice == 25) {
+                    logger.debug("Another device is defending device 25, which we are not using; this is probably a CDJ-3000 fighting over its embedded Kuvo server.");
                 } else {
                     logger.warn("Another device is defending a number we are not using, ignoring: {}", defendedDevice);
                 }

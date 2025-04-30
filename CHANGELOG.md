@@ -8,13 +8,15 @@ This change log follows the conventions of
 
 ### Added
 
-- The ability to provide most features with the Opus Quad, even though that hardware does not really support the Pro DJ Link protocol, by leveraging its ability to work with rekordbox lighting. Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work!
+- The ability to provide limited features with the Opus Quad, even though that hardware does not really support the Pro DJ Link protocol, by leveraging its ability to work with rekordbox lighting. Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work! Note that because the Qpus Quad does not send beat packets, we might be up to 200ms out of sync with beats, since that is how often status packets arrive.
+- Support for the three-band waveform style introduced with the CDJ-3000.
 - The ability to proxy metadata from mounted archive files corresponding to USB media mounted in the Opus Quad, which cannot itself provide that information.
 - When we unexpectedly are unable to route a message to a CDJ, we now log extensive troubleshooting information about the address we are trying to send to and the state of the network interfaces at that moment.
 
 ### Fixed
 
 - An error in interpreting database export file format by the Crate Digger library could lead to some rows that were actually present in tables not being found.
+- We now suppress a lot of log noise that resulted from the fact that CDJ-3000s embed Kuvo gateways as virtual devices with number 25 and name NXS-GW, and fight over which player is hosting one.
 
 ## [7.4.0] - 2024-05-04
 

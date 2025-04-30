@@ -89,6 +89,10 @@ public class BeatGridFinder extends LifecycleParticipant {
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
+            if (announcement.getDeviceNumber() == 25 && announcement.getDeviceName().equals("NXS-GW")) {
+                logger.debug("Ignoring noise from Kuvo gateways, especially in CDJ-3000s, which fight each other and come and go constantly.");
+                return;
+            }
             logger.info("Clearing beat grids in response to the loss of a device, {}", announcement);
             clearBeatGrids(announcement);
         }

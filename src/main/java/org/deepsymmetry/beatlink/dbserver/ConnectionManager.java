@@ -235,13 +235,24 @@ public class ConnectionManager extends LifecycleParticipant {
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
-            if (VirtualCdj.getInstance().inOpusQuadCompatibilityMode()) return;  // Nothing to do with Opus Quad.
+            if (VirtualCdj.getInstance().inOpusQuadCompatibilityMode()) {
+                logger.debug("Nothing to do when new devices found in Opus Quad compatibility mode.");
+                return;
+            }
+            if (announcement.getDeviceNumber() == 25 && announcement.getDeviceName().equals("NXS-GW")) {
+                logger.debug("Ignoring departure of Kuvo gateway, which fight each other and come and go constantly, especially in CDJ-3000s.");
+                return;
+            }
             logger.debug("Processing device found, number: {}, name: {}", announcement.getDeviceNumber(), announcement.getDeviceName());
             new Thread(() -> requestPlayerDBServerPort(announcement)).start();
         }
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
+            if (announcement.getDeviceNumber() == 25 && announcement.getDeviceName().equals("NXS-GW")) {
+                logger.debug("Ignoring arrival of Kuvo gateway, which fight each other and come and go constantly, especially in CDJ-3000s.");
+                return;
+            }
             dbServerPorts.remove(announcement.getDeviceNumber());
         }
     };

@@ -274,6 +274,10 @@ public class WaveformFinder extends LifecycleParticipant {
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
+            if (announcement.getDeviceNumber() == 25 && announcement.getDeviceName().equals("NXS-GW")) {
+                logger.debug("Ignoring departure of Kuvo gateway, which fight each other and come and go constantly, especially in CDJ-3000s.");
+                return;
+            }
             logger.info("Clearing waveforms in response to the loss of a device, {}", announcement);
             clearWaveforms(announcement);
         }

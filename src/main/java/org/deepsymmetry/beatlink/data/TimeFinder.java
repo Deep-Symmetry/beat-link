@@ -56,6 +56,10 @@ public class TimeFinder extends LifecycleParticipant {
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
+            if (announcement.getDeviceNumber() == 25 && announcement.getDeviceName().equals("NXS-GW")) {
+                logger.debug("Ignoring departure of Kuvo gateway, which fight each other and come and go constantly, especially in CDJ-3000s.");
+                return;
+            }
             logger.info("Clearing position information in response to the loss of a device, {}", announcement);
             positions.remove(announcement.getDeviceNumber());
             updates.remove(announcement.getDeviceNumber());

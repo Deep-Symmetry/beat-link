@@ -325,6 +325,10 @@ public class MetadataFinder extends LifecycleParticipant {
     private final DeviceAnnouncementListener announcementListener = new DeviceAnnouncementListener() {
         @Override
         public void deviceFound(final DeviceAnnouncement announcement) {
+            if (announcement.getDeviceNumber() == 25 && announcement.getDeviceName().equals("NXS-GW")) {
+                logger.debug("Ignoring arrival of Kuvo gateway, which fight each other and come and go constantly, especially in CDJ-3000s.");
+                return;
+            }
             logger.info("Processing device found, number:{}, name:\"{}\".", announcement.getDeviceNumber(), announcement.getDeviceName());
             if ((((announcement.getDeviceNumber() > 0x0f) && announcement.getDeviceNumber() < 0x20) || announcement.getDeviceNumber() > 40) &&
                     (announcement.getDeviceName().startsWith("rekordbox"))) {  // Looks like rekordbox.
@@ -336,6 +340,10 @@ public class MetadataFinder extends LifecycleParticipant {
 
         @Override
         public void deviceLost(DeviceAnnouncement announcement) {
+            if (announcement.getDeviceNumber() == 25 && announcement.getDeviceName().equals("NXS-GW")) {
+                logger.debug("Ignoring departure of Kuvo gateway, which fight each other and come and go constantly, especially in CDJ-3000s.");
+                return;
+            }
             clearMetadata(announcement);
             if (announcement.getDeviceNumber() < 0x10) {  // Looks like a player, clear the whole panoply of caches.
                 removeMount(SlotReference.getSlotReference(announcement.getDeviceNumber(), CdjStatus.TrackSourceSlot.CD_SLOT));
