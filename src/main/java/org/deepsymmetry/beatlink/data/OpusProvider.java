@@ -884,7 +884,7 @@ public class OpusProvider {
             return null;
         }
 
-        final Set<DeviceSqlRekordboxIdAndSlot> matches = pssiToDeviceSqlRekordboxIds.get(pssiBodySha1);
+        final Set<DeviceSqlRekordboxIdAndSlot> matches = pssiToDeviceSqlRekordboxIds.getOrDefault(pssiBodySha1, Collections.emptySet());
 
         if (matches.isEmpty()) {
             logger.warn("No PSSI matches found");
