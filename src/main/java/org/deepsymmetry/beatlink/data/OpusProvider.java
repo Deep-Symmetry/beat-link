@@ -821,24 +821,20 @@ public class OpusProvider {
                     if (result == null) {
                         result = findDetail(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
                     }
-                    return result; // Return whatever fallback found (or null)
+                    return result;
 
                 case RGB:
                     result = findDetail(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
-                    // Unlike preview, BLUE is not a valid fallback for detail as it doesn't exist.
-                    // if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.BLUE); // This would be incorrect
-                    return result; // Return whatever fallback found (or null)
+                    return result;
 
                 case THREE_BAND:
                     result = findDetail(archive, track, WaveformFinder.WaveformStyle.RGB);
-                     // Unlike preview, BLUE is not a valid fallback for detail as it doesn't exist.
-                    // if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.BLUE); // This would be incorrect
-                    return result; // Return whatever fallback found (or null)
+                    return result;
 
                 default:
                     //noinspection LoggingSimilarMessage
                     logger.error("Unrecognized waveform style: {}", style);
-                    return null; // Return null for unrecognized style
+                    return null;
             }
         }
 
