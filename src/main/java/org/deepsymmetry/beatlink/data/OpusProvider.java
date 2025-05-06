@@ -727,36 +727,46 @@ public class OpusProvider {
         @Override
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
-            final WaveformFinder.WaveformStyle style = WaveformFinder.getInstance().getPreferredStyle();
-            WaveformPreview result;
-
-            if (archive != null) {
-                result = findPreview(archive, track, style);
-                if (result == null) {
-                    switch (style) {
-
-                        case BLUE:
-                            result = findPreview(archive, track, WaveformFinder.WaveformStyle.RGB);
-                            if (result == null) result = findPreview(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
-                            return result;
-
-                        case RGB:
-                            result = findPreview(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
-                            if (result == null) result = findPreview(archive, track, WaveformFinder.WaveformStyle.BLUE);
-                            return result;
-
-                        case THREE_BAND:
-                            result = findPreview(archive, track, WaveformFinder.WaveformStyle.RGB);
-                            if (result == null) result = findPreview(archive, track, WaveformFinder.WaveformStyle.BLUE);
-                            return result;
-
-                        default:
-                            logger.error("Unrecognized waveform style: {}", style);
-                    }
-                }
+            // Return early if no archive exists for this player/slot
+            if (archive == null) {
+                return null;
             }
 
-            return null;
+            final WaveformFinder.WaveformStyle style = WaveformFinder.getInstance().getPreferredStyle();
+            WaveformPreview result = findPreview(archive, track, style); // Try preferred style first
+
+            // If preferred style was found, return it immediately
+            if (result != null) {
+                return result;
+            }
+
+            // Preferred style not found, attempt fallbacks based on the preferred style
+            switch (style) {
+                case BLUE:
+                    result = findPreview(archive, track, WaveformFinder.WaveformStyle.RGB);
+                    if (result == null) {
+                        result = findPreview(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
+                    }
+                    return result; // Return whatever fallback found (or null)
+
+                case RGB:
+                    result = findPreview(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
+                    if (result == null) {
+                        result = findPreview(archive, track, WaveformFinder.WaveformStyle.BLUE);
+                    }
+                    return result; // Return whatever fallback found (or null)
+
+                case THREE_BAND:
+                    result = findPreview(archive, track, WaveformFinder.WaveformStyle.RGB);
+                    if (result == null) {
+                        result = findPreview(archive, track, WaveformFinder.WaveformStyle.BLUE);
+                    }
+                    return result; // Return whatever fallback found (or null)
+
+                default:
+                    logger.error("Unrecognized waveform style: {}", style);
+                    return null; // Return null for unrecognized style
+            }
         }
 
         /**
@@ -790,36 +800,46 @@ public class OpusProvider {
         @Override
         public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
-            final WaveformFinder.WaveformStyle style = WaveformFinder.getInstance().getPreferredStyle();
-            WaveformDetail result;
-
-            if (archive != null) {
-                result = findDetail(archive, track, style);
-                if (result == null) {
-                    switch (style) {
-
-                        case BLUE:
-                            result = findDetail(archive, track, WaveformFinder.WaveformStyle.RGB);
-                            if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
-                            return result;
-
-                        case RGB:
-                            result = findDetail(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
-                            if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.BLUE);
-                            return result;
-
-                        case THREE_BAND:
-                            result = findDetail(archive, track, WaveformFinder.WaveformStyle.RGB);
-                            if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.BLUE);
-                            return result;
-
-                        default:
-                            //noinspection LoggingSimilarMessage
-                            logger.error("Unrecognized waveform style: {}", style);
-                    }
-                }
+            // Return early if no archive exists for this player/slot
+            if (archive == null) {
+                return null;
             }
-            return null;
+
+            final WaveformFinder.WaveformStyle style = WaveformFinder.getInstance().getPreferredStyle();
+            WaveformDetail result = findDetail(archive, track, style); // Try preferred style first
+
+            // If preferred style was found, return it immediately
+            if (result != null) {
+                return result;
+            }
+
+            // Preferred style not found, attempt fallbacks based on the preferred style
+            switch (style) {
+                case BLUE:
+                    // Note: BLUE style does not have a distinct detailed waveform, so fallbacks are the only option.
+                    result = findDetail(archive, track, WaveformFinder.WaveformStyle.RGB);
+                    if (result == null) {
+                        result = findDetail(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
+                    }
+                    return result; // Return whatever fallback found (or null)
+
+                case RGB:
+                    result = findDetail(archive, track, WaveformFinder.WaveformStyle.THREE_BAND);
+                    // Unlike preview, BLUE is not a valid fallback for detail as it doesn't exist.
+                    // if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.BLUE); // This would be incorrect
+                    return result; // Return whatever fallback found (or null)
+
+                case THREE_BAND:
+                    result = findDetail(archive, track, WaveformFinder.WaveformStyle.RGB);
+                     // Unlike preview, BLUE is not a valid fallback for detail as it doesn't exist.
+                    // if (result == null) result = findDetail(archive, track, WaveformFinder.WaveformStyle.BLUE); // This would be incorrect
+                    return result; // Return whatever fallback found (or null)
+
+                default:
+                    //noinspection LoggingSimilarMessage
+                    logger.error("Unrecognized waveform style: {}", style);
+                    return null; // Return null for unrecognized style
+            }
         }
 
         @Override
