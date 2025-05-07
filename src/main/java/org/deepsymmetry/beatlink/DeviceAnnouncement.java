@@ -48,16 +48,16 @@ public class DeviceAnnouncement {
      */
     @API(status = API.Status.STABLE)
     public DeviceAnnouncement(DatagramPacket packet) {
-        if (packet.getLength() != 54) {
+        if (packet.getLength() != 0x36) {
             throw new IllegalArgumentException("Device announcement packet must be 54 bytes long");
         }
         address = packet.getAddress();
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         timestamp = System.currentTimeMillis();
-        name = new String(packetBytes, 12, 20).trim();
+        name = new String(packetBytes, 0x0c, 20).trim();
         isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
-        number = Util.unsign(packetBytes[36]);
+        number = Util.unsign(packetBytes[0x24]);
     }
 
     /**
@@ -69,14 +69,14 @@ public class DeviceAnnouncement {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public DeviceAnnouncement(DatagramPacket packet, int deviceNumber) {
-        if (packet.getLength() != 54) {
+        if (packet.getLength() != 0x36) {
             throw new IllegalArgumentException("Device announcement packet must be 54 bytes long");
         }
         address = packet.getAddress();
         packetBytes = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, packetBytes, 0, packet.getLength());
         timestamp = System.currentTimeMillis();
-        name = new String(packetBytes, 12, 20).trim();
+        name = new String(packetBytes, 0x0c, 20).trim();
         isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
         number = deviceNumber;
     }
@@ -153,8 +153,20 @@ public class DeviceAnnouncement {
     @API(status = API.Status.STABLE)
     public byte[] getHardwareAddress() {
         byte[] result = new byte[6];
-        System.arraycopy(packetBytes, 38, result, 0, 6);
+        System.arraycopy(packetBytes, 0x26, result, 0, 6);
         return result;
+    }
+
+    /**
+     * Get the number of peer devices this one currently sees on the network. This count decrements about ten seconds
+     * after a device disappears from the network.
+     *
+     * @return the number of Pro DJ Link devices visible on the network, including this device.
+     * @since 8.0
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public int getPeerCount() {
+        return Util.unsign(packetBytes[0x30]);
     }
 
     /**
@@ -177,6 +189,7 @@ public class DeviceAnnouncement {
 
     @Override
     public String toString() {
-        return "DeviceAnnouncement[device:" + number + ", name:" + name + ", address:" + address.getHostAddress() + "]";
+        return "DeviceAnnouncement[device:" + number + ", name:" + name + ", address:" + address.getHostAddress() +
+                ", peers:" + getPeerCount() + "]";
     }
 }
