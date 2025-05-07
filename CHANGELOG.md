@@ -8,9 +8,10 @@ This change log follows the conventions of
 
 ### Added
 
-- The ability to provide limited features with the Opus Quad, even though that hardware does not really support the Pro DJ Link protocol, by leveraging its ability to work with rekordbox lighting. Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work! Note that because the Qpus Quad does not send beat packets, we might be up to 200ms out of sync with beats, since that is how often status packets arrive.
+- The ability to provide limited features with the Opus Quad, even though that hardware does not really support the Pro DJ Link protocol, by leveraging its ability to work with rekordbox lighting. Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work! Note that because the Opus Quad does not send beat packets, we might be up to 200ms out of sync with beats, since that is how often status packets arrive.
 - Support for the three-band waveform style introduced with the CDJ-3000.
 - The ability to proxy metadata from mounted archive files corresponding to USB media mounted in the Opus Quad, which cannot itself provide that information.
+- We now know how to interpret the byte within device announcement packets that report the number of peer devices seen by that device. The `DeviceAnnouncement` class now provides access to this information.
 - When we unexpectedly are unable to route a message to a CDJ, we now log extensive troubleshooting information about the address we are trying to send to and the state of the network interfaces at that moment.
 
 ### Fixed
