@@ -451,7 +451,7 @@ public class VirtualCdj extends LifecycleParticipant {
         final Util.PacketType kind = Util.validateHeader(packet, UPDATE_PORT);
 
         if (kind == null) {
-            logger.warn("Ignoring unrecognized packet sent to update port.");
+            logger.debug("Ignoring unrecognized packet sent to update port.");
             return null;
         }
 
