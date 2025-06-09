@@ -51,7 +51,7 @@ It is fine to use those as an inspiration, or examples of the ways something cou
 Once you have something working you’d like to share, you can open a
 [pull request][pulls].
 
-Or if you simply have an idea, or something that you wish worked differently, feel free to discuss it on the [Beat Link Trigger Zulip channel][zulip], and if directed to do so by the community there, open an [issue][issues].
+Or if you simply have an idea, or something that you wish worked differently, feel free to discuss it in the [Beat Link Trigger Zulip channel][zulip], and if directed to do so by the community there, open an [issue][issues].
 
 ## Maintainers
 
