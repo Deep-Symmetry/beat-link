@@ -112,13 +112,9 @@ made programs like Beat Link possible.
 <a href="https://zulip.com"><img align="right" alt="Zulip logo"
  src="assets/zulip-icon-circle.svg" width="128" height="128"></a>
 
-Deep Symmetry&rsquo;s projects are generously sponsored with hosting
-by <a href="https://zulip.com">Zulip</a>, an open-source modern team
-chat app designed to keep both live and asynchronous conversations
-organized. Thanks to them, you can <a
-href="https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger">chat
-with our community</a>, ask questions, get inspiration, and share your
-own ideas.
+Deep Symmetry&rsquo;s projects are generously sponsored with hosting by [Zulip](https://zulip.com), an open-source modern team chat app designed to keep both live and asynchronous conversations organized. Thanks to them, you can [chat with our community](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger), ask questions, get inspiration, and share your own ideas.
+
+For more details, see [Get Help](GET_HELP.adoc).
 
 ## Usage
 
@@ -582,16 +578,27 @@ time to explore.
 
 ### Contributing in Other Ways
 
-If you have ideas, discoveries, or even code you’d like to share,
-that’s fantastic! Please take a look at the
-[guidelines](CONTRIBUTING.md) and get in touch!
+First of all, we would *love* to hear from you! We have no way of
+knowing who has discovered, explored, downloaded and tried Beat Link
+Trigger. So if you have, please write a quick note on the [Zulip
+stream](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger)
+to let us know! Even if it is only to explain why it didn&rsquo;t
+quite work for you.
+
+If you run into specific problems or have ideas of ways Beat Link Trigger could be better, and people in the chat community have suggested it is time to take this step, you can also [open an Issue](https://github.com/Deep-Symmetry/beat-link-trigger/issues) .
+
+And if you think you've come up with new or better way to do something, terrific! Please take a look at our [guidelines for contributing](CONTRIBUTING.md) and we can't wait to hear from you!
+
+> Please be mindful of our [Code of Conduct](CODE_OF_CONDUCT.md) to make
+> sure everyone feels welcome in the community.
+
 
 ## Licenses
 
 <a href="https://deepsymmetry.org"><img align="right" alt="Deep Symmetry"
  src="assets/DS-logo-github.png" width="250" height="150"></a>
 
-Copyright © 2016–2024 [Deep Symmetry, LLC](https://deepsymmetry.org)
+Copyright © 2016–2025 [Deep Symmetry, LLC](https://deepsymmetry.org)
 
 Distributed under the [Eclipse Public License
 2.0](https://opensource.org/licenses/EPL-2.0). By using this software
