@@ -76,7 +76,8 @@ public class OpusProvider {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public void setDatabaseKey(String key) {
-        databaseKey.set(key);
+        throw new UnsupportedOperationException("This is not yet ready for use");
+        // databaseKey.set(key);
     }
 
     /**
