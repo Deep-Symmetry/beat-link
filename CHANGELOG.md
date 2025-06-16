@@ -16,7 +16,7 @@ This change log follows the conventions of
 
 ### Fixed
 
-- A synchronization problem between the `DeviceFinder` and `VirtualCdj` would cause Beat Link to likely pick a device number that was already in use if you told it to self-assign and use a real device number. It’s unclear how long this problem has present, but it was serious.
+- A synchronization problem between the `DeviceFinder` and `VirtualCdj` would cause Beat Link to likely pick a device number that was already in use if you told it to self-assign and use a real device number. It’s unclear how long this problem existed, but it was serious.
 - An error in interpreting database export file format by the Crate Digger library could lead to some rows that were actually present in tables not being found.
 - We now suppress a lot of log noise that resulted from the fact that CDJ-3000s embed Kuvo gateways as virtual devices with number 25 and name NXS-GW, and fight over which player is hosting one.
 - We also suppress log noise from the `VirtualCdj` about unrecognized update packets, since that information is already better logged (with more information, and only one time per new packet type) elsewhere.
