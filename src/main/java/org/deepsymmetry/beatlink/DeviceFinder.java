@@ -107,6 +107,7 @@ public class DeviceFinder extends LifecycleParticipant {
         Map<DeviceReference, DeviceAnnouncement> copy = new HashMap<>(devices);
         for (Map.Entry<DeviceReference, DeviceAnnouncement> entry : copy.entrySet()) {
             if (now - entry.getValue().getTimestamp() > MAXIMUM_AGE) {
+                logger.debug("Expiring: {}", entry.getValue());
                 devices.remove(entry.getKey());
                 deliverLostAnnouncement(entry.getValue());
             }
@@ -186,6 +187,7 @@ public class DeviceFinder extends LifecycleParticipant {
      */
     private void processAnnouncement(DeviceAnnouncement announcement) {
         final boolean foundNewDevice = isDeviceNew(announcement);
+        logger.debug("Announcement (new? {}): {}", foundNewDevice, announcement);
         updateDevices(announcement);
         if (foundNewDevice) {
             deliverFoundAnnouncement(announcement);

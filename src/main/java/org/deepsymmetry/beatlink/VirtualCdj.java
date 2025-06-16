@@ -76,7 +76,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     @API(status = API.Status.STABLE)
     public boolean isRunning() {
-        return inOpusQuadCompatibilityMode() || (socket.get() != null && claimingNumber.get() == 0);
+        return inOpusQuadCompatibilityMode() || (socket.get() != null && !starting.get());
     }
 
     /**
@@ -601,16 +601,20 @@ public class VirtualCdj extends LifecycleParticipant {
      * @return true if there was a number available for us to try claiming
      */
     private boolean selfAssignDeviceNumber() {
-        final long now = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
         final long started = DeviceFinder.getInstance().getFirstDeviceTime();
-        if (now - started < SELF_ASSIGNMENT_WATCH_PERIOD) {
+        while (now - started < SELF_ASSIGNMENT_WATCH_PERIOD) {
+            final long sleepMillis = SELF_ASSIGNMENT_WATCH_PERIOD - (now - started);
+            logger.debug("Not waited long enough for devices; sleeping for {}ms", sleepMillis);
             try {
-                Thread.sleep(SELF_ASSIGNMENT_WATCH_PERIOD - (now - started));  // Sleep until we hit the right time
+                Thread.sleep(sleepMillis);  // Sleep until we hit the right time
             } catch (InterruptedException e) {
                 logger.warn("Interrupted waiting to self-assign device number, giving up.");
                 return false;
             }
+            now = System.currentTimeMillis();
         }
+        logger.debug("Self-assigning number {}ms after first device seen.", System.currentTimeMillis() - started);
 
         if (claimingNumber.get() == 0) {
             // We have not yet tried a number. If we are not supposed to use standard player numbers, make sure
@@ -625,6 +629,7 @@ public class VirtualCdj extends LifecycleParticipant {
         for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
             numbersUsed.add(device.getDeviceNumber());
         }
+        logger.debug("Player numbers seen on network: {}", numbersUsed);
 
         // Try next available player number less than mixers use.
         final int startingNumber = claimingNumber.get() + 1;
@@ -1067,6 +1072,12 @@ public class VirtualCdj extends LifecycleParticipant {
     };
 
     /**
+     * Keeps track of the fact that we are starting so that {@link #isRunning()} can return false even though
+     * we have a socket open while we are trying to self-assign a device number.
+     */
+    private final AtomicBoolean starting = new AtomicBoolean(false);
+
+    /**
      * <p>In normal operation (with Pro DJ Link devices), start announcing ourselves and listening for status packets.
      * If, however, we find an Opus Quad on the network, start {@link VirtualRekordbox} and operate in a more
      * limited Opus Quad compatibility mode, acting as a proxy for packets that it is responsible for receiving.
@@ -1081,44 +1092,49 @@ public class VirtualCdj extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public synchronized boolean start() throws Exception {
         if (!isRunning()) {
+            try {
+                starting.set(true);
 
-            // Set up so we know we have to shut down if the DeviceFinder shuts down.
-            DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);
+                // Set up so we know we have to shut down if the DeviceFinder shuts down.
+                DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);
 
-            // Find some DJ Link devices, so we can figure out the interface and address to use to talk to them
-            DeviceFinder.getInstance().start();
-            for (int i = 0; DeviceFinder.getInstance().getCurrentDevices().isEmpty() && i < 20; i++) {
-                try {
-                    //noinspection BusyWait
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    logger.warn("Interrupted waiting for devices, giving up", e);
+                // Find some DJ Link devices, so we can figure out the interface and address to use to talk to them
+                DeviceFinder.getInstance().start();
+                for (int i = 0; DeviceFinder.getInstance().getCurrentDevices().isEmpty() && i < 200; i++) {
+                    try {
+                        //noinspection BusyWait
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        logger.warn("Interrupted waiting for devices, giving up", e);
+                        return false;
+                    }
+                }
+
+                if (DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
+                    logger.warn("No DJ Link devices found, giving up");
                     return false;
                 }
-            }
 
-            if (DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
-                logger.warn("No DJ Link devices found, giving up");
-                return false;
-            }
-
-            // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
-            for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
-                if (device.isOpusQuad) {
-                    proxyingForVirtualRekordbox.set(true);
-                    VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
-                    final boolean success = VirtualRekordbox.getInstance().start();
-                    if (success) {
-                        // Copy values from VirtualRekordbox that we depend on for various internal calculations.
-                        matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
-                        matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
+                // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
+                for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
+                    if (device.isOpusQuad) {
+                        proxyingForVirtualRekordbox.set(true);
+                        VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
+                        final boolean success = VirtualRekordbox.getInstance().start();
+                        if (success) {
+                            // Copy values from VirtualRekordbox that we depend on for various internal calculations.
+                            matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
+                            matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
+                        }
+                        return success;
                     }
-                    return success;
                 }
-            }
 
-            proxyingForVirtualRekordbox.set(false);
-            return createVirtualCdj();
+                proxyingForVirtualRekordbox.set(false);
+                return createVirtualCdj();
+            } finally {
+                starting.set(false);
+            }
         }
         return true;  // We were already active
     }
