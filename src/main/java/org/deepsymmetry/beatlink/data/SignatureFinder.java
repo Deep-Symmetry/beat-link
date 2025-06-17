@@ -291,10 +291,11 @@ public class SignatureFinder extends LifecycleParticipant {
      * @param title the track title
      * @param artist the track artist, or {@code null} if there is no artist
      * @param duration the duration of the track in seconds
-     * @param waveformDetail the monochrome waveform detail of the track
+     * @param waveformDetail the RGB waveform detail of the track
      * @param beatGrid the beat grid of the track
      *
      * @return the SHA-1 hash of all the arguments supplied, or {@code null} if any either {@code waveFormDetail} or {@code beatGrid} were {@code null}
+     * @throws IllegalArgumentException if {@code waveFormDetail} is not an RGB-style waveform
      */
     @API(status = API.Status.STABLE)
     public String computeTrackSignature(final String title, final SearchableItem artist, final int duration,
@@ -302,6 +303,11 @@ public class SignatureFinder extends LifecycleParticipant {
         final String safeTitle = (title == null)? "" : title;
         final String artistName = (artist == null)? "[no artist]" : artist.label;
         try {
+            // Validate that we were given the right kind of waveform.
+            if (waveformDetail.style != WaveformFinder.WaveformStyle.RGB) {
+                throw new IllegalArgumentException("Signatures can only be computed from RGB waveform details.");
+            }
+
             // Compute the SHA-1 hash of our fields
             MessageDigest digest = MessageDigest.getInstance("SHA1");
             digest.update(safeTitle.getBytes(StandardCharsets.UTF_8));
