@@ -958,6 +958,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
         // Set up our buffer and packet to receive incoming messages.
         final Thread receiver = createStatusReceiver();
+        starting.set(false);
         receiver.start();
 
         // Create the thread which announces our participation in the DJ Link network, to request update packets
