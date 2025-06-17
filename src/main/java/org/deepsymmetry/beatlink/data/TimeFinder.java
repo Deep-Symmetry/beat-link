@@ -616,22 +616,58 @@ public class TimeFinder extends LifecycleParticipant {
     }
 
     /**
+     * Tracks whether we have been told to disregard precise position packets from devices that send them,
+     * to help with jitter while we are working on a better smoothing approach.
+     */
+    private final AtomicBoolean usePrecisePositonPackets = new AtomicBoolean(true);
+
+    /**
+     * Control whether we should pay attention to precise position packets from devices (like the CDJ-3000) that
+     * send them. The default is to use them to tightly track playback, but that is currently resulting in a
+     * problematic amount of jitter when synchronizing with other audio sources via Ableton Link. Ignoring these
+     * packets will treat CDJ-3000s like other player hardware, where only beat packets are trusted as position
+     * anchors.
+     *
+     * @param use whether precise position packets should be used to help track the playback position
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public void setUsePrecisePositionPackets(boolean use) {
+        usePrecisePositonPackets.set(use);
+    }
+
+    /**
+     * Check whether we are paying attention to precise position packets from devices (like the CDJ-3000) that
+     * send them. The default is to use them to tightly track playback, but that is currently resulting in a
+     * problematic amount of jitter when synchronizing with other audio sources via Ableton Link. Ignoring these
+     * packets will treat CDJ-3000s like other player hardware, where only beat packets are trusted as position
+     * anchors.
+     *
+     * @return an indication of whether precise position packets are being taken into consideration for position tracking
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public boolean isUsingPrecisePositionPackets() {
+        return usePrecisePositonPackets.get();
+    }
+
+    /**
      * Reacts to precise position updates to update the definitive, precise position of the reporting player.
      */
     private final PrecisePositionListener positionListener = position -> {
-        final int device = position.getDeviceNumber();
-        if (device < 16) {  // We only care about CDJs, if other devices ever send these.
-            updates.put(device, position);
-            final DeviceUpdate lastStatus = VirtualCdj.getInstance().getLatestStatusFor(device);
-            final boolean playing = lastStatus instanceof CdjStatus && ((CdjStatus) lastStatus).isPlaying();
-            final boolean reverse = lastStatus instanceof CdjStatus && ((CdjStatus) lastStatus).isPlayingBackwards();
-            final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(position);
-            final int beatNumber = (beatGrid == null) ? 0 : beatGrid.findBeatAtTime(position.getPlaybackPosition());
-            final TrackPositionUpdate newPosition = new TrackPositionUpdate(position.getTimestamp(),
-                    position.getPlaybackPosition(), beatNumber, true, playing,
-                    Util.pitchToMultiplier(position.getPitch()), reverse, beatGrid, true, false);
-            positions.put(device, newPosition);
-            updateListenersIfNeeded(device, newPosition, null);
+        if (usePrecisePositonPackets.get()) {
+            final int device = position.getDeviceNumber();
+            if (device < 16) {  // We only care about CDJs, if other devices ever send these.
+                updates.put(device, position);
+                final DeviceUpdate lastStatus = VirtualCdj.getInstance().getLatestStatusFor(device);
+                final boolean playing = lastStatus instanceof CdjStatus && ((CdjStatus) lastStatus).isPlaying();
+                final boolean reverse = lastStatus instanceof CdjStatus && ((CdjStatus) lastStatus).isPlayingBackwards();
+                final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(position);
+                final int beatNumber = (beatGrid == null) ? 0 : beatGrid.findBeatAtTime(position.getPlaybackPosition());
+                final TrackPositionUpdate newPosition = new TrackPositionUpdate(position.getTimestamp(),
+                        position.getPlaybackPosition(), beatNumber, true, playing,
+                        Util.pitchToMultiplier(position.getPitch()), reverse, beatGrid, true, false);
+                positions.put(device, newPosition);
+                updateListenersIfNeeded(device, newPosition, null);
+            }
         }
     };
 

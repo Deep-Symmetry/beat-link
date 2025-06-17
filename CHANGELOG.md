@@ -12,6 +12,9 @@ This change log follows the conventions of
 - Support for the three-band waveform style introduced with the CDJ-3000.
 - The ability to proxy metadata from mounted archive files corresponding to USB media mounted in the Opus Quad, which cannot itself provide that information.
 - We now know how to interpret the byte within device announcement packets that report the number of peer devices seen by that device. The `DeviceAnnouncement` class now provides access to this information.
+- A setting has been added to the `TimeFinder` to prevent it from using precise position packets sent by CDJ-3000s.
+  They help keep tighter synchronization with playback position, but currently seem to exhibit too much jitter for use when synchronizing with audio sources over Ableton Link.
+  This setting is a workaround until a smoothing solution is developed.
 - When we unexpectedly are unable to route a message to a CDJ, we now log extensive troubleshooting information about the address we are trying to send to and the state of the network interfaces at that moment.
 
 ### Fixed
