@@ -302,7 +302,8 @@ public class ConnectionManager extends LifecycleParticipant {
                     try {
                         Thread.sleep(1000 * tries);  // Give the player more time to be ready, it may be booting.
                     } catch (InterruptedException e) {
-                        logger.warn("Interrupted while trying to retry dbserver port query?");
+                        logger.info("Interrupted while trying to retry dbserver port query, must be shutting down.");
+                        return;
                     }
                 }
 
@@ -321,7 +322,9 @@ public class ConnectionManager extends LifecycleParticipant {
                         if (portReturned == 65535) {
                             logger.info("Player {} reported dbserver port of {}, not yet ready?", announcement.getDeviceNumber(), portReturned);
                         } else {
-                            dbServerPorts.put(announcement.getAddress(), portReturned);
+                            if (isRunning()) {  // Bail if we were shut down before we received a response.
+                                dbServerPorts.put(announcement.getAddress(), portReturned);
+                            }
                             return;  // Success!
                         }
                     }
@@ -537,6 +540,9 @@ public class ConnectionManager extends LifecycleParticipant {
         if (isRunning()) {
             running.set(false);
             DeviceFinder.getInstance().removeDeviceAnnouncementListener(announcementListener);
+            for (Thread thread : activeQueryThreads.values()) {
+                thread.interrupt();  // Cancel any ongoing attempts to find server ports.
+            }
             dbServerPorts.clear();
             for (Client client : openClients.values()) {
                 try {
