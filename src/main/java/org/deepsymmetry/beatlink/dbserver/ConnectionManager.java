@@ -252,7 +252,7 @@ public class ConnectionManager extends LifecycleParticipant {
             }
             logger.debug("Processing device found, number: {}, name: {}", announcement.getDeviceNumber(), announcement.getDeviceName());
             final Thread queryThread = new Thread(() -> requestPlayerDBServerPort(announcement));
-            if (activeQueryThreads.putIfAbsent(announcement.getAddress(), queryThread) != null) {
+            if (activeQueryThreads.putIfAbsent(announcement.getAddress(), queryThread) == null) {
                 // We were not already querying a device at this address, so we can start our thread.
                 // Otherwise, it will just get garbage collected without ever running.
                 queryThread.start();
