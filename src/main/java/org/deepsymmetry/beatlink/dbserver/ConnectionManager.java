@@ -319,14 +319,14 @@ public class ConnectionManager extends LifecycleParticipant {
                     byte[] response = readResponseWithExpectedSize(is);
                     if (response.length == 2) {
                         final int portReturned = (int)Util.bytesToNumber(response, 0, 2);
-                        if (portReturned == 65535) {
-                            logger.info("Player {} reported dbserver port of {}, not yet ready?", announcement.getDeviceNumber(), portReturned);
-                        } else {
-                            if (isRunning()) {  // Bail if we were shut down before we received a response.
-                                dbServerPorts.put(announcement.getAddress(), portReturned);
-                            }
-                            return;  // Success!
+                        if (logger.isInfoEnabled()) {
+                            final String suffix = (portReturned == 65535? ", not yet ready?" : ".");
+                            logger.info("Player {} reported dbserver port of {}{}", announcement.getDeviceNumber(), portReturned, suffix);
                         }
+                        if (isRunning()) {  // Bail if we were shut down before we received a response.
+                            dbServerPorts.put(announcement.getAddress(), portReturned);
+                        }
+                        return;  // Success!
                     }
                 } catch (java.net.ConnectException ce) {
                     logger.info("Player {} doesn't answer rekordbox port queries, connection refused, not yet ready?", announcement.getDeviceNumber());
