@@ -295,7 +295,8 @@ public class ConnectionManager extends LifecycleParticipant {
      */
     private void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
         try {
-            logger.debug("Trying to determine database server port for device number {}", announcement.getDeviceNumber());
+            logger.debug("Trying to determine database server port for device {} at IP address {}", announcement.getDeviceNumber(),
+                    announcement.getAddress().getHostAddress());
             for (int tries = 0; tries < 4; ++tries) {
 
                 if (tries > 0) {
@@ -321,7 +322,8 @@ public class ConnectionManager extends LifecycleParticipant {
                         final int portReturned = (int)Util.bytesToNumber(response, 0, 2);
                         if (logger.isInfoEnabled()) {
                             final String suffix = (portReturned == 65535? ", not yet ready?" : ".");
-                            logger.info("Player {} reported dbserver port of {}{}", announcement.getDeviceNumber(), portReturned, suffix);
+                            logger.info("Device {} at address {} reported dbserver port of {}{}", announcement.getDeviceNumber(),
+                                    announcement.getAddress().getHostAddress(), portReturned, suffix);
                         }
                         if (isRunning()) {  // Bail if we were shut down before we received a response.
                             dbServerPorts.put(announcement.getAddress(), portReturned);
@@ -329,7 +331,8 @@ public class ConnectionManager extends LifecycleParticipant {
                         return;  // Success!
                     }
                 } catch (java.net.ConnectException ce) {
-                    logger.info("Player {} doesn't answer rekordbox port queries, connection refused, not yet ready?", announcement.getDeviceNumber());
+                    logger.info("Device {} at address {} doesn't answer rekordbox port queries, connection refused, not yet ready?", announcement.getDeviceNumber(),
+                            announcement.getAddress().getHostAddress());
                 } catch (Throwable t) {
                     logger.warn("Problem requesting database server port number", t);
                 } finally {
@@ -343,10 +346,11 @@ public class ConnectionManager extends LifecycleParticipant {
                 }
             }
 
-            logger.info("Player {} never responded with a valid rekordbox dbserver port. Won't attempt to request metadata.",
-                    announcement.getDeviceNumber());
+            logger.info("Device {} at address {} never responded with a valid rekordbox dbserver port. Won't attempt to request metadata.",
+                    announcement.getDeviceNumber(), announcement.getAddress().getHostAddress());
         } catch (Throwable t) {
-            logger.error("Problem querying for database server port on device {}:", announcement.getDeviceNumber(), t);
+            logger.error("Problem querying for database server port on device {} at address {}:", announcement.getDeviceNumber(),
+                    announcement.getAddress().getHostAddress(), t);
         } finally {
             // No matter how we exit, record the fact that there is no longer a query active for this address.
             activeQueryThreads.remove(announcement.getAddress());
