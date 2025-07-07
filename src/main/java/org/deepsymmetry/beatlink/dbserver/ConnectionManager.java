@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
@@ -205,8 +206,10 @@ public class ConnectionManager extends LifecycleParticipant {
 
     /**
      * Keeps track of the database server ports of all the players we have seen on the network.
+     * They are grouped by IP address, because players in compound devices like the XDJ-XZ and
+     * XDJ-AZ share a single dbserver instance.
      */
-    private final Map<Integer, Integer> dbServerPorts = new ConcurrentHashMap<>();
+    private final Map<InetAddress, Integer> dbServerPorts = new ConcurrentHashMap<>();
 
     /**
      * Look up the database server port reported by a given player. You should not use this port directly; instead
@@ -221,7 +224,11 @@ public class ConnectionManager extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public int getPlayerDBServerPort(int player) {
         ensureRunning();
-        Integer result = dbServerPorts.get(player);
+        final DeviceAnnouncement announcement = DeviceFinder.getInstance().getLatestAnnouncementFrom(player);
+        if (announcement == null) {
+            return -1;
+        }
+        final Integer result = dbServerPorts.get(announcement.getAddress());
         if (result == null) {
             return -1;
         }
@@ -244,7 +251,12 @@ public class ConnectionManager extends LifecycleParticipant {
                 return;
             }
             logger.debug("Processing device found, number: {}, name: {}", announcement.getDeviceNumber(), announcement.getDeviceName());
-            new Thread(() -> requestPlayerDBServerPort(announcement)).start();
+            final Thread queryThread = new Thread(() -> requestPlayerDBServerPort(announcement));
+            if (activeQueryThreads.putIfAbsent(announcement.getAddress(), queryThread) == null) {
+                // We were not already querying a device at this address, so we can start our thread.
+                // Otherwise, it will just get garbage collected without ever running.
+                queryThread.start();
+            }
         }
 
         @Override
@@ -253,20 +265,9 @@ public class ConnectionManager extends LifecycleParticipant {
                 logger.debug("Ignoring arrival of Kuvo gateway, which fight each other and come and go constantly, especially in CDJ-3000s.");
                 return;
             }
-            dbServerPorts.remove(announcement.getDeviceNumber());
+            dbServerPorts.remove(announcement.getAddress());
         }
     };
-
-
-    /**
-     * Record the database server port reported by a player.
-     *
-     * @param player the player number whose server port has been determined.
-     * @param port the port number on which the player's database server is running.
-     */
-    private void setPlayerDBServerPort(int player, int port) {
-        dbServerPorts.put(player, port);
-    }
 
     /**
      * The port on which we can request information about a player, including the port on which its database server
@@ -281,58 +282,79 @@ public class ConnectionManager extends LifecycleParticipant {
     };
 
     /**
+     * Keeps track of threads currently querying for database server ports, indexed by the address of the device
+     * being queried, so we can make sure we only ask once, even when multiple devices share the same address.
+     * Also allows us to interrupt those threads when we are shutting down.
+     */
+    private final Map<InetAddress,Thread> activeQueryThreads = new ConcurrentHashMap<>();
+
+    /**
      * Query a player to determine the port on which its database server is running.
      *
      * @param announcement the device announcement with which we detected a new player on the network.
      */
     private void requestPlayerDBServerPort(DeviceAnnouncement announcement) {
-        // logger.info("Trying to determine database server port for device number " + announcement.getNumber());
-        for (int tries = 0; tries < 4; ++tries) {
+        try {
+            logger.debug("Trying to determine database server port for device {} at IP address {}", announcement.getDeviceNumber(),
+                    announcement.getAddress().getHostAddress());
+            for (int tries = 0; tries < 4; ++tries) {
 
-            if (tries > 0) {
-                try {
-                    Thread.sleep(1000 * tries);  // Give the player more time to be ready, it may be booting.
-                } catch (InterruptedException e) {
-                    logger.warn("Interrupted while trying to retry dbserver port query?");
+                if (tries > 0) {
+                    try {
+                        Thread.sleep(1000 * tries);  // Give the player more time to be ready, it may be booting.
+                    } catch (InterruptedException e) {
+                        logger.info("Interrupted while trying to retry dbserver port query, must be shutting down.");
+                        return;
+                    }
                 }
-            }
 
-            Socket socket = null;
-            try {
-                InetSocketAddress address = new InetSocketAddress(announcement.getAddress(), DB_SERVER_QUERY_PORT);
-                socket = new Socket();
-                socket.connect(address, socketTimeout.get());
-                InputStream is = socket.getInputStream();
-                OutputStream os = socket.getOutputStream();
-                socket.setSoTimeout(socketTimeout.get());
-                os.write(DB_SERVER_QUERY_PACKET);
-                byte[] response = readResponseWithExpectedSize(is);
-                if (response.length == 2) {
-                    final int portReturned = (int)Util.bytesToNumber(response, 0, 2);
-                    if (portReturned == 65535) {
-                        logger.info("Player {} reported dbserver port of {}, not yet ready?", announcement.getDeviceNumber(), portReturned);
-                    } else {
-                        setPlayerDBServerPort(announcement.getDeviceNumber(), portReturned);
+                Socket socket = null;
+                try {
+                    InetSocketAddress address = new InetSocketAddress(announcement.getAddress(), DB_SERVER_QUERY_PORT);
+                    socket = new Socket();
+                    socket.connect(address, socketTimeout.get());
+                    InputStream is = socket.getInputStream();
+                    OutputStream os = socket.getOutputStream();
+                    socket.setSoTimeout(socketTimeout.get());
+                    os.write(DB_SERVER_QUERY_PACKET);
+                    byte[] response = readResponseWithExpectedSize(is);
+                    if (response.length == 2) {
+                        final int portReturned = (int)Util.bytesToNumber(response, 0, 2);
+                        if (logger.isInfoEnabled()) {
+                            final String suffix = (portReturned == 65535? ", not yet ready?" : ".");
+                            logger.info("Device {} at address {} reported dbserver port of {}{}", announcement.getDeviceNumber(),
+                                    announcement.getAddress().getHostAddress(), portReturned, suffix);
+                        }
+                        if (isRunning()) {  // Bail if we were shut down before we received a response.
+                            dbServerPorts.put(announcement.getAddress(), portReturned);
+                        }
                         return;  // Success!
                     }
-                }
-            } catch (java.net.ConnectException ce) {
-                logger.info("Player {} doesn't answer rekordbox port queries, connection refused, not yet ready?", announcement.getDeviceNumber());
-            } catch (Throwable t) {
-                logger.warn("Problem requesting database server port number", t);
-            } finally {
-                if (socket != null) {
-                    try {
-                        socket.close();
-                    } catch (IOException e) {
-                        logger.warn("Problem closing database server port request socket", e);
+                } catch (java.net.ConnectException ce) {
+                    logger.info("Device {} at address {} doesn't answer rekordbox port queries, connection refused, not yet ready?", announcement.getDeviceNumber(),
+                            announcement.getAddress().getHostAddress());
+                } catch (Throwable t) {
+                    logger.warn("Problem requesting database server port number", t);
+                } finally {
+                    if (socket != null) {
+                        try {
+                            socket.close();
+                        } catch (IOException e) {
+                            logger.warn("Problem closing database server port request socket", e);
+                        }
                     }
                 }
             }
-        }
 
-        logger.info("Player {} never responded with a valid rekordbox dbserver port. Won't attempt to request metadata.",
-                announcement.getDeviceNumber());
+            logger.info("Device {} at address {} never responded with a valid rekordbox dbserver port. Won't attempt to request metadata.",
+                    announcement.getDeviceNumber(), announcement.getAddress().getHostAddress());
+        } catch (Throwable t) {
+            logger.error("Problem querying for database server port on device {} at address {}:", announcement.getDeviceNumber(),
+                    announcement.getAddress().getHostAddress(), t);
+        } finally {
+            // No matter how we exit, record the fact that there is no longer a query active for this address.
+            activeQueryThreads.remove(announcement.getAddress());
+        }
     }
 
     /**
@@ -522,6 +544,9 @@ public class ConnectionManager extends LifecycleParticipant {
         if (isRunning()) {
             running.set(false);
             DeviceFinder.getInstance().removeDeviceAnnouncementListener(announcementListener);
+            for (Thread thread : activeQueryThreads.values()) {
+                thread.interrupt();  // Cancel any ongoing attempts to find server ports.
+            }
             dbServerPorts.clear();
             for (Client client : openClients.values()) {
                 try {
