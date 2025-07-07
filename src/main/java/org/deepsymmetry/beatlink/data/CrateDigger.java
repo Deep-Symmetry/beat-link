@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -321,6 +323,26 @@ public class CrateDigger {
     }
 
     /**
+     * Identifies the file that will hold analysis information for a particular track.
+     *
+     * @param track the track whose extended analysis file is desired
+     * @param database the parsed database export from which the analysis path can be determined
+     * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type file to be retrieved
+     *
+     * @return the file that should be used to hold this analysis
+     */
+    private File trackAnalyisFile(DataReference track, Database database, String extension) {
+        final RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
+        if (trackRow != null) {
+            return new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
+                    "track-" + track.rekordboxId + "-anlz" + extension.toLowerCase());
+        }
+
+        logger.warn("Unable to find track {} in database {}", track, database);
+        return null;
+    }
+
+    /**
      * Find an analysis file for the specified track, with the specified file extension, downloading it from the player
      * if we have not already done so. Be sure to call {@code _io().close()} when you are done using the returned struct.
      *
@@ -331,12 +353,10 @@ public class CrateDigger {
      * @return the parsed file containing the track analysis
      */
     private RekordboxAnlz findTrackAnalysis(DataReference track, Database database, String extension) {
-        File file = null;
+        final File file = trackAnalyisFile(track, database, extension);
         try {
-            final RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
-            if (trackRow != null) {
-                file = new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
-                        "track-" + track.rekordboxId + "-anlz" + extension.toLowerCase());
+            if (file != null) {
+                final RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
                 final String filePath = file.getCanonicalPath();
                 final String analyzePath = Database.getText(trackRow.analyzePath());
                 final String requestedPath = analyzePath.replaceAll("\\.DAT$", extension.toUpperCase());
@@ -357,17 +377,41 @@ public class CrateDigger {
                 } finally {
                     Util.freeNamedLock(filePath);
                 }
-            } else {
-                logger.warn("Unable to find track {} in database {}", track, database);
             }
         } catch (Exception e) {
             logger.error("Problem fetching analysis file with extension {} for track {} from database {}", extension.toUpperCase(), track, database, e);
-            if (file != null) {
-                //noinspection ResultOfMethodCallIgnored
-                file.delete();
-            }
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
         }
         return null;
+    }
+
+    /**
+     * Capture a log copy of a track analysis for which a data problem has been identified, to assist
+     * in further research.
+     *
+     * @param track the track whose analysis file is to be logged
+     * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type of file to be logged
+     * @param reason a description of why the file is being logged, for the application log
+     * @param logDir the directory into which the file should be logged
+     *
+     * @throws IOException if there is a problem copying the analysis file to the log directory
+     * @throws IllegalArgumentException if the track or its analysis file can't be found
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public void logTrackAnalysis(DataReference track, String extension, String reason, File logDir) throws IOException {
+        final Database database = findDatabase(track);
+        if (database == null) {
+            throw new IllegalArgumentException("No parsed database found for track " + track);
+        }
+
+        final File analysis = trackAnalyisFile(track, database, extension);
+        if (analysis == null || !analysis.canRead()) {
+            throw new IllegalArgumentException("No analysis file exists for track " + track);
+        }
+
+        logger.info("Copying {} to analysis problem log directory because {}.", analysis.getName(), reason);
+        Files.copy(analysis.toPath(), logDir.toPath().resolve(analysis.getName()), StandardCopyOption.REPLACE_EXISTING);
     }
 
     /**
