@@ -83,9 +83,9 @@ public class MetadataFinder extends LifecycleParticipant {
      */
     private TrackMetadata requestMetadataInternal(final DataReference track, final CdjStatus.TrackType trackType,
                                                   final boolean failIfPassive) {
-        // First see if any registered metadata providers can offer it for us.
+        // First see if any registered metadata providers can offer it for us, provided it is a rekordbox track.
         final MediaDetails sourceDetails = getMediaDetailsFor(track.getSlotReference());
-        if (sourceDetails != null) {
+        if (trackType == CdjStatus.TrackType.REKORDBOX && sourceDetails != null) {
             final TrackMetadata provided = allMetadataProviders.getTrackMetadata(sourceDetails, track);
             if (provided != null) {
                 return provided;
@@ -148,7 +148,7 @@ public class MetadataFinder extends LifecycleParticipant {
 
                 // Gather the cue list and all the metadata menu items
                 final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, trackType, response);
-                final CueList cueList = getCueList(track.rekordboxId, track.slot, client);
+                final CueList cueList = (trackType == CdjStatus.TrackType.REKORDBOX) ? getCueList(track.rekordboxId, track.slot, client) : null;
                 return new TrackMetadata(track, trackType, items, cueList);
             } finally {
                 client.unlockForMenuOperations();
@@ -1039,6 +1039,9 @@ public class MetadataFinder extends LifecycleParticipant {
                             try {
                                 TrackMetadata data = requestMetadataInternal(trackReference, update.getTrackType(), true);
                                 if (data != null) {
+                                    if (update.getTrackType() != CdjStatus.TrackType.REKORDBOX) {
+                                        logger.warn("Received metadata response for track of type {} from {}: {}", update.getTrackType(), trackReference, data);
+                                    }
                                     updateMetadata(update, data);
                                 }
                             } catch (Exception e) {
