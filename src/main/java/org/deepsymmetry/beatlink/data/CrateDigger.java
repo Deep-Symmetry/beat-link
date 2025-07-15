@@ -234,6 +234,7 @@ public class CrateDigger {
         public void detailsAvailable(final MediaDetails details) {
             if (isRunning() && details.mediaType == CdjStatus.TrackType.REKORDBOX &&
                     !VirtualRekordbox.getInstance().isRunning() &&  // If we are dealing with an Opus Quad, we can’t download files.
+                    !VirtualCdjOpus.getInstance().isRunning() &&  // Also check VirtualCdjOpus for Opus Quad mode.
                     details.slotReference.slot != CdjStatus.TrackSourceSlot.COLLECTION &&  // We always use dbserver to talk to rekordbox.
                     !databases.containsKey(details.slotReference) &&
                     activeRequests.add(details.slotReference)) {

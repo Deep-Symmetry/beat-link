@@ -1041,7 +1041,9 @@ public class MetadataFinder extends LifecycleParticipant {
                 }
 
                 // Not in the hot cache so try actually retrieving it, if possible.
-                if (ConnectionManager.getInstance().getPlayerDBServerPort(update.getTrackSourcePlayer()) > 0 || VirtualRekordbox.getInstance().isRunning()) {
+                if (ConnectionManager.getInstance().getPlayerDBServerPort(update.getTrackSourcePlayer()) > 0 || 
+                    VirtualRekordbox.getInstance().isRunning() || 
+                    VirtualCdjOpus.getInstance().isRunning()) {
                     if (activeRequests.add(update.getTrackSourcePlayer())) {
                         // We had to make sure we were not already asking for this track.
                         clearDeck(update);  // We won't know what it is until our request completes.
