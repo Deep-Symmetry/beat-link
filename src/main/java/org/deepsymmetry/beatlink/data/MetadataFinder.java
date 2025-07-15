@@ -1039,9 +1039,6 @@ public class MetadataFinder extends LifecycleParticipant {
                             try {
                                 TrackMetadata data = requestMetadataInternal(trackReference, update.getTrackType(), true);
                                 if (data != null) {
-                                    if (update.getTrackType() != CdjStatus.TrackType.REKORDBOX) {
-                                        logger.warn("Received metadata response for track of type {} from {}: {}", update.getTrackType(), trackReference, data);
-                                    }
                                     updateMetadata(update, data);
                                 }
                             } catch (Exception e) {
