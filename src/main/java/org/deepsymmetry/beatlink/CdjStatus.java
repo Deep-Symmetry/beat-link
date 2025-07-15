@@ -687,7 +687,14 @@ public class CdjStatus extends DeviceUpdate {
             // sourcePlayer variable will be changed to the slot number, it's not the deck number
             int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
             int player = Util.translateOpusPlayerNumbers(trackSourceByte);
-            if (sourcePlayer != 0) {
+
+            // TODO: Need to figure out how to check if we are in MODE 2
+            boolean inModeTwo = true;
+
+            if (inModeTwo) {
+                sourcePlayer = 1;
+            }
+            else if (sourcePlayer != 0) {
                 final SlotReference matchedSourceSlot = VirtualRekordbox.getInstance().findMatchedTrackSourceSlotForPlayer(deviceNumber);
                 if (matchedSourceSlot != null) {
                     sourcePlayer = matchedSourceSlot.player;
