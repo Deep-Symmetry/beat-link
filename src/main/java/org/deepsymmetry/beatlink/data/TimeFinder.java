@@ -566,8 +566,8 @@ public class TimeFinder extends LifecycleParticipant {
             updates.put(device, beat);
             // logger.info("Beat: " + beat.getBeatWithinBar());
             final BeatGrid beatGrid = BeatGridFinder.getInstance().getLatestBeatGridFor(beat);
+            TrackPositionUpdate lastPosition = positions.get(device);
             if (beatGrid != null) {
-                TrackPositionUpdate lastPosition = positions.get(device);
                 int beatNumber;
                 if (lastPosition == null || lastPosition.beatGrid != beatGrid) {
                     // We don’t handle beat packets received before any status packets for the player. This will
@@ -594,8 +594,13 @@ public class TimeFinder extends LifecycleParticipant {
                 positions.put(device, newPosition);
                 updateListenersIfNeeded(device, newPosition, beat);
             } else {
-                positions.remove(device);  // We can't determine where the player is.
-                updateListenersIfNeeded(device, null, beat);
+                // We can't determine where the player is. That's ok if it is sending us precise position packets,
+                // (e.g. a CDJ-3000 playing an unanalyzed track), we will just wait for the next one in that case.
+                // Otherwise, clear our notion of the playback position.
+                if (!lastPosition.precise) {
+                    positions.remove(device);
+                    updateListenersIfNeeded(device, null, beat);
+                }
             }
         }
     };

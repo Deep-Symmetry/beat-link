@@ -15,6 +15,7 @@ This change log follows the conventions of
 - A setting has been added to the `TimeFinder` to prevent it from using precise position packets sent by CDJ-3000s.
   They help keep tighter synchronization with playback position, but currently seem to exhibit too much jitter for use when synchronizing with audio sources over Ableton Link.
   This setting is a workaround until a smoothing solution is developed.
+- When we are using precise position packets, though, we now do a better job of tracking the position of CDJ-3000s that are playing unanalyzed tracks (and which thus have no beat grids).
 - When we unexpectedly are unable to route a message to a CDJ, we now log extensive troubleshooting information about the address we are trying to send to and the state of the network interfaces at that moment.
 
 ### Fixed
