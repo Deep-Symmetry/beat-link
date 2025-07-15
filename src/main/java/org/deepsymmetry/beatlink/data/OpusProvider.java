@@ -88,18 +88,17 @@ public class OpusProvider {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public void setDatabaseKey(String key) {
-        throw new UnsupportedOperationException("This is not yet ready for use");
-//        databaseKey.set(key);
-//        if (key != null) {
-//            prefs.put("databaseKey", key);
-//        } else {
-//            prefs.remove("databaseKey");
-//        }
-//        try {
-//            prefs.flush();
-//        } catch (BackingStoreException e) {
-//            logger.error("Problem updating stored preferences", e);
-//        }
+        databaseKey.set(key);
+        if (key != null) {
+            prefs.put("databaseKey", key);
+        } else {
+            prefs.remove("databaseKey");
+        }
+        try {
+            prefs.flush();
+        } catch (BackingStoreException e) {
+            logger.error("Problem updating stored preferences", e);
+        }
     }
 
     /**
@@ -294,7 +293,12 @@ public class OpusProvider {
             }
 
             // Clear player caches as matching data is not applicable anymore.
-            VirtualRekordbox.getInstance().clearPlayerCaches(usbSlotNumber);
+            if (VirtualRekordbox.getInstance().isRunning()) {
+                VirtualRekordbox.getInstance().clearPlayerCaches(usbSlotNumber);
+            }
+            if (VirtualCdjOpus.getInstance().isRunning()) {
+                VirtualCdjOpus.getInstance().clearPlayerCaches(usbSlotNumber);
+            }
 
             // Clean up PSSI mappings for this USB slot.
             for (Set<DeviceSqlRekordboxIdAndSlot> matches : pssiToDeviceSqlRekordboxIds.values()) {
@@ -391,6 +395,10 @@ public class OpusProvider {
 
                 logger.info("pssiToDeviceSqlRekordboxIds now contains {} entries", pssiToDeviceSqlRekordboxIds.size());
                 logger.info("Attached DeviceSQL metadata archive {} for slot {}.", filesystem, usbSlotNumber);
+
+                // Request initial PSSIs for track matching. After this we will request PSSI data on song change.
+                VirtualRekordbox.getInstance().requestPSSI();
+
                 } catch (Exception e) {
                     filesystem.close();
                     throw new IOException("Problem reading export.pdb from metadata archive " + archiveFile, e);
@@ -399,9 +407,6 @@ public class OpusProvider {
 
         // We successfully opened the archive with one of the two database formats.
         usbArchiveMap.put(usbSlotNumber, openedArchive);
-
-        // Request initial PSSIs for track matching. After this we will request PSSI data on song change.
-        VirtualRekordbox.getInstance().requestPSSI();
 
         // Send a media update so clients know this media is mounted.
         try {
