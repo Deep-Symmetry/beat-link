@@ -226,16 +226,17 @@ public class BeatGridFinder extends LifecycleParticipant {
      * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param trackReference uniquely identifies the desired beat grid
+     * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
      *                      beat grid updates will use available caches and downloaded metadata exports only
      *
      * @return the beat grid found, if any
      */
-    private BeatGrid requestBeatGridInternal(final DataReference trackReference, final boolean failIfPassive) {
+    private BeatGrid requestBeatGridInternal(final DataReference trackReference, final CdjStatus.TrackType trackType, final boolean failIfPassive) {
 
         // First see if any registered metadata providers can offer it to us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
-        if (sourceDetails !=  null) {
+        if (sourceDetails !=  null && trackType == CdjStatus.TrackType.REKORDBOX) {
             final BeatGrid provided = MetadataFinder.getInstance().allMetadataProviders.getBeatGrid(sourceDetails, trackReference);
             if (provided != null) {
                 return provided;
@@ -250,7 +251,7 @@ public class BeatGridFinder extends LifecycleParticipant {
 
         // We have to actually request the beat grid using the dbserver protocol.
         ConnectionManager.ClientTask<BeatGrid> task =
-                client -> getBeatGrid(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), client);
+                client -> getBeatGrid(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), trackType, client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(trackReference.player, task, "requesting beat grid");
@@ -264,18 +265,32 @@ public class BeatGridFinder extends LifecycleParticipant {
      * Ask the specified player for the beat grid of the track in the specified slot with the specified rekordbox ID,
      * first checking if we have a cache we can use instead.
      *
-     * @param track uniquely identifies the track whose beat grid is desired
+     * @param track uniquely identifies the rekordbox analyzed track whose beat grid is desired
      *
      * @return the beat grid, if any
      */
     @API(status = API.Status.STABLE)
     public BeatGrid requestBeatGridFrom(final DataReference track) {
+        return requestBeatGridFrom(track, CdjStatus.TrackType.REKORDBOX);
+    }
+
+    /**
+     * Ask the specified player for the beat grid of the track in the specified slot with the specified rekordbox ID,
+     * first checking if we have a cache we can use instead.
+     *
+     * @param track uniquely identifies the track whose beat grid is desired
+     * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
+     *
+     * @return the beat grid, if any
+     */
+    @API(status = API.Status.STABLE)
+    public BeatGrid requestBeatGridFrom(final DataReference track, final CdjStatus.TrackType trackType) {
         for (BeatGrid cached : hotCache.values()) {
             if (cached.dataReference.equals(track)) {  // Found a hot cue hit, use it.
                 return cached;
             }
         }
-        return requestBeatGridInternal(track, false);
+        return requestBeatGridInternal(track, trackType, false);
     }
 
     /**
@@ -283,16 +298,17 @@ public class BeatGridFinder extends LifecycleParticipant {
 
      * @param rekordboxId the track of interest
      * @param slot identifies the media slot we are querying
+     * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
      * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the retrieved beat grid, or {@code null} if there was none available
      *
      * @throws IOException if there is a communication problem
      */
-    BeatGrid getBeatGrid(int rekordboxId, SlotReference slot, Client client)
+    BeatGrid getBeatGrid(int rekordboxId, SlotReference slot, CdjStatus.TrackType trackType, Client client)
             throws IOException {
         Message response = client.simpleRequest(Message.KnownType.BEAT_GRID_REQ, null,
-                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot), new NumberField(rekordboxId));
+                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot, trackType), new NumberField(rekordboxId));
         if (response.knownType == Message.KnownType.BEAT_GRID) {
             return new BeatGrid(new DataReference(slot, rekordboxId), response);
         }
@@ -385,9 +401,10 @@ public class BeatGridFinder extends LifecycleParticipant {
      * @param update describes the new metadata we have for a player, if any
      */
     private void handleUpdate(final TrackMetadataUpdate update) {
-        if (update.metadata == null || update.metadata.trackType != CdjStatus.TrackType.REKORDBOX) {
+        if (update.metadata == null) {
             clearDeck(update);
         } else {
+            final CdjStatus.TrackType trackType = update.metadata.trackType;
             // We can offer beat grid information for this device; check if we've already looked it up.
             final BeatGrid lastBeatGrid = hotCache.get(DeckReference.getDeckReference(update.player, 0));
             if (lastBeatGrid == null || !lastBeatGrid.dataReference.equals(update.metadata.trackReference)) {  // We have something new!
@@ -406,7 +423,7 @@ public class BeatGridFinder extends LifecycleParticipant {
 
                     new Thread(() -> {
                         try {
-                            BeatGrid grid = requestBeatGridInternal(update.metadata.trackReference, true);
+                            BeatGrid grid = requestBeatGridInternal(update.metadata.trackReference, trackType, true);
                             if (grid != null && grid.beatCount > 0) {
                                 updateBeatGrid(update, grid);
                             }

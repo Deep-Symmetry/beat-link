@@ -505,16 +505,17 @@ public class WaveformFinder extends LifecycleParticipant {
      * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param trackReference uniquely identifies the desired waveform preview
+     * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
      *                      waveform updates will use available caches and downloaded metadata exports only
      *
      * @return the waveform preview found, if any
      */
-    private WaveformPreview requestPreviewInternal(final DataReference trackReference, final boolean failIfPassive) {
+    private WaveformPreview requestPreviewInternal(final DataReference trackReference, final CdjStatus.TrackType trackType, final boolean failIfPassive) {
 
         // First see if any registered metadata providers can offer it for us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
-        if (sourceDetails !=  null) {
+        if (sourceDetails !=  null && trackType == CdjStatus.TrackType.REKORDBOX) {
             final WaveformPreview provided = MetadataFinder.getInstance().allMetadataProviders.getWaveformPreview(sourceDetails, trackReference);
             if (provided != null) {
                 return provided;
@@ -529,7 +530,7 @@ public class WaveformFinder extends LifecycleParticipant {
 
         // We have to actually request the preview using the dbserver protocol.
         ConnectionManager.ClientTask<WaveformPreview> task =
-                client -> getWaveformPreview(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), client);
+                client -> getWaveformPreview(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), trackType, client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(trackReference.player, task, "requesting waveform preview");
@@ -543,7 +544,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * Ask the specified player for the specified waveform preview from the specified media slot, first checking if we
      * have a cached copy. Note that we do not yet know how to retrieve 3-band waveforms using the dbserver protocol.
      *
-     * @param dataReference uniquely identifies the desired waveform preview
+     * @param dataReference uniquely identifies the desired waveform preview for a rekordbox analyzed track
      *
      * @return the preview, if it was found, or {@code null}
      *
@@ -551,13 +552,29 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     @API(status = API.Status.STABLE)
     public WaveformPreview requestWaveformPreviewFrom(final DataReference dataReference) {
+        return requestWaveformPreviewFrom(dataReference, CdjStatus.TrackType.REKORDBOX);
+    }
+
+    /**
+     * Ask the specified player for the specified waveform preview from the specified media slot, first checking if we
+     * have a cached copy. Note that we do not yet know how to retrieve 3-band waveforms using the dbserver protocol.
+     *
+     * @param dataReference uniquely identifies the desired waveform preview
+     * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
+     *
+     * @return the preview, if it was found, or {@code null}
+     *
+     * @throws IllegalStateException if the WaveformFinder is not running
+     */
+    @API(status = API.Status.STABLE)
+    public WaveformPreview requestWaveformPreviewFrom(final DataReference dataReference, final CdjStatus.TrackType trackType) {
         ensureRunning();
         for (WaveformPreview cached : previewHotCache.values()) {
             if (cached.dataReference.equals(dataReference)) {  // Found a hot cue hit, use it.
                 return cached;
             }
         }
-        return requestPreviewInternal(dataReference, false);
+        return requestPreviewInternal(dataReference, trackType, false);
     }
 
     /**
@@ -566,12 +583,13 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @param rekordboxId the track whose waveform preview is desired
      * @param slot identifies the media slot we are querying
+     * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
      * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the retrieved waveform preview, or {@code null} if none was available
      * @throws IOException if there is a communication problem
      */
-    WaveformPreview getWaveformPreview(int rekordboxId, SlotReference slot, Client client)
+    WaveformPreview getWaveformPreview(int rekordboxId, SlotReference slot, CdjStatus.TrackType trackType, Client client)
             throws IOException {
 
         final NumberField idField = new NumberField(rekordboxId);
@@ -580,7 +598,7 @@ public class WaveformFinder extends LifecycleParticipant {
         if (getPreferredStyle() == WaveformStyle.RGB) {
             try {
                 Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
-                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
+                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_PREVIEW), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.RGB);
@@ -594,7 +612,7 @@ public class WaveformFinder extends LifecycleParticipant {
             // Or try to get the CDJ-3000-style 3-band waveform if we are supposed to.
             try {
                 Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
-                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
+                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_3BAND_WAVEFORM_PREVIEW), new NumberField(Message.ALNZ_FILE_TYPE_2EX));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.THREE_BAND);
@@ -607,7 +625,7 @@ public class WaveformFinder extends LifecycleParticipant {
         }
 
         Message response = client.simpleRequest(Message.KnownType.WAVE_PREVIEW_REQ, Message.KnownType.WAVE_PREVIEW,
-                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot), NumberField.WORD_1,
+                client.buildRMST(Message.MenuIdentifier.DATA, slot.slot, trackType), NumberField.WORD_1,
                 idField, NumberField.WORD_0);
         return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
     }
@@ -617,16 +635,17 @@ public class WaveformFinder extends LifecycleParticipant {
      * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param trackReference uniquely identifies the desired waveform detail
+     * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
      *                      artwork updates will use available caches and downloaded metadata exports only
      *
      * @return the waveform preview found, if any
      */
-    private WaveformDetail requestDetailInternal(final DataReference trackReference, final boolean failIfPassive) {
+    private WaveformDetail requestDetailInternal(final DataReference trackReference, final CdjStatus.TrackType trackType, final boolean failIfPassive) {
 
         // First see if any registered metadata providers can offer it to us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
-        if (sourceDetails !=  null) {
+        if (sourceDetails !=  null && trackType == CdjStatus.TrackType.REKORDBOX) {
             final WaveformDetail provided = MetadataFinder.getInstance().allMetadataProviders.getWaveformDetail(sourceDetails, trackReference);
             if (provided != null) {
                 return provided;
@@ -641,7 +660,7 @@ public class WaveformFinder extends LifecycleParticipant {
 
         // We have to actually request the detail using the dbserver protocol.
         ConnectionManager.ClientTask<WaveformDetail> task =
-                client -> getWaveformDetail(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), client);
+                client -> getWaveformDetail(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), trackType, client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(trackReference.player, task, "requesting waveform detail");
@@ -655,7 +674,7 @@ public class WaveformFinder extends LifecycleParticipant {
      * Ask the specified player for the specified waveform detail from the specified media slot, first checking if we
      * have a cached copy. Note that we do not yet know how to retrieve 3-band waveforms using the dbserver protocol.
      *
-     * @param dataReference uniquely identifies the desired waveform detail
+     * @param dataReference uniquely identifies the desired waveform detail for a rekordbox analyzed track
      *
      * @return the waveform detail, if it was found, or {@code null}
      *
@@ -663,13 +682,29 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     @API(status = API.Status.STABLE)
     public WaveformDetail requestWaveformDetailFrom(final DataReference dataReference) {
+       return requestWaveformDetailFrom(dataReference, CdjStatus.TrackType.REKORDBOX);
+    }
+
+    /**
+     * Ask the specified player for the specified waveform detail from the specified media slot, first checking if we
+     * have a cached copy. Note that we do not yet know how to retrieve 3-band waveforms using the dbserver protocol.
+     *
+     * @param dataReference uniquely identifies the desired waveform detail
+     * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
+     *
+     * @return the waveform detail, if it was found, or {@code null}
+     *
+     * @throws IllegalStateException if the WaveformFinder is not running
+     */
+    @API(status = API.Status.STABLE)
+    public WaveformDetail requestWaveformDetailFrom(final DataReference dataReference, final CdjStatus.TrackType trackType) {
         ensureRunning();
         for (WaveformDetail cached : detailHotCache.values()) {
             if (cached.dataReference.equals(dataReference)) {  // Found a hot cue hit, use it.
                 return cached;
             }
         }
-        return requestDetailInternal(dataReference, false);
+        return requestDetailInternal(dataReference, trackType, false);
     }
 
     /**
@@ -678,12 +713,13 @@ public class WaveformFinder extends LifecycleParticipant {
      *
      * @param rekordboxId the track whose waveform detail is desired
      * @param slot identifies the media slot we are querying
+     * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
      * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the retrieved waveform detail, or {@code null} if none was available
      * @throws IOException if there is a communication problem
      */
-    WaveformDetail getWaveformDetail(int rekordboxId, SlotReference slot, Client client)
+    WaveformDetail getWaveformDetail(int rekordboxId, SlotReference slot, CdjStatus.TrackType trackType, Client client)
             throws IOException {
         final NumberField idField = new NumberField(rekordboxId);
 
@@ -691,7 +727,7 @@ public class WaveformFinder extends LifecycleParticipant {
         if (preferredStyle.get() == WaveformStyle.RGB) {
             try {
                 Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
-                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
+                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.RGB);
@@ -705,7 +741,7 @@ public class WaveformFinder extends LifecycleParticipant {
             // Or try to get the CDJ-3000-style 3-band waveform if we are supposed to.
             try {
                 Message response = client.simpleRequest(Message.KnownType.ANLZ_TAG_REQ, Message.KnownType.ANLZ_TAG,
-                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField,
+                        client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_3BAND_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_2EX));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.THREE_BAND);
@@ -718,7 +754,7 @@ public class WaveformFinder extends LifecycleParticipant {
         }
 
         Message response = client.simpleRequest(Message.KnownType.WAVE_DETAIL_REQ, Message.KnownType.WAVE_DETAIL,
-                client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot), idField, NumberField.WORD_0);
+                client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField, NumberField.WORD_0);
         return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
     }
 
@@ -838,10 +874,11 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     private void handleUpdate(final TrackMetadataUpdate update) {
         boolean foundInCache = false;
-
-        if (update.metadata == null || update.metadata.trackType != CdjStatus.TrackType.REKORDBOX) {
+        if (update.metadata == null) {
             clearDeck(update);
         } else {
+            final CdjStatus.TrackType trackType = update.metadata.trackType;
+
             // We can offer waveform information for this device; check if we've already looked it up. First, preview:
             final WaveformPreview lastPreview = previewHotCache.get(DeckReference.getDeckReference(update.player, 0));
             if (lastPreview == null || !lastPreview.dataReference.equals(update.metadata.trackReference)) {  // We have something new!
@@ -860,7 +897,7 @@ public class WaveformFinder extends LifecycleParticipant {
                     clearDeckPreview(update);  // We won't know what it is until our request completes.
                     new Thread(() -> {
                         try {
-                            WaveformPreview preview = requestPreviewInternal(update.metadata.trackReference, true);
+                            WaveformPreview preview = requestPreviewInternal(update.metadata.trackReference, trackType, true);
                             if (preview != null) {
                                 updatePreview(update, preview);
                             }
@@ -892,7 +929,7 @@ public class WaveformFinder extends LifecycleParticipant {
                     clearDeckDetail(update);  // We won't know what it is until our request completes.
                     new Thread(() -> {
                         try {
-                            WaveformDetail detail = requestDetailInternal(update.metadata.trackReference, true);
+                            WaveformDetail detail = requestDetailInternal(update.metadata.trackReference, trackType, true);
                             if (detail != null) {
                                 updateDetail(update, detail);
                             }
