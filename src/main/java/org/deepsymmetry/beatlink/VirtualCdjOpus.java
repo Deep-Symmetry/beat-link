@@ -13,11 +13,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.*;
 
 /**
- * Provides the ability to emulate the Rekordbox lighting application which causes devices to share their player state
- * and PSSI (track phrase data). This limited information therefore we enrich it by downloading the Rekordbox USB data
+ * Provides the ability to emulate a "VirtualCDJ" and send the keep alive packet (that dysentery sends) that makes the OPUS-QUAD send
+ * back absolute packets, as well as CDJ status packets. This is a copy of {@link VirtualRekordbox}, but with the PSSI and
+ * rekordbox lighting logic removed, as well as any specific [MODE 2](https://github.com/kyleawayan/beat-link/blob/opus-table/opus-table.md)
+ * logic we may need in the future.
+ * This limited information therefore we enrich it by downloading the Rekordbox USB data
  * using CrateDigger. We can then augment the limited updates from the players to provide more Beat-Link functionality.
  *
- * @author Kris Prep
+ * @author Kyle Awayan
  */
 @API(status = API.Status.EXPERIMENTAL)
 public class VirtualCdjOpus extends LifecycleParticipant {
@@ -41,7 +44,7 @@ public class VirtualCdjOpus extends LifecycleParticipant {
     private final AtomicReference<DatagramSocket> socket = new AtomicReference<>();
 
     /**
-     * Check whether we are presently posing as a virtual Rekordbox and receiving device status updates.
+     * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
      *
      * @return true if our socket is open, sending presence announcements, and receiving status packets
      */
@@ -51,7 +54,7 @@ public class VirtualCdjOpus extends LifecycleParticipant {
     }
 
     /**
-     * Return the address being used by the virtual Rekordbox to send its own presence announcement broadcasts.
+     * Return the address being used by the virtual CDJ to send its own presence announcement broadcasts.
      *
      * @return the local address we present to the DJ Link network
      * @throws IllegalStateException if the {@code VirtualCdj} is not active
@@ -88,7 +91,7 @@ public class VirtualCdjOpus extends LifecycleParticipant {
 
 
     /**
-     * Get the device number that is used when sending presence announcements on the network to pose as a virtual rekordbox.
+     * Get the device number that is used when sending presence announcements on the network to pose as a virtual CDJ.
      * This value is not meaningful until the <code>VirtualCdjOpus</code> is running and has found an available number
      * to use.
      *
@@ -100,7 +103,7 @@ public class VirtualCdjOpus extends LifecycleParticipant {
     }
 
     /**
-     * <p>Set the device number to be used when sending presence announcements on the network to pose as a virtual Rekordbox.
+     * <p>Set the device number to be used when sending presence announcements on the network to pose as a virtual CDJ.
      * Used during the startup process; cannot be set while running. If we find this device number is in use, we will pick
      * another number in the range 0x13 to 0x27.</p>
      *
@@ -187,42 +190,10 @@ public class VirtualCdjOpus extends LifecycleParticipant {
         return new String(virtualCdjOpusKeepAliveBytes, DEVICE_NAME_OFFSET, DEVICE_NAME_LENGTH).trim();
     }
 
-
-    /**
-     * Packet used to tell Opus device we want PSSI data once for all players with loaded songs.
-     */
-    private static final byte[] requestPSSIBytes = {
-            0x51, 0x73, 0x70, 0x74, 0x31, 0x57, 0x6d, 0x4a, 0x4f, 0x4c, 0x55, 0x72, 0x65, 0x6b, 0x6f, 0x72,
-            0x64, 0x62, 0x6f, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-            0x00, 0x17, 0x00, 0x08, 0x36, 0x00, 0x00, 0x00, 0x0a, 0x02, 0x03, 0x01
-    };
-
-    /**
-     * This imitates the request RekordboxLighting sends to get PSSI data from Opus Quad device
-     * (and maybe more devices in the future).
-     *
-     * @throws IOException if there is a problem sending the request
-     */
-    @API(status = API.Status.EXPERIMENTAL)
-    public void requestPSSI() throws IOException{
-        if (DeviceFinder.getInstance().isRunning() && !DeviceFinder.getInstance().getCurrentDevices().isEmpty()) {
-            InetAddress address = DeviceFinder.getInstance().getCurrentDevices().iterator().next().getAddress();
-            DatagramPacket packet = new DatagramPacket(requestPSSIBytes, requestPSSIBytes.length, address, UPDATE_PORT);
-
-            socket.get().send(packet);
-        }
-    }
-
     /**
      * Keeps track of the source slots we've matched to metadata archives for each player.
      */
     private final Map<Integer, SlotReference> playerTrackSourceSlots = new ConcurrentHashMap<>();
-
-    /**
-     * Keeps track of the current DeviceSQL rekordbox ID for each player.
-     * See {@link #findDeviceSqlRekordboxIdForPlayer(int)} for more details.
-     */
-    private final Map<Integer, Integer> playerToDeviceSqlRekordboxId = new ConcurrentHashMap<>();
 
     /**
      * Clear both player caches so that we can reload the data. This usually happens when we load an archive
@@ -245,18 +216,6 @@ public class VirtualCdjOpus extends LifecycleParticipant {
      */
     SlotReference findMatchedTrackSourceSlotForPlayer(int player) {
         return playerTrackSourceSlots.get(player);
-    }
-
-    /**
-     * Given a player number (normalized to the range 1-4), returns the DeviceSQL rekordbox ID for the
-     * track that is currently loaded on that player. Returns 0 if we are searching for a PSSI match still on a new track load,
-     * or if a PSSI match wasn't found, or if the player does not have a track loaded.
-     *
-     * @param player the player whose DeviceSQL rekordbox ID we are interested in
-     * @return the DeviceSQL rekordbox ID for the track that is currently loaded on that player
-     */
-    int findDeviceSqlRekordboxIdForPlayer(int player) {
-        return playerToDeviceSqlRekordboxId.getOrDefault(player, 0);
     }
 
     /**
@@ -317,8 +276,6 @@ public class VirtualCdjOpus extends LifecycleParticipant {
                     }
 
                     // The raw ID sent from the Opus, we just need this to detect changes.
-                    // We can't use CdjStatus.getRekordboxId() because it still refers to the
-                    // playerToDeviceSqlRekordboxId map that hasn't been updated yet.
                     int rawRekordboxId = (int)Util.bytesToNumber(packet.getData(), 0x2c, 4);
 
                     CdjStatus status = new CdjStatus(packet, hadToRecoverStatusFlags);
@@ -340,16 +297,6 @@ public class VirtualCdjOpus extends LifecycleParticipant {
                     // Clear slot and ID mapping if track has changed
                     if (trackChanged) {
                         playerTrackSourceSlots.remove(deviceNumber);
-                        playerToDeviceSqlRekordboxId.remove(deviceNumber);
-                        
-                        // Only request PSSI if the deck is loaded
-                        if (rawRekordboxId != 0) {
-                            try {
-                                requestPSSI();
-                            } catch (IOException e) {
-                                logger.warn("Cannot send PSSI request");
-                            }
-                        }
                     }
                     
                     return status;
@@ -460,7 +407,7 @@ public class VirtualCdjOpus extends LifecycleParticipant {
     }
 
     /**
-     * This will send the announcement that makes players think that they are talking to rekordbox.
+     * This will send the announcement that makes players think that they are talking to a CDJ.
      * After we send these announcement packets other players will start to send out status packets.
      * We need to send these every second or two otherwise we will be disconnected from the Pro DJ Link
      * network.
@@ -479,10 +426,11 @@ public class VirtualCdjOpus extends LifecycleParticipant {
     }
 
     /**
-     * This method will start up all the required pieces to emulate Rekordbox Lighting to pioneer devices on the
-     * network. This is not as powerful as emulating a CDJ, as that will get most Pro DJ Link devices to become
-     * very chatty, but rather this is for devices that don't support Pro DJ Link properly but can be coaxed to
-     * send status packets when they talk to RekordboxLighting (the Opus Quad being the only device at the time
+     * This method will start up all the required pieces to emulate a "VirtualCDJ" with the specific keep alive packet 
+     * to pioneer devices on the network. This is not as powerful as emulating a CDJ, 
+     * as that will get most Pro DJ Link devices to become very chatty,
+     * but rather this is for devices that don't support Pro DJ Link properly but can be coaxed to
+     * send status packets and absolute packets (the Opus Quad being the only device at the time
      * of coding this).
      *
      * @return true if we found DJ Link devices and were able to create the {@code VirtualCdjOpus}.
@@ -534,7 +482,7 @@ public class VirtualCdjOpus extends LifecycleParticipant {
         // Copy the chosen interface's hardware and IP addresses into the announcement packet template
         broadcastAddress.set(matchedAddress.getBroadcast());
 
-        // Inform the DeviceFinder to ignore our own Rekordbox Lighting announcement broadcast packets.
+        // Inform the DeviceFinder to ignore our own announcement broadcast packets.
         DeviceFinder.getInstance().addIgnoredAddress(matchedAddress.getBroadcast());
         // Inform the DeviceFinder to ignore our own device announcement packets.
         DeviceFinder.getInstance().addIgnoredAddress(socket.get().getLocalAddress());
@@ -561,7 +509,7 @@ public class VirtualCdjOpus extends LifecycleParticipant {
         announcer.setDaemon(true);
         announcer.start();
 
-        // Inform the DeviceFinder to ignore our own broadcast Rekordbox announcement packets.
+        // Inform the DeviceFinder to ignore our own broadcast announcement packets.
         DeviceFinder.getInstance().addIgnoredAddress(matchedAddress.getBroadcast());
 
         deliverLifecycleAnnouncement(logger, true);
@@ -613,7 +561,7 @@ public class VirtualCdjOpus extends LifecycleParticipant {
     }
 
     /**
-     * Send an announcement packets so that devices see us as Rekordbox Lighting and send us updates.
+     * Send an announcement packets so that devices can send us updates.
      */
     private void sendAnnouncements() {
         try {
