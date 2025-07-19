@@ -1218,7 +1218,7 @@ public class VirtualCdj extends LifecycleParticipant {
             setTempoMaster(null);
 
             if (inOpusQuadCompatibilityMode()) {
-                // We were running in proxy mode, so we need to shut down VirtualRekordbox, and nothing further.
+                // We were running in proxy mode, so we need to shut down VirtualRekordbox and VirtualCdjOpus, and nothing further.
                 VirtualRekordbox.getInstance().stop();
                 VirtualCdjOpus.getInstance().stop();
                 proxyingForVirtualRekordbox.set(false);
