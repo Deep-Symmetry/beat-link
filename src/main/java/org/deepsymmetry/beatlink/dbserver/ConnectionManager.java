@@ -110,8 +110,8 @@ public class ConnectionManager extends LifecycleParticipant {
         Client result = openClients.get(targetPlayer);
         if (result == null) {
             // We need to open a new connection.
-            final DeviceAnnouncement deviceAnnouncement = DeviceFinder.getInstance().getLatestAnnouncementFrom(targetPlayer);
-            if (deviceAnnouncement == null) {
+            final DeviceAnnouncement targetDeviceAnnouncement = DeviceFinder.getInstance().getLatestAnnouncementFrom(targetPlayer);
+            if (targetDeviceAnnouncement == null) {
                 throw new IllegalStateException("Player " + targetPlayer + " could not be found " + description);
             }
             final int dbServerPort = getPlayerDBServerPort(targetPlayer);
@@ -119,11 +119,11 @@ public class ConnectionManager extends LifecycleParticipant {
                 throw new IllegalStateException("Player " + targetPlayer + " does not have a db server " + description);
             }
 
-            final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(targetPlayer);
+            final byte posingAsPlayerNumber = (byte) chooseAskingPlayerNumber(targetDeviceAnnouncement);
 
             Socket socket = null;
             try {
-                InetSocketAddress address = new InetSocketAddress(deviceAnnouncement.getAddress(), dbServerPort);
+                InetSocketAddress address = new InetSocketAddress(targetDeviceAnnouncement.getAddress(), dbServerPort);
                 socket = new Socket();
                 socket.connect(address, socketTimeout.get());
                 socket.setSoTimeout(socketTimeout.get());
@@ -436,18 +436,23 @@ public class ConnectionManager extends LifecycleParticipant {
      *
      * @throws IllegalStateException if there is no other player number available to use
      */
-    private int chooseAskingPlayerNumber(int targetPlayer) {
+    private int chooseAskingPlayerNumber(DeviceAnnouncement targetPlayer) {
         final int fakeDevice = VirtualCdj.getInstance().getDeviceNumber();
-        if ((targetPlayer > 15) || (fakeDevice >= 1 && fakeDevice <= 4)) {
+
+        if (fakeDevice > 4 && !DeviceFinder.getInstance().isDeviceMetadataLimited(targetPlayer)) {
+            return targetPlayer.getDeviceNumber();
+        }
+
+        if ((targetPlayer.getDeviceNumber() > 15) || (fakeDevice >= 1 && fakeDevice <= 4)) {
             return fakeDevice;
         }
 
         for (DeviceAnnouncement candidate : DeviceFinder.getInstance().getCurrentDevices()) {
             final int realDevice = candidate.getDeviceNumber();
-            if (realDevice != targetPlayer && realDevice >= 1 && realDevice <= 4) {
+            if (realDevice != targetPlayer.getDeviceNumber() && realDevice >= 1 && realDevice <= 4) {
                 final DeviceUpdate lastUpdate =  VirtualCdj.getInstance().getLatestStatusFor(realDevice);
                 if (lastUpdate instanceof CdjStatus &&
-                        ((CdjStatus) lastUpdate).getTrackSourcePlayer() != targetPlayer) {
+                        ((CdjStatus) lastUpdate).getTrackSourcePlayer() != targetPlayer.getDeviceNumber()) {
                     return candidate.getDeviceNumber();
                 }
             }

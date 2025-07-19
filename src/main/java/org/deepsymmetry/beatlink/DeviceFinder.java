@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -52,6 +53,12 @@ public class DeviceFinder extends LifecycleParticipant {
      * have yet been seen.
      */
     private static final AtomicLong firstDeviceTime = new AtomicLong(0);
+
+    /**
+     * Indicates whether we have seen any players older than a CDJ-3000, which are unable to respond to
+     * metadata queries from more than three other players.
+     */
+    private static final AtomicBoolean limit3PlayersSeen = new AtomicBoolean(false);
 
     /**
      * Check whether we are presently listening for device announcements.
@@ -179,6 +186,11 @@ public class DeviceFinder extends LifecycleParticipant {
     public boolean isAddressIgnored(InetAddress address) {
         return ignoredAddresses.contains(address);
     }
+
+    /**
+     * The names of devices that are able to respond to metadata requests from more than three other devices.
+     */
+    public final Set<String> METADATA_FLEXIBLE_DEVICES = Set.of("CDJ-3000", "XDJ-AZ");
 
     /**
      * Handle a device announcement packet we have received.
@@ -348,6 +360,17 @@ public class DeviceFinder extends LifecycleParticipant {
     }
 
     /**
+     * Check whether we have seen any players that are old enough to only be able to answer metadata queries
+     * from at most three other players.
+     * 
+     * @return {code true} if any device on the network would return {code true} when passed to {@link #isDeviceMetadataLimited(DeviceAnnouncement)}
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public boolean isAnyDeviceLimitedToThreeDatabaseClients() {
+        return limit3PlayersSeen.get();
+    }
+
+    /**
      * Find and return the device announcement that was most recently received from a device identifying itself
      * with the specified device number, if any.
      *
@@ -381,7 +404,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * <p>Device announcements are delivered to listeners on the
      * <a href="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch thread</a>,
      * so it is fine to interact with user interface objects in listener methods. Any code in the listener method
-     * must finish quickly, or unhandled events will back up and the user interface will be come unresponsive.</p>
+     * must finish quickly, or unhandled events will back up and the user interface will become unresponsive.</p>
      *
      * @param listener the device announcement listener to add
      */
@@ -417,11 +440,29 @@ public class DeviceFinder extends LifecycleParticipant {
     }
 
     /**
+     * Checks whether the device is old enough that it is unable to respond to metadata queries from more than
+     * three other players.
+     *
+     * @param announcement the device to be examined
+     *
+     * @return {code true} if the device appears to be a CDJ that is not known to support metadata queries from more than three other devices
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public boolean isDeviceMetadataLimited(DeviceAnnouncement announcement) {
+        return announcement.getDeviceNumber() < 7 && !METADATA_FLEXIBLE_DEVICES.contains(announcement.getDeviceName());
+    }
+
+    /**
      * Send a device found announcement to all registered listeners.
      *
      * @param announcement the message announcing the new device
      */
     private void deliverFoundAnnouncement(final DeviceAnnouncement announcement) {
+        // If this is a metadata-query-limited device, note that there is now at least one on the network.
+        if (isDeviceMetadataLimited(announcement)) {
+            limit3PlayersSeen.set(true);
+        }
+        // Send out the device announcement.
         for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
             SwingUtilities.invokeLater(() -> {
                 try {
@@ -438,7 +479,16 @@ public class DeviceFinder extends LifecycleParticipant {
      *
      * @param announcement the last message received from the vanished device
      */
+    @API(status = API.Status.EXPERIMENTAL)
     private void deliverLostAnnouncement(final DeviceAnnouncement announcement) {
+        // If the device we lost was metadata-limited, see if it was the last one, and if so, update our tracker.
+        if (isDeviceMetadataLimited(announcement)) {
+            if (getCurrentDevices().stream().noneMatch(this::isDeviceMetadataLimited)) {
+                limit3PlayersSeen.set(false);
+            }
+        }
+
+        // Send out the announcement.
         for (final DeviceAnnouncementListener listener : getDeviceAnnouncementListeners()) {
             SwingUtilities.invokeLater(() -> {
                 try {
