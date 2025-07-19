@@ -71,7 +71,6 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public boolean inOpusQuadCompatibilityMode() {
-        // TODO: Is this okay?
         return proxyingForVirtualRekordbox.get() || proxyingForVirtualCdjOpus.get();
     }
 
@@ -1107,10 +1106,9 @@ public class VirtualCdj extends LifecycleParticipant {
     private final AtomicBoolean starting = new AtomicBoolean(false);
 
     /**
-     * // TODO: Edit this doc
      * <p>In normal operation (with Pro DJ Link devices), start announcing ourselves and listening for status packets.
-     * If, however, we find an Opus Quad on the network, start {@link VirtualRekordbox} and operate in a more
-     * limited Opus Quad compatibility mode, acting as a proxy for packets that it is responsible for receiving.
+     * If, however, we find an Opus Quad on the network, start {@link VirtualRekordbox} (or {@link VirtualCdjOpus} if there is a database key supplied)
+     * and operate in a more limited Opus Quad compatibility mode, acting as a proxy for packets that it is responsible for receiving.
      * Either mode requires the {@link DeviceFinder} to be active in order to find out how to communicate with
      * other devices, so will start that if it is not already.</p>
      *
@@ -1170,7 +1168,6 @@ public class VirtualCdj extends LifecycleParticipant {
                                 matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
                             }
                         }
-                        logger.info("success", success);
                         return success;
                     }
                 }

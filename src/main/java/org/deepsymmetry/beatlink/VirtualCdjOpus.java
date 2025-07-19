@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.*;
  * Provides the ability to emulate a "VirtualCDJ" and send the keep alive packet (that dysentery sends) that makes the OPUS-QUAD send
  * back absolute packets, as well as CDJ status packets. This is a copy of {@link VirtualRekordbox}, but with the PSSI and
  * rekordbox lighting logic removed, as well as any specific [MODE 2](https://github.com/kyleawayan/beat-link/blob/opus-table/opus-table.md)
- * logic we may need in the future.
+ * logic we may need in the future. Note this mode requires a SQLite database key.
  * This limited information therefore we enrich it by downloading the Rekordbox USB data
  * using CrateDigger. We can then augment the limited updates from the players to provide more Beat-Link functionality.
  *
