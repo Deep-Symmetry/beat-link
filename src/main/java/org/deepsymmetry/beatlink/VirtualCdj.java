@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.MetadataFinder;
+import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.deepsymmetry.electro.Metronome;
 import org.deepsymmetry.electro.Snapshot;
@@ -1148,10 +1149,8 @@ public class VirtualCdj extends LifecycleParticipant {
                 for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
                     if (device.isOpusQuad) {
                         boolean success = false;
-                        // TODO: Need to figure out how to check if we are in MODE 2
-                        boolean inModeTwo = true;
-                        if (inModeTwo) {
-                            logger.info("k in virtualcdjopus mode, not starting virtualrekordbox");
+                        if (OpusProvider.getInstance().inModeTwo()) {
+                            logger.info("In MODE 2 (VirtualCdjOpus). Not starting VirtualRekordbox or VirtualCdj.");
                             proxyingForVirtualCdjOpus.set(true);
                             VirtualCdjOpus.getInstance().addLifecycleListener(virtualCdjOpusLifecycleListener);
                             success = VirtualCdjOpus.getInstance().start();
@@ -1161,6 +1160,7 @@ public class VirtualCdj extends LifecycleParticipant {
                                 matchingInterfaces = VirtualCdjOpus.getInstance().getMatchingInterfaces();
                             }
                         } else {
+                            logger.info("In MODE 1 (VirtualRekordbox). Not starting VirtualCdjOpus or VirtualCdj.");
                             proxyingForVirtualRekordbox.set(true);
                             VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
                             success = VirtualRekordbox.getInstance().start();
@@ -1227,6 +1227,7 @@ public class VirtualCdj extends LifecycleParticipant {
                 proxyingForVirtualRekordbox.set(false);
                 proxyingForVirtualCdjOpus.set(false);
                 deliverLifecycleAnnouncement(logger, false);
+                logger.info("Stopped VirtualRekordbox and VirtualCdjOpus");
                 setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
                 return;
             }
