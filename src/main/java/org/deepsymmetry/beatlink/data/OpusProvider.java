@@ -26,6 +26,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.prefs.BackingStoreException;
+import java.util.prefs.Preferences;
 
 /**
  * <p>Allows users to attach metadata archives created by the
@@ -64,9 +66,19 @@ public class OpusProvider {
     }
 
     /**
+     * Used to access our preferences node for looking up or storing the database key.
+     */
+    private static final Preferences prefs = Preferences.userRoot().node(OpusProvider.class.getName());
+
+    /**
+     * Used to look up or store the database key in our preferences.
+     */
+    private static final String databasePrefsKey = "databaseKey";
+
+    /**
      * If the user knows the key needed to access the SQLite database, it will be stored here.
      */
-    private final AtomicReference<String> databaseKey = new AtomicReference<>();
+    public final AtomicReference<String> databaseKey = new AtomicReference<>(prefs.get(databasePrefsKey, null));
 
     /**
      * Set the key needed to access SQLite databases found in metadata archives. If this is known and supplied,
@@ -77,7 +89,17 @@ public class OpusProvider {
     @API(status = API.Status.EXPERIMENTAL)
     public void setDatabaseKey(String key) {
         throw new UnsupportedOperationException("This is not yet ready for use");
-        // databaseKey.set(key);
+//        databaseKey.set(key);
+//        if (key != null) {
+//            prefs.put("databaseKey", key);
+//        } else {
+//            prefs.remove("databaseKey");
+//        }
+//        try {
+//            prefs.flush();
+//        } catch (BackingStoreException e) {
+//            logger.error("Problem updating stored preferences", e);
+//        }
     }
 
     /**
