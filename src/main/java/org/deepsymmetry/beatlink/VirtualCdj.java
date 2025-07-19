@@ -2231,7 +2231,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
         if (send) {  // Start sending status packets.
             ensureRunning();
-            if (proxyingForVirtualRekordbox.get() || proxyingForVirtualCdjOpus.get()) {
+            if (inOpusQuadCompatibilityMode()) {
                 throw new IllegalStateException("Cannot send status when in Opus Quad compatibility mode.");
             }
             if ((getDeviceNumber() < 1) || (getDeviceNumber() > 4)) {
