@@ -81,6 +81,15 @@ public class OpusProvider {
     private final AtomicReference<String> databaseKey = new AtomicReference<>(prefs.get(databasePrefsKey, null));
 
     /**
+     * Helper function to see if we are operating in
+     * [MODE 2](https://github.com/kyleawayan/beat-link/blob/opus-table/opus-table.md)
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public boolean inModeTwo() {
+        return databaseKey.get() != null;
+    }
+
+    /**
      * Set the key needed to access SQLite databases found in metadata archives. If this is known and supplied,
      * more reliable access to metadata can be obtained by using these newer, Device Library Plus databases.
      *

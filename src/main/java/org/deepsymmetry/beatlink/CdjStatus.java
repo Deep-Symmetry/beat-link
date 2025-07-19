@@ -688,10 +688,9 @@ public class CdjStatus extends DeviceUpdate {
             int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
             int player = Util.translateOpusPlayerNumbers(trackSourceByte);
 
-            // TODO: Need to figure out how to check if we are in MODE 2
-            boolean inModeTwo = true;
-
-            if (inModeTwo) {
+            if (OpusProvider.getInstance().inModeTwo()) {
+                // Only one USB is supported, since we don't have any precise metadata to match
+                // to verify USB slot number
                 sourcePlayer = 1;
             }
             else if (sourcePlayer != 0) {
