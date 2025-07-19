@@ -71,6 +71,8 @@ public abstract class DeviceUpdate {
 
         if (isFromOpusQuad) {
             byte sourceByte;
+            // The player number is stored in a different
+            // location when using precise position packets
             if ("Precise position".equals(name)) {
                 sourceByte = packetBytes[0x21];
             } else {
