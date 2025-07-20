@@ -28,7 +28,7 @@ public class MixerStatus extends DeviceUpdate {
 
     /**
      * <p>The byte within a status packet which indicates that the device is in the process of handing off the tempo
-     * master role to anther device, labeled <i>M<sub>h</sub></i> in the
+     * master role to another device, labeled <i>M<sub>h</sub></i> in the
      * <a href="https://djl-analysis.deepsymmetry.org/djl-analysis/vcdj.html#mixer-status-packets">Packet Analysis document</a>.</p>
      *
      * <p>Normally it holds the value 0xff, but during a tempo master hand-off, it holds

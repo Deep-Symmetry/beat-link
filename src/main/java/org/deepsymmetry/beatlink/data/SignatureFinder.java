@@ -89,7 +89,7 @@ public class SignatureFinder extends LifecycleParticipant {
             clearSignature(update.player);
         } else {
             final CdjStatus lastStatus = (CdjStatus) VirtualCdj.getInstance().getLatestStatusFor(update.player);
-            final DataReference reference = new DataReference(update.player, lastStatus.getTrackSourceSlot(), lastStatus.getRekordboxId());
+            final DataReference reference = new DataReference(update.player, lastStatus.getTrackSourceSlot(), lastStatus.getRekordboxId(), lastStatus.getTrackType());
             WaveformDetail detail = new WaveformDetail(reference, update.taggedSection);
             rgbWaveforms.put(update.player, detail);
             checkIfSignatureReady(update.player);

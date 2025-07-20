@@ -19,7 +19,7 @@ public interface MasterHandoffListener {
     /**
      * Invoked when we have received a message asking us to yield the tempo master role to another device.
      *
-     * <p>To reduce latency, handoff messages are delivered to listeners directly on the thread that is receiving them
+     * <p>To reduce latency, handoff messages are delivered to listeners directly on the thread that is receiving
      * them from the network, so if you want to interact with user interface objects in this method, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.</p>
@@ -37,7 +37,7 @@ public interface MasterHandoffListener {
      * Invoked when we have received a response from a device we have asked to yield the tempo master role to us.
      *
      * <p>To reduce latency, sync commands are delivered to listeners directly on the thread that is receiving them
-     * them from the network, so if you want to interact with user interface objects in this method, you need to use
+     * from the network, so if you want to interact with user interface objects in this method, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.</p>
      *

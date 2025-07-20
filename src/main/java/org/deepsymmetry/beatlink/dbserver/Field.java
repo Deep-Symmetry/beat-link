@@ -18,7 +18,7 @@ import java.nio.channels.WritableByteChannel;
 @API(status = API.Status.STABLE)
 public abstract class Field {
 
-    private static final Logger logger = LoggerFactory.getLogger(Client.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(Field.class.getName());
 
     /**
      * Get the bytes which represent this field when sent over the network, including the leading type tag.

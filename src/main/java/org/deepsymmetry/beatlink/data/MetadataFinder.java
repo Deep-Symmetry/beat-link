@@ -48,8 +48,8 @@ public class MetadataFinder extends LifecycleParticipant {
             return null;
         }
         final DataReference track = new DataReference(status.getTrackSourcePlayer(), status.getTrackSourceSlot(),
-                status.getRekordboxId());
-        return requestMetadataFrom(track, status.getTrackType());
+                status.getRekordboxId(), status.getTrackType());
+        return requestMetadataFrom(track);
     }
 
 
@@ -63,10 +63,25 @@ public class MetadataFinder extends LifecycleParticipant {
      *                  message that must be used
      *
      * @return the metadata, if any
+     * @deprecated since {@code track} now includes {@code trackType}
+     */
+    @API(status = API.Status.DEPRECATED)
+    public TrackMetadata requestMetadataFrom(final DataReference track, final CdjStatus.TrackType trackType) {
+        return requestMetadataInternal(track, false);
+    }
+
+    /**
+     * Ask the specified player for metadata about the track in the specified slot with the specified rekordbox ID,
+     * unless we have a metadata download available for the specified media slot, in which case that will be used
+     * instead.
+     *
+     * @param track uniquely identifies the track whose metadata is desired
+     *
+     * @return the metadata, if any
      */
     @API(status = API.Status.STABLE)
-    public TrackMetadata requestMetadataFrom(final DataReference track, final CdjStatus.TrackType trackType) {
-        return requestMetadataInternal(track, trackType, false);
+    public TrackMetadata requestMetadataFrom(final DataReference track) {
+        return requestMetadataInternal(track, false);
     }
 
     /**
@@ -74,18 +89,15 @@ public class MetadataFinder extends LifecycleParticipant {
      * using cached media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param track uniquely identifies the track whose metadata is desired
-     * @param trackType identifies the type of track being requested, which affects the type of metadata request
-     *                  message that must be used
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
      *                      metadata updates will use available caches and metadata export downloads only
      *
      * @return the metadata found, if any
      */
-    private TrackMetadata requestMetadataInternal(final DataReference track, final CdjStatus.TrackType trackType,
-                                                  final boolean failIfPassive) {
+    private TrackMetadata requestMetadataInternal(final DataReference track, final boolean failIfPassive) {
         // First see if any registered metadata providers can offer it for us, provided it is a rekordbox track.
         final MediaDetails sourceDetails = getMediaDetailsFor(track.getSlotReference());
-        if (trackType == CdjStatus.TrackType.REKORDBOX && sourceDetails != null) {
+        if (track.trackType == CdjStatus.TrackType.REKORDBOX && sourceDetails != null) {
             final TrackMetadata provided = allMetadataProviders.getTrackMetadata(sourceDetails, track);
             if (provided != null) {
                 return provided;
@@ -99,7 +111,7 @@ public class MetadataFinder extends LifecycleParticipant {
         }
 
         // Use the dbserver protocol implementation to request the metadata.
-        ConnectionManager.ClientTask<TrackMetadata> task = client -> queryMetadata(track, trackType, client);
+        ConnectionManager.ClientTask<TrackMetadata> task = client -> queryMetadata(track, client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(track.player, task, "requesting metadata");
@@ -121,8 +133,6 @@ public class MetadataFinder extends LifecycleParticipant {
      * all track metadata.
      *
      * @param track uniquely identifies the track whose metadata is desired
-     * @param trackType identifies the type of track being requested, which affects the type of metadata request
-     *                  message that must be used
      * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the retrieved metadata, or {@code null} if there is no such track
@@ -131,25 +141,25 @@ public class MetadataFinder extends LifecycleParticipant {
      * @throws InterruptedException if the thread is interrupted while trying to lock the client for menu operations
      * @throws TimeoutException if we are unable to lock the client for menu operations
      */
-    TrackMetadata queryMetadata(final DataReference track, final CdjStatus.TrackType trackType, final Client client)
+    TrackMetadata queryMetadata(final DataReference track, final Client client)
             throws IOException, InterruptedException, TimeoutException {
 
         // Send the metadata menu request
         if (client.tryLockingForMenuOperations(20, TimeUnit.SECONDS)) {
             try {
-                final Message.KnownType requestType = (trackType == CdjStatus.TrackType.REKORDBOX) ?
+                final Message.KnownType requestType = (track.trackType == CdjStatus.TrackType.REKORDBOX) ?
                         Message.KnownType.REKORDBOX_METADATA_REQ : Message.KnownType.UNANALYZED_METADATA_REQ;
                 final Message response = client.menuRequestTyped(requestType, Message.MenuIdentifier.MAIN_MENU,
-                        track.slot, trackType, new NumberField(track.rekordboxId));
+                        track.slot, track.trackType, new NumberField(track.rekordboxId));
                 final long count = response.getMenuResultsCount();
                 if (count == Message.NO_MENU_RESULTS_AVAILABLE) {
                     return null;
                 }
 
                 // Gather the cue list and all the metadata menu items
-                final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, trackType, response);
-                final CueList cueList = (trackType == CdjStatus.TrackType.REKORDBOX) ? getCueList(track.rekordboxId, track.slot, client) : null;
-                return new TrackMetadata(track, trackType, items, cueList);
+                final List<Message> items = client.renderMenuItems(Message.MenuIdentifier.MAIN_MENU, track.slot, track.trackType, response);
+                final CueList cueList = (track.trackType == CdjStatus.TrackType.REKORDBOX) ? getCueList(track.rekordboxId, track.slot, client) : null;
+                return new TrackMetadata(track, track.trackType, items, cueList);
             } finally {
                 client.unlockForMenuOperations();
             }
@@ -1020,7 +1030,7 @@ public class MetadataFinder extends LifecycleParticipant {
         } else {  // We can offer metadata for this device; check if we already looked up this track.
             final TrackMetadata lastMetadata = hotCache.get(DeckReference.getDeckReference(update.getDeviceNumber(), 0));
             final DataReference trackReference = new DataReference(update.getTrackSourcePlayer(),
-                    update.getTrackSourceSlot(), update.getRekordboxId());
+                    update.getTrackSourceSlot(), update.getRekordboxId(), update.getTrackType());
             if (lastMetadata == null || !lastMetadata.trackReference.equals(trackReference)) {  // We have something new!
                 // First see if we can find the new track in the hot cache as a hot cue
                 for (TrackMetadata cached : hotCache.values()) {
@@ -1037,7 +1047,7 @@ public class MetadataFinder extends LifecycleParticipant {
                         clearDeck(update);  // We won't know what it is until our request completes.
                         new Thread(() -> {
                             try {
-                                TrackMetadata data = requestMetadataInternal(trackReference, update.getTrackType(), true);
+                                TrackMetadata data = requestMetadataInternal(trackReference, true);
                                 if (data != null) {
                                     updateMetadata(update, data);
                                 }

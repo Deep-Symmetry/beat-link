@@ -26,7 +26,7 @@
  * <p>Raw database access is provided by the
  * <a href="https://github.com/Deep-Symmetry/crate-digger" target="_blank">Crate Digger</a> project.</p>
  *
- * <p>An good example of an application built using this library is
+ * <p>A good example of an application built using this library is
  * <a href="https://github.com/Deep-Symmetry/beat-link-trigger" target="_blank">Beat Link Trigger</a>.</p>
  *
  * @author  James Elliott

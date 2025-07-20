@@ -36,7 +36,7 @@ Keep in mind that people participate in the project chat voluntarily, so please 
 The project chat is not 1-on-1 support.
 You're in a public space.
 
-Do not `@` mention someone when writing a message unless a) the subject matter absolutely requires the attention of that person or b) that person has already replied to the topic and is interacting with you.
+Do not `@` mention someone when writing a message unless a) the subject absolutely requires the attention of that person or b) that person has already replied to the topic and is interacting with you.
 Using the `@` mention to draw attention to your question is not courteous to that person or fair to others.
 You're free to post your message to the community at large (no `@` mention).
 If someone has something to share in response, they will do so if and when they have time.

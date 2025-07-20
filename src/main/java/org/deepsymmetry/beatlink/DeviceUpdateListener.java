@@ -15,7 +15,7 @@ import org.apiguardian.api.API;
 public interface DeviceUpdateListener {
 
     /**
-     * <p>Invoked whenever a device status update is received by {@link VirtualCdj}. Currently the update will
+     * <p>Invoked whenever a device status update is received by {@link VirtualCdj}. Currently, the update will
      * either be a {@link MixerStatus} or a {@link CdjStatus}, but more varieties may be added as the protocol analysis
      * deepens.</p>
      *

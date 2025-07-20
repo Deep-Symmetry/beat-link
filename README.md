@@ -67,7 +67,7 @@ This is in no way a sanctioned implementation of the protocols. It should be cle
 > the XDJ-RX does not actually implement the protocol:
 >
 > &ldquo;The LINK on the RX (and RX2) is ONLY for linking to rekordbox
-> on your computer or a router with WiFi to connect rekordbox mobile.
+> on your computer or a router with Wi-Fi to connect rekordbox mobile.
 > It can not exchange LINK data with other CDJs or DJMs.&rdquo;
 
 While these techniques appear to work for us so far, there are many
@@ -313,7 +313,7 @@ and
 [`jumpToBeat()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#jumpToBeat-int-).
 To simulate playing a track, call
 [`setPlaying()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#setPlaying-boolean-).
-During simulated playback, beat packets will sent at appropriate times
+During simulated playback, beat packets will be sent at appropriate times
 for the current tempo, and the beat number will advance appropriately.
 You can find the current simulated playback time by calling
 [`getPlaybackPosition()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/VirtualCdj.html#getPlaybackPosition--).
@@ -397,8 +397,7 @@ specified player. See the
 API documentation for all the details it provides.
 
 With the `MetadataFinder` running, you can also start the `ArtFinder`,
-and use its
-can call its [`getLoadedArt()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/ArtFinder.html#getLoadedArt--)
+and use its [`getLoadedArt()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/ArtFinder.html#getLoadedArt--)
 or [`getLatestArtFor()`](https://deepsymmetry.org/beatlink/apidocs/org/deepsymmetry/beatlink/data/ArtFinder.html#getLatestArtFor-int-)
 methods to get the artwork images associated with the tracks, if there
 are any.
@@ -582,12 +581,12 @@ First of all, we would *love* to hear from you! We have no way of
 knowing who has discovered, explored, downloaded and tried Beat Link
 Trigger. So if you have, please write a quick note on the [Zulip
 stream](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger)
-to let us know! Even if it is only to explain why it didn&rsquo;t
+to let us know! Even if it is only to explain why it didn’t
 quite work for you.
 
 If you run into specific problems or have ideas of ways Beat Link Trigger could be better, and people in the chat community have suggested it is time to take this step, you can also [open an Issue](https://github.com/Deep-Symmetry/beat-link-trigger/issues) .
 
-And if you think you've come up with new or better way to do something, terrific! Please take a look at our [guidelines for contributing](CONTRIBUTING.md) and we can't wait to hear from you!
+And if you think you've come up with new or better way to do something, terrific! Please take a look at our [guidelines for contributing,](CONTRIBUTING.md) and we can’t wait to hear from you!
 
 > Please be mindful of our [Code of Conduct](CODE_OF_CONDUCT.md) to make
 > sure everyone feels welcome in the community.

@@ -21,7 +21,7 @@ public interface OnAirListener {
      * input (such as USB) for that channel, rather than a CDJ.</p>
      *
      * <p>To reduce latency, on-air updates are delivered to listeners directly on the thread that is receiving them
-     * them from the network, so if you want to interact with user interface objects in this method, you need to use
+     * from the network, so if you want to interact with user interface objects in this method, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.</p>
      *

@@ -22,7 +22,7 @@ public interface BeatListener {
      * {@link org.deepsymmetry.beatlink.data.TimeFinder#getTimeFor(DeviceUpdate)} method to find out the
      * actual beat number even though it is not part of the packet itself.</p>
      *
-     * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
+     * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving
      * them from the network, so if you want to interact with user interface objects in this method, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.</p>

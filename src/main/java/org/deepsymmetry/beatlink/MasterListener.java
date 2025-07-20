@@ -32,6 +32,7 @@ public interface MasterListener extends BeatListener {
      *
      * @param update the message identifying the new master, or {@code null} if there is now none
      */
+    @SuppressWarnings("EmptyMethod")
     @API(status = API.Status.STABLE)
     void masterChanged(DeviceUpdate update);
 

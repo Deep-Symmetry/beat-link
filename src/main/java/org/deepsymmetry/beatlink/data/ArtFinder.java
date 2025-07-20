@@ -372,18 +372,17 @@ public class ArtFinder extends LifecycleParticipant {
      * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param artReference uniquely identifies the desired album art
-     * @param trackType the kind of track that owns the art
      * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
      *                      artwork updates will use available caches and downloaded metadata exports only
      *
      * @return the album art found, if any
      */
-    private AlbumArt requestArtworkInternal(final DataReference artReference, final CdjStatus.TrackType trackType,
+    private AlbumArt requestArtworkInternal(final DataReference artReference,
                                             final boolean failIfPassive) {
 
         // First see if any registered metadata providers can offer it for us, provided it is a rekordbox track.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(artReference.getSlotReference());
-        if (trackType == CdjStatus.TrackType.REKORDBOX && sourceDetails != null) {
+        if (artReference.trackType == CdjStatus.TrackType.REKORDBOX && sourceDetails != null) {
             final AlbumArt provided = MetadataFinder.getInstance().allMetadataProviders.getAlbumArt(sourceDetails, artReference);
             if (provided != null) {
                 addArtToCache(artReference, provided);
@@ -399,7 +398,7 @@ public class ArtFinder extends LifecycleParticipant {
 
         // We have to actually request the art using the dbserver protocol.
         ConnectionManager.ClientTask<AlbumArt> task =
-                client -> getArtwork(artReference.rekordboxId, SlotReference.getSlotReference(artReference), trackType, client);
+                client -> getArtwork(artReference.rekordboxId, SlotReference.getSlotReference(artReference), artReference.trackType, client);
 
         try {
             AlbumArt artwork = ConnectionManager.getInstance().invokeWithClientSession(artReference.player, task, "requesting artwork");
@@ -423,13 +422,29 @@ public class ArtFinder extends LifecycleParticipant {
      * @return the artwork, if it was found, or {@code null}
      *
      * @throws IllegalStateException if the ArtFinder is not running
+     * @deprecated because {@code trackType} is now part of {@code artReference}
+     */
+    @API(status = API.Status.DEPRECATED)
+    public AlbumArt requestArtworkFrom(final DataReference artReference, final CdjStatus.TrackType trackType) {
+        return requestArtworkFrom(artReference);
+    }
+
+    /**
+     * Ask the specified player for the specified artwork from the specified media slot, first checking if we have a
+     * cached copy.
+     *
+     * @param artReference uniquely identifies the desired artwork
+     *
+     * @return the artwork, if it was found, or {@code null}
+     *
+     * @throws IllegalStateException if the ArtFinder is not running
      */
     @API(status = API.Status.STABLE)
-    public AlbumArt requestArtworkFrom(final DataReference artReference, final CdjStatus.TrackType trackType) {
+    public AlbumArt requestArtworkFrom(final DataReference artReference) {
         ensureRunning();
         AlbumArt artwork = findArtInMemoryCaches(artReference);  // First check the in-memory artwork caches.
         if (artwork == null) {
-            artwork = requestArtworkInternal(artReference, trackType, false);
+            artwork = requestArtworkInternal(artReference, false);
         }
         return artwork;
     }
@@ -582,7 +597,7 @@ public class ArtFinder extends LifecycleParticipant {
             // We can offer artwork for this device; check if we have already looked up this art
             final AlbumArt lastArt = hotCache.get(DeckReference.getDeckReference(update.player, 0));
             final DataReference artReference = new DataReference(update.metadata.trackReference.player,
-                    update.metadata.trackReference.slot, update.metadata.getArtworkId());
+                    update.metadata.trackReference.slot, update.metadata.getArtworkId(), update.metadata.trackType);
             if (lastArt == null || !lastArt.artReference.equals(artReference)) {  // We have something new!
 
                 // First see if we can find the new track in one of our in-memory caches
@@ -598,7 +613,7 @@ public class ArtFinder extends LifecycleParticipant {
                     // We had to make sure we were not already asking for this track.
                     new Thread(() -> {
                         try {
-                            AlbumArt art = requestArtworkInternal(artReference, update.metadata.trackType, true);
+                            AlbumArt art = requestArtworkInternal(artReference, true);
                             if (art != null) {
                                 updateArt(update, art);
                             }

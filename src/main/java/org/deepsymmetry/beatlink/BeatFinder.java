@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <p>When players are stopped, they do not send beat packets, but the mixer continues sending them
  * at the last BPM reported by the master player, so it acts as the most reliable synchronization
- * source. The mixer does not make any effort to keep its notion of measures (down beats) consistent
+ * source. The mixer does not make any effort to keep its notion of measures (downbeats) consistent
  * with any player, however. So systems which want to stay in sync with measures as well as beats
  * will want to use the {@link VirtualCdj} to maintain awareness of which player is the master player.</p>
  *
@@ -288,7 +288,7 @@ public class BeatFinder extends LifecycleParticipant {
      * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, beat announcements are delivered to listeners directly on the thread that is receiving them
-     * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
      * <p>
@@ -374,7 +374,7 @@ public class BeatFinder extends LifecycleParticipant {
      * them to Beat Link. If {@code listener} is {@code null} or already present in the list
      * of registered listeners, no exception is thrown and no action is performed.</p>
      *
-     * <p>To reduce latency, precise position updates are delivered to listeners directly on the thread that is receiving them
+     * <p>To reduce latency, precise position updates are delivered to listeners directly on the thread that is receiving
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
@@ -444,7 +444,7 @@ public class BeatFinder extends LifecycleParticipant {
      * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, sync commands are delivered to listeners directly on the thread that is receiving them
-     * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
      * <p>
@@ -525,7 +525,7 @@ public class BeatFinder extends LifecycleParticipant {
      * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, handoff commands are delivered to listeners directly on the thread that is receiving them
-     * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
      * <p>
@@ -609,7 +609,7 @@ public class BeatFinder extends LifecycleParticipant {
      * of registered listeners, no exception is thrown and no action is performed.</p>
      *
      * <p>To reduce latency, on-air updates are delivered to listeners directly on the thread that is receiving them
-     * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
      * <p>
@@ -676,7 +676,7 @@ public class BeatFinder extends LifecycleParticipant {
      * them on the network. If {@code listener} is {@code null} or already present in the list
      * of registered listeners, no exception is thrown and no action is performed.</p>
      *
-     * <p>To reduce latency, fader start commands are delivered to listeners directly on the thread that is receiving them
+     * <p>To reduce latency, fader start commands are delivered to listeners directly on the thread that is receiving
      * them from the network, so if you want to interact with user interface objects in listener methods, you need to use
      * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
      * to do so on the Event Dispatch Thread.
