@@ -78,7 +78,7 @@ public class OpusProvider {
     /**
      * If the user knows the key needed to access the SQLite database, it will be stored here.
      */
-    public final AtomicReference<String> databaseKey = new AtomicReference<>(prefs.get(databasePrefsKey, null));
+    private final AtomicReference<String> databaseKey = new AtomicReference<>(prefs.get(databasePrefsKey, null));
 
     /**
      * Set the key needed to access SQLite databases found in metadata archives. If this is known and supplied,
