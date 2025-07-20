@@ -449,6 +449,14 @@ public class WaveformDetail {
     }
 
 
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof WaveformDetail)) {
+            return false;
+        }
+        final WaveformDetail other = (WaveformDetail) obj;
+        return getData().equals(other.getData());
+    }
 
     @Override
     public String toString() {

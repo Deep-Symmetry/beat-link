@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -505,12 +506,12 @@ public class WaveformFinder extends LifecycleParticipant {
      * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param trackReference uniquely identifies the desired waveform preview
-     * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
-     *                      waveform updates will use available caches and downloaded metadata exports only
+     * @param fromUpdate if not {@code null} this is an automatic update in response to a track change, so we
+     *                   should only try a dbserver query if we are not in passive mode.
      *
      * @return the waveform preview found, if any
      */
-    private WaveformPreview requestPreviewInternal(final DataReference trackReference, final boolean failIfPassive) {
+    private WaveformPreview requestPreviewInternal(final DataReference trackReference, final TrackMetadataUpdate fromUpdate) {
 
         // First see if any registered metadata providers can offer it for us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
@@ -523,13 +524,13 @@ public class WaveformFinder extends LifecycleParticipant {
 
         // At this point, unless we are allowed to actively request the data, we are done. We can always actively
         // request tracks from rekordbox.
-        if (MetadataFinder.getInstance().isPassive() && failIfPassive && trackReference.slot != CdjStatus.TrackSourceSlot.COLLECTION) {
+        if (MetadataFinder.getInstance().isPassive() && fromUpdate != null && trackReference.slot != CdjStatus.TrackSourceSlot.COLLECTION) {
             return null;
         }
 
         // We have to actually request the preview using the dbserver protocol.
         ConnectionManager.ClientTask<WaveformPreview> task =
-                client -> getWaveformPreview(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), trackReference.trackType, client);
+                client -> getWaveformPreview(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), trackReference.trackType, fromUpdate, client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(trackReference.player, task, "requesting waveform preview");
@@ -557,7 +558,72 @@ public class WaveformFinder extends LifecycleParticipant {
                 return cached;
             }
         }
-        return requestPreviewInternal(dataReference, false);
+        return requestPreviewInternal(dataReference, null);
+    }
+
+    /**
+     * How long we are willing to wait, in nanoseconds, for a CDJ-3000 to analyze a non-rekordbox track before we give up on retrying.
+     */
+    static final long MAXIMUM_ANALYSIS_WAIT = TimeUnit.SECONDS.toNanos(90);
+
+    /**
+     * How logn we should wait, in milliseconds, after a failed/partial response during CDJ-3000 analysis to try again.
+     */
+    static final long ANALYSIS_UPDATE_INTERVAL = TimeUnit.SECONDS.toMillis(10);
+
+    /**
+     * Keeps track of whether we have a retry thread already in progress, so we never have more than one.
+     */
+    private static final AtomicBoolean retrying = new AtomicBoolean(false);
+
+    /**
+     * Helper method to check if we should retry a request because it seems the player may still be in the process
+     * of analyzing an unanalyzed track, and to produce an informative log message about the decision.
+     *
+     * @param fromUpdate the metadata update that led to this attempt, or {@code null} if it was an explicit request via our API
+     *
+     * @return {@code true} if we have kicked off the process of waiting and trying again
+     */
+    private boolean retryUnanalyzedTrack(TrackMetadataUpdate fromUpdate) {
+        if (fromUpdate == null || fromUpdate.metadata.trackType != CdjStatus.TrackType.UNANALYZED) {
+            return false;
+        }
+
+        final TrackMetadata currentMetadata = MetadataFinder.getInstance().getLatestMetadataFor(fromUpdate.player);
+
+        if (currentMetadata == null || !currentMetadata.equals(fromUpdate.metadata)) {
+            logger.warn("Track changed while waiting for for player {} to analyze track {} in slot {}, current metadata: {}, giving up.", fromUpdate.player,
+                    fromUpdate.metadata.trackReference.rekordboxId, fromUpdate.metadata.trackReference.slot, currentMetadata);
+            return false;
+        }
+
+        if (System.nanoTime() - fromUpdate.metadata.timestamp > MAXIMUM_ANALYSIS_WAIT) {
+            logger.warn("Waited too long for player {} to analyze track {} in slot {}, giving up.", fromUpdate.player,
+                    fromUpdate.metadata.trackReference.rekordboxId, fromUpdate.metadata.trackReference.slot);
+            return false;
+        }
+
+        logger.info("Did not find full data yet, still waiting for player {} to analyze track {} in slot {}.", fromUpdate.player,
+                fromUpdate.metadata.trackReference.rekordboxId, fromUpdate.metadata.trackReference.slot);
+        if (retrying.compareAndSet(false, true)) {
+            new Thread(() -> {
+                try {
+                    Thread.sleep(ANALYSIS_UPDATE_INTERVAL);
+                } catch (InterruptedException e) {
+                    logger.info("interrupted while waiting to retry loading waveform data for unanalyzed track {}", currentMetadata);
+                }
+                retrying.set(false);
+                if (currentMetadata.equals(MetadataFinder.getInstance().getLatestMetadataFor(fromUpdate.player))) {
+                    try {
+                        logger.info("Retrying waveform requests for unanalyzed track in player {}.", fromUpdate.player);
+                        handleUpdate(fromUpdate);
+                    } catch (Throwable t) {
+                        logger.error("Problem processing retry for waveform data of unanalyzed track {}", fromUpdate, t);
+                    }
+                }
+            }, "Unanalyzed waveform data request retry").start();
+        }
+        return true;
     }
 
     /**
@@ -567,12 +633,14 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param rekordboxId the track whose waveform preview is desired
      * @param slot identifies the media slot we are querying
      * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
+     * @param fromUpdate if not {@code null} this is an automatic update in response to a track change, so we
+     *                   should only try a dbserver query if we are not in passive mode.
      * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the retrieved waveform preview, or {@code null} if none was available
      * @throws IOException if there is a communication problem
      */
-    WaveformPreview getWaveformPreview(int rekordboxId, SlotReference slot, CdjStatus.TrackType trackType, Client client)
+    WaveformPreview getWaveformPreview(int rekordboxId, SlotReference slot, CdjStatus.TrackType trackType, TrackMetadataUpdate fromUpdate, Client client)
             throws IOException {
 
         final NumberField idField = new NumberField(rekordboxId);
@@ -586,9 +654,15 @@ public class WaveformFinder extends LifecycleParticipant {
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.RGB);
                 } else {
+                    if (retryUnanalyzedTrack(fromUpdate)) {
+                        return null;  // We will hopefully get the data from the retry that has been queued.
+                    }
                     logger.info("No color waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
+                if (retryUnanalyzedTrack(fromUpdate)) {
+                    return null;  // We will hopefully get the data from the retry that has been queued.
+                }
                 logger.info("No color waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
             }
         } else if (getPreferredStyle() == WaveformStyle.THREE_BAND) {
@@ -600,9 +674,15 @@ public class WaveformFinder extends LifecycleParticipant {
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.THREE_BAND);
                 } else {
+                    if (retryUnanalyzedTrack(fromUpdate)) {
+                        return null;  // We will hopefully get the data from the retry that has been queued.
+                    }
                     logger.info("No 3-band waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
+                if (retryUnanalyzedTrack(fromUpdate)) {
+                    return null;  // We will hopefully get the data from the retry that has been queued.
+                }
                 logger.info("No 3-band waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
             }
         }
@@ -610,7 +690,11 @@ public class WaveformFinder extends LifecycleParticipant {
         Message response = client.simpleRequest(Message.KnownType.WAVE_PREVIEW_REQ, Message.KnownType.WAVE_PREVIEW,
                 client.buildRMST(Message.MenuIdentifier.DATA, slot.slot, trackType), NumberField.WORD_1,
                 idField, NumberField.WORD_0);
-        return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
+        if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
+            return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
+        }
+        retryUnanalyzedTrack(fromUpdate);
+        return null;
     }
 
     /**
@@ -618,12 +702,12 @@ public class WaveformFinder extends LifecycleParticipant {
      * using downloaded media instead if it is available, and possibly giving up if we are in passive mode.
      *
      * @param trackReference uniquely identifies the desired waveform detail
-     * @param failIfPassive will prevent the request from taking place if we are in passive mode, so that automatic
-     *                      artwork updates will use available caches and downloaded metadata exports only
+     * @param fromUpdate if not {@code null} this is an automatic update in response to a track change, so we
+     *                   should only try a dbserver query if we are not in passive mode.
      *
      * @return the waveform preview found, if any
      */
-    private WaveformDetail requestDetailInternal(final DataReference trackReference, final boolean failIfPassive) {
+    private WaveformDetail requestDetailInternal(final DataReference trackReference, final TrackMetadataUpdate fromUpdate) {
 
         // First see if any registered metadata providers can offer it to us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
@@ -636,13 +720,13 @@ public class WaveformFinder extends LifecycleParticipant {
 
         // At this point, unless we are allowed to actively request the data, we are done. We can always actively
         // request tracks from rekordbox.
-        if (MetadataFinder.getInstance().isPassive() && failIfPassive && trackReference.slot != CdjStatus.TrackSourceSlot.COLLECTION) {
+        if (MetadataFinder.getInstance().isPassive() && fromUpdate != null && trackReference.slot != CdjStatus.TrackSourceSlot.COLLECTION) {
             return null;
         }
 
         // We have to actually request the detail using the dbserver protocol.
         ConnectionManager.ClientTask<WaveformDetail> task =
-                client -> getWaveformDetail(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), trackReference.trackType, client);
+                client -> getWaveformDetail(trackReference.rekordboxId, SlotReference.getSlotReference(trackReference), trackReference.trackType, fromUpdate, client);
 
         try {
             return ConnectionManager.getInstance().invokeWithClientSession(trackReference.player, task, "requesting waveform detail");
@@ -670,7 +754,7 @@ public class WaveformFinder extends LifecycleParticipant {
                 return cached;
             }
         }
-        return requestDetailInternal(dataReference, false);
+        return requestDetailInternal(dataReference, null);
     }
 
     /**
@@ -680,12 +764,14 @@ public class WaveformFinder extends LifecycleParticipant {
      * @param rekordboxId the track whose waveform detail is desired
      * @param slot identifies the media slot we are querying
      * @param trackType the type of track involved (since we can request metadata for unanalyzed tracks from CDJ-3000s)
+     * @param fromUpdate if not {@code null} this is an automatic update in response to a track change, so we
+     *                   should only try a dbserver query if we are not in passive mode.
      * @param client the dbserver client that is communicating with the appropriate player
      *
      * @return the retrieved waveform detail, or {@code null} if none was available
      * @throws IOException if there is a communication problem
      */
-    WaveformDetail getWaveformDetail(int rekordboxId, SlotReference slot, CdjStatus.TrackType trackType, Client client)
+    WaveformDetail getWaveformDetail(int rekordboxId, SlotReference slot, CdjStatus.TrackType trackType, TrackMetadataUpdate fromUpdate, Client client)
             throws IOException {
         final NumberField idField = new NumberField(rekordboxId);
 
@@ -698,9 +784,15 @@ public class WaveformFinder extends LifecycleParticipant {
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.RGB);
                 } else {
+                    if (retryUnanalyzedTrack(fromUpdate)) {
+                        return null;  // We will hopefully get the data from the retry that has been queued.
+                    }
                     logger.info("No color waveform detail available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
+                if (retryUnanalyzedTrack(fromUpdate)) {
+                    return null;  // We will hopefully get the data from the retry that has been queued.
+                }
                 logger.info("Problem requesting color waveform detail for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
             }
         } else if (preferredStyle.get() == WaveformStyle.THREE_BAND) {
@@ -712,16 +804,26 @@ public class WaveformFinder extends LifecycleParticipant {
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
                     return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.THREE_BAND);
                 } else {
+                    if (retryUnanalyzedTrack(fromUpdate)) {
+                        return null;  // We will hopefully get the data from the retry that has been queued.
+                    }
                     logger.info("No 3-band waveform detail available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
+                if (retryUnanalyzedTrack(fromUpdate)) {
+                    return null;  // We will hopefully get the data from the retry that has been queued.
+                }
                 logger.info("Problem requesting 3-band waveform detail for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
             }
         }
 
         Message response = client.simpleRequest(Message.KnownType.WAVE_DETAIL_REQ, Message.KnownType.WAVE_DETAIL,
                 client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField, NumberField.WORD_0);
-        return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
+        if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
+            return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
+        }
+        retryUnanalyzedTrack(fromUpdate);
+        return null;
     }
 
     /**
@@ -845,12 +947,12 @@ public class WaveformFinder extends LifecycleParticipant {
         } else {
             // We can offer waveform information for this device; check if we've already looked it up. First, preview:
             final WaveformPreview lastPreview = previewHotCache.get(DeckReference.getDeckReference(update.player, 0));
-            if (lastPreview == null || !lastPreview.dataReference.equals(update.metadata.trackReference)) {  // We have something new!
+            if (lastPreview == null || !lastPreview.dataReference.equals(update.metadata.trackReference) || update.metadata.trackType == CdjStatus.TrackType.UNANALYZED) {  // We may have something new!
 
                 // First see if we can find the new preview in the hot cache
-                for (WaveformPreview cached : previewHotCache.values()) {
-                    if (cached.dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
-                        updatePreview(update, cached);
+                for (Map.Entry<DeckReference, WaveformPreview> cached : previewHotCache.entrySet()) {
+                    if (cached.getKey().hotCue != 0 &&  cached.getValue().dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
+                        updatePreview(update, cached.getValue());
                         foundInCache = true;
                         break;
                     }
@@ -861,9 +963,12 @@ public class WaveformFinder extends LifecycleParticipant {
                     clearDeckPreview(update);  // We won't know what it is until our request completes.
                     new Thread(() -> {
                         try {
-                            WaveformPreview preview = requestPreviewInternal(update.metadata.trackReference, true);
+                            WaveformPreview preview = requestPreviewInternal(update.metadata.trackReference, update);
                             if (preview != null) {
                                 updatePreview(update, preview);
+                                if (!preview.equals(lastPreview)) {
+                                    retryUnanalyzedTrack(update);  // The preview is still changing, so retry for more.
+                                }
                             }
                         } catch (Exception e) {
                             logger.warn("Problem requesting waveform preview from update {}", update, e);
@@ -877,12 +982,13 @@ public class WaveformFinder extends LifecycleParticipant {
             // Secondly, the detail.
             foundInCache = false;
             final WaveformDetail lastDetail = detailHotCache.get(DeckReference.getDeckReference(update.player, 0));
-            if (isFindingDetails() && (lastDetail == null || !lastDetail.dataReference.equals(update.metadata.trackReference))) {  // We have something new!
+            if (isFindingDetails() && (lastDetail == null || !lastDetail.dataReference.equals(update.metadata.trackReference) ||
+                    update.metadata.trackType == CdjStatus.TrackType.UNANALYZED)) {  // We may have something new!
 
                 // First see if we can find the new detailed waveform in the hot cache
-                for (WaveformDetail cached : detailHotCache.values()) {
-                    if (cached.dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
-                        updateDetail(update, cached);
+                for (Map.Entry<DeckReference,WaveformDetail> cached : detailHotCache.entrySet()) {
+                    if (cached.getKey().hotCue != 0 && cached.getValue().dataReference.equals(update.metadata.trackReference)) {  // Found a hot cue hit, use it.
+                        updateDetail(update, cached.getValue());
                         foundInCache = true;
                         break;
                     }
@@ -893,9 +999,12 @@ public class WaveformFinder extends LifecycleParticipant {
                     clearDeckDetail(update);  // We won't know what it is until our request completes.
                     new Thread(() -> {
                         try {
-                            WaveformDetail detail = requestDetailInternal(update.metadata.trackReference, true);
+                            WaveformDetail detail = requestDetailInternal(update.metadata.trackReference, update);
                             if (detail != null) {
                                 updateDetail(update, detail);
+                                if (!detail.equals(lastDetail)) {
+                                    retryUnanalyzedTrack(update);  // The detail is still changing, so retry for more.
+                                }
                             }
                         } catch (Exception e) {
                             logger.warn("Problem requesting waveform detail from update {}", update, e);

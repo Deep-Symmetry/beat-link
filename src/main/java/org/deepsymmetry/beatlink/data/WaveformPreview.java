@@ -404,6 +404,15 @@ public class WaveformPreview {
     }
 
     @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof WaveformPreview)) {
+            return false;
+        }
+        final WaveformPreview other = (WaveformPreview) obj;
+        return getData().equals(other.getData());
+    }
+
+    @Override
     public String toString() {
         return "WaveformPreview[dataReference=" + dataReference + ", style: " + style + ", size:" + getData().remaining() +
                 ", segments:" + segmentCount + "]";

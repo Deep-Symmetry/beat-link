@@ -40,6 +40,13 @@ public class TrackMetadata {
     public final CdjStatus.TrackType trackType;
 
     /**
+     * Tracks when this metadata was created, which can be used to know how long a finder should wait
+     * for a track to be analyzed by a CDJ-3000 before giving up on obtaining other metadata for it.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public final long timestamp = System.nanoTime();
+
+    /**
      * The raw dbserver messages containing the metadata when it was read over the network.
      * Can be used to analyze fields that have not yet been reliably understood,
      * and was previously used for storing the metadata in a file. Will be {@code null} if
