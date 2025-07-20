@@ -382,7 +382,7 @@ public class ArtFinder extends LifecycleParticipant {
 
         // First see if any registered metadata providers can offer it for us, provided it is a rekordbox track.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(artReference.getSlotReference());
-        if (artReference.trackType == CdjStatus.TrackType.REKORDBOX && sourceDetails != null) {
+        if (sourceDetails != null) {
             final AlbumArt provided = MetadataFinder.getInstance().allMetadataProviders.getAlbumArt(sourceDetails, artReference);
             if (provided != null) {
                 addArtToCache(artReference, provided);

@@ -588,7 +588,7 @@ public class OpusProvider {
         @Override
         public TrackMetadata getTrackMetadata(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
-            if (archive != null) {
+            if (archive != null && track.trackType == CdjStatus.TrackType.REKORDBOX) {
                 Connection connection = archive.getConnection();
                 if (connection != null) {
                     // We have a usable SQLite Device Library Plus database connection we can use
@@ -615,7 +615,7 @@ public class OpusProvider {
             File file = null;
             final RekordboxUsbArchive archive = findArchive(art.player);
 
-            if (archive != null) {
+            if (archive != null && art.trackType == CdjStatus.TrackType.REKORDBOX) {
                 final FileSystem fileSystem = archive.getFileSystem();
                 final Connection connection = archive.getConnection();
                 final Database database = archive.getDatabase();
@@ -671,13 +671,14 @@ public class OpusProvider {
                     }
                 }
             }
-            return null;        }
+            return null;
+        }
 
         @Override
         public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
 
-            if (archive != null) {
+            if (archive != null && track.trackType == CdjStatus.TrackType.REKORDBOX) {
                 try {
                     final RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem(), ".DAT");
                     if (file != null) {
@@ -697,7 +698,7 @@ public class OpusProvider {
         @Override
         public CueList getCueList(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
-            if (archive != null) {
+            if (archive != null && track.trackType == CdjStatus.TrackType.REKORDBOX) {
                 try {
                     // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues
                     RekordboxAnlz file = findTrackAnalysis(archive.getUsbSlot(), track, archive.getDatabase(), archive.getConnection(), archive.getFileSystem(), ".EXT");
@@ -750,8 +751,8 @@ public class OpusProvider {
         @Override
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
-            // Return early if no archive exists for this player/slot
-            if (archive == null) {
+            // Return early if no archive exists for this player/slot, or it is not a rekordbox track
+            if (archive == null || track.trackType != CdjStatus.TrackType.REKORDBOX) {
                 return null;
             }
 
@@ -823,8 +824,8 @@ public class OpusProvider {
         @Override
         public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
-            // Return early if no archive exists for this player/slot
-            if (archive == null) {
+            // Return early if no archive exists for this player/slot, or it is not a rekordbox track
+            if (archive == null || track.trackType != CdjStatus.TrackType.REKORDBOX) {
                 return null;
             }
 
@@ -865,7 +866,7 @@ public class OpusProvider {
         public RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag) {
             final RekordboxUsbArchive archive = findArchive(track.player);
 
-            if (archive != null) {
+            if (archive != null && track.trackType == CdjStatus.TrackType.REKORDBOX) {
                 try {
                     if ((typeTag.length()) > 4) {
                         throw new IllegalArgumentException("typeTag cannot be longer than four characters");

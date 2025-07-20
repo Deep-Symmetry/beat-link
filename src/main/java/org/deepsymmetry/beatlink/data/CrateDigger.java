@@ -280,7 +280,10 @@ public class CrateDigger {
      */
     @API(status = API.Status.STABLE)
     public Database findDatabase(DataReference reference) {
-        return databases.get(reference.getSlotReference());
+        if (reference.trackType == CdjStatus.TrackType.REKORDBOX) {
+            return databases.get(reference.getSlotReference());
+        }
+        return null;  // We can only offer data about tracks in the rekordbox database.
     }
 
     /**

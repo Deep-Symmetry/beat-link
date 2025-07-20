@@ -514,7 +514,7 @@ public class WaveformFinder extends LifecycleParticipant {
 
         // First see if any registered metadata providers can offer it for us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
-        if (sourceDetails !=  null && trackReference.trackType == CdjStatus.TrackType.REKORDBOX) {
+        if (sourceDetails !=  null) {
             final WaveformPreview provided = MetadataFinder.getInstance().allMetadataProviders.getWaveformPreview(sourceDetails, trackReference);
             if (provided != null) {
                 return provided;
@@ -627,7 +627,7 @@ public class WaveformFinder extends LifecycleParticipant {
 
         // First see if any registered metadata providers can offer it to us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
-        if (sourceDetails !=  null && trackReference.trackType == CdjStatus.TrackType.REKORDBOX) {
+        if (sourceDetails !=  null) {
             final WaveformDetail provided = MetadataFinder.getInstance().allMetadataProviders.getWaveformDetail(sourceDetails, trackReference);
             if (provided != null) {
                 return provided;

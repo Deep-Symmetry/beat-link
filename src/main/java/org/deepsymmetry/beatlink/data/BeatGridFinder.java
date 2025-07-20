@@ -236,7 +236,7 @@ public class BeatGridFinder extends LifecycleParticipant {
 
         // First see if any registered metadata providers can offer it to us.
         final MediaDetails sourceDetails = MetadataFinder.getInstance().getMediaDetailsFor(trackReference.getSlotReference());
-        if (sourceDetails !=  null && trackType == CdjStatus.TrackType.REKORDBOX) {
+        if (sourceDetails !=  null) {
             final BeatGrid provided = MetadataFinder.getInstance().allMetadataProviders.getBeatGrid(sourceDetails, trackReference);
             if (provided != null) {
                 return provided;

@@ -97,7 +97,7 @@ public class MetadataFinder extends LifecycleParticipant {
     private TrackMetadata requestMetadataInternal(final DataReference track, final boolean failIfPassive) {
         // First see if any registered metadata providers can offer it for us, provided it is a rekordbox track.
         final MediaDetails sourceDetails = getMediaDetailsFor(track.getSlotReference());
-        if (track.trackType == CdjStatus.TrackType.REKORDBOX && sourceDetails != null) {
+        if (sourceDetails != null) {
             final TrackMetadata provided = allMetadataProviders.getTrackMetadata(sourceDetails, track);
             if (provided != null) {
                 return provided;
