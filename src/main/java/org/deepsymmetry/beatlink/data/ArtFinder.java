@@ -479,7 +479,7 @@ public class ArtFinder extends LifecycleParticipant {
         }
 
         // Create an image from the response bytes
-        return new AlbumArt(new DataReference(slot, artworkId), ((BinaryField)response.arguments.get(3)).getValue());
+        return new AlbumArt(new DataReference(slot, artworkId, trackType), ((BinaryField)response.arguments.get(3)).getValue());
     }
 
     /**

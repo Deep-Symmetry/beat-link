@@ -1910,6 +1910,7 @@ public class VirtualCdj extends LifecycleParticipant {
                                      int sourcePlayer, CdjStatus.TrackSourceSlot sourceSlot, CdjStatus.TrackType sourceType)
             throws IOException {
         ensureRunning();
+        logger.info("Sending track load command, target player: {}, id: {}, sourcePlayer: {}, sourceSlot: {}, sourceType: {}", target.getDeviceNumber(), rekordboxId, sourcePlayer, sourceSlot, sourceType);
         byte[] payload = new byte[LOAD_TRACK_PAYLOAD.length];
         System.arraycopy(LOAD_TRACK_PAYLOAD, 0, payload, 0, LOAD_TRACK_PAYLOAD.length);
         payload[0x02] = getDeviceNumber();

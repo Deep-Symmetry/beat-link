@@ -366,7 +366,7 @@ public class OpusProvider {
 
                 for (long key : database.trackIndex.keySet()) {
                     final int trackId = Math.toIntExact(key);
-                    DataReference dataRef = new DataReference(slotRef, trackId);
+                    DataReference dataRef = new DataReference(slotRef, trackId, CdjStatus.TrackType.REKORDBOX);
                     RekordboxAnlz anlz = findTrackAnalysis(usbSlotNumber, dataRef, database, openedArchive.getConnection(), filesystem, ".EXT");
                     if (anlz != null) {
                         // Get the SONG_STRUCTURE raw body
@@ -980,7 +980,7 @@ public class OpusProvider {
     @API(status = API.Status.EXPERIMENTAL)
     public int findMatchingUsbSlotForTrack(int rekordboxId, int player, ByteBuffer songStructureBytes){
         SlotReference slotRef = SlotReference.getSlotReference(player, CdjStatus.TrackSourceSlot.USB_SLOT);
-        DataReference dataRef = new DataReference(slotRef, rekordboxId);
+        DataReference dataRef = new DataReference(slotRef, rekordboxId, CdjStatus.TrackType.REKORDBOX);
 
         for (RekordboxUsbArchive archive: usbArchiveMap.values()) {
             if (trackMatchesArchive(dataRef, songStructureBytes, archive)) {

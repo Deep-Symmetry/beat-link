@@ -567,61 +567,65 @@ public class WaveformFinder extends LifecycleParticipant {
     static final long MAXIMUM_ANALYSIS_WAIT = TimeUnit.SECONDS.toNanos(90);
 
     /**
-     * How logn we should wait, in milliseconds, after a failed/partial response during CDJ-3000 analysis to try again.
+     * How long we should wait, in milliseconds, after a failed/partial response during CDJ-3000 analysis to try again.
      */
     static final long ANALYSIS_UPDATE_INTERVAL = TimeUnit.SECONDS.toMillis(10);
 
     /**
      * Keeps track of whether we have a retry thread already in progress, so we never have more than one.
      */
-    private static final AtomicBoolean retrying = new AtomicBoolean(false);
+    private final AtomicBoolean retrying = new AtomicBoolean(false);
 
     /**
      * Helper method to check if we should retry a request because it seems the player may still be in the process
      * of analyzing an unanalyzed track, and to produce an informative log message about the decision.
      *
-     * @param fromUpdate the metadata update that led to this attempt, or {@code null} if it was an explicit request via our API
+     * @param fromUpdate    the metadata update that led to this attempt, or {@code null} if it was an explicit request via our API
+     * @param retryFlag     the flag that is being used to record that the finder class has already scheduled a retry attempt
+     * @param retryListener the listener to which the metadata update should be re-delivered when it is time to retry
+     * @param description   the text to use in log messages describing the data we are retrying to obtain
      *
      * @return {@code true} if we have kicked off the process of waiting and trying again
      */
-    private boolean retryUnanalyzedTrack(TrackMetadataUpdate fromUpdate) {
+    static boolean retryUnanalyzedTrack(TrackMetadataUpdate fromUpdate, AtomicBoolean retryFlag, TrackMetadataListener retryListener, String description) {
         if (fromUpdate == null || fromUpdate.metadata.trackType != CdjStatus.TrackType.UNANALYZED) {
+            logger.info("retryUnanalyzedTrack bailing for {}, fromUpdate: {}", description, fromUpdate);
             return false;
         }
 
         final TrackMetadata currentMetadata = MetadataFinder.getInstance().getLatestMetadataFor(fromUpdate.player);
 
         if (currentMetadata == null || !currentMetadata.equals(fromUpdate.metadata)) {
-            logger.warn("Track changed while waiting for for player {} to analyze track {} in slot {}, current metadata: {}, giving up.", fromUpdate.player,
-                    fromUpdate.metadata.trackReference.rekordboxId, fromUpdate.metadata.trackReference.slot, currentMetadata);
+            logger.info("Track changed while waiting for player {} to analyze {} for track {} in slot {}, current metadata: {}, giving up.", fromUpdate.player,
+                    description, fromUpdate.metadata.trackReference.rekordboxId, fromUpdate.metadata.trackReference.slot, currentMetadata);
             return false;
         }
 
         if (System.nanoTime() - fromUpdate.metadata.timestamp > MAXIMUM_ANALYSIS_WAIT) {
-            logger.warn("Waited too long for player {} to analyze track {} in slot {}, giving up.", fromUpdate.player,
-                    fromUpdate.metadata.trackReference.rekordboxId, fromUpdate.metadata.trackReference.slot);
+            logger.warn("Waited too long for player {} to analyze {} for track {} in slot {}, giving up.", fromUpdate.player,
+                    description, fromUpdate.metadata.trackReference.rekordboxId, fromUpdate.metadata.trackReference.slot);
             return false;
         }
 
-        logger.info("Did not find full data yet, still waiting for player {} to analyze track {} in slot {}.", fromUpdate.player,
+        logger.info("Did not find full {} data yet, still waiting for player {} to analyze track {} in slot {}.", description, fromUpdate.player,
                 fromUpdate.metadata.trackReference.rekordboxId, fromUpdate.metadata.trackReference.slot);
-        if (retrying.compareAndSet(false, true)) {
+        if (retryFlag.compareAndSet(false, true)) {
             new Thread(() -> {
                 try {
                     Thread.sleep(ANALYSIS_UPDATE_INTERVAL);
                 } catch (InterruptedException e) {
-                    logger.info("interrupted while waiting to retry loading waveform data for unanalyzed track {}", currentMetadata);
+                    logger.info("interrupted while waiting to retry loading {} data for unanalyzed track {}", description, currentMetadata);
                 }
-                retrying.set(false);
+                retryFlag.set(false);
                 if (currentMetadata.equals(MetadataFinder.getInstance().getLatestMetadataFor(fromUpdate.player))) {
                     try {
-                        logger.info("Retrying waveform requests for unanalyzed track in player {}.", fromUpdate.player);
-                        handleUpdate(fromUpdate);
+                        logger.info("Retrying {} requests for unanalyzed track in player {}.", description, fromUpdate.player);
+                        retryListener.metadataChanged(fromUpdate);
                     } catch (Throwable t) {
-                        logger.error("Problem processing retry for waveform data of unanalyzed track {}", fromUpdate, t);
+                        logger.error("Problem processing retry for {} data of unanalyzed track {}", description, fromUpdate, t);
                     }
                 }
-            }, "Unanalyzed waveform data request retry").start();
+            }, "Unanalyzed " + description + " data request retry").start();
         }
         return true;
     }
@@ -652,15 +656,15 @@ public class WaveformFinder extends LifecycleParticipant {
                         client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_PREVIEW), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
-                    return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.RGB);
+                    return new WaveformPreview(new DataReference(slot, rekordboxId, trackType), response, WaveformStyle.RGB);
                 } else {
-                    if (retryUnanalyzedTrack(fromUpdate)) {
+                    if (retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform")) {
                         return null;  // We will hopefully get the data from the retry that has been queued.
                     }
                     logger.info("No color waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
-                if (retryUnanalyzedTrack(fromUpdate)) {
+                if (retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform")) {
                     return null;  // We will hopefully get the data from the retry that has been queued.
                 }
                 logger.info("No color waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
@@ -672,15 +676,15 @@ public class WaveformFinder extends LifecycleParticipant {
                         client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_3BAND_WAVEFORM_PREVIEW), new NumberField(Message.ALNZ_FILE_TYPE_2EX));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
-                    return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.THREE_BAND);
+                    return new WaveformPreview(new DataReference(slot, rekordboxId, trackType), response, WaveformStyle.THREE_BAND);
                 } else {
-                    if (retryUnanalyzedTrack(fromUpdate)) {
+                    if (retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform")) {
                         return null;  // We will hopefully get the data from the retry that has been queued.
                     }
                     logger.info("No 3-band waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
-                if (retryUnanalyzedTrack(fromUpdate)) {
+                if (retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform")) {
                     return null;  // We will hopefully get the data from the retry that has been queued.
                 }
                 logger.info("No 3-band waveform preview available for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
@@ -691,9 +695,9 @@ public class WaveformFinder extends LifecycleParticipant {
                 client.buildRMST(Message.MenuIdentifier.DATA, slot.slot, trackType), NumberField.WORD_1,
                 idField, NumberField.WORD_0);
         if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
-            return new WaveformPreview(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
+            return new WaveformPreview(new DataReference(slot, rekordboxId, trackType), response, WaveformStyle.BLUE);
         }
-        retryUnanalyzedTrack(fromUpdate);
+        retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform");
         return null;
     }
 
@@ -782,15 +786,15 @@ public class WaveformFinder extends LifecycleParticipant {
                         client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_COLOR_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_EXT));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
-                    return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.RGB);
+                    return new WaveformDetail(new DataReference(slot, rekordboxId, trackType), response, WaveformStyle.RGB);
                 } else {
-                    if (retryUnanalyzedTrack(fromUpdate)) {
+                    if (retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform")) {
                         return null;  // We will hopefully get the data from the retry that has been queued.
                     }
                     logger.info("No color waveform detail available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
-                if (retryUnanalyzedTrack(fromUpdate)) {
+                if (retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform")) {
                     return null;  // We will hopefully get the data from the retry that has been queued.
                 }
                 logger.info("Problem requesting color waveform detail for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
@@ -802,15 +806,15 @@ public class WaveformFinder extends LifecycleParticipant {
                         client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField,
                         new NumberField(Message.ANLZ_FILE_TAG_3BAND_WAVEFORM_DETAIL), new NumberField(Message.ALNZ_FILE_TYPE_2EX));
                 if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
-                    return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.THREE_BAND);
+                    return new WaveformDetail(new DataReference(slot, rekordboxId, trackType), response, WaveformStyle.THREE_BAND);
                 } else {
-                    if (retryUnanalyzedTrack(fromUpdate)) {
+                    if (retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform")) {
                         return null;  // We will hopefully get the data from the retry that has been queued.
                     }
                     logger.info("No 3-band waveform detail available for slot {}, id {}; requesting blue version.", slot, rekordboxId);
                 }
             } catch (Exception e) {
-                if (retryUnanalyzedTrack(fromUpdate)) {
+                if (retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform")) {
                     return null;  // We will hopefully get the data from the retry that has been queued.
                 }
                 logger.info("Problem requesting 3-band waveform detail for slot {}, id {}; requesting blue version.", slot, rekordboxId, e);
@@ -820,9 +824,9 @@ public class WaveformFinder extends LifecycleParticipant {
         Message response = client.simpleRequest(Message.KnownType.WAVE_DETAIL_REQ, Message.KnownType.WAVE_DETAIL,
                 client.buildRMST(Message.MenuIdentifier.MAIN_MENU, slot.slot, trackType), idField, NumberField.WORD_0);
         if (response.knownType != Message.KnownType.UNAVAILABLE && response.arguments.get(3).getSize() > 0) {
-            return new WaveformDetail(new DataReference(slot, rekordboxId), response, WaveformStyle.BLUE);
+            return new WaveformDetail(new DataReference(slot, rekordboxId, trackType), response, WaveformStyle.BLUE);
         }
-        retryUnanalyzedTrack(fromUpdate);
+        retryUnanalyzedTrack(fromUpdate, retrying, metadataListener, "waveform");
         return null;
     }
 
@@ -967,7 +971,7 @@ public class WaveformFinder extends LifecycleParticipant {
                             if (preview != null) {
                                 updatePreview(update, preview);
                                 if (!preview.equals(lastPreview)) {
-                                    retryUnanalyzedTrack(update);  // The preview is still changing, so retry for more.
+                                    retryUnanalyzedTrack(update, retrying, metadataListener, "waveform");  // The preview is still changing, so retry for more.
                                 }
                             }
                         } catch (Exception e) {
@@ -1003,7 +1007,7 @@ public class WaveformFinder extends LifecycleParticipant {
                             if (detail != null) {
                                 updateDetail(update, detail);
                                 if (!detail.equals(lastDetail)) {
-                                    retryUnanalyzedTrack(update);  // The detail is still changing, so retry for more.
+                                    retryUnanalyzedTrack(update, retrying, metadataListener, "waveform");  // The detail is still changing, so retry for more.
                                 }
                             }
                         } catch (Exception e) {

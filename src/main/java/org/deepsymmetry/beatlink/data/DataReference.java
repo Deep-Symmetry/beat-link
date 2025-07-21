@@ -51,7 +51,7 @@ public class DataReference {
      * @param rekordboxId the unique ID of the item within that media database
      *
      * @throws NullPointerException if {@code slot} is {@code null}
-     * @deprecated since version 8 in favor of four-argument version.
+     * @deprecated since version 8 in favor of {@link DataReference#DataReference(int, CdjStatus.TrackSourceSlot, int, CdjStatus.TrackType)}.
      */
     @API(status = API.Status.DEPRECATED)
     public DataReference(int player, CdjStatus.TrackSourceSlot slot, int rekordboxId) {
@@ -87,14 +87,31 @@ public class DataReference {
 
     /**
      * Create a unique reference to a track, album art, beat grid, or waveform that is currently available on
-     * the network.
+     * the network, assuming it is a rekordbox track.
      *
      * @param slot the slot in which the item is mounted
      * @param rekordboxId the unique ID of the item within that media database
+     *
+     * @deprecated since version 8 in favor of {@link DataReference#DataReference(SlotReference, int, CdjStatus.TrackType)}.
+     */
+    @API(status = API.Status.DEPRECATED)
+    public DataReference(SlotReference slot, int rekordboxId) {
+        this(slot.player, slot.slot, rekordboxId, CdjStatus.TrackType.REKORDBOX);
+    }
+
+    /**
+     * Create a unique reference to a track, album art, beat grid, or waveform that is currently available on
+     * the network, assuming it is a rekordbox track.
+     *
+     * @param slot the slot in which the item is mounted
+     * @param rekordboxId the unique ID of the item within that media database
+     * @param trackType identifies the type of track (can now be either {@link org.deepsymmetry.beatlink.CdjStatus.TrackType#REKORDBOX}
+     *                  or {@link org.deepsymmetry.beatlink.CdjStatus.TrackType#UNANALYZED} with CDJ-3000s)
      */
     @API(status = API.Status.STABLE)
-    public DataReference(SlotReference slot, int rekordboxId) {
-        this(slot.player, slot.slot, rekordboxId);
+    public DataReference(SlotReference slot, int rekordboxId, CdjStatus.TrackType trackType)
+    {
+        this(slot.player, slot.slot, rekordboxId, trackType);
     }
 
     /**
