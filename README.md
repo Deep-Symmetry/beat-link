@@ -84,35 +84,26 @@ releases of hardware or even firmware updates from Pioneer.
 > can't work either.
 
 > [!TIP]
-> :white_check_mark: Beat Link seems to work great with CDJ-2000 Nexus
-> and nxs2 gear, and release 7.3.0 supports CDJ-3000 features. It
-> works fairly well (with less information available) with older
-> CDJ-2000s. It has also been reported to work with XDJ-1000 gear, and
-> (starting with version 0.6.0) with the XDJ-XZ as well. If you can
-> try it with anything else, *please* let us know what you learn in
-> [Beat Link Trigger's Zulip chat
-> stream](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger),
-> or if you have worked out actionable details about something that
-> could be improved, [open an
-> Issue](https://github.com/Deep-Symmetry/beat-link/issues) or submit
-> a pull request so we can all improve our understanding together.
+> :white_check_mark: Beat Link seems to work great with CDJ-2000 Nexus and nxs2 gear, release 7.3.0 began to support CDJ-3000 features, and even more are supported starting in version 8.
+> It works fairly well (with less information available) with older CDJ-2000s.
+> It has also been reported to work with XDJ-1000 gear, and (starting with version 0.6.0) with the XDJ-XZ as well.
+> If you can try it with anything else, *please* let us know what you learn in [Beat Link Trigger's Zulip channel](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger).
+> If you have worked out actionable details about something that could be improved, after discussing it on Zulip, [open an Issue](https://github.com/Deep-Symmetry/beat-link/issues) or submit a pull request so we can all improve our understanding together.
 > 
 > :construction: We have added experimental support for the Opus Quad, which, despite not supporting a DJ-Link network, seems to communicate with rekordbox to support lighting in a way that will allow us to offer good support in Beat Link once we reorganize the code to support working that way.
-Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work!
+> Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work!
+> 
+> In later releases of version 8 we will see if we can take that further, and also identify what is practical in working with the XDJ-AZ.
 
-If something isn&rsquo;t working with your hardware, and you don&rsquo;t yet know
-the details why, but are willing to learn a little and help figure it
-out, look at the
-[dysentery project](https://github.com/Deep-Symmetry/dysentery#dysentery),
-which is where we are organizing the research tools and results which
-made programs like Beat Link possible.
+If something isn’t working with your hardware, and you don’t yet know the details why, but are willing to learn a little and help figure it out, look at the [dysentery project](https://github.com/Deep-Symmetry/dysentery#dysentery), which is where we organize the research tools and results which made programs like Beat Link possible.
 
 ## Getting Help
 
 <a href="https://zulip.com"><img align="right" alt="Zulip logo"
  src="assets/zulip-icon-circle.svg" width="128" height="128"></a>
 
-Deep Symmetry&rsquo;s projects are generously sponsored with hosting by [Zulip](https://zulip.com), an open-source modern team chat app designed to keep both live and asynchronous conversations organized. Thanks to them, you can [chat with our community](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger), ask questions, get inspiration, and share your own ideas.
+Deep Symmetry’s projects are generously sponsored with hosting by [Zulip](https://zulip.com), an open-source modern team chat app designed to keep both live and asynchronous conversations organized.
+Thanks to them, you can [chat with our community](https://deep-symmetry.zulipchat.com/#narrow/stream/275322-beat-link-trigger), ask questions, get inspiration, and share your own ideas.
 
 For more details, see [Get Help](GET_HELP.adoc).
 

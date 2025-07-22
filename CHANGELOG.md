@@ -6,18 +6,23 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
+Nothing so far.
+
+## [8.0.0] - 2025-07-21
+
+
 ### Added
 
 - We can now obtain track metadata including the waveform and beat grid even for tracks that have not been analyzed by rekordbox when talking to a CDJ-3000.
   This means that such tracks can interact usefully with almost all Beat Link features.
-- The ability to provide limited features with the Opus Quad, even though that hardware does not really support the Pro DJ Link protocol, by leveraging its ability to work with rekordbox lighting. Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work! Note that because the Opus Quad does not send beat packets, we might be up to 200ms out of sync with beats, since that is how often status packets arrive.
 - Support for the three-band waveform style introduced with the CDJ-3000.
+- The ability to provide limited features with the Opus Quad, even though that hardware does not really support the Pro DJ Link protocol, by leveraging its ability to work with rekordbox lighting. Thanks to [@cprepos](https://github.com/cprepos) for doing most of this work! Note that because the Opus Quad does not send beat packets, we might be up to 200ms out of sync with beats, since that is how often status packets arrive.
 - The ability to proxy metadata from mounted archive files corresponding to USB media mounted in the Opus Quad, which cannot itself provide that information.
 - We now know how to interpret the byte within device announcement packets that report the number of peer devices seen by that device. The `DeviceAnnouncement` class now provides access to this information.
 - A setting has been added to the `TimeFinder` to prevent it from using precise position packets sent by CDJ-3000s.
   They help keep tighter synchronization with playback position, but currently seem to exhibit too much jitter for use when synchronizing with audio sources over Ableton Link.
   This setting is a workaround until a smoothing solution is developed.
-- When we are using precise position packets, though, we now do a better job of tracking the position of CDJ-3000s that are playing unanalyzed tracks (and which thus have no beat grids).
+- When we are using precise position packets, though, we now do a better job of tracking the position of CDJ-3000s that are playing unanalyzed tracks (and which thus have no beat grids until they complete their own analysis).
 - When we unexpectedly are unable to route a message to a CDJ, we now log extensive troubleshooting information about the address we are trying to send to and the state of the network interfaces at that moment.
 
 ### Fixed
@@ -854,7 +859,8 @@ May the Fourth be with you.
 - Initial early release of DeviceFinder.
 
 
-[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v7.4.0...HEAD
+[unreleased]: https://github.com/Deep-Symmetry/beat-link/compare/v8.0.0...HEAD
+[8.0.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.4.0...v8.0.0
 [7.4.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.3.0...v7.4.0
 [7.3.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.2.0...v7.3.0
 [7.2.0]: https://github.com/Deep-Symmetry/beat-link/compare/v7.1.0...v7.2.0
