@@ -70,7 +70,15 @@ public abstract class DeviceUpdate {
         preNexusCdj = deviceName.startsWith("CDJ") && (deviceName.endsWith("900") || deviceName.endsWith("2000"));
 
         if (isFromOpusQuad) {
-            deviceNumber = Util.translateOpusPlayerNumbers(packetBytes[DEVICE_NUMBER_OFFSET]);
+            byte sourceByte;
+            // The player number is stored in a different
+            // location when using precise position packets
+            if ("Precise position".equals(name)) {
+                sourceByte = packetBytes[0x21];
+            } else {
+                sourceByte = packetBytes[0x24];
+            }
+            deviceNumber = Util.translateOpusPlayerNumbers(sourceByte);
         } else {
             deviceNumber = Util.unsign(packetBytes[DEVICE_NUMBER_OFFSET]);
         }
