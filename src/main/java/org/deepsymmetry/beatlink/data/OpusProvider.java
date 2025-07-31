@@ -305,9 +305,6 @@ public class OpusProvider {
             if (VirtualRekordbox.getInstance().isRunning()) {
                 VirtualRekordbox.getInstance().clearPlayerCaches(usbSlotNumber);
             }
-            if (VirtualCdjOpus.getInstance().isRunning()) {
-                VirtualCdjOpus.getInstance().clearPlayerCaches(usbSlotNumber);
-            }
 
             // Clean up PSSI mappings for this USB slot.
             for (Set<DeviceSqlRekordboxIdAndSlot> matches : pssiToDeviceSqlRekordboxIds.values()) {
