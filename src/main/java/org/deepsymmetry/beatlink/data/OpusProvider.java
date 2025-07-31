@@ -85,7 +85,7 @@ public class OpusProvider {
      * [MODE 2](https://github.com/kyleawayan/beat-link/blob/opus-table/opus-table.md)
      */
     @API(status = API.Status.EXPERIMENTAL)
-    public boolean inModeTwo() {
+    public boolean usingDeviceLibraryPlus() {
         return databaseKey.get() != null;
     }
 
