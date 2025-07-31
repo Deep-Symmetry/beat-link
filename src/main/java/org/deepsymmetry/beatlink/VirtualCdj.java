@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apiguardian.api.API;
 import org.deepsymmetry.beatlink.data.MetadataFinder;
+import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.SlotReference;
 import org.deepsymmetry.electro.Metronome;
 import org.deepsymmetry.electro.Snapshot;
@@ -1119,13 +1120,20 @@ public class VirtualCdj extends LifecycleParticipant {
                 // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
                 for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
                     if (device.isOpusQuad) {
-                        proxyingForVirtualRekordbox.set(true);
-                        VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
-                        final boolean success = VirtualRekordbox.getInstance().start();
-                        if (success) {
-                            // Copy values from VirtualRekordbox that we depend on for various internal calculations.
-                            matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
-                            matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
+                        boolean success = false;
+                        if (OpusProvider.getInstance().inModeTwo()) {
+                            logger.info("In MODE 2. Not starting VirtualRekordbox. Starting OpusProvider.");
+                            OpusProvider.getInstance().start();
+                        } else {
+                            logger.info("In MODE 1. Not starting VirtualCdj. Starting VirtualRekordbox.");
+                            proxyingForVirtualRekordbox.set(true);
+                            VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
+                            success = VirtualRekordbox.getInstance().start();
+                            if (success) {
+                                // Copy values from VirtualRekordbox that we depend on for various internal calculations.
+                                matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
+                                matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
+                            }
                         }
                         return success;
                     }
