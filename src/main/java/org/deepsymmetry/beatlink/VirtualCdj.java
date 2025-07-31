@@ -663,7 +663,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     @API(status = API.Status.STABLE)
     public List<NetworkInterface> getMatchingInterfaces() {
-        if (proxyingForVirtualRekordbox.get()) {
+        if (VirtualRekordbox.getInstance().isRunning()) {
             return VirtualRekordbox.getInstance().getMatchingInterfaces();
         }
 
@@ -1120,22 +1120,23 @@ public class VirtualCdj extends LifecycleParticipant {
                 // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
                 for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
                     if (device.isOpusQuad) {
-                        boolean success = false;
                         if (OpusProvider.getInstance().inModeTwo()) {
                             logger.info("In MODE 2. Not starting VirtualRekordbox. Starting OpusProvider.");
+                            proxyingForVirtualRekordbox.set(true);
                             OpusProvider.getInstance().start();
+                            return createVirtualCdj();
                         } else {
                             logger.info("In MODE 1. Not starting VirtualCdj. Starting VirtualRekordbox.");
                             proxyingForVirtualRekordbox.set(true);
                             VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
-                            success = VirtualRekordbox.getInstance().start();
+                            boolean success = VirtualRekordbox.getInstance().start();
                             if (success) {
                                 // Copy values from VirtualRekordbox that we depend on for various internal calculations.
                                 matchedAddress = VirtualRekordbox.getInstance().getMatchedAddress();
                                 matchingInterfaces = VirtualRekordbox.getInstance().getMatchingInterfaces();
                             }
+                          return success;
                         }
-                        return success;
                     }
                 }
 
