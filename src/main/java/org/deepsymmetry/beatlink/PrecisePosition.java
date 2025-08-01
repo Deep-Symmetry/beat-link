@@ -41,7 +41,8 @@ public class PrecisePosition extends DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public PrecisePosition(DatagramPacket packet) {
-        super(packet, "Precise position", 0x3c);
+        // Use special parent constructor because the normal offset does not contain our device number.
+        super(packet, "Precise position", 0x3c, 0x21);
         trackLength = (int)Util.bytesToNumber(packetBytes, 0x24, 4);
         playbackPosition = (int)Util.bytesToNumber(packetBytes, 0x28, 4);
         long rawPitch = Util.bytesToNumber(packetBytes, 0x2c, 4);

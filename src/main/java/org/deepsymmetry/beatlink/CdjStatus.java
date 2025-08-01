@@ -687,7 +687,12 @@ public class CdjStatus extends DeviceUpdate {
             // sourcePlayer variable will be changed to the slot number, it's not the deck number
             int sourcePlayer = Util.translateOpusPlayerNumbers(trackSourceByte);
             int player = Util.translateOpusPlayerNumbers(trackSourceByte);
-            if (sourcePlayer != 0) {
+            if (OpusProvider.getInstance().usingDeviceLibraryPlus()) {
+                // Only one USB is supported, since we don't have any precise metadata to match
+                // to verify USB slot number
+                sourcePlayer = 1;
+            }
+            else if (sourcePlayer != 0) {
                 final SlotReference matchedSourceSlot = VirtualRekordbox.getInstance().findMatchedTrackSourceSlotForPlayer(deviceNumber);
                 if (matchedSourceSlot != null) {
                     sourcePlayer = matchedSourceSlot.player;
