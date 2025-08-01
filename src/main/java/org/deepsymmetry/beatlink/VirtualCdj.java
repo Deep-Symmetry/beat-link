@@ -59,6 +59,12 @@ public class VirtualCdj extends LifecycleParticipant {
     private final AtomicBoolean proxyingForVirtualRekordbox = new AtomicBoolean(false);
 
     /**
+     * Indicates that even though we are actually running, we are talking to an Opus Quad, so metadata requests
+     * need to go through Opus Provider to an attached metadata archive.
+     */
+    private final AtomicBoolean inOpusQuadSQLiteMode = new AtomicBoolean(false);
+
+    /**
      * Check whether we are simply proxying information from {@link VirtualRekordbox} so that we can work with the Opus
      * Quad rather than real Pro DJ Link hardware.
      *
@@ -66,18 +72,19 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public boolean inOpusQuadCompatibilityMode() {
-        return proxyingForVirtualRekordbox.get();
+        return proxyingForVirtualRekordbox.get() || inOpusQuadSQLiteMode.get();
     }
 
     /**
-     * Check whether we are presently posing as a virtual CDJ and receiving device status updates.
+     * Check whether we are presently posing as a virtual CDJ and receiving device status updates, or as rekordbox
+     * to receive lighting packets from the Opus Quad.
      *
      * @return true if our socket is open, sending presence announcements, and receiving status packets,
      *         or if we were started in a mode where we delegate most of our responsibility to {@link VirtualRekordbox}
      */
     @API(status = API.Status.STABLE)
     public boolean isRunning() {
-        return inOpusQuadCompatibilityMode() || (socket.get() != null && !starting.get());
+        return proxyingForVirtualRekordbox.get() || (socket.get() != null && !starting.get());
     }
 
     /**
@@ -1066,7 +1073,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
         @Override
         public void stopped(LifecycleParticipant sender) {
-            if (inOpusQuadCompatibilityMode()) {
+            if (proxyingForVirtualRekordbox.get()) {
                 logger.info("Shutting down because VirtualRekordbox is and we were proxying for it.");
                 stop();
             }
@@ -1081,10 +1088,28 @@ public class VirtualCdj extends LifecycleParticipant {
 
     /**
      * <p>In normal operation (with Pro DJ Link devices), start announcing ourselves and listening for status packets.
-     * If, however, we find an Opus Quad on the network, start {@link VirtualRekordbox} and operate in a more
-     * limited Opus Quad compatibility mode, acting as a proxy for packets that it is responsible for receiving.
-     * Either mode requires the {@link DeviceFinder} to be active in order to find out how to communicate with
-     * other devices, so will start that if it is not already.</p>
+     * If, however, we find an Opus Quad on the network, there are two possible paths:</p>
+     *
+     * <p>The most common is to start {@link VirtualRekordbox} and operate in a more limited Opus Quad compatibility
+     * mode (relying on the user to maintain and attach metadata archives of track information for the USBs they
+     * are using, and phrase information we can obtain through rekordbox lighting mode to try to match tracks,
+     * since the IDs are not reliable), and acting as a proxy for packets that {@code VirtualRekordbox} is responsible
+     * for receiving.</p>
+     *
+     * <p>A variant mode for working with the Opus Quad is used when a database key has been supplied for opening
+     * the SQLite databases that it uses instead of DeviceSQL (these are also present in metadata archives). When
+     * we can open those, we don’t need rekordbox lighting packets to match tracks, we can look them up by ID in
+     * the SQLite database, so we do start as normal but still indicate that we are in Opus Quad compatibility mode
+     * (via {@link #inOpusQuadCompatibilityMode()}) so that the {@link MetadataFinder} knows that it still needs to
+     * use {@link OpusProvider} and its metadata archives to get track information. In this mode we also need to
+     * fake the receipt of beat packets, since the Opus Quad does not send them, but we can do so fairly well with
+     * the help of the precise position packets that it does send.</p>
+     *
+     * <p>These three modes are described as normal Pro DJ Link mode, Opus Quad rekordbox lighting mode, and
+     * Opus Quad SQLite mode, respectively.</p>
+     *
+     * <p>Any mode requires the {@link DeviceFinder} to be active in order to find out how to communicate with
+     * other devices, so we start that if it is not already.</p>
      *
      * <p>If already active, has no effect.</p>
      *
@@ -1117,17 +1142,19 @@ public class VirtualCdj extends LifecycleParticipant {
                     return false;
                 }
 
-                // See if there is an Opus Quad on the network, which means we need to be in the limited compatibility mode.
+                // See if there is an Opus Quad on the network, which means we need to be in one of the limited compatibility modes.
                 for (DeviceAnnouncement device : DeviceFinder.getInstance().getCurrentDevices()) {
                     if (device.isOpusQuad) {
                         if (OpusProvider.getInstance().usingDeviceLibraryPlus()) {
-                            logger.info("In MODE 2. Not starting VirtualRekordbox. Starting OpusProvider.");
-                            proxyingForVirtualRekordbox.set(true);
+                            logger.info("In Opus Quad SQLite mode. Not starting VirtualRekordbox. Starting OpusProvider.");
+                            proxyingForVirtualRekordbox.set(false);
+                            inOpusQuadSQLiteMode.set(true);
                             OpusProvider.getInstance().start();
                             return createVirtualCdj();
                         } else {
-                            logger.info("In MODE 1. Not starting VirtualCdj. Starting VirtualRekordbox.");
+                            logger.info("In Opus Quad rekordbox lighting mode. Not starting VirtualCdj. Starting VirtualRekordbox.");
                             proxyingForVirtualRekordbox.set(true);
+                            inOpusQuadSQLiteMode.set(false);
                             VirtualRekordbox.getInstance().addLifecycleListener(virtualRekordboxLifecycleListener);
                             boolean success = VirtualRekordbox.getInstance().start();
                             if (success) {
@@ -1141,6 +1168,7 @@ public class VirtualCdj extends LifecycleParticipant {
                 }
 
                 proxyingForVirtualRekordbox.set(false);
+                inOpusQuadSQLiteMode.set(false);
                 return createVirtualCdj();
             } finally {
                 starting.set(false);
@@ -1158,6 +1186,8 @@ public class VirtualCdj extends LifecycleParticipant {
      * then immediately calling {@link #start()}, but avoids the race condition which can occur if startup is already
      * in progress, which would lead to an {@link IllegalStateException}. This is not uncommon when startup is being
      * driven by receipt of device announcement packets.</p>
+     *
+     * @see #start() for more information.
      *
      * @param deviceNumber the device number to try to claim
      *
@@ -1184,29 +1214,43 @@ public class VirtualCdj extends LifecycleParticipant {
             updates.clear();
             setTempoMaster(null);
 
-            if (inOpusQuadCompatibilityMode()) {
-                // We were running in proxy mode, so we need to shut down VirtualRekordbox (MODE 1) or OpusProvider (MODE 2), and nothing further.
-                if (VirtualRekordbox.getInstance().isRunning()) {
-                  VirtualRekordbox.getInstance().stop();
+            final boolean wasInAnOpusMode = inOpusQuadCompatibilityMode();
+            final boolean wasInRekordboxLightingMode = proxyingForVirtualRekordbox.get();
+
+            if (wasInAnOpusMode) {
+                // We were running in limited compatibility mode, so we need to shut down VirtualRekordbox (rekordbox lighting mode)
+                // or ourselves (SQLite mode); either way we need to shut down OpusProvider.
+                if (wasInRekordboxLightingMode) {
+                    try {
+                        VirtualRekordbox.getInstance().stop();
+                    } catch (Throwable t) {
+                        logger.error("Problem stopping VirtualRekordbox", t);
+                    }
                 }
                 if (OpusProvider.getInstance().isRunning()) {
-                  OpusProvider.getInstance().stop();
+                    try {
+                        OpusProvider.getInstance().stop();
+                    } catch (Throwable t) {
+                        logger.error("Problem stopping OpusProvider", t);
+                    }
                 }
                 proxyingForVirtualRekordbox.set(false);
-                deliverLifecycleAnnouncement(logger, false);
-                setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
-                return;
+                inOpusQuadSQLiteMode.set(false);
             }
 
-            // We were running on our own, so shut down the rest of our state.
-            try {
-                setSendingStatus(false);
-            } catch (Throwable t) {
-                logger.error("Problem stopping sending status during shutdown", t);
+            if (!wasInRekordboxLightingMode) {
+                // We were ourselves running, so shut down the rest of our state.
+                try {
+                    setSendingStatus(false);
+                } catch (Throwable t) {
+                    logger.error("Problem stopping sending status during shutdown", t);
+                }
+                DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
+                socket.get().close();
+                socket.set(null);
             }
-            DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
-            socket.get().close();
-            socket.set(null);
+
+            // Either way, let people know we are done.
             deliverLifecycleAnnouncement(logger, false);
             setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
         }
@@ -2201,7 +2245,7 @@ public class VirtualCdj extends LifecycleParticipant {
         if (send) {  // Start sending status packets.
             ensureRunning();
             if (proxyingForVirtualRekordbox.get()) {
-                throw new IllegalStateException("Cannot send status when in Opus Quad compatibility mode.");
+                throw new IllegalStateException("Cannot send status when in Opus Quad rekordbox lighting mode.");
             }
             if ((getDeviceNumber() < 1) || (getDeviceNumber() > 4)) {
                 throw new IllegalStateException("Can only send status when using a standard player number, 1 through 4.");
