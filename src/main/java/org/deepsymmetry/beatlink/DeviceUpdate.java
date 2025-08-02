@@ -85,7 +85,7 @@ public abstract class DeviceUpdate {
         preNexusCdj = deviceName.startsWith("CDJ") && (deviceName.endsWith("900") || deviceName.endsWith("2000"));
 
         if (isFromOpusQuad) {
-            deviceNumber = Util.translateOpusPlayerNumbers(deviceNumberOffset);
+            deviceNumber = Util.translateOpusPlayerNumbers(packetBytes[deviceNumberOffset]);
         } else {
             deviceNumber = Util.unsign(packetBytes[deviceNumberOffset]);
         }
