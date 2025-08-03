@@ -1094,7 +1094,9 @@ public class VirtualCdj extends LifecycleParticipant {
      * mode (relying on the user to maintain and attach metadata archives of track information for the USBs they
      * are using, and phrase information we can obtain through rekordbox lighting mode to try to match tracks,
      * since the IDs are not reliable), and acting as a proxy for packets that {@code VirtualRekordbox} is responsible
-     * for receiving.</p>
+     * for receiving. Note, when posing as {@link VirtualRekordbox}, beat packets and precise packets are
+     * not sent from the Opus. Beat packets cannot be emulated in this mode due to the lack of precision of the current
+     * position in the track.</p>
      *
      * <p>A variant mode for working with the Opus Quad is used when a database key has been supplied for opening
      * the SQLite databases that it uses instead of DeviceSQL (these are also present in metadata archives). When
