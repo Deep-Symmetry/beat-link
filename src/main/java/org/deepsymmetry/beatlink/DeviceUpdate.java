@@ -50,7 +50,8 @@ public abstract class DeviceUpdate {
     final boolean preNexusCdj;
 
     /**
-     * Constructor sets all the immutable interpreted fields based on the packet content.
+     * Constructor sets all the immutable interpreted fields based on the packet content, works for all subclasses
+     * other than {@link PrecisePosition} which sadly has to use a different byte to determine the device number.
      *
      * @param packet the device update packet that was received
      * @param name the type of packet that is being processed, in case a problem needs to be reported
@@ -58,6 +59,20 @@ public abstract class DeviceUpdate {
      */
     @API(status = API.Status.STABLE)
     public DeviceUpdate(DatagramPacket packet, String name, int length) {
+        this(packet, name, length, DEVICE_NUMBER_OFFSET);
+    }
+
+    /**
+     * Constructor sets all the immutable interpreted fields based on the packet content, works for subclasses
+     * like {@link PrecisePosition} which sadly use a different byte to determine the device number.
+     *
+     * @param packet the device update packet that was received
+     * @param name the type of packet that is being processed, in case a problem needs to be reported
+     * @param length the expected length of the packet
+     * @param deviceNumberOffset the offset in the packet at which the device number can be found
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public DeviceUpdate(DatagramPacket packet, String name, int length, int deviceNumberOffset) {
         timestamp = System.nanoTime();
         if (packet.getLength() != length) {
             throw new IllegalArgumentException(name + " packet must be " + length + " bytes long");
@@ -70,9 +85,9 @@ public abstract class DeviceUpdate {
         preNexusCdj = deviceName.startsWith("CDJ") && (deviceName.endsWith("900") || deviceName.endsWith("2000"));
 
         if (isFromOpusQuad) {
-            deviceNumber = Util.translateOpusPlayerNumbers(packetBytes[DEVICE_NUMBER_OFFSET]);
+            deviceNumber = Util.translateOpusPlayerNumbers(packetBytes[deviceNumberOffset]);
         } else {
-            deviceNumber = Util.unsign(packetBytes[DEVICE_NUMBER_OFFSET]);
+            deviceNumber = Util.unsign(packetBytes[deviceNumberOffset]);
         }
     }
 
