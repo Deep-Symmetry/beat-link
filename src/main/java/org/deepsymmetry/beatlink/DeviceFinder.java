@@ -203,6 +203,15 @@ public class DeviceFinder extends LifecycleParticipant {
         updateDevices(announcement);
         if (foundNewDevice) {
             deliverFoundAnnouncement(announcement);
+
+            if (announcement.isXdjAz) {
+                // Start the BeatFinder so the VirtualCdj can check whether an XDJ-AZ seems to be in Pro DJ Link mode.
+                try {
+                    BeatFinder.getInstance().start();
+                } catch (Exception e) {
+                    logger.error("Unable to start BeatFinder in presence of XDJ-AZ", e);
+                }
+            }
         }
     }
 

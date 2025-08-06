@@ -51,6 +51,11 @@ public class OpusProvider {
     public static final String OPUS_NAME = "OPUS-QUAD";
 
     /**
+     * The device name reported by the XDJ-AZ, so we can recognize when we are dealing with one of these devices.
+     */
+    public static final String XDJ_AZ_NAME = "XDJ-AZ";
+
+    /**
      * Keep track of whether we are running.
      */
     private static final AtomicBoolean running = new AtomicBoolean(false);
@@ -81,8 +86,10 @@ public class OpusProvider {
     private final AtomicReference<String> databaseKey = new AtomicReference<>(prefs.get(databasePrefsKey, null));
 
     /**
-     * Helper function to see if we are operating in
-     * [MODE 2](https://github.com/kyleawayan/beat-link/blob/opus-table/opus-table.md)
+     * Helper function to see if we are posing as a Virtual CDJ and relying on our ability to read Device Library Plus
+     * records to match track information.
+     *
+     * @return {@code true} if we are posing as a virtual CDJ and not using PSSI matching with rekordbox lighting.
      */
     @API(status = API.Status.EXPERIMENTAL)
     public boolean usingDeviceLibraryPlus() {
@@ -1002,11 +1009,15 @@ public class OpusProvider {
     }
 
     /**
-     * Start proxying track metadata from mounted archives for the Opus Quad decks.
+     * Start proxying track metadata from mounted archives for the Opus Quad decks; should only be
+     * called by {@link VirtualCdj} and can only be called when that is in Opus Quad compatibility mode.
      */
     @API(status = API.Status.STABLE)
     public synchronized void start()  {
         if (!isRunning()) {
+            if (!VirtualCdj.getInstance().inOpusQuadCompatibilityMode()) {
+                throw new IllegalStateException("Can only be started when VirtualCdj is in Opus Quad compatibility mode.");
+            }
             running.set(true);
              MetadataFinder.getInstance().addMetadataProvider(metadataProvider);
         }

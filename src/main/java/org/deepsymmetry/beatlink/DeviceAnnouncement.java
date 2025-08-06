@@ -57,6 +57,7 @@ public class DeviceAnnouncement {
         timestamp = System.currentTimeMillis();
         name = new String(packetBytes, 0x0c, 20).trim();
         isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
+        isXdjAz = name.equals(OpusProvider.XDJ_AZ_NAME);
         number = Util.unsign(packetBytes[0x24]);
     }
 
@@ -78,6 +79,7 @@ public class DeviceAnnouncement {
         timestamp = System.currentTimeMillis();
         name = new String(packetBytes, 0x0c, 20).trim();
         isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
+        isXdjAz = name.equals(OpusProvider.XDJ_AZ_NAME);
         number = deviceNumber;
     }
 
@@ -186,6 +188,12 @@ public class DeviceAnnouncement {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public final boolean isOpusQuad;
+
+    /**
+     * Check whether a device update came from an XDJ-AZ, which can also be in a weird, non-Pro DJ Link mode.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public final boolean isXdjAz;
 
     @Override
     public String toString() {

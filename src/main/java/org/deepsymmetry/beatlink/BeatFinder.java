@@ -1,6 +1,7 @@
 package org.deepsymmetry.beatlink;
 
 import org.apiguardian.api.API;
+import org.deepsymmetry.beatlink.data.OpusProvider;
 import org.deepsymmetry.beatlink.data.TimeFinder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -116,6 +118,40 @@ public class BeatFinder extends LifecycleParticipant {
     }
 
     /**
+     * Used to keep track of the last time we saw a channels-on-air packet from an XDJ-AZ, which would tell us
+     * that it is operating in Pro DJ Link mode.
+     */
+    private final AtomicReference<Long> lastSeenXdjAzChannelsOnAir = new AtomicReference<>();
+
+    /**
+     * Check if there seems to be an XDJ-AZ on the network that is operating in Pro DJ Link mode,
+     * by seeing if we have received a Channels On-Air packet from one within the past second.
+     *
+     * @return true if one seems to be present
+     * @throws IllegalStateException if we are not running
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public boolean canSeeXdjAzInProDJLinkMode() {
+        ensureRunning();
+        final Long saw = lastSeenXdjAzChannelsOnAir.get();
+        return saw != null && System.nanoTime() - saw < TimeUnit.SECONDS.toNanos(1);
+    }
+
+    /**
+     * Checks if a device update packet was sent by an XDJ-AZ by looking at the device name field.
+     *
+     * @param packet the packet that was received
+     * @return {@code true} if the device name matches XDJ-AZ
+     */
+    private boolean isFromXdjAz(DatagramPacket packet) {
+        final byte[] data = packet.getData();
+        final byte[] name = OpusProvider.XDJ_AZ_NAME.getBytes();
+        final int len = name.length;
+        return Arrays.equals(data, 0x0b, 0x0b + len, name, 0, len) &&
+                data[0x0b + len + 1] == 0;
+    }
+
+    /**
      * Start listening for beat announcements and sync commands. If already listening, has no effect.
      *
      * @throws SocketException if the socket to listen on port 50001 cannot be created
@@ -165,6 +201,9 @@ public class BeatFinder extends LifecycleParticipant {
                                                 isPacketLongEnough(packet, 0x2d, "channels on-air")) {
                                             final Set<Integer> audibleChannels = getAudibleChannels(packet);
                                             deliverOnAirUpdate(audibleChannels);
+                                            if (isFromXdjAz(packet)) {  // Record that we saw an XDJ-AZ channels-on-air packet
+                                                lastSeenXdjAzChannelsOnAir.set(System.nanoTime());
+                                            }
                                         }
                                         break;
 

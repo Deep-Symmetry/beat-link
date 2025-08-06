@@ -828,6 +828,9 @@ public class VirtualRekordbox extends LifecycleParticipant {
     @API(status = API.Status.EXPERIMENTAL)
     synchronized boolean start() throws Exception {
         if (!isRunning()) {
+            if (!VirtualCdj.getInstance().inOpusQuadCompatibilityMode()) {
+                throw new IllegalStateException("Can only be started when VirtualCdj is in Opus Quad compatibility mode.");
+            }
 
             // Set up so we know we have to shut down if the DeviceFinder shuts down.
             DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);

@@ -137,6 +137,10 @@ public class CdjStatus extends DeviceUpdate {
          */
         COLLECTION (4),
         /**
+         * The track was loaded from USB 2 on an XDJ-XZ in four-deck mode.
+         */
+        USB_2_SLOT (7),
+        /**
          * We saw a value that we did not recognize, so we don’t know where the track came from.
          */
         UNKNOWN    (-1);
