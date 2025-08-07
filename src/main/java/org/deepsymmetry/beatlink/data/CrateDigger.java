@@ -226,6 +226,21 @@ public class CrateDigger {
     }
 
     /**
+     * Check whether we would be able to use a database read from the specified slot. Makes sure the device that
+     * owns the slot uses DeviceSQL track IDs, or that we know how to access SQLite databases if it doesn’t.
+     *
+     * @param slot the slot from which a track was loaded
+     *
+     * @return {@code true} if we will be able to read track metadata from a database downloaded from that slot
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public boolean canUseDatabase(SlotReference slot) {
+        final DeviceAnnouncement owner = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
+        // TODO: Implement reading SQLite, and check if we have the key.
+        return !owner.isUsingDeviceLibraryPlus;
+    }
+
+    /**
      * Whenever we learn media details about a newly-mounted media slot, if it is rekordbox media, start the process
      * of fetching and parsing the database, so we can offer metadata for that slot.
      */
@@ -235,7 +250,8 @@ public class CrateDigger {
             if (isRunning() && details.mediaType == CdjStatus.TrackType.REKORDBOX &&
                     !VirtualCdj.getInstance().inOpusQuadCompatibilityMode() &&  // If we are dealing with an Opus Quad, we can’t download files.
                     details.slotReference.slot != CdjStatus.TrackSourceSlot.COLLECTION &&  // We always use dbserver to talk to rekordbox.
-                    !databases.containsKey(details.slotReference) &&
+                    !databases.containsKey(details.slotReference) &&  // We haven’t already downloaded it.
+                    canUseDatabase(details.slotReference) &&  // The player uses a database format we can read.
                     activeRequests.add(details.slotReference)) {
                 new Thread(() -> {
                     File file = null;

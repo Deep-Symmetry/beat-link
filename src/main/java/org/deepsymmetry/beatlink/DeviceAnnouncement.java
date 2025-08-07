@@ -58,6 +58,7 @@ public class DeviceAnnouncement {
         name = new String(packetBytes, 0x0c, 20).trim();
         isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
         isXdjAz = name.equals(OpusProvider.XDJ_AZ_NAME);
+        isUsingDeviceLibraryPlus = isOpusQuad || isXdjAz;
         number = Util.unsign(packetBytes[0x24]);
     }
 
@@ -80,6 +81,7 @@ public class DeviceAnnouncement {
         name = new String(packetBytes, 0x0c, 20).trim();
         isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
         isXdjAz = name.equals(OpusProvider.XDJ_AZ_NAME);
+        isUsingDeviceLibraryPlus = isOpusQuad || isXdjAz;
         number = deviceNumber;
     }
 
@@ -184,16 +186,22 @@ public class DeviceAnnouncement {
     }
 
     /**
-     * Check whether a device update came from an Opus Quad, which behaves very differently from true Pro DJ Link hardware.
+     * Indicates whether a device update came from an Opus Quad, which behaves very differently from true Pro DJ Link hardware.
      */
     @API(status = API.Status.EXPERIMENTAL)
     public final boolean isOpusQuad;
 
     /**
-     * Check whether a device update came from an XDJ-AZ, which can also be in a weird, non-Pro DJ Link mode.
+     * Indicates whether a device update came from an XDJ-AZ, which can also be in a weird, non-Pro DJ Link mode.
      */
     @API(status = API.Status.EXPERIMENTAL)
     public final boolean isXdjAz;
+
+    /**
+     * Indicates whether the device that sent this update uses Device Library Plus (SQLite) track IDs rather than DeviceSQL IDs.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public final boolean isUsingDeviceLibraryPlus;
 
     @Override
     public String toString() {
