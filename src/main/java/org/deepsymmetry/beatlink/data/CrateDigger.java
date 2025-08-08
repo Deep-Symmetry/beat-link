@@ -15,6 +15,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +40,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class CrateDigger {
 
     private final Logger logger = LoggerFactory.getLogger(CrateDigger.class);
+
+    /**
+     * The file name rekordbox uses to create legacy DeviceSQL export databases.
+     */
+    public static final String DEVICE_SQL_FILENAME = "export.pdb";
+
+    /**
+     * The file name rekordbox uses to create newer SQLite export databases.
+     */
+    public static final String SQLITE_FILENAME = "exportLibrary.db";
 
     /**
      * How many times we will try to download a file from a player before giving up.
@@ -100,9 +114,18 @@ public class CrateDigger {
     private final Set<SlotReference> activeRequests = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
-     * Holds the local databases we have fetched for mounted media, so we can use them to respond to metadata requests.
+     * Holds the local DeviceSQL databases we have fetched and parsed for mounted media, so we can use them to respond
+     * to metadata requests. A given slot will be present only in one of this map and {@link #jdbcConnections},
+     * depending on whether the host device uses Device Library Plus.
      */
     private final Map<SlotReference, Database> databases = new ConcurrentHashMap<>();
+
+    /**
+     * Holds the JDBC connections we have made to local SQLite databases we have fetched for mounted media, so we can
+     * use them to respond to metadata requests. A given slot will be present only in one of this map and
+     * {@link #databases}, depending on whether the host device uses Device Library Plus.
+     */
+    private final Map<SlotReference, Connection> jdbcConnections = new ConcurrentHashMap<>();
 
     /**
      * Return the filesystem path needed to mount the NFS filesystem associated with a particular media slot.
@@ -236,53 +259,69 @@ public class CrateDigger {
     @API(status = API.Status.EXPERIMENTAL)
     public boolean canUseDatabase(SlotReference slot) {
         final DeviceAnnouncement owner = DeviceFinder.getInstance().getLatestAnnouncementFrom(slot.player);
-        // TODO: Implement reading SQLite, and check if we have the key.
-        return !owner.isUsingDeviceLibraryPlus;
+        return !owner.isUsingDeviceLibraryPlus || OpusProvider.getInstance().usingDeviceLibraryPlus();
+    }
+
+    /**
+     * Helper function to determine where a database file for a particular slot should be downloaded.
+     *
+     * @param slot the media slot from which the database is being downloaded
+     * @param databaseFileName the name of the file being downloaded (varies between DeviceSQL and SQLite)
+     *
+     * @return the file to which that database should be downloaded
+     */
+    private File localDatabaseFile(SlotReference slot, String databaseFileName) {
+        return new File(downloadDirectory, slotPrefix(slot) + databaseFileName);
     }
 
     /**
      * Whenever we learn media details about a newly-mounted media slot, if it is rekordbox media, start the process
      * of fetching and parsing the database, so we can offer metadata for that slot.
      */
-    private final MediaDetailsListener mediaDetailsListener = new MediaDetailsListener() {
-        @Override
-        public void detailsAvailable(final MediaDetails details) {
-            if (isRunning() && details.mediaType == CdjStatus.TrackType.REKORDBOX &&
-                    !VirtualCdj.getInstance().inOpusQuadCompatibilityMode() &&  // If we are dealing with an Opus Quad, we can’t download files.
-                    details.slotReference.slot != CdjStatus.TrackSourceSlot.COLLECTION &&  // We always use dbserver to talk to rekordbox.
-                    !databases.containsKey(details.slotReference) &&  // We haven’t already downloaded it.
-                    canUseDatabase(details.slotReference) &&  // The player uses a database format we can read.
-                    activeRequests.add(details.slotReference)) {
-                new Thread(() -> {
-                    File file = null;
-                    try {
-                        file = new File(downloadDirectory, slotPrefix(details.slotReference) + "export.pdb");
-                        logger.info("Fetching rekordbox export.pdb from player {}, slot {}",
-                                details.slotReference.player, details.slotReference.slot);
-                        long started = System.nanoTime();
-                        fetchFile(details.slotReference, "PIONEER/rekordbox/export.pdb", file);
-                        long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
-                        logger.info("Finished fetching export.pdb from player {}, slot {}; received {} in {}ms, {}/s.",
-                                details.slotReference.player, details.slotReference.slot,
-                                humanReadableByteCount(file.length(), true), duration,
-                                humanReadableByteCount(file.length() * 1000 / duration, true));
+    private final MediaDetailsListener mediaDetailsListener = details -> {
+        if (isRunning() && details.mediaType == CdjStatus.TrackType.REKORDBOX &&
+                !VirtualCdj.getInstance().inOpusQuadCompatibilityMode() &&  // If we are dealing with an Opus Quad, we can’t download files.
+                details.slotReference.slot != CdjStatus.TrackSourceSlot.COLLECTION &&  // We always use dbserver to talk to rekordbox.
+                !databases.containsKey(details.slotReference) &&        // We haven’t already downloaded it, ...
+                !jdbcConnections.containsKey(details.slotReference) &&  // ... or downloaded and connected to the SQLite version.
+                canUseDatabase(details.slotReference) &&  // The player uses a database format we can read.
+                activeRequests.add(details.slotReference)) {
+            new Thread(() -> {
+                final DeviceAnnouncement owner = DeviceFinder.getInstance().getLatestAnnouncementFrom(details.slotReference.player);
+                final String databaseFileName = owner.isUsingDeviceLibraryPlus? SQLITE_FILENAME : DEVICE_SQL_FILENAME;
+                final File file = localDatabaseFile(details.slotReference, databaseFileName);
+                try {
+                    logger.info("Fetching rekordbox {} from player {}, slot {}", databaseFileName,
+                            details.slotReference.player, details.slotReference.slot);
+                    long started = System.nanoTime();
+                    fetchFile(details.slotReference, "PIONEER/rekordbox/" + databaseFileName, file);
+                    long duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+                    logger.info("Finished fetching {} from player {}, slot {}; received {} in {}ms, {}/s.", databaseFileName,
+                            details.slotReference.player, details.slotReference.slot,
+                            humanReadableByteCount(file.length(), true), duration,
+                            humanReadableByteCount(file.length() * 1000 / duration, true));
+                    if (owner.isUsingDeviceLibraryPlus) {
+                        Connection connection = OpusProvider.getInstance().openSQLiteConnection(file);
+                        logger.info("Found a Device Library Plus database and opened a JDBC connection to it.");
+                        jdbcConnections.put(details.slotReference, connection);
+                        // TODO: Deliver notification about newly available JDBC connection, paralleling deliverDatabaseUpdate.
+                    } else {
+                        // The device uses DeviceSQL databases; parse it and notify listeners about it.
                         started = System.nanoTime();
                         final Database database = new Database(file);
                         duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
                         logger.info("Parsing database took {}ms, {} tracks/s", duration, database.trackIndex.size() * 1000L / duration);
                         databases.put(details.slotReference, database);
                         deliverDatabaseUpdate(details.slotReference, database, true);
-                    } catch (Throwable t) {
-                        logger.error("Problem fetching rekordbox database for media {}, will not offer metadata for it.", details, t);
-                        if (file != null) {
-                            //noinspection ResultOfMethodCallIgnored
-                            file.delete();
-                        }
-                    } finally {
-                        activeRequests.remove(details.slotReference);
                     }
-                }).start();
-            }
+                } catch (Throwable t) {
+                    logger.error("Problem fetching rekordbox database for media {}, will not offer metadata for it.", details, t);
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                } finally {
+                    activeRequests.remove(details.slotReference);
+                }
+            }).start();
         }
     };
 
@@ -316,6 +355,35 @@ public class CrateDigger {
     }
 
     /**
+     * Find the JDBC connection, if any, we have opened to the SQLite (Device Library 2) database we downloaded
+     * that can provide information about the supplied data reference.
+     *
+     * @param reference identifies the location from which data is desired
+     *
+     * @return the appropriate JDBC connection to start from in finding that data, if we have one
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public Connection findJdbcConnection(DataReference reference) {
+        if (reference.trackType == CdjStatus.TrackType.REKORDBOX) {
+            return jdbcConnections.get(reference.getSlotReference());
+        }
+        return null;  // We can only offer data about tracks in the rekordbox database.
+    }
+
+    /**
+     * Find the JDBC connection, if any, we have opened to the SQLite (Device Library 2) database we downloaded
+     * that can provide information about the supplied slot reference.
+     *
+     * @param slot identifies the location from which data is desired
+     *
+     * @return the appropriate JDBC connection to start from in finding that data, if we have one
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public Connection findJdbcConnection(SlotReference slot) {
+        return jdbcConnections.get(slot);
+    }
+
+    /**
      * Find the analysis file for the specified track, downloading it from the player if we have not already done so.
      * Be sure to call {@code _io().close()} when you are done using the returned struct.
      *
@@ -333,7 +401,7 @@ public class CrateDigger {
      * done so. Be sure to call {@code _io().close()} when you are done using the returned struct.
      *
      * @param track the track whose extended analysis file is desired
-     * @param database the parsed database export from which the analysis path can be determined
+     * @param database the parsed DeviceSql database export from which the analysis path can be determined
      *
      * @return the parsed file containing the track analysis
      */
@@ -342,40 +410,20 @@ public class CrateDigger {
     }
 
     /**
-     * Identifies the file that will hold analysis information for a particular track.
-     *
-     * @param track the track whose extended analysis file is desired
-     * @param database the parsed database export from which the analysis path can be determined
-     * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type file to be retrieved
-     *
-     * @return the file that should be used to hold this analysis
-     */
-    private File trackAnalyisFile(DataReference track, Database database, String extension) {
-        final RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
-        if (trackRow != null) {
-            return new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
-                    "track-" + track.rekordboxId + "-anlz" + extension.toLowerCase());
-        }
-
-        logger.warn("Unable to find track {} in database {}", track, database);
-        return null;
-    }
-
-    /**
      * Find an analysis file for the specified track, with the specified file extension, downloading it from the player
      * if we have not already done so. Be sure to call {@code _io().close()} when you are done using the returned struct.
      *
      * @param track the track whose extended analysis file is desired
-     * @param database the parsed database export from which the analysis path can be determined
+     * @param database the parsed DeviceSQL database export from which the analysis path can be determined
      * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type file to be retrieved
      *
      * @return the parsed file containing the track analysis
      */
     private RekordboxAnlz findTrackAnalysis(DataReference track, Database database, String extension) {
-        final File file = trackAnalyisFile(track, database, extension);
+        final File file = trackAnalyisFile(track, extension);
+        final RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
         try {
-            if (file != null) {
-                final RekordboxPdb.TrackRow trackRow = database.trackIndex.get((long) track.rekordboxId);
+            if (trackRow != null) {
                 final String filePath = file.getCanonicalPath();
                 final String analyzePath = Database.getText(trackRow.analyzePath());
                 final String requestedPath = analyzePath.replaceAll("\\.DAT$", extension.toUpperCase());
@@ -406,6 +454,96 @@ public class CrateDigger {
     }
 
     /**
+     * Find the analysis file for the specified track, downloading it from the player if we have not already done so.
+     * Be sure to call {@code _io().close()} when you are done using the returned struct.
+     *
+     * @param track the track whose analysis file is desired
+     * @param connection the JDBC connection to the SQLite Device Library Plus database export from which the analysis path can be determined
+     *
+     * @return the parsed file containing the track analysis
+     */
+    private RekordboxAnlz findTrackAnalysis(DataReference track, Connection connection) {
+        return findTrackAnalysis(track, connection, ".DAT");
+    }
+    /**
+     * Find the extended analysis file for the specified track, downloading it from the player if we have not already
+     * done so. Be sure to call {@code _io().close()} when you are done using the returned struct.
+     *
+     * @param track the track whose extended analysis file is desired
+     * @param connection the JDBC connection to the SQLite Device Library Plus database export from which the analysis path can be determined
+     *
+     * @return the parsed file containing the track analysis
+     */
+    private RekordboxAnlz findExtendedAnalysis(DataReference track, Connection connection) {
+        return findTrackAnalysis(track, connection, ".EXT");
+    }
+
+    /**
+     * Identifies the file that will hold analysis information for a particular track.
+     *
+     * @param track the track whose extended analysis file is desired
+     * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type file to be retrieved
+     *
+     * @return the file that should be used to hold this analysis
+     */
+    private File trackAnalyisFile(DataReference track, String extension) {
+        return new File(downloadDirectory, slotPrefix(track.getSlotReference()) +
+                "track-" + track.rekordboxId + "-anlz" + extension.toLowerCase());
+    }
+
+    /**
+     * Find an analysis file for the specified track, with the specified file extension, downloading it from the player
+     * if we have not already done so. Be sure to call {@code _io().close()} when you are done using the returned struct.
+     *
+     * @param track the track whose extended analysis file is desired
+     * @param connection the JDBC connection to the SQLite Device Library Plus database export from which the analysis path can be determined
+     * @param extension the file extension (such as ".DAT" or ".EXT") which identifies the type file to be retrieved
+     *
+     * @return the parsed file containing the track analysis
+     */
+    private RekordboxAnlz findTrackAnalysis(DataReference track, Connection connection, String extension) {
+        final File file = trackAnalyisFile(track, extension);
+        try {
+            String analyzePath = null;
+            try (Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery("select analysisDataFilePath from content where content_id = " + track.rekordboxId)) {
+                if (resultSet.next()) {
+                    analyzePath = resultSet.getString(1);
+                }
+            } catch (SQLException e) {
+                logger.error("Problem reading track analysis file path from SQLite database", e);
+            }
+
+            final String filePath = file.getCanonicalPath();
+            if (analyzePath != null) {
+                final String requestedPath = analyzePath.replaceAll("\\.DAT$", extension.toUpperCase());
+                try {
+                    synchronized (Util.allocateNamedLock(filePath)) {
+                        if (file.canRead()) {  // We have already downloaded it.
+                            return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
+                        }
+                        // Prepare to download it.
+                        file.deleteOnExit();
+                        fetchFile(track.getSlotReference(), requestedPath, file);
+                        return new RekordboxAnlz(new RandomAccessFileKaitaiStream(filePath));
+                    }
+                } catch (Exception e) {  // We can give a more specific error including the file path.
+                    logger.error("Problem parsing requested analysis file {} for track {} from JDBC connection {}", requestedPath, track, connection, e);
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                } finally {
+                    Util.freeNamedLock(filePath);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Problem fetching analysis file with extension {} for track {} from JDBC connection {}", extension.toUpperCase(), track, connection, e);
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+        }
+        return null;
+    }
+
+    /**
      * Capture a log copy of a track analysis for which a data problem has been identified, to assist
      * in further research.
      *
@@ -419,13 +557,8 @@ public class CrateDigger {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public void logTrackAnalysis(DataReference track, String extension, String reason, File logDir) throws IOException {
-        final Database database = findDatabase(track);
-        if (database == null) {
-            throw new IllegalArgumentException("No parsed database found for track " + track);
-        }
-
-        final File analysis = trackAnalyisFile(track, database, extension);
-        if (analysis == null || !analysis.canRead()) {
+        final File analysis = trackAnalyisFile(track, extension);
+        if (!analysis.canRead()) {
             throw new IllegalArgumentException("No analysis file exists for track " + track);
         }
 
@@ -444,7 +577,17 @@ public class CrateDigger {
 
         @Override
         public TrackMetadata getTrackMetadata(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
+
+            final Connection connection = findJdbcConnection(track);  // First try SQLite database if open.
+            if (connection != null) {
+                try {
+                    return new TrackMetadata(track, connection, getCueList(sourceMedia, track));
+                } catch (Exception e) {
+                    logger.error("Problem fetching metadata for track {} from JDBC connection {}", track, connection, e);
+                }
+            }
+
+            final Database database = findDatabase(track);  // Otherwise try parsed DeviceSQL database if available.
             if (database != null) {
                 try {
                     return new TrackMetadata(track, database, getCueList(sourceMedia, track));
@@ -457,95 +600,202 @@ public class CrateDigger {
 
         @Override
         public AlbumArt getAlbumArt(MediaDetails sourceMedia, DataReference art) {
-            File file = null;
-            final Database database = findDatabase(art);
-            if (database != null) {
-                try {
+            String artPath = null;
+            //noinspection resource
+            final Connection connection = findJdbcConnection(art);  // First try SQLite database if open.
+            if (connection != null) {
+                try (Statement statement = connection.createStatement();
+                     ResultSet resultSet = statement.executeQuery("select * from image where image_id = " + art.rekordboxId)) {
+                    if (resultSet.next()) {
+                        artPath = resultSet.getString("path");
+                    }
+                } catch (SQLException e) {
+                    logger.error("Problem retrieving artwork path from SQLite database", e);
+                }
+            } else {
+                final Database database = findDatabase(art);  // Otherwise try parsed DeviceSQL database if available.
+                if (database != null) {
                     RekordboxPdb.ArtworkRow artworkRow = database.artworkIndex.get((long) art.rekordboxId);
                     if (artworkRow != null) {
-                        file = new File(downloadDirectory, slotPrefix(art.getSlotReference()) +
-                                "art-" + art.rekordboxId + ".jpg");
-                        if (file.canRead()) {
-                            return new AlbumArt(art, file);
-                        }
-                        file.deleteOnExit();  // Prepare to download it.
-                        if (ArtFinder.getInstance().getRequestHighResolutionArt()) {
-                            try {
-                                fetchFile(art.getSlotReference(), Util.highResolutionPath(Database.getText(artworkRow.path())), file, 1);
-                            } catch (IOException e) {
-                                if (!(e instanceof FileNotFoundException)) {
-                                    logger.error("Unexpected exception type trying to load high resolution album art", e);
-                                }
-                                // Fall back to looking for the normal resolution art.
-                                fetchFile(art.getSlotReference(), Database.getText(artworkRow.path()), file);
-                            }
-                        } else {
-                            fetchFile(art.getSlotReference(), Database.getText(artworkRow.path()), file);
-                        }
-                        return new AlbumArt(art, file);
+                        artPath = Database.getText(artworkRow.path());
                     } else {
                         logger.warn("Unable to find artwork {} in database {}", art, database);
                     }
-                } catch (Exception e) {
-                    logger.warn("Problem fetching artwork {} from database {}", art, database, e);
-                    if (file != null) {
-                        //noinspection ResultOfMethodCallIgnored
-                        file.delete();
-                    }
                 }
             }
+
+            if (artPath != null) {
+                final File file = new File(downloadDirectory, slotPrefix(art.getSlotReference()) +
+                        "art-" + art.rekordboxId + ".jpg");
+                try {
+                    if (file.canRead()) {
+                        return new AlbumArt(art, file);
+                    }
+                    file.deleteOnExit();  // Prepare to download it.
+                    if (ArtFinder.getInstance().getRequestHighResolutionArt()) {
+                        try {
+                            fetchFile(art.getSlotReference(), Util.highResolutionPath(artPath), file, 1);
+                        } catch (IOException e) {
+                            if (!(e instanceof FileNotFoundException)) {
+                                logger.error("Unexpected exception type trying to load high resolution album art", e);
+                            }
+                            // Fall back to looking for the normal resolution art.
+                            fetchFile(art.getSlotReference(), artPath, file);
+                        }
+                    } else {
+                        fetchFile(art.getSlotReference(), artPath, file);
+                    }
+                    return new AlbumArt(art, file);
+                } catch (Exception e) {
+                    logger.warn("Problem fetching artwork {}", art, e);
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                }
+            }
+
             return null;
         }
 
         @Override
         public BeatGrid getBeatGrid(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
+            RekordboxAnlz analysisFile = null;
+            final Connection connection = findJdbcConnection(track);  // First try SQLite database if open.
+            if (connection != null) {
+                try {
+                    analysisFile = findTrackAnalysis(track, connection);
+                } catch (Exception e) {
+                    logger.error("Problem fetching beat grid for track {} from JDBC Connection {}", track, connection, e);
+                }
+            }
+
+            final Database database = findDatabase(track);  // Otherwise try parsed DeviceSQL database if available.
             if (database != null) {
                 try {
-                    final RekordboxAnlz file = findTrackAnalysis(track, database);
-                    if (file != null) {
-                        try {
-                            return new BeatGrid(track, file);
-                        } finally {
-                            file._io().close();
-                        }
-                    }
+                    analysisFile = findTrackAnalysis(track, database);
                 } catch (Exception e) {
                     logger.error("Problem fetching beat grid for track {} from database {}", track, database, e);
                 }
             }
+
+            if (analysisFile != null) {
+                try {
+                    return new BeatGrid(track, analysisFile);
+                } catch (Exception e) {
+                    logger.error("Problem fetching beat grid for track {}", track, e);
+                } finally {
+                    try {
+                        analysisFile._io().close();
+                    } catch (Exception e) {
+                        logger.error("Problem closing analysis file {} fetching beat grid for track {}", analysisFile, track, e);
+                    }
+                }
+            }
+
             return null;
         }
 
         @Override
         public CueList getCueList(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
+            RekordboxAnlz analysisFile = null;
+
+            final Connection connection = findJdbcConnection(track);  // First try SQLite database if open.
+            if (connection != null) {
+                try {
+                    // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues.
+                    analysisFile = findExtendedAnalysis(track, connection);
+                    if (analysisFile == null) {  // No extended analysis found, fall back to the basic one.
+                        analysisFile = findTrackAnalysis(track, connection);
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching cue list for track {} from JDBC Connection {}", track, connection, e);
+                }
+            }
+
+            final Database database = findDatabase(track);  // Otherwise try parsed DeviceSQL database if available.
             if (database != null) {
                 try {
-                    // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues
-                    RekordboxAnlz file = findExtendedAnalysis(track, database);
-                    if (file ==  null) {  // No extended analysis found, fall back to the basic one
-                        file = findTrackAnalysis(track, database);
-                    }
-                    if (file != null) {
-                        try {
-                            return new CueList(file);
-                        } finally {
-                            file._io().close();
-                        }
+                    // Try the extended file first, because it can contain both nxs2-style commented cues and basic cues.
+                    analysisFile = findExtendedAnalysis(track, database);
+                    if (analysisFile ==  null) {  // No extended analysis found, fall back to the basic one.
+                        analysisFile = findTrackAnalysis(track, database);
                     }
                 } catch (Exception e) {
                     logger.error("Problem fetching cue list for track {} from database {}", track, database, e);
                 }
             }
+
+            if (analysisFile != null) {
+                try {
+                    return new CueList(analysisFile);
+                } finally {
+                    try {
+                        analysisFile._io().close();
+                    } catch (Exception e) {
+                        logger.error("Problem closing analysis file {} fetching cue list for track {}", analysisFile, track, e);
+                    }
+                }
+            }
+
             return null;
         }
 
         @Override
         public WaveformPreview getWaveformPreview(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
-            if (database != null) {
+            final Connection connection = findJdbcConnection(track);  // First try SQLite database if open.
+            if (connection != null) {
+                // Attempt 3-band preview if so configured first
+                if (WaveformFinder.getInstance().getPreferredStyle() == WaveformFinder.WaveformStyle.THREE_BAND) {
+                    try {
+                        final RekordboxAnlz file = findTrackAnalysis(track, connection, ".2EX");
+                        if (file != null) {
+                            try {
+                                return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.THREE_BAND);
+                            } finally {
+                                file._io().close();
+                            }
+                        }
+                    } catch (IllegalStateException e) {
+                        logger.info("No 3-band preview waveform found (using SQLite), falling back to color or blue version.");
+                    } catch (Exception e) {
+                        logger.error("Problem fetching 3-band waveform preview for track {} from JDBC connection {}", track, connection, e);
+                    }
+                }
 
+                // Attempt color preview if so configured next
+                if (WaveformFinder.getInstance().getPreferredStyle() == WaveformFinder.WaveformStyle.RGB) {
+                    try {
+                        final RekordboxAnlz file = findExtendedAnalysis(track, connection);
+                        if (file != null) {
+                            try {
+                                return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.RGB);
+                            } finally {
+                                file._io().close();
+                            }
+                        }
+                    } catch (IllegalStateException e) {
+                        logger.info("No color preview waveform found (using SQLite), checking for blue version.");
+                    } catch (Exception e) {
+                        logger.error("Problem fetching color waveform preview for track {} from JDBC connection {}", track, connection, e);
+                    }
+                }
+
+                // Final fallback option, the old blue-and white waveforms.
+                try {
+                    final RekordboxAnlz file = findTrackAnalysis(track, connection);
+                    if (file != null) {
+                        try {
+                            return new WaveformPreview(track, file, WaveformFinder.WaveformStyle.BLUE);
+                        } finally {
+                            file._io().close();
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching waveform preview for track {} from JDBC connection {}", track, connection, e);
+                }
+            }
+
+            final Database database = findDatabase(track);  // Otherwise try parsed DeviceSQL database if available.
+            if (database != null) {
                 // Attempt 3-band preview if so configured first
                 if (WaveformFinder.getInstance().getPreferredStyle() == WaveformFinder.WaveformStyle.THREE_BAND) {
                     try {
@@ -601,9 +851,43 @@ public class CrateDigger {
 
         @Override
         public WaveformDetail getWaveformDetail(MediaDetails sourceMedia, DataReference track) {
-            final Database database = findDatabase(track);
-            if (database != null) {
+            final Connection connection = findJdbcConnection(track);  // First try SQLite database if open.
+            if (connection != null) {
+                // Attempt 3-band waveform detail if so configured first
+                if (WaveformFinder.getInstance().getPreferredStyle() == WaveformFinder.WaveformStyle.THREE_BAND) {
+                    try {
+                        final RekordboxAnlz file = findTrackAnalysis(track, connection, ".2EX");
+                        if (file != null) {
+                            try {
+                                return new WaveformDetail(track, file, WaveformFinder.WaveformStyle.THREE_BAND);
+                            } finally {
+                                file._io().close();
+                            }
+                        }
+                    } catch (IllegalStateException e) {
+                        logger.info("No 3-band detail waveform found (using SQLite), falling back to color or blue version.");
+                    } catch (Exception e) {
+                        logger.error("Problem fetching waveform detail for track {} from JDBC connection {}", track, connection, e);
+                    }
+                }
 
+                // Fall back to color or blue/white waveform detail
+                try {
+                    final RekordboxAnlz file = findExtendedAnalysis(track, connection);
+                    if (file != null) {
+                        try {
+                            return new WaveformDetail(track, file, WaveformFinder.WaveformStyle.RGB);
+                        } finally {
+                            file._io().close();
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error("Problem fetching waveform preview for track {} from JDBC connection {}", track, connection, e);
+                }
+            }
+
+            final Database database = findDatabase(track);  // Otherwise try parsed DeviceSQL database if available.
+            if (database != null) {
                 // Attempt 3-band waveform detail if so configured first
                 if (WaveformFinder.getInstance().getPreferredStyle() == WaveformFinder.WaveformStyle.THREE_BAND) {
                     try {
@@ -641,8 +925,18 @@ public class CrateDigger {
 
         @Override
         public RekordboxAnlz.TaggedSection getAnalysisSection(MediaDetails sourceMedia, DataReference track, String fileExtension, String typeTag) {
-            final Database database = findDatabase(track);
-            if (database != null) {
+            RekordboxAnlz analysisFile = null;
+            final Connection connection = findJdbcConnection(track);  // First try SQLite database if open.
+            if (connection != null) {
+                analysisFile = findTrackAnalysis(track, connection, fileExtension);  // Open the desired file to scan.
+            } else {
+                final Database database = findDatabase(track);  // Otherwise try parsed DeviceSQL database if available.
+                if (database != null) {
+                    analysisFile = findTrackAnalysis(track, database, fileExtension);  // Open the desired file to scan.
+                }
+            }
+
+            if (analysisFile != null) {
                 try {
                     if ((typeTag.length()) > 4) {
                         throw new IllegalArgumentException("typeTag cannot be longer than four characters");
@@ -656,20 +950,17 @@ public class CrateDigger {
                         }
                     }
 
-                    final RekordboxAnlz file = findTrackAnalysis(track, database, fileExtension);  // Open the desired file to scan.
-                    if (file != null) {
-                        try {  // Scan for the requested tag type.
-                            for (RekordboxAnlz.TaggedSection section : file.sections()) {
-                                if (section.fourcc() == RekordboxAnlz.SectionTags.byId(fourcc)) {
-                                    return section;
-                                }
+                    try {  // Scan for the requested tag type.
+                        for (RekordboxAnlz.TaggedSection section : analysisFile.sections()) {
+                            if (section.fourcc() == RekordboxAnlz.SectionTags.byId(fourcc)) {
+                                return section;
                             }
-                        } finally {
-                            file._io().close();
                         }
+                    } finally {
+                        analysisFile._io().close();
                     }
                 } catch (Exception e) {
-                    logger.error("Problem fetching analysis file {} section {} for track {} from database {}", fileExtension, typeTag, track, database, e);
+                    logger.error("Problem fetching analysis file {} section {} for track {} ", fileExtension, typeTag, track, e);
                 }
             }
             return null;
@@ -710,6 +1001,16 @@ public class CrateDigger {
                 database.sourceFile.delete();
             }
             databases.clear();
+            for (Map.Entry<SlotReference,Connection> entry: jdbcConnections.entrySet()) {
+                try {
+                    entry.getValue().close();
+                } catch (Throwable t) {
+                    logger.error("Problem closing JDBC connection to SQLite database {} for slot {}.", entry.getValue(), entry.getKey(), t);
+                }
+                //noinspection ResultOfMethodCallIgnored
+                localDatabaseFile(entry.getKey(), SQLITE_FILENAME).delete();
+            }
+            jdbcConnections.clear();
         }
     }
 
@@ -892,11 +1193,23 @@ public class CrateDigger {
                     try {
                         database.close();
                     } catch (IOException e) {
-                        logger.error("Problem closing parsed rekordbox database export.", e);
+                        logger.error("Problem closing parsed rekordbox database export for slot {}.", slot, e);
                     }
                     //noinspection ResultOfMethodCallIgnored
                     database.sourceFile.delete();
                 }
+
+                final Connection connection = jdbcConnections.remove(slot);
+                if (connection != null) {
+                    try {
+                        connection.close();
+                    } catch (Exception e) {
+                        logger.error("Problem closing SQLite rekordbox database export JDBC connection for slot {}.", slot, e);
+                    }
+                    //noinspection ResultOfMethodCallIgnored
+                    localDatabaseFile(slot, SQLITE_FILENAME).delete();
+                }
+
                 final String prefix = slotPrefix(slot);
                 File[] files = downloadDirectory.listFiles();
                 if (files != null) {
@@ -929,6 +1242,7 @@ public class CrateDigger {
         sb.append("CrateDigger[").append("running: ").append(isRunning());
         if (isRunning()) {
             sb.append(", databases mounted: ").append(databases.size());
+            sb.append(", SQLite JDBC connections open: ").append(jdbcConnections.size());
             sb.append(", download directory: ").append(downloadDirectory.getAbsolutePath());
             sb.append(", media using hidden PIONEER folder: ").append(mediaWithHiddenPioneerFolder);
         }

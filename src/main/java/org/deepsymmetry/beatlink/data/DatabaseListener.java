@@ -4,8 +4,11 @@ import org.apiguardian.api.API;
 import org.deepsymmetry.cratedigger.Database;
 
 /**
- * <p>The listener interface for receiving updates when {@link CrateDigger} has obtained the rekordbox database
- * that was just mounted in a player slot, or when that slot has unmounted so the database is no longer relevant.</p>
+ * <p>The listener interface for receiving updates when {@link CrateDigger} has obtained the rekordbox DeviceSQL
+ * (original Device Library) database that was just mounted in a player slot, or when that slot has unmounted so the
+ * database is no longer relevant.</p>
+ *
+ * <p>Note that this interface is not used to report when SQLite (Device Library Plus) connections are made.</p>
  *
  * <p>Classes that are interested displaying up-to-date information about databases for mounted media can implement this
  * interface, and then pass the implementing instance to {@link CrateDigger#addDatabaseListener(DatabaseListener)}.
@@ -20,8 +23,8 @@ import org.deepsymmetry.cratedigger.Database;
 @API(status = API.Status.STABLE)
 public interface DatabaseListener {
     /**
-     * <p>Invoked whenever a rekordbox database has been successfully retrieved and parsed from a slot, so it can be
-     * used locally to obtain metadata about the tracks in that slot.</p>
+     * <p>Invoked whenever a rekordbox DeviceSQL (original Device Library) export database has been successfully
+     * retrieved and parsed from a slot, so it can be used locally to obtain metadata about the tracks in that slot.</p>
      *
      * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
      * from the network, so if you want to interact with user interface objects in this method, you need to use

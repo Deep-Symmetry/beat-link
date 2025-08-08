@@ -350,8 +350,7 @@ public class OpusProvider {
             try {
                 final File databaseFile = new File(extractDirectory, slotPrefix(usbSlotNumber) + "exportLibrary.db");
                 Files.copy(filesystem.getPath("/exportLibrary.db"), databaseFile.toPath());
-                final Connection connection = SQLiteMCSqlCipherConfig.getV4Defaults().withKey(databaseKey.get()).build()
-                        .createConnection("jdbc:sqlite:file:" + databaseFile.getAbsolutePath());
+                final Connection connection = openSQLiteConnection(databaseFile);
 
                 // If we got here, this is a valid metadata archive, we found a valid SQLite Device Library Plus export inside it,
                 // and we have the correct key to decrypt and use the database.
@@ -427,6 +426,24 @@ public class OpusProvider {
         } catch (InterruptedException e) {
             logger.error("Problem enqueuing media update for mounted metadata archive", e);
         }
+    }
+
+    /**
+     * Open a JDBC connection to the specified SQLite database file, using the configured key.
+     *
+     * @param databaseFile the database file to open
+     *
+     * @return the opened connection
+     * @throws SQLException if there is a problem opening the database
+     * @throws IllegalStateException if no database key is configured
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public Connection openSQLiteConnection(File databaseFile) throws SQLException {
+        if (databaseKey.get() == null) {
+            throw new IllegalStateException("No database key has been configured.");
+        }
+        return SQLiteMCSqlCipherConfig.getV4Defaults().withKey(databaseKey.get()).build()
+                .createConnection("jdbc:sqlite:file:" + databaseFile.getAbsolutePath());
     }
 
     /**
@@ -607,7 +624,7 @@ public class OpusProvider {
         public TrackMetadata getTrackMetadata(MediaDetails sourceMedia, DataReference track) {
             final RekordboxUsbArchive archive = findArchive(track.player);
             if (archive != null && track.trackType == CdjStatus.TrackType.REKORDBOX) {
-                Connection connection = archive.getConnection();
+                final Connection connection = archive.getConnection();
                 if (connection != null) {
                     // We have a usable SQLite Device Library Plus database connection we can use
                     try {
@@ -617,7 +634,7 @@ public class OpusProvider {
                     }
                 } else {
                     // We have to fall back to the legacy DeviceSQL database and hope the IDs match
-                    Database database = archive.getDatabase();
+                    final Database database = archive.getDatabase();
                     try {
                         return new TrackMetadata(track, database, getCueList(sourceMedia, track));
                     } catch (Exception e) {
