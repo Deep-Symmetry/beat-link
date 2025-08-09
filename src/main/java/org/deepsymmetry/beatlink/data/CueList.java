@@ -483,7 +483,7 @@ public class CueList {
      * @param tag the tag whose entries are to be added
      */
     private void addEntriesFromTag(List<Entry> entries, RekordboxAnlz.CueTag tag) {
-        for (RekordboxAnlz.CueEntry cueEntry : tag.cues()) {  // TODO: Need to figure out how to identify deleted entries to ignore.
+        for (RekordboxAnlz.CueEntry cueEntry : tag.cues()) {
             if (cueEntry.hotCue() == 0) {  // This is an ordinary memory point or loop.
                 if (cueEntry.type() == RekordboxAnlz.CueEntryType.LOOP) {
                     entries.add(new Entry(Util.timeToHalfFrame(cueEntry.time()),

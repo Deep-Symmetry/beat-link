@@ -304,7 +304,7 @@ public class CrateDigger {
                         Connection connection = OpusProvider.getInstance().openSQLiteConnection(file);
                         logger.info("Found a Device Library Plus database and opened a JDBC connection to it.");
                         jdbcConnections.put(details.slotReference, connection);
-                        // TODO: Deliver notification about newly available JDBC connection, paralleling deliverDatabaseUpdate.
+                        deliverConnectionUpdate(details.slotReference, connection, true);
                     } else {
                         // The device uses DeviceSQL databases; parse it and notify listeners about it.
                         started = System.nanoTime();
@@ -1065,7 +1065,7 @@ public class CrateDigger {
             Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     /**
-     * Adds the specified database listener to receive updates when a rekordbox database has been obtained for a
+     * Adds the specified database listener to receive updates when a DeviceSQL database has been obtained for a
      * media slot, or when the underlying media for a database has been unmounted, so it is no longer relevant.
      * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
      * thrown and no action is performed.
@@ -1090,7 +1090,7 @@ public class CrateDigger {
 
     /**
      * Removes the specified database listener so that it no longer receives updates when there
-     * are changes to the available set of rekordbox databases. If {@code listener} is {@code null} or not present
+     * are changes to the available set of DeviceSQL databases. If {@code listener} is {@code null} or not present
      * in the set of registered listeners, no exception is thrown and no action is performed.
      *
      * @param listener the database update listener to remove
@@ -1102,6 +1102,11 @@ public class CrateDigger {
         }
     }
 
+    /**
+     * Get the list of registered listeners for mounted DeviceSQL databases.
+     *
+     * @return an immutable copy of the list of currently-registered listeners.
+     */
     @API(status = API.Status.STABLE)
     public Set<DatabaseListener> getDatabaseListeners() {
         // Make a copy so callers get an immutable snapshot of the current state.
@@ -1122,6 +1127,82 @@ public class CrateDigger {
                     listener.databaseMounted(slot, database);
                 } else {
                     listener.databaseUnmounted(slot, database);
+                }
+            } catch (Throwable t) {
+                logger.warn("Problem delivering rekordbox database availability update to listener", t);
+            }
+        }
+    }
+
+    /**
+     * Keeps track of the registered SQLite connection listeners.
+     */
+    private final Set<SQLiteConnectionListener> sqlLiteListeners =
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    /**
+     * Adds the specified database listener to receive updates when a rekordbox database has been obtained for a
+     * media slot, or when the underlying media for a database has been unmounted, so it is no longer relevant.
+     * If {@code listener} is {@code null} or already present in the set of registered listeners, no exception is
+     * thrown and no action is performed.
+     *
+     * <p>To reduce latency, updates are delivered to listeners directly on the thread that is receiving packets
+     * from the network, so if you want to interact with user interface objects in listener methods, you need to use
+     * <code><a href="http://docs.oracle.com/javase/8/docs/api/javax/swing/SwingUtilities.html#invokeLater-java.lang.Runnable-">javax.swing.SwingUtilities.invokeLater(Runnable)</a></code>
+     * to do so on the Event Dispatch Thread.</p>
+     *
+     * <p>Even if you are not interacting with user interface objects, any code in the listener method
+     * <em>must</em> finish quickly, or it will add latency for other listeners, and updates will back up.
+     * If you want to perform lengthy processing of any sort, do so on another thread.</p>
+     *
+     * @param listener the database update listener to add
+     */
+    @API(status = API.Status.STABLE)
+    public void addSQLiteListener(SQLiteConnectionListener listener) {
+        if (listener != null) {
+            sqlLiteListeners.add(listener);
+        }
+    }
+
+    /**
+     * Removes the specified database listener so that it no longer receives updates when there
+     * are changes to the available set of rekordbox databases. If {@code listener} is {@code null} or not present
+     * in the set of registered listeners, no exception is thrown and no action is performed.
+     *
+     * @param listener the database update listener to remove
+     */
+    @API(status = API.Status.STABLE)
+    public void removeSQLiteListener(SQLiteConnectionListener listener) {
+        if (listener != null) {
+            sqlLiteListeners.remove(listener);
+        }
+    }
+
+    /**
+     * Get the list of registered listeners for connections to SQLite databases.
+     *
+     * @return an immutable copy of the list of currently-registered listeners.
+     */
+    @API(status = API.Status.STABLE)
+    public Set<SQLiteConnectionListener> getSqlLiteListeners() {
+        // Make a copy so callers get an immutable snapshot of the current state.
+        return Set.copyOf(sqlLiteListeners);
+    }
+
+    /**
+     * Send a SQLite database connection announcement to all registered listeners.
+     *
+     * @param slot the media slot whose database connection availability has changed
+     * @param connection the SQLite JDBC connection whose relevance has changed
+     * @param available if {@code} true, the connection is newly available, otherwise it is no longer relevant and closed
+     */
+    private void deliverConnectionUpdate(SlotReference slot, Connection connection, boolean available) {
+        for (final SQLiteConnectionListener listener : getSqlLiteListeners()) {
+            try {
+                if (available) {
+                    listener.databaseConnected(slot, connection);
+                } else {
+                    listener.databaseDisconnected(slot, connection);
                 }
             } catch (Throwable t) {
                 logger.warn("Problem delivering rekordbox database availability update to listener", t);
@@ -1201,6 +1282,7 @@ public class CrateDigger {
 
                 final Connection connection = jdbcConnections.remove(slot);
                 if (connection != null) {
+                    deliverConnectionUpdate(slot, connection, false);
                     try {
                         connection.close();
                     } catch (Exception e) {
