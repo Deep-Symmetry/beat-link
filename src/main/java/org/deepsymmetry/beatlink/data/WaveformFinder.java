@@ -589,7 +589,7 @@ public class WaveformFinder extends LifecycleParticipant {
      */
     static boolean retryUnanalyzedTrack(TrackMetadataUpdate fromUpdate, AtomicBoolean retryFlag, TrackMetadataListener retryListener, String description) {
         if (fromUpdate == null || fromUpdate.metadata.trackType != CdjStatus.TrackType.UNANALYZED) {
-            logger.info("retryUnanalyzedTrack bailing for {}, fromUpdate: {}", description, fromUpdate);
+            logger.debug("retryUnanalyzedTrack bailing for {}, fromUpdate: {}", description, fromUpdate);
             return false;
         }
 
