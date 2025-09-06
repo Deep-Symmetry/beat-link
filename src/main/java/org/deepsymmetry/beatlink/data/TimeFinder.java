@@ -597,7 +597,7 @@ public class TimeFinder extends LifecycleParticipant {
                 // We can't determine where the player is. That's ok if it is sending us precise position packets,
                 // (e.g. a CDJ-3000 playing an unanalyzed track), we will just wait for the next one in that case.
                 // Otherwise, clear our notion of the playback position.
-                if (!lastPosition.precise) {
+                if (lastPosition != null && !lastPosition.precise) {
                     positions.remove(device);
                     updateListenersIfNeeded(device, null, beat);
                 }

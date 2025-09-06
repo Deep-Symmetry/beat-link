@@ -82,7 +82,7 @@
         <dependency>
             <groupId>io.github.willena</groupId>
             <artifactId>sqlite-jdbc</artifactId>
-            <version>3.49.0.0</version>
+            <version>3.50.1.0</version>
         </dependency>
         <!-- Kaitai Struct Compiler runtime for Java, since we refer to parts of it directly -->
         <dependency>
