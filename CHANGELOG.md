@@ -6,10 +6,12 @@ This change log follows the conventions of
 
 ## [Unreleased][unreleased]
 
-Nothing so far.
+### Fixed
+
+- When in Opus Quad mode, so the `VirtualCdj` is actually proxying for `VirtualRekordbox`, its `toString()` method would throw an exception because some things which used to be invariants can now vary.
+
 
 ## [8.0.0] - 2025-07-21
-
 
 ### Added
 

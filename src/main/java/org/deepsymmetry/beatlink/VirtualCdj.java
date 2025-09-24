@@ -96,6 +96,10 @@ public class VirtualCdj extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public InetAddress getLocalAddress() {
         ensureRunning();
+        final DatagramSocket s = socket.get();
+        if (s == null) {  // We must be proxying for VirtualRekordbox.
+            return VirtualRekordbox.getInstance().getLocalAddress();
+        }
         return socket.get().getLocalAddress();
     }
 
@@ -115,6 +119,10 @@ public class VirtualCdj extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public InetAddress getBroadcastAddress() {
         ensureRunning();
+        InetAddress result = broadcastAddress.get();
+        if (result == null) {  // We must be proxying for VirtualRekordbox.
+            return VirtualRekordbox.getInstance().getBroadcastAddress();
+        }
         return broadcastAddress.get();
     }
 
