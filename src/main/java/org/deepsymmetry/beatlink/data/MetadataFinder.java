@@ -110,6 +110,11 @@ public class MetadataFinder extends LifecycleParticipant {
             return null;
         }
 
+        // Even if we are supposed to be able to make metadata queries, the Opus Quad does not have a DBServer port..
+        if (DeviceFinder.getInstance().getLatestAnnouncementFrom(track.player).isOpusQuad) {
+            return null;
+        }
+
         // Use the dbserver protocol implementation to request the metadata.
         ConnectionManager.ClientTask<TrackMetadata> task = client -> queryMetadata(track, client);
 

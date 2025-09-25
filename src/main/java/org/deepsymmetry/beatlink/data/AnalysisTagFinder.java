@@ -337,6 +337,11 @@ public class AnalysisTagFinder extends LifecycleParticipant  {
             return null;
         }
 
+        // Even if we are supposed to be able to make metadata queries, the Opus Quad does not have a DBServer port..
+        if (DeviceFinder.getInstance().getLatestAnnouncementFrom(trackReference.player).isOpusQuad) {
+            return null;
+        }
+
         // We have to actually request the analysis using the dbserver protocol.
         ConnectionManager.ClientTask<RekordboxAnlz.TaggedSection> task = client -> {
             logger.debug("tag task running");
