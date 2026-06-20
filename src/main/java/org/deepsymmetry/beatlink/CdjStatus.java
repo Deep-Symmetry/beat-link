@@ -313,7 +313,11 @@ public class CdjStatus extends DeviceUpdate {
         /**
          * The player reached the end of the track and stopped.
          */
-        ENDED(17),
+        ENDED(0x11),
+        /**
+         * The player is in an emergency loop, e.g. because of loss of network access to music data.
+         */
+        EMERGENCY_LOOP(0x12),
         /**
          * We received a value we don’t recognize, so we don’t know what it means.
          */
@@ -455,9 +459,13 @@ public class CdjStatus extends DeviceUpdate {
          */
         FORWARD_VINYL (9),
         /**
+         * The player is looping while in slip mode, so it is tracking multiple playback positions.
+         */
+        SLIPPING (0x0b),
+        /**
          * The player is playing in Forward mode with jog mode set to CDJ.
          */
-        FORWARD_CDJ (13),
+        FORWARD_CDJ (0x0d),
         /**
          * We received a value that we did not recognize, so we don’t know what it means.
          */

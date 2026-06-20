@@ -13,6 +13,7 @@ This change log follows the conventions of
 ### Added
 
 - The `DeviceFinder` now allows you to ignore packets from devices that report specific device names, for example to try and coexist with ShowKontrol by ignoring packets from `"TCS-SHOWKONTROL"`.
+- We now recognize the device status when a device is in an emergency loop.
 
 
 ## [8.0.0] - 2025-07-21
