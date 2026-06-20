@@ -186,73 +186,95 @@ public class BeatFinder extends LifecycleParticipant {
 
                                     case BEAT:
                                         if (isPacketLongEnough(packet, 96, "beat")) {
-                                            deliverBeat(new Beat(packet));
+                                            final Beat result = new Beat(packet);
+                                            if (!DeviceFinder.getInstance().isDeviceNameIgnored(result.deviceName)) {
+                                                deliverBeat(result);
+                                            }
                                         }
                                         break;
 
                                     case PRECISE_POSITION:
                                         if (isPacketLongEnough(packet, 60, "precise position")) {
-                                            deliverPrecisePosition(new PrecisePosition(packet));
+                                            final PrecisePosition result = new PrecisePosition(packet);
+                                            if (!DeviceFinder.getInstance().isDeviceNameIgnored(result.deviceName)) {
+                                                deliverPrecisePosition(result);
+                                            }
                                         }
                                         break;
 
                                     case CHANNELS_ON_AIR:
                                         if (packet.getLength() == 0x35 ||  // New DJM-V10 packet with six channels
                                                 isPacketLongEnough(packet, 0x2d, "channels on-air")) {
-                                            final Set<Integer> audibleChannels = getAudibleChannels(packet);
-                                            deliverOnAirUpdate(audibleChannels);
-                                            if (isFromXdjAz(packet)) {  // Record that we saw an XDJ-AZ channels-on-air packet
-                                                lastSeenXdjAzChannelsOnAir.set(System.nanoTime());
+                                            final String deviceName = new String(packet.getData(), 0x0b, 20).trim();
+                                            if (!DeviceFinder.getInstance().isDeviceNameIgnored(deviceName)) {
+                                                final Set<Integer> audibleChannels = getAudibleChannels(packet);
+                                                deliverOnAirUpdate(audibleChannels);
+                                                if (isFromXdjAz(packet)) {  // Record that we saw an XDJ-AZ channels-on-air packet
+                                                    lastSeenXdjAzChannelsOnAir.set(System.nanoTime());
+                                                }
                                             }
                                         }
                                         break;
 
                                     case SYNC_CONTROL:
                                         if (isPacketLongEnough(packet, 0x2c, "sync control command")) {
-                                            deliverSyncCommand(packet.getData()[0x2b]);
+                                            final String deviceName = new String(packet.getData(), 0x0b, 20).trim();
+                                            if (!DeviceFinder.getInstance().isDeviceNameIgnored(deviceName)) {
+                                                deliverSyncCommand(packet.getData()[0x2b]);
+                                            }
                                         }
                                         break;
 
                                     case MASTER_HANDOFF_REQUEST:
                                         if (isPacketLongEnough(packet, 0x28, "tempo master handoff request")) {
-                                            deliverMasterYieldCommand(packet.getData()[0x21]);
+                                            final String deviceName = new String(packet.getData(), 0x0b, 20).trim();
+                                            if (!DeviceFinder.getInstance().isDeviceNameIgnored(deviceName)) {
+                                                deliverMasterYieldCommand(packet.getData()[0x21]);
+                                            }
                                         }
                                         break;
 
                                     case MASTER_HANDOFF_RESPONSE:
                                         if (isPacketLongEnough(packet, 0x2c, "tempo master handoff response")) {
                                             byte[] data = packet.getData();
-                                            deliverMasterYieldResponse(data[0x21], data[0x2b] == 1);
+                                            final String deviceName = new String(data, 0x0b, 20).trim();
+                                            if (!DeviceFinder.getInstance().isDeviceNameIgnored(deviceName)) {
+                                                deliverMasterYieldResponse(data[0x21], data[0x2b] == 1);
+                                            }
                                         }
                                         break;
 
                                     case FADER_START_COMMAND:
                                         if (isPacketLongEnough(packet, 0x28, "fader start command")) {
                                             byte[] data = packet.getData();
-                                            Set<Integer> playersToStart = new TreeSet<>();
-                                            Set<Integer> playersToStop = new TreeSet<>();
-                                            for (int channel = 1; channel <= 4; channel++) {
-                                                switch (data[0x23 + channel]) {
+                                            final String deviceName = new String(data, 0x0b, 20).trim();
+                                            if (!DeviceFinder.getInstance().isDeviceNameIgnored(deviceName)) {
+                                                final Set<Integer> playersToStart = new TreeSet<>();
+                                                final Set<Integer> playersToStop = new TreeSet<>();
+                                                for (int channel = 1; channel <= 4; channel++) {
+                                                    switch (data[0x23 + channel]) {
 
-                                                    case 0:
-                                                        playersToStart.add(channel);
-                                                        break;
+                                                        case 0:
+                                                            playersToStart.add(channel);
+                                                            break;
 
-                                                    case 1:
-                                                        playersToStop.add(channel);
-                                                        break;
+                                                        case 1:
+                                                            playersToStop.add(channel);
+                                                            break;
 
-                                                    case 2:
-                                                        // Leave this player alone
-                                                        break;
+                                                        case 2:
+                                                            // Leave this player alone
+                                                            break;
 
-                                                    default:
-                                                        logger.warn("Ignoring unrecognized fader start command, {}, for channel {}", data[0x23 + channel], channel);
+                                                        default:
+                                                            logger.warn("Ignoring unrecognized fader start command, {}, for channel {}", data[0x23 + channel], channel);
+                                                    }
+
+                                                    final Set<Integer> allPlayersToStart = Collections.unmodifiableSet(playersToStart);
+                                                    final Set<Integer> allPlayersToStop = Collections.unmodifiableSet(playersToStop);
+                                                    deliverFaderStartCommand(allPlayersToStart, allPlayersToStop);
                                                 }
                                             }
-                                            playersToStart = Collections.unmodifiableSet(playersToStart);
-                                            playersToStop = Collections.unmodifiableSet(playersToStop);
-                                            deliverFaderStartCommand(playersToStart, playersToStop);
                                         }
                                         break;
 

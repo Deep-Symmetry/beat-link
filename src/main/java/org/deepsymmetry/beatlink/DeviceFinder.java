@@ -167,7 +167,7 @@ public class DeviceFinder extends LifecycleParticipant {
      * Stop ignoring device updates which are received from the specified address. Intended for use by the
      * {@link VirtualCdj}, so that when it shuts down, its socket stops being treated specially.
      *
-     * @param address the address from which any device updates should be ignored.
+     * @param address the address from which any device updates should no longer be ignored.
      */
     @API(status = API.Status.STABLE)
     public void removeIgnoredAddress(InetAddress address) {
@@ -211,6 +211,46 @@ public class DeviceFinder extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public boolean isAddressIgnored(InetAddress address) {
         return ignoredAddresses.contains(unwrapV6mappedV4address(address));
+    }
+
+    /**
+     * Maintain a set of device names from which device announcements should be ignored. For example if you want to
+     * try to coexist with ShowKontrol, I’ve been informed you could add "TCS-SHOWKONTROL" to this list.
+     */
+    private final Set<String> ignoredDeviceNames =
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    /**
+     * Start ignoring any packets whose device names match the supplied string. For example if you want to
+     * try to coexist with ShowKontrol, I’ve been informed you could add "TCS-SHOWKONTROL" to this list.
+     *
+     * @param name the device name for which any device updates should be ignored.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public void addIgnoredDeviceName(String name) {
+        ignoredDeviceNames.add(name);
+    }
+
+    /**
+     * Stop ignoring device updates whose device names match the specified string.
+     *
+     * @param name the device name for which any device updates should no longer be ignored.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public void removeIgnoredDeviceName(String name) {
+        ignoredDeviceNames.remove(name);
+    }
+
+    /**
+     * Check whether a device name is being ignored.
+     *
+     * @param name the device name to be checked as a candidate to be ignored
+     *
+     * @return {@code true} if packets specifying that device name should be ignored
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public boolean isDeviceNameIgnored(String name) {
+        return ignoredDeviceNames.contains(name);
     }
 
     /**

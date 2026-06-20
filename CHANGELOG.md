@@ -10,6 +10,10 @@ This change log follows the conventions of
 
 - When in Opus Quad mode, so the `VirtualCdj` is actually proxying for `VirtualRekordbox`, its `toString()` method would throw an exception because some things which used to be invariants can now vary.
 
+### Added
+
+- The `DeviceFinder` now allows you to ignore packets from devices that report specific device names, for example to try and coexist with ShowKontrol by ignoring packets from `"TCS-SHOWKONTROL"`.
+
 
 ## [8.0.0] - 2025-07-21
 
