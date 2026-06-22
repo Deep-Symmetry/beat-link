@@ -353,23 +353,31 @@ public class DeviceFinder extends LifecycleParticipant {
                                     }
 
                                     DeviceAnnouncement announcement = new DeviceAnnouncement(packet);
-
-                                    if (announcement.isOpusQuad) {
-                                        createAndProcessOpusAnnouncements(packet);
+                                    if (isDeviceNameIgnored(announcement.getDeviceName())) {
+                                        logger.debug("Ignoring device announcement because of device name {}", announcement.getDeviceName());
                                     } else {
-                                        processAnnouncement(announcement);
+                                        if (announcement.isOpusQuad) {
+                                            createAndProcessOpusAnnouncements(packet);
+                                        } else {
+                                            processAnnouncement(announcement);
 
-                                        if (VirtualCdj.getInstance().isRunning() &&
-                                                announcement.getDeviceNumber() == VirtualCdj.getInstance().getDeviceNumber()) {
-                                            // Someone is using the same device number as we are! Try to defend it.
-                                            VirtualCdj.getInstance().defendDeviceNumber(announcement.getAddress());
+                                            if (VirtualCdj.getInstance().isRunning() &&
+                                                    announcement.getDeviceNumber() == VirtualCdj.getInstance().getDeviceNumber()) {
+                                                // Someone is using the same device number as we are! Try to defend it.
+                                                VirtualCdj.getInstance().defendDeviceNumber(announcement.getAddress());
+                                            }
                                         }
                                     }
                                 }
                             } else if (kind == Util.PacketType.DEVICE_HELLO) {
                                 logger.debug("Received device hello packet.");
                             } else if (kind != null) {
-                                VirtualCdj.getInstance().handleSpecialAnnouncementPacket(kind, packet);
+                                final String deviceName = new String(packet.getData(), 0x0c, 20).trim();
+                                if (isDeviceNameIgnored(deviceName)) {
+                                    logger.debug("Ignoring special announcement packet because of device name {}", deviceName);
+                                } else {
+                                    VirtualCdj.getInstance().handleSpecialAnnouncementPacket(kind, packet);
+                                }
                             }
                         }
                         expireDevices();
