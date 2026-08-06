@@ -48,7 +48,7 @@ public class TimeFinder extends LifecycleParticipant {
      * Records when each player's current beat began, as a {@link System#nanoTime()} value, set by whichever
      * arrived first to tell us the beat had changed: the beat packet, or a status packet reporting the new beat
      * number. Used to recognize a second beat packet for a beat we have already counted, which some players send
-     * (an XDJ-XZ sends two per beat, the later one arriving up to two fifths of the way into the beat).
+     * (an XDJ-XZ sends two per beat, the later one arriving between half and three quarters of the way in).
      */
     private final ConcurrentHashMap<Integer, Long> beatStarts = new ConcurrentHashMap<>();
 
