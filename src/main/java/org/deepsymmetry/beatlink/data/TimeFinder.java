@@ -45,6 +45,14 @@ public class TimeFinder extends LifecycleParticipant {
     private final ConcurrentHashMap<Integer, DeviceUpdate> updates = new ConcurrentHashMap<>();
 
     /**
+     * Records when each player's current beat began, as a {@link System#nanoTime()} value, set by whichever
+     * arrived first to tell us the beat had changed: the beat packet, or a status packet reporting the new beat
+     * number. Used to recognize a second beat packet for a beat we have already counted, which some players send
+     * (an XDJ-XZ sends two per beat, the later one arriving up to two fifths of the way into the beat).
+     */
+    private final ConcurrentHashMap<Integer, Long> beatStarts = new ConcurrentHashMap<>();
+
+    /**
      * Our announcement listener watches for devices to disappear from the network, so we can discard all information
      * about them.
      */
@@ -63,6 +71,7 @@ public class TimeFinder extends LifecycleParticipant {
             logger.info("Clearing position information in response to the loss of a device, {}", announcement);
             positions.remove(announcement.getDeviceNumber());
             updates.remove(announcement.getDeviceNumber());
+            beatStarts.remove(announcement.getDeviceNumber());
         }
     };
 
@@ -508,6 +517,12 @@ public class TimeFinder extends LifecycleParticipant {
                         done = positions.replace(device, lastPosition, newPosition);
                     }
                     if (done) {
+                        if (lastPosition == null || lastPosition.beatNumber != newPosition.beatNumber) {
+                            // We are the first to learn this beat had changed, so the beat packet for it has not
+                            // arrived yet. Record when the beat began, so that packet is recognized as belonging
+                            // to this beat rather than counted as starting the next one.
+                            beatStarts.put(device, update.getTimestamp());
+                        }
                         updateListenersIfNeeded(device, newPosition, null);
                     } else {  // Some other thread updated the position while we were working, re-evaluate.
                         lastPosition = positions.get(device);
@@ -576,14 +591,18 @@ public class TimeFinder extends LifecycleParticipant {
                     // into guessing a position for that player based on no valid information.
                     return;
                 } else {
-                    // See if we have moved past 1/5 of the way into the current beat.
-                    final long distanceIntoBeat = lastPosition.milliseconds - beatGrid.getTimeWithinTrack(lastPosition.beatNumber);
-                    final long farEnough = 6000000 / beat.getBpm() / 5;
-                    if (distanceIntoBeat >= farEnough) {  // We can consider this the start of a new beat
-                        beatNumber = Math.min(lastPosition.beatNumber + 1, beatGrid.beatCount);  // Handle loop at end
-                    } else {  // We must have received the beat packet out of order with respect to the first status in the beat.
-                        beatNumber = lastPosition.beatNumber;
+                    // Decide whether this packet starts a new beat, or is a second packet for the beat we are
+                    // already on. Time it against when that beat began, rather than against how far our
+                    // interpolated position has moved into it: the interpolation is exactly what goes wrong when
+                    // we miscount, so using it here lets one bad beat cause the next.
+                    final long beatMillis = 6000000 / beat.getBpm();
+                    final Long currentBeatStart = beatStarts.get(device);
+                    if (currentBeatStart != null &&
+                            TimeUnit.NANOSECONDS.toMillis(beat.getTimestamp() - currentBeatStart) < beatMillis / 2) {
+                        return;  // Another packet for the beat we have already counted; it tells us nothing new.
                     }
+                    beatNumber = Math.min(lastPosition.beatNumber + 1, beatGrid.beatCount);  // Handle loop at end
+                    beatStarts.put(device, beat.getTimestamp());
                 }
 
                 // We know the player is playing forward because otherwise we don't get beats.
@@ -731,6 +750,7 @@ public class TimeFinder extends LifecycleParticipant {
             running.set(false);
             positions.clear();
             updates.clear();
+            beatStarts.clear();
             deliverLifecycleAnnouncement(logger, false);
         }
     }
