@@ -595,10 +595,16 @@ public class TimeFinder extends LifecycleParticipant {
                     // already on. Time it against when that beat began, rather than against how far our
                     // interpolated position has moved into it: the interpolation is exactly what goes wrong when
                     // we miscount, so using it here lets one bad beat cause the next.
+                    //
+                    // Three quarters of a beat, from the measured spread: on an XDJ-XZ at 110 BPM the second
+                    // packet of a beat lands between half and three quarters of the way in, while genuine beats
+                    // arrive at 0.9 to 1.0 of the period, jitter included. There is no clean gap between the two
+                    // populations, so a packet is worth at most one beat of delay if this call goes the wrong
+                    // way -- and the next beat re-anchors -- whereas counting one twice is a jump the whole way.
                     final long beatMillis = 6000000 / beat.getBpm();
                     final Long currentBeatStart = beatStarts.get(device);
                     if (currentBeatStart != null &&
-                            TimeUnit.NANOSECONDS.toMillis(beat.getTimestamp() - currentBeatStart) < beatMillis / 2) {
+                            TimeUnit.NANOSECONDS.toMillis(beat.getTimestamp() - currentBeatStart) < beatMillis * 3 / 4) {
                         return;  // Another packet for the beat we have already counted; it tells us nothing new.
                     }
                     beatNumber = Math.min(lastPosition.beatNumber + 1, beatGrid.beatCount);  // Handle loop at end
