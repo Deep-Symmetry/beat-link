@@ -58,7 +58,8 @@ public class DeviceAnnouncement {
         name = new String(packetBytes, 0x0c, 20).trim();
         isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
         isXdjAz = name.equals(OpusProvider.XDJ_AZ_NAME);
-        isUsingDeviceLibraryPlus = isOpusQuad || isXdjAz;
+        isCdj3000x = name.equals(OpusProvider.CDJ_3000X_NAME);
+        isUsingDeviceLibraryPlus = isOpusQuad || isXdjAz || isCdj3000x;
         number = Util.unsign(packetBytes[0x24]);
     }
 
@@ -81,7 +82,8 @@ public class DeviceAnnouncement {
         name = new String(packetBytes, 0x0c, 20).trim();
         isOpusQuad = name.equals(OpusProvider.OPUS_NAME);
         isXdjAz = name.equals(OpusProvider.XDJ_AZ_NAME);
-        isUsingDeviceLibraryPlus = isOpusQuad || isXdjAz;
+        isCdj3000x = name.equals(OpusProvider.CDJ_3000X_NAME);
+        isUsingDeviceLibraryPlus = isOpusQuad || isXdjAz || isCdj3000x;
         number = deviceNumber;
     }
 
@@ -196,6 +198,12 @@ public class DeviceAnnouncement {
      */
     @API(status = API.Status.EXPERIMENTAL)
     public final boolean isXdjAz;
+
+    /**
+     * Indicates whether a device update came from a CDJ-3000X.
+     */
+    @API(status = API.Status.EXPERIMENTAL)
+    public final boolean isCdj3000x;
 
     /**
      * Indicates whether the device that sent this update uses Device Library Plus (SQLite) track IDs rather than DeviceSQL IDs.
