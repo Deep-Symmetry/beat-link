@@ -5,6 +5,7 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -1294,9 +1295,9 @@ public class VirtualCdj extends LifecycleParticipant {
     public Set<DeviceUpdate> getLatestStatus() {
         ensureRunning();
         Set<DeviceUpdate> result = new HashSet<>();
-        long now = System.currentTimeMillis();
+        long now = System.nanoTime();
         for (DeviceUpdate update : updates.values()) {
-            if (now - update.getTimestamp() <= DeviceFinder.MAXIMUM_AGE) {
+            if (now - update.getTimestamp() <= TimeUnit.MILLISECONDS.toNanos(DeviceFinder.MAXIMUM_AGE)) {
                 result.add(update);
             }
         }
