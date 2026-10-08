@@ -9,6 +9,7 @@ This change log follows the conventions of
 ### Fixed
 
 - The `getLatestStatus()` method in `VirtualCdj` was broken ever since timestamps were changed to use the system monotonic clock to work with Ableton Link. Thanks to [@tecnovel](https://github.com/tecnovel) for reporting this.
+- The `isRunning()` method in `VirtualCdj` now more reliably returns `false` during shutdown, even if that is taking a long time for some reason.
 - When in Opus Quad mode, so the `VirtualCdj` is actually proxying for `VirtualRekordbox`, its `toString()` method would throw an exception because some things which used to be invariants can now vary.
 
 ### Added

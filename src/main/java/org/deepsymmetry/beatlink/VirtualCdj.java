@@ -85,7 +85,7 @@ public class VirtualCdj extends LifecycleParticipant {
      */
     @API(status = API.Status.STABLE)
     public boolean isRunning() {
-        return proxyingForVirtualRekordbox.get() || (socket.get() != null && !starting.get());
+        return proxyingForVirtualRekordbox.get() || (socket.get() != null && !transitioning.get());
     }
 
     /**
@@ -975,7 +975,7 @@ public class VirtualCdj extends LifecycleParticipant {
 
         // Set up our buffer and packet to receive incoming messages.
         final Thread receiver = createStatusReceiver();
-        starting.set(false);
+        transitioning.set(false);
         receiver.start();
 
         // Create the thread which announces our participation in the DJ Link network, to request update packets
@@ -1090,10 +1090,10 @@ public class VirtualCdj extends LifecycleParticipant {
     };
 
     /**
-     * Keeps track of the fact that we are starting so that {@link #isRunning()} can return false even though
-     * we have a socket open while we are trying to self-assign a device number.
+     * Keeps track of the fact that we are starting or stopping so that {@link #isRunning()} can return false even
+     * though we have a socket open.
      */
-    private final AtomicBoolean starting = new AtomicBoolean(false);
+    private final AtomicBoolean transitioning = new AtomicBoolean(false);
 
     /**
      * <p>In normal operation (with Pro DJ Link devices), start announcing ourselves and listening for status packets.
@@ -1131,7 +1131,7 @@ public class VirtualCdj extends LifecycleParticipant {
     public synchronized boolean start() throws Exception {
         if (!isRunning()) {
             try {
-                starting.set(true);
+                transitioning.set(true);
 
                 // Set up so we know we have to shut down if the DeviceFinder shuts down.
                 DeviceFinder.getInstance().addLifecycleListener(deviceFinderLifecycleListener);
@@ -1182,7 +1182,7 @@ public class VirtualCdj extends LifecycleParticipant {
                 inOpusQuadSQLiteMode.set(false);
                 return createVirtualCdj();
             } finally {
-                starting.set(false);
+                transitioning.set(false);
             }
         }
         return true;  // We were already active
@@ -1220,50 +1220,55 @@ public class VirtualCdj extends LifecycleParticipant {
     @API(status = API.Status.STABLE)
     public synchronized void stop() {
         if (isRunning()) {
-            broadcastAddress.set(null);
-            matchingInterfaces = null;
-            updates.clear();
-            setTempoMaster(null);
+            try {
+                transitioning.set(true);  // Let callers know we are no longer available.
+                broadcastAddress.set(null);
+                matchingInterfaces = null;
+                updates.clear();
+                setTempoMaster(null);
 
-            final boolean wasInAnOpusMode = inOpusQuadCompatibilityMode();
-            final boolean wasInRekordboxLightingMode = proxyingForVirtualRekordbox.get();
+                final boolean wasInAnOpusMode = inOpusQuadCompatibilityMode();
+                final boolean wasInRekordboxLightingMode = proxyingForVirtualRekordbox.get();
 
-            if (wasInAnOpusMode) {
-                // We were running in limited compatibility mode, so we need to shut down VirtualRekordbox (rekordbox lighting mode)
-                // or ourselves (SQLite mode); either way we need to shut down OpusProvider.
-                if (wasInRekordboxLightingMode) {
-                    try {
-                        VirtualRekordbox.getInstance().stop();
-                    } catch (Throwable t) {
-                        logger.error("Problem stopping VirtualRekordbox", t);
+                if (wasInAnOpusMode) {
+                    // We were running in limited compatibility mode, so we need to shut down VirtualRekordbox (rekordbox lighting mode)
+                    // or ourselves (SQLite mode); either way we need to shut down OpusProvider.
+                    if (wasInRekordboxLightingMode) {
+                        try {
+                            VirtualRekordbox.getInstance().stop();
+                        } catch (Throwable t) {
+                            logger.error("Problem stopping VirtualRekordbox", t);
+                        }
                     }
-                }
-                if (OpusProvider.getInstance().isRunning()) {
-                    try {
-                        OpusProvider.getInstance().stop();
-                    } catch (Throwable t) {
-                        logger.error("Problem stopping OpusProvider", t);
+                    if (OpusProvider.getInstance().isRunning()) {
+                        try {
+                            OpusProvider.getInstance().stop();
+                        } catch (Throwable t) {
+                            logger.error("Problem stopping OpusProvider", t);
+                        }
                     }
+                    proxyingForVirtualRekordbox.set(false);
+                    inOpusQuadSQLiteMode.set(false);
                 }
-                proxyingForVirtualRekordbox.set(false);
-                inOpusQuadSQLiteMode.set(false);
-            }
 
-            if (!wasInRekordboxLightingMode) {
-                // We were ourselves running, so shut down the rest of our state.
-                try {
-                    setSendingStatus(false);
-                } catch (Throwable t) {
-                    logger.error("Problem stopping sending status during shutdown", t);
+                if (!wasInRekordboxLightingMode) {
+                    // We were ourselves running, so shut down the rest of our state.
+                    try {
+                        setSendingStatus(false);
+                    } catch (Throwable t) {
+                        logger.error("Problem stopping sending status during shutdown", t);
+                    }
+                    DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
+                    socket.get().close();
+                    socket.set(null);
                 }
-                DeviceFinder.getInstance().removeIgnoredAddress(socket.get().getLocalAddress());
-                socket.get().close();
-                socket.set(null);
-            }
 
-            // Either way, let people know we are done.
-            deliverLifecycleAnnouncement(logger, false);
-            setDeviceNumber((byte)0);  // Set up for self-assignment if restarted.
+                // Either way, let people know we are done.
+                deliverLifecycleAnnouncement(logger, false);
+                setDeviceNumber((byte) 0);  // Set up for self-assignment if restarted.
+            } finally {
+                transitioning.set(false);
+            }
         }
     }
 
