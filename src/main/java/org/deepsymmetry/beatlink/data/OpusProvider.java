@@ -56,6 +56,11 @@ public class OpusProvider {
     public static final String XDJ_AZ_NAME = "XDJ-AZ";
 
     /**
+     * The device name reported by the CDJ-3000X, so we can recognize when we are dealing with one of these devices.
+     */
+    public static final String CDJ_3000X_NAME = "CDJ-3000X";
+
+    /**
      * Keep track of whether we are running.
      */
     private static final AtomicBoolean running = new AtomicBoolean(false);

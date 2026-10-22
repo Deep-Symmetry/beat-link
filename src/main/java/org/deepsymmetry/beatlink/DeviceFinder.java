@@ -256,7 +256,7 @@ public class DeviceFinder extends LifecycleParticipant {
     /**
      * The names of devices that are able to respond to metadata requests from more than three other devices.
      */
-    public final Set<String> METADATA_FLEXIBLE_DEVICES = Set.of("CDJ-3000", "XDJ-AZ");
+    public final Set<String> METADATA_FLEXIBLE_DEVICES = Set.of("CDJ-3000", "CDJ-3000X", "XDJ-AZ");
 
     /**
      * Handle a device announcement packet we have received.
