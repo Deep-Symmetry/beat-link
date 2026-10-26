@@ -14,6 +14,7 @@ This change log follows the conventions of
 
 ### Added
 
+- You can now obtain metadata for Beatport Link Streaming tracks.
 - The `DeviceFinder` now allows you to ignore packets from devices that report specific device names, for example to try and coexist with ShowKontrol by ignoring packets from `"TCS-SHOWKONTROL"`.
 - We now recognize the device status when a device is in an emergency loop.
 

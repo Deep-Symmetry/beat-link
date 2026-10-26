@@ -578,7 +578,7 @@ public class WaveformFinder extends LifecycleParticipant {
 
     /**
      * Helper method to check if we should retry a request because it seems the player may still be in the process
-     * of analyzing an unanalyzed track, and to produce an informative log message about the decision.
+     * of analyzing an unanalyzed or streaming track, and to produce an informative log message about the decision.
      *
      * @param fromUpdate    the metadata update that led to this attempt, or {@code null} if it was an explicit request via our API
      * @param retryFlag     the flag that is being used to record that the finder class has already scheduled a retry attempt
@@ -588,7 +588,8 @@ public class WaveformFinder extends LifecycleParticipant {
      * @return {@code true} if we have kicked off the process of waiting and trying again
      */
     static boolean retryUnanalyzedTrack(TrackMetadataUpdate fromUpdate, AtomicBoolean retryFlag, TrackMetadataListener retryListener, String description) {
-        if (fromUpdate == null || fromUpdate.metadata.trackType != CdjStatus.TrackType.UNANALYZED) {
+        if (fromUpdate == null || (fromUpdate.metadata.trackType != CdjStatus.TrackType.UNANALYZED &&
+                fromUpdate.metadata.trackType != CdjStatus.TrackType.STREAMING)) {
             logger.debug("retryUnanalyzedTrack bailing for {}, fromUpdate: {}", description, fromUpdate);
             return false;
         }

@@ -141,6 +141,10 @@ public class CdjStatus extends DeviceUpdate {
          */
         USB_2_SLOT (7),
         /**
+         * The track is streaming from Beatport LINK streaming.
+         */
+        BEATPORT_LINK_STREAMING (9),
+        /**
          * We saw a value that we did not recognize, so we don’t know where the track came from.
          */
         UNKNOWN    (-1);
@@ -206,6 +210,10 @@ public class CdjStatus extends DeviceUpdate {
          * The track was loaded from an audio CD, and so has not been analyzed for beat grid and waveforms.
          */
         CD_DIGITAL_AUDIO (5),
+        /**
+         * A streaming track, such as Beatport Link or Streaming Direct Play.
+         */
+        STREAMING        (6),
         /**
          * We received a value that we did not recognize, so we don’t know what it means.
          */
