@@ -560,6 +560,19 @@ public class CdjStatus extends DeviceUpdate {
     }
 
     /**
+     * Helper function to allow {@link #toString()} to report the actual value of an unknown track source slot.
+     *
+     * @return an empty string if the slot is known, or the byte we don't understand within parentheses.
+     */
+    private String describeUnknownTrackSourceSlotValue() {
+        if (trackSourceSlot == TrackSourceSlot.UNKNOWN) {
+            return " (" + packetBytes[0x29] + ")";
+        }
+        return "";  // Nothing unknown to explain
+    }
+
+
+    /**
      * Determine the enum value corresponding to the track type found in the packet.
      *
      * @return the proper value
@@ -570,6 +583,18 @@ public class CdjStatus extends DeviceUpdate {
             return TrackType.UNKNOWN;
         }
         return result;
+    }
+
+    /**
+     * Helper function to allow {@link #toString()} to report the actual value of an unknown track tupe.
+     *
+     * @return an empty string if the track type is known, or the byte we don't understand within parentheses.
+     */
+    private String describeUnknownTrackTypeValue() {
+        if (trackType == TrackType.UNKNOWN) {
+            return " (" + packetBytes[0x2a] + ")";
+        }
+        return "";  // Nothing unknown to explain
     }
 
     /**
@@ -1277,7 +1302,8 @@ public class CdjStatus extends DeviceUpdate {
                 ", address:" + address.getHostAddress() + ", timestamp:" + timestamp + ", busy? " + isBusy() +
                 ", pitch:" + String.format("%+.2f%%", Util.pitchToPercentage(pitch)) +
                 ", rekordboxId:" + getRekordboxId() + ", from player:" + getTrackSourcePlayer() +
-                ", in slot:" + getTrackSourceSlot() + ", track type:" + getTrackType() +
+                ", in slot:" + getTrackSourceSlot() + describeUnknownTrackSourceSlotValue() +
+                ", track type:" + getTrackType() + describeUnknownTrackTypeValue() +
                 ", track:" + getTrackNumber() + ", track BPM:" + String.format("%.1f", bpm / 100.0) +
                 ", effective BPM:" + String.format("%.1f", getEffectiveTempo()) +
                 ", beat:" + getBeatNumber() + ", beatWithinBar:" + getBeatWithinBar() +
