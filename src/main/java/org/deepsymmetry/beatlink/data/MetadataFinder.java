@@ -66,6 +66,7 @@ public class MetadataFinder extends LifecycleParticipant {
      * @deprecated since {@code track} now includes {@code trackType}
      */
     @API(status = API.Status.DEPRECATED)
+    @Deprecated
     public TrackMetadata requestMetadataFrom(final DataReference track, final CdjStatus.TrackType trackType) {
         return requestMetadataInternal(track, false);
     }
@@ -152,7 +153,8 @@ public class MetadataFinder extends LifecycleParticipant {
         // Send the metadata menu request
         if (client.tryLockingForMenuOperations(20, TimeUnit.SECONDS)) {
             try {
-                final Message.KnownType requestType = (track.trackType == CdjStatus.TrackType.REKORDBOX) ?
+                final Message.KnownType requestType = (track.trackType == CdjStatus.TrackType.REKORDBOX ||
+                        track.trackType == CdjStatus.TrackType.STREAMING) ?
                         Message.KnownType.REKORDBOX_METADATA_REQ : Message.KnownType.UNANALYZED_METADATA_REQ;
                 final Message response = client.menuRequestTyped(requestType, Message.MenuIdentifier.MAIN_MENU,
                         track.slot, track.trackType, new NumberField(track.rekordboxId));
