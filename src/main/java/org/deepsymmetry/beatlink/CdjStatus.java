@@ -141,9 +141,13 @@ public class CdjStatus extends DeviceUpdate {
          */
         USB_2_SLOT (7),
         /**
-         * The track is streaming from Beatport LINK streaming.
+         * The track is streaming from Beatport LINK streaming on the CDJ-3000.
          */
         BEATPORT_LINK_STREAMING (9),
+        /**
+         * The track is streaming from Beatport LINK streaming on the XDJ-AZ.
+         */
+        BEATPORT_LINK_STREAMING_AZ (14),
         /**
          * We saw a value that we did not recognize, so we don’t know where the track came from.
          */
